@@ -1,0 +1,21 @@
+{
+  "name": "ferret",
+  "private": true,
+  "license": "MIT",
+  "description": "Ferret — find anything you own. Self-hosted, multi-user home inventory with an API and MCP server.",
+  "type": "module",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=26"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @ferret/server --filter @ferret/web dev",
+    "build": "pnpm --filter @ferret/web build && pnpm --filter @ferret/docs build && pnpm --filter @ferret/server build",
+    "docs:dev": "pnpm --filter @ferret/docs dev",
+    "start": "pnpm --filter @ferret/server start",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "db:generate": "pnpm --filter @ferret/server db:generate",
+    "db:migrate": "pnpm --filter @ferret/server db:migrate"
+  }
+}

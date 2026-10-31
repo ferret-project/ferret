@@ -1,0 +1,178 @@
+@import "tailwindcss";
+/* State variants (dropdown-open:, overlay-open:…): React sets the `open` class instead of FlyonUI's JS. */
+@import "flyonui/variants.css";
+
+/* The smallest text (dates, counts, hints) is 13px, not 12 — still readable at arm's length on a phone. */
+@theme {
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: calc(1.125 / 0.8125);
+}
+
+/* FlyonUI components (free core). Pro blocks come through the FlyonUI MCP. */
+@plugin "flyonui" {
+  themes: ferret --default;
+}
+
+/* Ferret theme: warm, earthy brown with a cream background. */
+@plugin "flyonui/theme" {
+  name: "ferret";
+  default: true;
+  color-scheme: light;
+  --color-base-100: oklch(98.5% 0.008 75);
+  --color-base-200: oklch(95.5% 0.014 75);
+  --color-base-300: oklch(90% 0.02 70);
+  --color-base-content: oklch(28% 0.03 50);
+  --color-primary: oklch(48% 0.09 45);
+  --color-primary-content: oklch(98% 0.01 75);
+  --color-secondary: oklch(49% 0.08 70);
+  --color-secondary-content: oklch(98% 0.01 75);
+  --color-accent: oklch(50% 0.11 160);
+  --color-accent-content: oklch(98% 0.01 160);
+  /* Status colours: without these, btn-error, alert-error, badge-success… render colourless.
+     Dark enough to read as text on cream and on their own soft (10%) backgrounds: 4.5:1 or better. */
+  --color-neutral: oklch(38% 0.03 50);
+  --color-neutral-content: oklch(98% 0.01 75);
+  --color-info: oklch(48% 0.11 240);
+  --color-info-content: oklch(98% 0.01 235);
+  --color-success: oklch(46% 0.11 150);
+  --color-success-content: oklch(98% 0.01 150);
+  --color-warning: oklch(50% 0.12 60);
+  --color-warning-content: oklch(98% 0.01 75);
+  --color-error: oklch(50% 0.17 28);
+  --color-error-content: oklch(98% 0.01 28);
+  --radius-box: 1rem;
+  --radius-field: 0.6rem;
+  --radius-selector: 0.5rem;
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
+}
+
+/* Dark: the same warm browns. On when <html> has the `dark` class — public/appearance.js sets it from the person's
+   choice (Automatic follows the device). Cards and dialogs (base-100) sit lighter than the page (base-200), as in
+   light. Screen only — the report and labels always print light. */
+@media screen {
+  :root.dark {
+    color-scheme: dark;
+    --color-base-100: oklch(25.5% 0.014 55);
+    --color-base-200: oklch(19.5% 0.011 55);
+    --color-base-300: oklch(33% 0.017 55);
+    --color-base-content: oklch(93% 0.014 75);
+    --color-primary: oklch(72% 0.1 55);
+    --color-primary-content: oklch(21% 0.03 50);
+    --color-secondary: oklch(78% 0.1 75);
+    --color-secondary-content: oklch(22% 0.04 60);
+    --color-accent: oklch(74% 0.11 160);
+    --color-accent-content: oklch(20% 0.03 160);
+    --color-neutral: oklch(82% 0.02 60);
+    --color-neutral-content: oklch(21% 0.02 55);
+    --color-info: oklch(74% 0.1 235);
+    --color-info-content: oklch(20% 0.03 235);
+    --color-success: oklch(74% 0.13 150);
+    --color-success-content: oklch(20% 0.03 150);
+    --color-warning: oklch(80% 0.13 75);
+    --color-warning-content: oklch(22% 0.04 60);
+    --color-error: oklch(70% 0.16 28);
+    --color-error-content: oklch(20% 0.03 28);
+  }
+}
+
+/* Reduce Motion: no sliding or fading; spinners still turn, so busy states stay visible. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    transition-duration: 0s !important;
+  }
+}
+
+/* Code panels (the API reference, ApiReference.tsx): dark in both appearances, like a terminal. Text at 4.5:1 or better. */
+@layer components {
+  .code-panel {
+    --code-bg: oklch(25% 0.02 50);
+    background-color: var(--code-bg);
+    color: oklch(94% 0.012 75);
+  }
+  .code-panel-bar {
+    border-bottom: 1px solid oklch(100% 0 0 / 0.1);
+    background-color: oklch(100% 0 0 / 0.04);
+  }
+  .code-panel-dim {
+    color: oklch(76% 0.015 70);
+  }
+  .code-panel-ok {
+    color: oklch(80% 0.13 150);
+  }
+  .code-panel-tab-on {
+    border-color: oklch(76% 0.11 55);
+    color: oklch(82% 0.1 60);
+  }
+  .code-panel .code-panel-copy {
+    background-color: oklch(100% 0 0 / 0.08);
+    color: oklch(90% 0.012 75);
+  }
+  .code-panel .code-panel-copy:hover {
+    background-color: oklch(100% 0 0 / 0.16);
+  }
+}
+@media screen {
+  :root.dark .code-panel {
+    --code-bg: oklch(17% 0.012 55);
+    box-shadow: inset 0 0 0 1px oklch(100% 0 0 / 0.08);
+  }
+}
+
+/* A button whose label may be too long for a phone at large text sizes: the label wraps and the button grows. */
+@utility btn-wrap {
+  height: auto;
+  min-height: var(--size);
+  max-width: 100%;
+  padding-block: 0.5rem;
+}
+
+/* Room below every page for the phone tab bar (TabBar.tsx), which covers the bottom edge. */
+@media screen and (width < 40rem) {
+  body:has(#tab-bar) {
+    --tabbar: calc(56px + env(safe-area-inset-bottom));
+    padding-bottom: var(--tabbar);
+  }
+  body:has(#tab-bar) .min-h-dvh {
+    min-height: calc(100dvh - var(--tabbar));
+  }
+}
+
+/* Fingers need 44px. On touch screens default controls (buttons, inputs, selects) are 44px tall; small
+   buttons and `tap` links keep their look but get an invisible 44px hit area around them. In a layer, so a button's
+   own `absolute` / `fixed` (a dialog's ✕, a photo's Remove) still wins over the `relative` here. */
+@media (pointer: coarse) {
+  :root {
+    --size-field: 0.2895rem;
+  }
+  @layer components {
+    :is(.btn-sm, .btn-xs, .tap) {
+      position: relative;
+    }
+    :is(.btn-sm, .btn-xs, .tap)::before {
+      content: "";
+      position: absolute;
+      inset-block: min(0px, calc((100% - 44px) / 2));
+      inset-inline: min(0px, calc((100% - 44px) / 2));
+    }
+  }
+}
+
+@source "../node_modules/flyonui/dist/index.js";
+
+/* Tabler icons as classes, e.g. <span class="icon-[tabler--camera] size-5"></span> (FlyonUI's icon set). */
+@plugin "@iconify/tailwind4";
+
+/* Printing: US Letter with margins (the insurance report). Label sheets set margin 0 while open (Labels.tsx). */
+@page {
+  size: letter;
+  margin: 0.5in;
+}
+@media print {
+  .label-sheet {
+    break-after: page;
+  }
+}

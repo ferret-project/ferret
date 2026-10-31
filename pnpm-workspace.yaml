@@ -1,0 +1,12 @@
+packages:
+  - apps/*
+  - packages/*
+
+onlyBuiltDependencies:
+  - esbuild
+
+# Dev-only tools held back on old versions with known advisories: VitePress 1.x pins Vite 5, and drizzle-kit's
+# @esbuild-kit loader an old esbuild. Neither ships in the image; drop these once VitePress 2 and drizzle-kit catch up.
+overrides:
+  vitepress>vite: ^6.4.5
+  "@esbuild-kit/core-utils>esbuild": ^0.25.0

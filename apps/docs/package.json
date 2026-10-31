@@ -1,0 +1,14 @@
+{
+  "name": "@ferret/docs",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vitepress dev --port 5174",
+    "build": "vitepress build && node csp-hashes.mjs && node help-json.mjs && node ../../scripts/precompress.mjs .vitepress/dist",
+    "preview": "vitepress preview"
+  },
+  "devDependencies": {
+    "vitepress": "1.6.4"
+  }
+}

@@ -1,0 +1,21 @@
+{
+ "version": 1,
+ "app": "ferret",
+ "createdAt": "2026-10-18T12:00:00.000Z",
+ "kekId": "fcda323381740d65",
+ "dbSha256": "6bb9e49a45e87bc76e49ab6a41c7d884c36d8db925606e180b9ff5eb8ffe0772",
+ "files": [
+  {
+   "key": "XJdq71oNY92lt6DBmVtUykgvXixbZ0Ao/ada1a33d-f092-4242-9ce7-8066882e68c6",
+   "size": 48
+  },
+  {
+   "key": "XJdq71oNY92lt6DBmVtUykgvXixbZ0Ao/f4a91dd5-2b6f-4f2e-82d9-fec258c6ec0a",
+   "size": 79
+  }
+ ],
+ "counts": {
+  "items": 1,
+  "attachments": 2
+ }
+}

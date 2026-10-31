@@ -1,0 +1,1 @@
+ALTER TABLE `attachment` ADD `thumbnail_key` text;

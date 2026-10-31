@@ -1,0 +1,47 @@
+{
+  "name": "@ferret/server",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=../../.env src/server.ts",
+    "build": "node build.mjs",
+    "start": "node dist/server.js",
+    "typecheck": "tsc -p .",
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/migrate.ts",
+    "cli": "tsx --env-file-if-exists=../../.env src/cli.ts",
+    "auth:schema": "auth generate --config src/auth.cli.ts --output src/db/schema/auth.ts --yes",
+    "eval:search": "tsx --env-file-if-exists=../../.env eval/search.ts"
+  },
+  "dependencies": {
+    "@better-auth/api-key": "1.7.14",
+    "@better-auth/passkey": "1.7.14",
+    "@ferret/shared": "workspace:*",
+    "@hono/node-server": "^2.1.5",
+    "@libsql/client": "^0.18.0",
+    "@modelcontextprotocol/server": "2.4.0",
+    "@napi-rs/canvas": "^1.1.0",
+    "altcha-lib": "2.8.0",
+    "better-auth": "^1.7.14",
+    "drizzle-orm": "^0.45.4",
+    "fflate": "0.8.3",
+    "hono": "^4.13.14",
+    "pdfjs-dist": "^6.4.299",
+    "sharp": "0.35.5",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "2.4.0",
+    "@types/node": "^26.6.6",
+    "auth": "^1.7.14",
+    "drizzle-kit": "^0.31.11",
+    "esbuild": "^0.28.2",
+    "http_ece": "1.2.1",
+    "jose": "6.2.14",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}

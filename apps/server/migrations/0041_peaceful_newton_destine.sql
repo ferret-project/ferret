@@ -1,0 +1,1 @@
+ALTER TABLE `attachment` ADD `original_removed_at` integer;

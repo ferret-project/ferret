@@ -1,0 +1,25 @@
+node_modules/
+dist/
+data/
+.env
+.env.local
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+.DS_Store
+coverage/
+
+# Playwright MCP screenshots/snapshots
+.playwright-mcp/
+
+# TypeScript's incremental build cache
+*.tsbuildinfo
+
+# The help: pages added at build time (FERRET_HELP_PAGES, apps/docs/.vitepress/config.ts)
+apps/docs/extra/
+
+# Your own notes and settings for Claude Code, kept out of the repo
+CLAUDE.md
+CLAUDE.local.md
+.claude/

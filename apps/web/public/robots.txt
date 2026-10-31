@@ -1,0 +1,3 @@
+# Ferret is a private home inventory: nothing here is for search engines, share links included.
+User-agent: *
+Disallow: /

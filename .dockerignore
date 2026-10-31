@@ -1,0 +1,8 @@
+**/node_modules
+**/dist
+**/.vitepress/cache
+data
+.git
+.env
+.env.*
+!.env.example

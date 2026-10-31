@@ -1,0 +1,179 @@
+/* Ferret's "ferret" theme colours (apps/web/src/index.css), so help looks like the app. */
+:root {
+  --vp-c-brand-1: oklch(48% 0.09 45);
+  --vp-c-brand-2: oklch(42% 0.09 45);
+  --vp-c-brand-3: oklch(48% 0.09 45);
+  --vp-c-brand-soft: oklch(48% 0.09 45 / 0.12);
+  --vp-c-bg: oklch(98.5% 0.008 75);
+  --vp-c-bg-alt: oklch(95.5% 0.014 75);
+  --vp-c-bg-elv: oklch(98.5% 0.008 75);
+  --vp-c-bg-soft: oklch(95.5% 0.014 75);
+  --vp-c-text-1: oklch(28% 0.03 50);
+  --vp-button-brand-bg: oklch(48% 0.09 45);
+  --vp-button-brand-hover-bg: oklch(42% 0.09 45);
+  --vp-button-brand-text: oklch(98% 0.01 75);
+  --vp-button-brand-hover-text: oklch(98% 0.01 75);
+  --vp-button-alt-bg: oklch(90% 0.02 70);
+  --vp-button-alt-hover-bg: oklch(86% 0.025 70);
+  --vp-button-alt-text: oklch(28% 0.03 50);
+  --vp-button-alt-hover-text: oklch(28% 0.03 50);
+}
+
+.dark {
+  --vp-c-brand-1: oklch(72% 0.1 55);
+  --vp-c-brand-2: oklch(78% 0.1 55);
+  --vp-c-brand-3: oklch(64% 0.1 55);
+  --vp-c-brand-soft: oklch(72% 0.1 55 / 0.16);
+  --vp-c-bg: oklch(25.5% 0.014 55);
+  --vp-c-bg-alt: oklch(19.5% 0.011 55);
+  --vp-c-bg-elv: oklch(28% 0.014 55);
+  --vp-c-bg-soft: oklch(22% 0.012 55);
+  --vp-c-text-1: oklch(93% 0.014 75);
+  --vp-button-brand-bg: oklch(72% 0.1 55);
+  --vp-button-brand-hover-bg: oklch(78% 0.1 55);
+  --vp-button-brand-text: oklch(21% 0.03 50);
+  --vp-button-brand-hover-text: oklch(21% 0.03 50);
+  --vp-button-alt-bg: oklch(33% 0.017 55);
+  --vp-button-alt-hover-bg: oklch(38% 0.02 55);
+  --vp-button-alt-text: oklch(93% 0.014 75);
+  --vp-button-alt-hover-text: oklch(93% 0.014 75);
+}
+
+/* Screenshots (public/screenshots): a phone's at most 22rem wide, with a frame; `.wide` (a computer's) the full width.
+   Most come in light and dark (`.light-only` / `.dark-only`), each shown with the matching appearance. */
+.vp-doc img.shot {
+  display: block;
+  max-width: min(100%, 22rem);
+  margin: 1rem 0;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 1.5rem;
+}
+.vp-doc img.shot.wide {
+  max-width: 100%;
+  border-radius: 0.75rem;
+}
+.dark .vp-doc img.light-only,
+html:not(.dark) .vp-doc img.dark-only {
+  display: none;
+}
+
+/* The tour video on the front page (index.md): 16:9, the content's width. The help's CSP allows only this player's
+   frame (YOUTUBE_EMBED in apps/server/src/app.ts). */
+.vp-doc .video {
+  aspect-ratio: 16 / 9;
+  margin: 1rem 0;
+  overflow: hidden;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 0.75rem;
+}
+.vp-doc .video iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* ── The front page (index.md), after the docs template Syntax: a gradient name with a soft glow behind the phone ── */
+:root {
+  --ferret-accent: oklch(50% 0.11 160);
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(120deg, var(--vp-c-brand-1) 30%, oklch(58% 0.12 70));
+  --vp-home-hero-image-background-image: linear-gradient(-45deg, oklch(70% 0.12 55 / 0.55) 50%, oklch(72% 0.1 160 / 0.45) 50%);
+  --vp-home-hero-image-filter: blur(56px);
+}
+.dark {
+  --vp-home-hero-name-background: linear-gradient(120deg, var(--vp-c-brand-1) 30%, oklch(82% 0.11 80));
+  --vp-home-hero-image-background-image: linear-gradient(-45deg, oklch(60% 0.12 55 / 0.45) 50%, oklch(60% 0.1 160 / 0.35) 50%);
+}
+.VPHero .image-src {
+  max-width: 200px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 1.75rem;
+  box-shadow: 0 24px 48px -16px oklch(28% 0.03 50 / 0.35);
+}
+@media (min-width: 960px) {
+  .VPHero .image-src {
+    max-width: 250px;
+  }
+}
+
+/* Feature cards as quick links: a warm gradient border on hover, the icon in a soft tile. */
+.VPFeatures .VPFeature {
+  position: relative;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 1rem;
+  background: var(--vp-c-bg);
+  transition: box-shadow 0.25s, transform 0.25s;
+}
+.VPFeatures a.VPFeature:hover {
+  border-color: transparent;
+  background:
+    linear-gradient(var(--vp-c-bg-soft), var(--vp-c-bg-soft)) padding-box,
+    linear-gradient(to top, var(--vp-c-brand-1), oklch(70% 0.12 75), var(--ferret-accent)) border-box;
+  box-shadow: 0 12px 28px -18px oklch(28% 0.03 50 / 0.5);
+}
+.VPFeatures .VPFeature .icon {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 0.75rem;
+  background-color: var(--vp-c-brand-soft);
+  color: var(--vp-c-brand-1);
+}
+.VPFeatures .VPFeature .icon svg {
+  width: 1.6rem;
+  height: 1.6rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .VPFeatures .VPFeature {
+    transition: none;
+  }
+}
+
+/* ── Callouts (::: tip / info / warning / danger): rounded, with an icon, like Syntax's ── */
+:root {
+  --ferret-icon-tip: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='black' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M3 12h1m8-9v1m8 8h1M5.6 5.6l.7.7m12.1-.7l-.7.7M9 16a5 5 0 1 1 6 0a3.5 3.5 0 0 0-1 3a2 2 0 0 1-4 0a3.5 3.5 0 0 0-1-3m.7 1h4.6'/%3E%3C/svg%3E");
+  --ferret-icon-info: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='black' stroke-linecap='round' stroke-linejoin='round' stroke-width='2'%3E%3Cpath d='M3 12a9 9 0 1 0 18 0a9 9 0 0 0-18 0m9-3h.01'/%3E%3Cpath d='M11 12h1v4h1'/%3E%3C/g%3E%3C/svg%3E");
+  --ferret-icon-warning: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='black' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M12 9v4m-1.637-9.409L2.257 17.125a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636-2.87L13.637 3.59a1.914 1.914 0 0 0-3.274 0M12 16h.01'/%3E%3C/svg%3E");
+  --ferret-icon-danger: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='black' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m12.802 2.165l5.575 2.389c.48.206.863.589 1.07 1.07l2.388 5.574c.22.512.22 1.092 0 1.604l-2.389 5.575c-.206.48-.589.863-1.07 1.07l-5.574 2.388c-.512.22-1.092.22-1.604 0l-5.575-2.389a2.04 2.04 0 0 1-1.07-1.07l-2.388-5.574a2.04 2.04 0 0 1 0-1.604l2.389-5.575c.206-.48.589-.863 1.07-1.07l5.574-2.388a2.04 2.04 0 0 1 1.604 0M12 8v4m0 4h.01'/%3E%3C/svg%3E");
+  --vp-custom-block-tip-bg: var(--vp-c-brand-soft);
+  --vp-custom-block-tip-text: var(--vp-c-text-1);
+}
+.vp-doc .custom-block:not(.details) {
+  position: relative;
+  border: none;
+  border-radius: 1.25rem;
+  padding: 1rem 1.25rem 0.5rem 3.5rem;
+}
+.vp-doc .custom-block:not(.details)::before {
+  content: "";
+  position: absolute;
+  top: 1.05rem;
+  left: 1.2rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  background-color: currentColor;
+  -webkit-mask: var(--ferret-icon) no-repeat center / contain;
+  mask: var(--ferret-icon) no-repeat center / contain;
+}
+.vp-doc .custom-block.tip { --ferret-icon: var(--ferret-icon-tip); }
+.vp-doc .custom-block.tip::before { color: var(--vp-c-brand-1); }
+.vp-doc .custom-block.info { --ferret-icon: var(--ferret-icon-info); }
+.vp-doc .custom-block.warning { --ferret-icon: var(--ferret-icon-warning); }
+.vp-doc .custom-block.warning::before { color: var(--vp-c-warning-1); }
+.vp-doc .custom-block.danger { --ferret-icon: var(--ferret-icon-danger); }
+.vp-doc .custom-block.danger::before { color: var(--vp-c-danger-1); }
+.vp-doc .custom-block .custom-block-title {
+  font-size: 1rem;
+}
+
+/* ── The sidebar: a line down each group, the page you're on marked on it ── */
+.VPSidebarItem.level-1 > .item {
+  padding-left: 0.75rem;
+  border-left: 1px solid var(--vp-c-divider);
+}
+.VPSidebarItem.level-1.is-active > .item {
+  border-left-color: var(--vp-c-brand-1);
+}
+.VPSidebarItem.level-1 > .item > .indicator {
+  display: none;
+}

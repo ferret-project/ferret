@@ -1,0 +1,36 @@
+# Ferret with Docker Compose.
+#   cp .env.example .env   # then fill in AUTH_SECRET and PUBLIC_URL
+#   docker compose up -d
+#
+# Uses the image CI pushes to GHCR. To build locally instead: docker compose up -d --build
+services:
+  ferret:
+    image: ghcr.io/ferret-project/ferret:${FERRET_TAG:-latest}
+    build: .
+    container_name: ferret
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+    volumes:
+      # Point this at a dataset on your NAS (e.g. an NFS mount) so its snapshots cover it.
+      - ${FERRET_DATA:-./data}:/data
+      # Nightly backups (set BACKUP_DIR=/backups in .env): a folder on another machine, e.g. the NAS. The container
+      # runs as uid 1000 (node), which must be able to write there. Without FERRET_BACKUPS it's ./backups — same disk,
+      # so only a stopgap.
+      - ${FERRET_BACKUPS:-./backups}:/backups
+    ports:
+      - "${FERRET_PORT:-8787}:8787"
+    # Behind a reverse proxy (Traefik, Caddy, nginx): set TRUSTED_PROXIES in .env to its address, so X-Forwarded-For
+    # is believed from it and nobody else. A proxy on the same host may want its own labels here.
+
+  # Optional: reminders to ntfy, Pushover, Telegram, email… (set APPRISE_URL=http://apprise:8000 in .env).
+  # Stateless: Ferret sends each person's Apprise URL with every message, so it keeps nothing.
+  # Not published on the host — only Ferret talks to it.
+  apprise:
+    image: caronc/apprise:2
+    container_name: ferret-apprise
+    restart: unless-stopped
+    environment:
+      APPRISE_STATEFUL_MODE: disabled
+      APPRISE_WORKER_COUNT: 1

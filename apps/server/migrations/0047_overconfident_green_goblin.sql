@@ -1,0 +1,1 @@
+ALTER TABLE `attachment` ADD `main_at` integer;
