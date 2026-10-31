@@ -331,7 +331,7 @@ export interface HouseholdPlan {
   /** Where the household's owner upgrades, and manages billing (the service's pages; Ferret only links to them). */
   upgradeUrl?: string;
   manageUrl?: string;
-  /** More of the service's own pages for the owner, beside those (e.g. "Link Discord"). */
+  /** More of the service's own pages for the owner, beside those. */
   links?: { label: string; url: string }[];
   /**
    * A line about the plan's state, in the service's words, shown on Settings → Usage (e.g. "Cancelled — Plus stays on

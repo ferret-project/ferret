@@ -1,5 +1,5 @@
 // After `vitepress build`: every help page as plain text, split at its ## headings, in dist/help.json — for anything that
-// answers questions from the help (Ferret's Discord helper indexes it). Each section carries its page's path and the
+// answers questions from the help (a help bot, a search index). Each section carries its page's path and the
 // heading's anchor (VitePress's own slugs), so an answer can link to the exact place.
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";

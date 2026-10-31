@@ -1685,7 +1685,7 @@ export interface PlanReport {
     limits: PlanLimits;
     upgradeUrl: string | null;
     manageUrl: string | null;
-    /** More of the service's pages for the owner (e.g. "Link Discord"). */
+    /** More of the service's pages for the owner. */
     links: { label: string; url: string }[];
     status: string | null;
   } | null;

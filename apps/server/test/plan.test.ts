@@ -22,7 +22,7 @@ function plans(limits: Partial<HouseholdPlan["limits"]> = {}, name = "Plus") {
     upgradeUrl: "https://billing.example/upgrade",
     manageUrl: "https://billing.example/manage",
     status: "Cancelled — Plus stays on until November 3, 2026",
-    links: [{ label: "Link Discord", url: "https://billing.example/discord" }],
+    links: [{ label: "Account", url: "https://billing.example/account" }],
   };
   const entitlements: Entitlements = { plan: async () => plan };
   return { plan, entitlements };
@@ -159,7 +159,7 @@ describe("a plan's limits", () => {
     expect((await pat.upload(drill.id, await photo(), "drill-2.jpg")).analysisStatus).toBeNull();
 
     const r = await report(pat.as);
-    expect(r.plan).toEqual({ name: "Plus", limits: plan.limits, upgradeUrl: "https://billing.example/upgrade", manageUrl: "https://billing.example/manage", links: [{ label: "Link Discord", url: "https://billing.example/discord" }], status: "Cancelled — Plus stays on until November 3, 2026" });
+    expect(r.plan).toEqual({ name: "Plus", limits: plan.limits, upgradeUrl: "https://billing.example/upgrade", manageUrl: "https://billing.example/manage", links: [{ label: "Account", url: "https://billing.example/account" }], status: "Cancelled — Plus stays on until November 3, 2026" });
     expect(r.period).toEqual({ start: "2026-10-03", end: "2026-11-03" });
     expect(r.aiActions).toEqual({ used: 3, limit: 3 });
     expect(r.people[0]).toMatchObject({ name: "pat", aiActions: 3, asks: 1, photos: 1 });
