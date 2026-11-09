@@ -1,3 +1,4 @@
+import { t as translateText } from "./../lib/i18n";
 /** /api/v1/notifications — this person's reminders to other apps through Apprise (a real sign-in only). */
 import { notificationChannelInput } from "@ferret/shared";
 import { Hono } from "hono";
@@ -15,7 +16,7 @@ const owner = (c: { var: AppEnv["Variables"] }) => ({
   userId: c.var.user.id,
 });
 
-const notSetUp = () => new HTTPException(409, { message: "Notifications to other apps aren't set up on this server (APPRISE_URL)" });
+const notSetUp = () => new HTTPException(409, { message: translateText("Notifications to other apps aren't set up on this server (APPRISE_URL)") });
 
 /** Whether Apprise is set up on the server, and this person's channels. */
 notifications.get("/", async (c) => c.json({ enabled: Boolean(c.var.deps.notifier), data: await listChannels(owner(c)) }));

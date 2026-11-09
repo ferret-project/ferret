@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * Room scans: photograph a room (or a box) once — up to five photos for a big room — and the vision model lists what
  * it sees: a name, the household's category for it, how many, and where in the photo (when the model says). Someone
@@ -44,11 +45,11 @@ export async function createRoomScan(
   input: { locationId?: string | null; containerItemId?: string | null; photos: Uint8Array[] },
   where: { demo: boolean },
 ): Promise<RoomScan> {
-  if (where.demo) throw new HTTPException(403, { message: "Room scans aren't part of the demo" });
-  if (!roomScansAvailable(v.deps, false)) throw new HTTPException(501, { message: "Room scans need the vision model, which isn't set up on this server" });
-  if (Boolean(input.locationId) === Boolean(input.containerItemId)) throw new HTTPException(422, { message: "Say which room (locationId) or box (containerItemId)" });
+  if (where.demo) throw new HTTPException(403, { message: translateText("Room scans aren't part of the demo") });
+  if (!roomScansAvailable(v.deps, false)) throw new HTTPException(501, { message: translateText("Room scans need the vision model, which isn't set up on this server") });
+  if (Boolean(input.locationId) === Boolean(input.containerItemId)) throw new HTTPException(422, { message: translateText("Say which room (locationId) or box (containerItemId)") });
   if (!input.photos.length || input.photos.length > MAX_ROOM_PHOTOS) {
-    throw new HTTPException(422, { message: `Send 1 to ${MAX_ROOM_PHOTOS} photos` });
+    throw new HTTPException(422, { message: translateText("Send 1 to {v0} photos", { v0: MAX_ROOM_PHOTOS }) });
   }
   await placeOf(v, input);
   await requireAllowed(v, "ai.photo"); // a plan with AI and some left (counted per photo by the job)
@@ -56,9 +57,9 @@ export async function createRoomScan(
   // The vision-sized copy only, upright and without GPS: it's what the model and the review look at.
   const copies: Uint8Array[] = [];
   for (const bytes of input.photos) {
-    if (!PHOTO_TYPES.includes(sniffContentType(bytes) ?? "")) throw new HTTPException(415, { message: "Room scans take photos (JPEG, PNG, WebP, HEIC)" });
+    if (!PHOTO_TYPES.includes(sniffContentType(bytes) ?? "")) throw new HTTPException(415, { message: translateText("Room scans take photos (JPEG, PNG, WebP, HEIC)") });
     const copy = await v.deps.images!.resize(bytes, VISION_PX, "jpeg");
-    if (!copy) throw new HTTPException(415, { message: "Couldn't read one of the photos" });
+    if (!copy) throw new HTTPException(415, { message: translateText("Couldn't read one of the photos") });
     copies.push(copy);
   }
   const [row] = await v.db
@@ -83,13 +84,13 @@ async function placeOf(v: Caller, at: { locationId?: string | null; containerIte
       .select({ name: item.name, isContainer: item.isContainer })
       .from(item)
       .where(and(eq(item.id, at.containerItemId), eq(item.householdId, v.householdId), isNull(item.deletedAt)));
-    if (!box) throw notFound("Box");
-    if (!box.isContainer) throw new HTTPException(422, { message: `${box.name} isn't a box — mark it as one first` });
+    if (!box) throw notFound(translateText("Box"));
+    if (!box.isContainer) throw new HTTPException(422, { message: translateText("{v0} isn't a box — mark it as one first", { v0: box.name }) });
     return box.name;
   }
   if (at.locationId) {
     const [place] = await v.db.select({ id: location.id }).from(location).where(locationIn(v, at.locationId));
-    if (!place) throw notFound("Location");
+    if (!place) throw notFound(translateText("Location"));
     return (await locationPaths(v)).get(at.locationId) ?? null;
   }
   return null;
@@ -129,7 +130,7 @@ const scanIn = (v: Caller, id: string) => and(eq(roomScan.id, id), eq(roomScan.h
 
 export async function getRoomScan(v: Caller, id: string) {
   const [row] = await v.db.select().from(roomScan).where(scanIn(v, id));
-  if (!row) throw notFound("Room scan");
+  if (!row) throw notFound(translateText("Room scan"));
   return describe(v, row);
 }
 
@@ -146,9 +147,9 @@ export async function openRoomScans(v: Caller) {
 /** One of a scan's photos (JPEG). */
 export async function roomScanPhoto(v: Caller, files: FileStore, id: string, n: number) {
   const [row] = await v.db.select().from(roomScan).where(and(eq(roomScan.id, id), eq(roomScan.householdId, v.householdId)));
-  if (!row || !Number.isInteger(n) || n < 0 || n >= row.photoCount) throw notFound("Photo");
+  if (!row || !Number.isInteger(n) || n < 0 || n >= row.photoCount) throw notFound(translateText("Photo"));
   const bytes = await files.get(v.householdId, roomPhotoKey(v.householdId, id, n));
-  if (!bytes) throw notFound("Photo");
+  if (!bytes) throw notFound(translateText("Photo"));
   return bytes;
 }
 
@@ -158,10 +159,10 @@ export async function roomScanPhoto(v: Caller, files: FileStore, id: string, n: 
  */
 export async function commitRoomScan(v: Caller, id: string, input: RoomScanCommit) {
   const [row] = await v.db.select().from(roomScan).where(scanIn(v, id));
-  if (!row) throw notFound("Room scan");
-  if (row.status === "pending") throw new HTTPException(409, { message: "Still looking at the photos — try again in a moment" });
-  if (row.status === "done") throw new HTTPException(409, { message: "Those things were added already" });
-  if (!row.locationId && !row.containerItemId) throw new HTTPException(409, { message: "The room or box it was taken in has gone" });
+  if (!row) throw notFound(translateText("Room scan"));
+  if (row.status === "pending") throw new HTTPException(409, { message: translateText("Still looking at the photos — try again in a moment") });
+  if (row.status === "done") throw new HTTPException(409, { message: translateText("Those things were added already") });
+  if (!row.locationId && !row.containerItemId) throw new HTTPException(409, { message: translateText("The room or box it was taken in has gone") });
   await requireRoom(v, { items: input.items.length });
   // Categories must be the household's: anything else is left without one.
   const categoryIds = [...new Set(input.items.map((i) => i.categoryId).filter((c): c is string => Boolean(c)))];
@@ -193,8 +194,8 @@ export async function commitRoomScan(v: Caller, id: string, input: RoomScanCommi
 /** Never mind this scan: it leaves the bell; its photos go with the next purge (lib/trash.ts). */
 export async function dismissRoomScan(v: Caller, id: string) {
   const [row] = await v.db.update(roomScan).set({ deletedAt: new Date() }).where(scanIn(v, id)).returning({ id: roomScan.id });
-  if (!row) throw notFound("Room scan");
-  await logActivity(v, "roomscan.dismiss", row.id, "Dismissed a room scan");
+  if (!row) throw notFound(translateText("Room scan"));
+  await logActivity(v, "roomscan.dismiss", row.id, translateText("Dismissed a room scan"));
 }
 
 /** Deleted scans older than `cutoff`: their photos and rows, for good (unless something found in them links back). */
@@ -247,8 +248,8 @@ export function roomScanPrompt(categories: string[]) {
   return `This is a photo of a room — or a shelf, cupboard or open box — in someone's home. List the distinct things in it worth keeping in a home inventory: furniture, appliances, electronics, tools, lamps, decor, collectibles. Skip walls, floors, windows, curtains, built-in fixtures, plants and small clutter.
 Reply with JSON only: items, at most ${MAX_PER_PHOTO}, the most valuable first, each with:
 - name: short and generic ("Floor lamp", "Office chair"); the brand only if clearly readable.
-- category: ${categories.length ? "one of the categories below, exactly as written, or null" : "null"}.
-- count: how many you see.${categories.length ? `\n\nCategories:\n${categories.map((c) => `- ${c}`).join("\n")}` : ""}`;
+- category: ${categories.length ? translateText("one of the categories below, exactly as written, or null") : translateText("null")}.
+- count: how many you see.${categories.length ? translateText("\n\nCategories:\n{v0}", { v0: categories.map((c) => `- ${c}`).join("\n") }) : ""}`;
 }
 
 export const boxesSchema = {
@@ -328,7 +329,7 @@ export function analyzeRoomScan(deps: { db: Db; files: FileStore; ai?: Deps["ai"
     const [row] = await deps.db.select().from(roomScan).where(and(eq(roomScan.id, scanId), isNull(roomScan.deletedAt)));
     if (!row || row.status !== "pending") return; // dismissed, or done already
     const fail = (error: string) => deps.db.update(roomScan).set({ status: "failed", error, updatedAt: new Date() }).where(eq(roomScan.id, row.id));
-    if (!deps.ai) return void (await fail("The vision model isn't set up on this server"));
+    if (!deps.ai) return void (await fail(translateText("The vision model isn't set up on this server")));
     try {
       const categories = await categoryPaths(deps.db, row.householdId);
       const candidates: RoomScanCandidate[] = [];
@@ -361,7 +362,7 @@ export function analyzeRoomScan(deps: { db: Db; files: FileStore; ai?: Deps["ai"
       if (stopped && !candidates.length) return void (await fail(stopped));
       await deps.db.update(roomScan).set({ status: "ready", candidates, error: null, updatedAt: new Date() }).where(eq(roomScan.id, row.id));
     } catch (err) {
-      if (lastAttempt) await fail("Couldn't look at the photos — try again later");
+      if (lastAttempt) await fail(translateText("Couldn't look at the photos — try again later"));
       throw err; // the runner retries with backoff
     }
   };

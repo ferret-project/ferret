@@ -1,3 +1,5 @@
+import { withLanguage, preferredLanguage } from "../lib/i18n";
+import { t as translateText } from "./../lib/i18n";
 /**
  * Daily reminders: once a day (from REMIND_HOUR), each person gets one message
  * listing what's urgent in their household — maintenance overdue or due today,
@@ -34,6 +36,7 @@ interface Digest {
 
 /** What to tell this person today, or null when nothing's urgent. */
 export async function dailyDigest(caller: Parameters<typeof needsAttention>[0], appUrl: string): Promise<Digest | null> {
+  return withLanguage(await preferredLanguage(caller.db, caller.userId, caller.householdId), async () => {
   const urgent = (await needsAttention(caller)).filter((a) => a.severity === "urgent");
   if (!urgent.length) return null;
   const maintenanceOnly = urgent.every((a) => a.kind === "maintenance");
@@ -42,25 +45,27 @@ export async function dailyDigest(caller: Parameters<typeof needsAttention>[0], 
     title: maintenanceOnly
       ? maintenanceTitle(urgent, caller.timeZone)
       : shoppingOnly
-        ? "Something's run out"
+        ? translateText("Something's run out")
         : urgent.length === 1
-          ? "A warranty is ending"
-          : `${urgent.length} things need attention`,
+          ? translateText("A warranty is ending")
+          : translateText("{v0} things need attention", { v0: urgent.length }),
     lines: urgent.map((a) => `${a.title} — ${a.detail}`),
     short: urgent.slice(0, 4).map((a) => a.title).join(" · "),
     url: `${appUrl}/#/${maintenanceOnly ? "maintenance" : shoppingOnly ? "shopping" : ""}`,
   };
+
+  });
 }
 
 function maintenanceTitle(tasks: AttentionItem[], timeZone: string) {
   const on = today(undefined, timeZone);
   const overdue = tasks.filter((t) => t.date && t.date < on).length;
-  if (tasks.length === 1) return overdue ? "Overdue maintenance" : "Maintenance due today";
-  return `${tasks.length} maintenance tasks ${overdue === tasks.length ? "overdue" : "due"}`;
+  if (tasks.length === 1) return overdue ? translateText("Overdue maintenance") : translateText("Maintenance due today");
+  return translateText("{v0} maintenance tasks {v1}", { v0: tasks.length, v1: overdue === tasks.length ? translateText("overdue") : translateText("due") });
 }
 
 /** The longer text for Apprise channels (ntfy, email…), with a link back. */
-const fullBody = (d: Digest) => `${d.lines.slice(0, 10).map((l) => `• ${l}`).join("\n")}${d.lines.length > 10 ? `\n…and ${d.lines.length - 10} more` : ""}\n\n${d.url}`;
+const fullBody = (d: Digest) => `${d.lines.slice(0, 10).map((l) => `• ${l}`).join("\n")}${d.lines.length > 10 ? translateText("\n…and {v0} more", { v0: d.lines.length - 10 }) : ""}\n\n${d.url}`;
 
 export function sendReminders(deps: Deps & { files: FileStore; appUrl: string; remindHour: number; mailUrl?: string; now?: () => Date }): JobHandler {
   return async () => {
@@ -115,7 +120,7 @@ export function sendReminders(deps: Deps & { files: FileStore; appUrl: string; r
           continue;
         }
         // A failed send leaves lastNotifiedOn alone, so the next hourly check tries again.
-        if (digest && (await deliver(db, files, notifier, channel, { title: digest.title, body: fullBody(digest) }))) continue;
+        if (digest && (await deliver(db, files, notifier, channel, { title: digest.title, body: withLanguage(await preferredLanguage(db, channel.userId, channel.householdId), () => fullBody(digest)) }))) continue;
         await db.update(notificationChannel).set({ lastNotifiedOn: on }).where(eq(notificationChannel.id, channel.id));
       }
     }

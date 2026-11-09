@@ -1,3 +1,5 @@
+import { t as translateText, currentLanguage } from "./i18n";
+import { enumLabel } from "@ferret/shared/utils";
 /**
  * The inventory service: what the REST API (routes/inventory.ts) and the MCP
  * tools (mcp/tools.ts) both do, so the app and Claude always agree. Every
@@ -65,7 +67,7 @@ export interface Caller {
   keyName?: string | null;
 }
 
-export const notFound = (what: string) => new HTTPException(404, { message: `${what} not found` });
+export const notFound = (what: string) => new HTTPException(404, { message: translateText("{v0} not found", { v0: what }) });
 
 // ── Properties ──────────────────────────────────────────────────────────────
 export async function listProperties(v: Caller) {
@@ -81,7 +83,7 @@ export async function createProperty(v: Caller, input: PropertyInput) {
     .insert(property)
     .values({ ...input, householdId: v.householdId })
     .returning();
-  await logActivity(v, "property.create", row!.id, `Added ${row!.name}`);
+  await logActivity(v, "property.create", row!.id, translateText("Added {v0}", { v0: row!.name }));
   return row!;
 }
 
@@ -91,8 +93,8 @@ const propertyIn = (v: Caller, id: string) =>
 /** Rename a property (or change its details). Its items are re-indexed: their location path starts with its name. */
 export async function updateProperty(v: Caller, id: string, input: PropertyPatch) {
   const [row] = await v.db.update(property).set(input).where(propertyIn(v, id)).returning();
-  if (!row) throw notFound("Property");
-  await logActivity(v, "property.update", row.id, `Updated ${row.name}`);
+  if (!row) throw notFound(translateText("Property"));
+  await logActivity(v, "property.update", row.id, translateText("Updated {v0}", { v0: row.name }));
   const inside = await v.db
     .select({ id: location.id })
     .from(location)
@@ -118,17 +120,17 @@ export async function propertyMap(v: Caller, id: string, scheme: "light" | "dark
     .select()
     .from(property)
     .where(and(eq(property.id, id), eq(property.householdId, v.householdId), isNull(property.deletedAt)));
-  if (!row) throw notFound("Property");
+  if (!row) throw notFound(translateText("Property"));
   const address = propertyAddress(row);
-  if (!address || !v.deps.maps) throw new HTTPException(404, { message: "No map for this property" });
+  if (!address || !v.deps.maps) throw new HTTPException(404, { message: translateText("No map for this property") });
   return v.deps.maps.snapshot(address, { scheme }).catch((err: unknown) => {
-    throw new HTTPException(502, { message: `Couldn't get the map (${err instanceof Error ? err.message : String(err)})` });
+    throw new HTTPException(502, { message: translateText("Couldn't get the map ({v0})", { v0: err instanceof Error ? err.message : String(err) }) });
   });
 }
 
 export async function deleteProperty(v: Caller, id: string) {
   const [current] = await v.db.select().from(property).where(propertyIn(v, id));
-  if (!current) throw notFound("Property");
+  if (!current) throw notFound(translateText("Property"));
   const inside = await v.db
     .select({ id: location.id })
     .from(location)
@@ -142,7 +144,7 @@ export async function deleteProperty(v: Caller, id: string) {
       .where(and(eq(location.householdId, v.householdId), inList(location.id, inside.map((l) => l.id))));
   }
   await v.db.update(property).set({ deletedAt: now }).where(propertyIn(v, id));
-  await logActivity(v, "property.delete", id, `Removed ${current.name}`);
+  await logActivity(v, "property.delete", id, translateText("Removed {v0}", { v0: current.name }));
 }
 
 // ── Locations ───────────────────────────────────────────────────────────────
@@ -161,10 +163,10 @@ export async function createLocation(v: Caller, input: LocationInput) {
     .select({ id: property.id })
     .from(property)
     .where(and(eq(property.id, input.propertyId), eq(property.householdId, v.householdId), isNull(property.deletedAt)));
-  if (!parentProperty) throw notFound("Property");
+  if (!parentProperty) throw notFound(translateText("Property"));
   if (input.parentId) {
     const [parent] = await v.db.select().from(location).where(locationIn(v, input.parentId));
-    if (!parent || parent.propertyId !== input.propertyId) throw notFound("Parent location");
+    if (!parent || parent.propertyId !== input.propertyId) throw notFound(translateText("Parent location"));
   }
   const [row] = await v.db
     .insert(location)
@@ -179,13 +181,13 @@ export const locationIn = (v: Caller, id: string) =>
 /** Rename or move a location. Items anywhere below it are re-indexed (their location path changed). */
 export async function updateLocation(v: Caller, id: string, input: LocationPatch) {
   const [current] = await v.db.select().from(location).where(locationIn(v, id));
-  if (!current) throw notFound("Location");
+  if (!current) throw notFound(translateText("Location"));
 
   const subtree = await descendants(v, id);
   if (input.parentId) {
     const [parent] = await v.db.select().from(location).where(locationIn(v, input.parentId));
-    if (!parent || parent.propertyId !== current.propertyId) throw notFound("Parent location");
-    if (subtree.includes(input.parentId)) throw new HTTPException(422, { message: "A location can't go inside itself" });
+    if (!parent || parent.propertyId !== current.propertyId) throw notFound(translateText("Parent location"));
+    if (subtree.includes(input.parentId)) throw new HTTPException(422, { message: translateText("A location can't go inside itself") });
   }
   const [row] = await v.db.update(location).set(input).where(locationIn(v, id)).returning();
   await reindexItemsIn(v, subtree);
@@ -195,14 +197,14 @@ export async function updateLocation(v: Caller, id: string, input: LocationPatch
 /** Removes an empty location and everything nested in it. Items kept anywhere inside have to be moved first. */
 export async function deleteLocation(v: Caller, id: string) {
   const [current] = await v.db.select().from(location).where(locationIn(v, id));
-  if (!current) throw notFound("Location");
+  if (!current) throw notFound(translateText("Location"));
   const subtree = await descendants(v, id);
   await refuseIfHoldsItems(v, subtree, current.name);
   await v.db
     .update(location)
     .set({ deletedAt: new Date() })
     .where(and(eq(location.householdId, v.householdId), inList(location.id, subtree)));
-  await logActivity(v, "location.delete", id, `Removed ${current.name}`);
+  await logActivity(v, "location.delete", id, translateText("Removed {v0}", { v0: current.name }));
 }
 
 async function refuseIfHoldsItems(v: Caller, locationIds: string[], name: string) {
@@ -211,8 +213,8 @@ async function refuseIfHoldsItems(v: Caller, locationIds: string[], name: string
   if (held?.n) {
     const message =
       held.n === 1
-        ? `1 item is still kept in ${name} — move it first`
-        : `${held.n} items are still kept in ${name} — move them first`;
+        ? translateText("1 item is still kept in {v0} — move it first", { v0: name })
+        : translateText("{v0} items are still kept in {v1} — move them first", { v0: held.n, v1: name });
     throw new HTTPException(409, { message });
   }
 }
@@ -566,7 +568,7 @@ export async function searchItems(v: Caller, query: string, filter: ItemFilter, 
 /** Ask Ferret: a question answered from the household's own items and documents, with sources. */
 export async function ask(v: Caller, question: string) {
   const model = v.deps.chat ?? v.deps.ai; // the stronger text model, when there is one
-  if (!model) throw new HTTPException(409, { message: "Ask Ferret needs an AI model (CHAT_URL or OLLAMA_URL)" });
+  if (!model) throw new HTTPException(409, { message: translateText("Ask Ferret needs an AI model (CHAT_URL or OLLAMA_URL)") });
   const plan = await requireAllowed(v, "ai.ask"); // in the plan, and within its AI actions (lib/plan.ts)
   countEvent(v.deps, "ask");
   const results = await searchItems(v, question, {}, ASK_ITEMS);
@@ -575,7 +577,7 @@ export async function ask(v: Caller, question: string) {
     return await askInventory({ db: v.db, model, timeZone: v.timeZone, onModel }, v.householdId, question, results);
   } catch (err) {
     console.warn(`Ask Ferret failed: ${String(err)}`);
-    throw new HTTPException(503, { message: "Ferret couldn't answer right now — try again in a moment" });
+    throw new HTTPException(503, { message: translateText("Ferret couldn't answer right now — try again in a moment") });
   }
 }
 
@@ -593,8 +595,8 @@ export async function getItem(v: Caller, id: string) {
   if (!row) {
     // Merged into another (lib/duplicates.ts): say which, so old links lead there.
     const into = await mergedInto(v, id);
-    if (into) throw new HTTPException(404, { message: "Item was merged into another", cause: { mergedIntoId: into } });
-    throw notFound("Item");
+    if (into) throw new HTTPException(404, { message: translateText("Item was merged into another"), cause: { mergedIntoId: into } });
+    throw notFound(translateText("Item"));
   }
   return (await withTags(v, [row]))[0]!;
 }
@@ -615,18 +617,18 @@ async function placement(
       .select({ id: category.id })
       .from(category)
       .where(and(eq(category.id, input.categoryId), eq(category.householdId, v.householdId), isNull(category.deletedAt)));
-    if (!found) throw notFound("Category");
+    if (!found) throw notFound(translateText("Category"));
   }
   if (input.locationId) {
     const [found] = await v.db.select({ id: location.id }).from(location).where(locationIn(v, input.locationId));
-    if (!found) throw notFound("Location");
+    if (!found) throw notFound(translateText("Location"));
   }
   if (input.containerItemId) {
     const [box] = await v.db.select().from(item).where(and(eq(item.id, input.containerItemId), itemScope(v)));
-    if (!box) throw notFound("Box");
-    if (!box.isContainer) throw new HTTPException(422, { message: `${box.name} isn't a box — mark it as one first` });
+    if (!box) throw notFound(translateText("Box"));
+    if (!box.isContainer) throw new HTTPException(422, { message: translateText("{v0} isn't a box — mark it as one first", { v0: box.name }) });
     if (current && (box.id === current.id || (await insideOf(v, current.id)).includes(box.id))) {
-      throw new HTTPException(422, { message: "A box can't go inside itself" });
+      throw new HTTPException(422, { message: translateText("A box can't go inside itself") });
     }
     return { locationId: box.locationId };
   }
@@ -661,7 +663,7 @@ async function collectionOf(v: Caller, id: string | null | undefined) {
     .select()
     .from(collection)
     .where(and(eq(collection.id, id), eq(collection.householdId, v.householdId), isNull(collection.deletedAt)));
-  if (!row) throw notFound("Collection");
+  if (!row) throw notFound(translateText("Collection"));
   return row;
 }
 
@@ -672,7 +674,7 @@ async function templateOf(v: Caller, id: string | null | undefined) {
     .select()
     .from(itemTemplate)
     .where(and(eq(itemTemplate.id, id), eq(itemTemplate.householdId, v.householdId), isNull(itemTemplate.deletedAt)));
-  if (!row) throw notFound("Template");
+  if (!row) throw notFound(translateText("Template"));
   return row;
 }
 
@@ -698,7 +700,7 @@ export async function createItem(v: Caller, given: ItemInput, found?: { roomScan
     .values({ ...fields, ...placed, ...from, householdId: v.householdId, createdBy: v.userId })
     .returning();
   if (tags.length) await setItemTags(v, row!.id, tags);
-  await logActivity(v, "item.create", row!.id, found ? `Added ${row!.name} from a room scan` : `Added ${row!.name}`);
+  await logActivity(v, "item.create", row!.id, found ? translateText("Added {v0} from a room scan", { v0: row!.name }) : translateText("Added {v0}", { v0: row!.name }));
   countEvent(v.deps, "item.add");
   if (row!.brand || row!.barcode) await queueRecallCheck(v);
   await itemChanged(v, row!.id);
@@ -721,7 +723,7 @@ function disposalChange(current: typeof item.$inferSelect, input: ItemPatch, on:
     return {
       fields: { disposition: null, disposedOn: null, disposalCents: null, disposalNote: null },
       gone: false,
-      summary: current.disposition ? (name: string) => `Brought back ${name}` : undefined,
+      summary: current.disposition ? (name: string) => translateText("Brought back {v0}", { v0: name }) : undefined,
     };
   }
   const reason = input.disposition;
@@ -735,16 +737,16 @@ function disposalChange(current: typeof item.$inferSelect, input: ItemPatch, on:
 /** `opts.aiFills`: the AI is filling these in by itself (lib/ai-fill.ts) — their marks are added, not cleared. */
 export async function updateItem(v: Caller, id: string, input: ItemPatch, summary?: (name: string) => string, opts: { aiFills?: Record<string, AiFill> } = {}) {
   const [current] = await v.db.select().from(item).where(and(eq(item.id, id), itemScope(v, { gone: "include" })));
-  if (!current) throw notFound("Item");
+  if (!current) throw notFound(translateText("Item"));
   await templateOf(v, input.templateId);
   await collectionOf(v, input.collectionId);
   const placed = await placement(v, input, current);
   if (input.isContainer === false && current.isContainer && (await insideOf(v, id)).length) {
-    throw new HTTPException(409, { message: `Take the things out of ${current.name} first` });
+    throw new HTTPException(409, { message: translateText("Take the things out of {v0} first", { v0: current.name }) });
   }
   const disposal = disposalChange(current, input, todayFor(v));
   if (disposal.gone && current.isContainer && (await insideOf(v, id)).length) {
-    throw new HTTPException(409, { message: `Take the things out of ${current.name} first` });
+    throw new HTTPException(409, { message: translateText("Take the things out of {v0} first", { v0: current.name }) });
   }
   const { tags, ...fields } = input;
   const tagsBefore = tags ? ((await tagsOf(v, [id])).get(id) ?? []) : [];
@@ -758,7 +760,7 @@ export async function updateItem(v: Caller, id: string, input: ItemPatch, summar
     .set({ ...fields, ...disposal.fields, ...placed, ...(marks !== undefined ? { aiFilled: marks } : {}), updatedAt: new Date() })
     .where(and(eq(item.id, id), itemScope(v, { gone: "include" })))
     .returning();
-  if (!row) throw notFound("Item");
+  if (!row) throw notFound(translateText("Item"));
   if (tags) await setItemTags(v, row.id, tags);
   // A count typed in is part of the item's stock history too (lib/stock.ts).
   if (row.quantity !== current.quantity) await recordMovement(v, row.id, row.quantity - current.quantity, row.quantity, "edit");
@@ -770,6 +772,8 @@ export async function updateItem(v: Caller, id: string, input: ItemPatch, summar
     "item.update",
     row.id,
     summary?.(row.name) ?? disposal.summary?.(row.name) ?? (await describeChanges(v, current, row, tags ? { before: tagsBefore, after: tags } : undefined)),
+    undefined,
+    Object.keys(fields).filter((field) => fields[field as keyof typeof fields] === null && current[field as keyof typeof current] != null),
   );
   await itemChanged(v, row.id);
   // A box that moved takes its contents along.
@@ -813,7 +817,7 @@ async function describeChanges(
 ): Promise<string> {
   const out: string[] = [];
   let moved: string | null = null;
-  if (was.name !== now.name) out.push(`renamed from “${was.name}”`);
+  if (was.name !== now.name) out.push(translateText("renamed from “{v0}”", { v0: was.name }));
   if (was.locationId !== now.locationId || was.containerItemId !== now.containerItemId) {
     const paths = await locationPaths(v);
     const boxIds = [was.containerItemId, now.containerItemId].filter((x): x is string => Boolean(x));
@@ -821,55 +825,57 @@ async function describeChanges(
       boxIds.length ? (await v.db.select({ id: item.id, name: item.name }).from(item).where(and(eq(item.householdId, v.householdId), inList(item.id, boxIds)))).map((b) => [b.id, b.name]) : [],
     );
     const where = (r: typeof item.$inferSelect) => {
-      const place = r.locationId ? (paths.get(r.locationId)?.replace(/^[^›]+› /, "") ?? "a removed place") : null;
-      const box = r.containerItemId ? `in ${boxes.get(r.containerItemId) ?? "a box"}` : null;
-      return [box, place].filter(Boolean).join(", ") || "no place";
+      const place = r.locationId ? (paths.get(r.locationId)?.replace(/^[^›]+› /, "") ?? translateText("a removed place")) : null;
+      const box = r.containerItemId ? translateText("in {v0}", { v0: boxes.get(r.containerItemId) ?? translateText("a box") }) : null;
+      return [box, place].filter(Boolean).join(", ") || translateText("no place");
     };
     moved = `${where(was)} → ${where(now)}`;
   }
-  for (const [k, label] of TEXT_FIELDS) {
-    const [a, b] = [was[k] ?? null, now[k] ?? null];
+  for (const [k, sourceLabel] of TEXT_FIELDS) {
+    const label = translateText(sourceLabel);
+    const display = (value: string | null) => k === "condition" && value ? enumLabel(value, currentLanguage()).toLowerCase() : value;
+    const [a, b] = [display(was[k] ?? null), display(now[k] ?? null)];
     if (a === b) continue;
-    out.push(a == null ? `${label} set to ${b}` : b == null ? `${label} removed` : `${label} ${a} → ${b}`);
+    out.push(a == null ? translateText("{v0} set to {v1}", { v0: label, v1: b }) : b == null ? translateText("{v0} removed", { v0: label }) : `${label} ${a} → ${b}`);
   }
   const dollars = (c: number | null) => (c == null ? null : moneyText(v, c, { exact: true }));
-  for (const [k, label] of [["purchasePriceCents", "price paid"], ["valueCents", "value"], ["replacementCents", "replacement cost"]] as const) {
+  for (const [k, label] of [["purchasePriceCents", translateText("price paid")], ["valueCents", translateText("value")], ["replacementCents", translateText("replacement cost")]] as const) {
     const [a, b] = [was[k] ?? null, now[k] ?? null];
-    if (a !== b) out.push(a == null ? `${label} set to ${dollars(b)}` : b == null ? `${label} removed` : `${label} ${dollars(a)} → ${dollars(b)}`);
+    if (a !== b) out.push(a == null ? translateText("{v0} set to {v1}", { v0: label, v1: dollars(b) }) : b == null ? translateText("{v0} removed", { v0: label }) : `${label} ${dollars(a)} → ${dollars(b)}`);
   }
-  if (was.quantity !== now.quantity) out.push(`quantity ${was.quantity} → ${now.quantity}`);
-  if ((was.minQuantity ?? null) !== (now.minQuantity ?? null)) out.push(now.minQuantity == null ? "no minimum kept" : `keep at least ${now.minQuantity}`);
-  if ((was.usageUnit ?? null) !== (now.usageUnit ?? null)) out.push(now.usageUnit ? `counts ${now.usageUnit}` : "doesn't count use any more");
-  if (was.isContainer !== now.isContainer) out.push(now.isContainer ? "now a box" : "no longer a box");
+  if (was.quantity !== now.quantity) out.push(translateText("quantity {v0} → {v1}", { v0: was.quantity, v1: now.quantity }));
+  if ((was.minQuantity ?? null) !== (now.minQuantity ?? null)) out.push(now.minQuantity == null ? translateText("no minimum kept") : translateText("keep at least {v0}", { v0: now.minQuantity }));
+  if ((was.usageUnit ?? null) !== (now.usageUnit ?? null)) out.push(now.usageUnit ? translateText("counts {v0}", { v0: enumLabel(now.usageUnit, currentLanguage()).toLowerCase() }) : translateText("doesn't count use any more"));
+  if (was.isContainer !== now.isContainer) out.push(now.isContainer ? translateText("now a box") : translateText("no longer a box"));
   if (was.categoryId !== now.categoryId) {
     const info = await categoryInfo(v);
-    const name = (cid: string | null) => (cid ? (info.get(cid)?.path ?? "a removed category") : "none");
-    out.push(`category ${name(was.categoryId)} → ${name(now.categoryId)}`);
+    const name = (cid: string | null) => (cid ? (info.get(cid)?.path ?? translateText("a removed category")) : translateText("none"));
+    out.push(translateText("category {v0} → {v1}", { v0: name(was.categoryId), v1: name(now.categoryId) }));
   }
   if (was.collectionId !== now.collectionId) {
     const ids = [was.collectionId, now.collectionId].filter((x): x is string => Boolean(x));
     const names = new Map(
       (await v.db.select({ id: collection.id, name: collection.name }).from(collection).where(and(eq(collection.householdId, v.householdId), inList(collection.id, ids)))).map((c) => [c.id, c.name]),
     );
-    out.push(now.collectionId ? `added to the ${names.get(now.collectionId) ?? "a"} collection` : `taken out of the ${names.get(was.collectionId!) ?? "its"} collection`);
+    out.push(now.collectionId ? translateText("added to the {v0} collection", { v0: names.get(now.collectionId) ?? translateText("a") }) : translateText("taken out of the {v0} collection", { v0: names.get(was.collectionId!) ?? translateText("its") }));
   }
-  if (was.wanted !== now.wanted) out.push(now.wanted ? "on the want list" : "got it — off the want list");
-  if (was.templateId !== now.templateId) out.push(now.templateId ? "template changed" : "template removed");
+  if (was.wanted !== now.wanted) out.push(now.wanted ? translateText("on the want list") : translateText("got it — off the want list"));
+  if (was.templateId !== now.templateId) out.push(now.templateId ? translateText("template changed") : translateText("template removed"));
   if (tagChange) {
     const lower = (xs: string[]) => new Set(xs.map((x) => x.toLowerCase()));
     const [b, a] = [lower(tagChange.before), lower(tagChange.after)];
     const added = tagChange.after.filter((t) => !b.has(t.toLowerCase()));
     const removed = tagChange.before.filter((t) => !a.has(t.toLowerCase()));
-    if (added.length) out.push(`tagged ${added.join(", ")}`);
-    if (removed.length) out.push(`untagged ${removed.join(", ")}`);
+    if (added.length) out.push(translateText("tagged {v0}", { v0: added.join(", ") }));
+    if (removed.length) out.push(translateText("untagged {v0}", { v0: removed.join(", ") }));
   }
   for (const [k, label] of [["description", "description"], ["notes", "notes"]] as const) {
-    if ((was[k] ?? "") !== (now[k] ?? "")) out.push(`${label} edited`);
+    if ((was[k] ?? "") !== (now[k] ?? "")) out.push(translateText("{v0} edited", { v0: label }));
   }
-  if (JSON.stringify(was.links ?? []) !== JSON.stringify(now.links ?? [])) out.push("links edited");
-  if (JSON.stringify(was.customFields ?? {}) !== JSON.stringify(now.customFields ?? {})) out.push("details edited");
-  if (was.favorite !== now.favorite) out.push(now.favorite ? "marked a favourite" : "no longer a favourite");
-  const text = moved && !out.length ? `Moved ${now.name}: ${moved}` : moved ? `Moved ${now.name}: ${moved}; ${out.join("; ")}` : out.length ? `${now.name}: ${out.join("; ")}` : `Updated ${now.name}`;
+  if (JSON.stringify(was.links ?? []) !== JSON.stringify(now.links ?? [])) out.push(translateText("links edited"));
+  if (JSON.stringify(was.customFields ?? {}) !== JSON.stringify(now.customFields ?? {})) out.push(translateText("details edited"));
+  if (was.favorite !== now.favorite) out.push(now.favorite ? translateText("marked a favourite") : translateText("no longer a favourite"));
+  const text = moved && !out.length ? translateText("Moved {v0}: {v1}", { v0: now.name, v1: moved }) : moved ? translateText("Moved {v0}: {v1}; {v2}", { v0: now.name, v1: moved, v2: out.join("; ") }) : out.length ? `${now.name}: ${out.join("; ")}` : translateText("Updated {v0}", { v0: now.name });
   return text.length > 500 ? `${text.slice(0, 499)}…` : text;
 }
 
@@ -879,7 +885,7 @@ export async function deleteItem(v: Caller, id: string) {
     .set({ deletedAt: new Date() })
     .where(and(eq(item.id, id), itemScope(v, { gone: "include" })))
     .returning({ id: item.id, name: item.name, containerItemId: item.containerItemId });
-  if (!row) throw notFound("Item");
+  if (!row) throw notFound(translateText("Item"));
   // A removed box's contents stay where they are, no longer in a box.
   const loose = await v.db
     .update(item)
@@ -888,7 +894,7 @@ export async function deleteItem(v: Caller, id: string) {
     .returning({ id: item.id });
   for (const { id: itemId } of loose) await itemChanged(v, itemId);
   if (row.containerItemId) await itemChanged(v, row.containerItemId);
-  await logActivity(v, "item.delete", row.id, `Removed ${row.name}`);
+  await logActivity(v, "item.delete", row.id, translateText("Removed {v0}", { v0: row.name }));
   await itemChanged(v, row.id); // drops it from search
   return { id: row.id, name: row.name };
 }
@@ -914,7 +920,7 @@ export async function bulkItems(v: Caller, input: ItemsBulk): Promise<ItemsBulkR
       }
       out.done++;
     } catch (err) {
-      out.failed.push({ id, reason: err instanceof HTTPException ? err.message : "Couldn't be changed" });
+      out.failed.push({ id, reason: err instanceof HTTPException ? err.message : translateText("Couldn't be changed") });
     }
   }
   return out;
@@ -983,10 +989,10 @@ export async function inventoryReport(v: Caller) {
     const cents = each == null ? null : each * Math.max(1, it.quantity);
     const place = it.locationId ? placeOf.get(it.locationId) : undefined;
     add(total, "all", cents);
-    add(byProperty, place?.property ?? "Not placed", cents);
-    add(byRoom, place ? `${place.property} › ${place.room}` : "Not placed", cents);
+    add(byProperty, place?.property ?? translateText("Not placed"), cents);
+    add(byRoom, place ? `${place.property} › ${place.room}` : translateText("Not placed"), cents);
     if (place) roomIds.set(`${place.property} › ${place.room}`, place.roomId);
-    add(byCategory, (it.categoryId && categories.get(it.categoryId)?.topName) || "No category", cents);
+    add(byCategory, (it.categoryId && categories.get(it.categoryId)?.topName) || translateText("No category"), cents);
     if (cents != null) {
       valued.push({ id: it.id, name: it.name, valueCents: cents });
       const month = (it.purchaseDate ?? todayFor(v, it.createdAt)).slice(0, 7);
@@ -1077,7 +1083,7 @@ async function queueRecallCheck(v: Caller) {
 
 // ── Activity ────────────────────────────────────────────────────────────────
 /** One line in the household's activity (and, with `itemId` — implied for `item.*` — that item's history). */
-export async function logActivity(v: Caller, action: string, entityId: string, summary: string, itemId?: string | null) {
+export async function logActivity(v: Caller, action: string, entityId: string, summary: string, itemId?: string | null, clearedFields?: string[]) {
   await v.db.insert(activity).values({
     itemId: itemId ?? (action.startsWith("item.") ? entityId : null),
     householdId: v.householdId,
@@ -1087,5 +1093,6 @@ export async function logActivity(v: Caller, action: string, entityId: string, s
     entityType: action.split(".")[0]!,
     entityId,
     summary,
+    clearedFields,
   });
 }

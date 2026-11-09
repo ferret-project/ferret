@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * Recall alerts, from the CPSC's recalls (`deps.recalls`), when the server admin has switched them on (Settings ->
  * Server; `server_setting` "recalls.enabled" — they send each brand you own to the CPSC). Nothing is downloaded in
@@ -206,7 +207,7 @@ export async function checkHousehold(v: Caller, itemIds?: string[]) {
       await v.db.insert(itemRecall).values({ householdId: v.householdId, itemId: t.id, recallId: m.recall.id, match: m.match }).onConflictDoNothing();
       known.add(`${t.id}:${m.recall.id}`);
       added++;
-      await logActivity(v, "recall.found", m.recall.id, `${m.match === "possible" ? "Possible recall" : "Recall"} for ${t.name}: ${m.recall.title}`, t.id);
+      await logActivity(v, "recall.found", m.recall.id, translateText("{v0} for {v1}: {v2}", { v0: m.match === "possible" ? translateText("Possible recall") : translateText("Recall"), v1: t.name, v2: m.recall.title }), t.id);
     }
   }
   return added;
@@ -256,13 +257,13 @@ export async function resolveRecall(v: Caller, id: string, status: "open" | "dis
     .innerJoin(recall, eq(recall.id, itemRecall.recallId))
     .innerJoin(item, eq(item.id, itemRecall.itemId))
     .where(and(eq(itemRecall.id, id), eq(itemRecall.householdId, v.householdId)));
-  if (!row) throw notFound("Recall");
-  if (row.ir.status === status) throw new HTTPException(409, { message: "It's already that way" });
+  if (!row) throw notFound(translateText("Recall"));
+  if (row.ir.status === status) throw new HTTPException(409, { message: translateText("It's already that way") });
   await v.db
     .update(itemRecall)
     .set({ status, resolvedAt: status === "open" ? null : new Date(), resolvedBy: status === "open" ? null : v.userId })
     .where(eq(itemRecall.id, id));
-  const words = { open: "Reopened the recall for", dismissed: "Not affected by the recall:", done: "Dealt with the recall for" };
+  const words = { open: translateText("Reopened the recall for"), dismissed: translateText("Not affected by the recall:"), done: translateText("Dealt with the recall for") };
   await logActivity(v, "recall.resolve", row.ir.recallId, `${words[status]} ${row.name}`, row.ir.itemId);
 }
 

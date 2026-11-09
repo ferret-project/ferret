@@ -5,6 +5,7 @@ import { magicLinkClient, organizationClient, twoFactorClient } from "better-aut
 import { passkeyClient } from "@better-auth/passkey/client";
 import { createAuthClient } from "better-auth/react";
 import { forgetOffline } from "./offline";
+import { currentLanguage } from "../i18n";
 
 /** The household roles, as on the server (apps/server/src/auth.ts) — viewer is read-only. */
 const ac = createAccessControl(defaultStatements);
@@ -19,6 +20,7 @@ const roles = {
 export const authClient = createAuthClient({
   baseURL: window.location.origin,
   basePath: "/api/auth",
+  fetchOptions: { customFetchImpl: (input, init) => { const headers = new Headers(init?.headers); headers.set("Accept-Language", currentLanguage()); return fetch(input, { ...init, headers }); } },
   // twoFactorClient without a redirect: the sign-in form asks for the code itself.
   plugins: [organizationClient({ ac, roles }), twoFactorClient(), passkeyClient(), magicLinkClient()],
 });

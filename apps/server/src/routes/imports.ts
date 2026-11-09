@@ -1,3 +1,4 @@
+import { t as translateText } from "./../lib/i18n";
 /**
  * /api/v1/import — importing things (lib/imports.ts): rows from a spreadsheet, or devices from Home Assistant.
  * Anyone who can edit can import (and undo an import). Reading Home Assistant makes the server connect to an address
@@ -33,9 +34,9 @@ imports.post("/:id/undo", requireWriter, async (c) => c.json(await undoImport(ca
 
 imports.post("/home-assistant/devices", requireSession, requireWriter, async (c) => {
   if (c.var.role !== "owner" && c.var.role !== "admin") {
-    throw new HTTPException(403, { message: "Only the household's owner and admins can connect Home Assistant" });
+    throw new HTTPException(403, { message: translateText("Only the household's owner and admins can connect Home Assistant") });
   }
-  if (!c.var.deps.homeAssistant) throw new HTTPException(501, { message: "Home Assistant import isn't available on this server" });
+  if (!c.var.deps.homeAssistant) throw new HTTPException(501, { message: translateText("Home Assistant import isn't available on this server") });
   const { url, token } = await body(c.req.raw, homeAssistantConnect);
   try {
     return c.json(await homeAssistantDevices(callerOf(c), url, token));

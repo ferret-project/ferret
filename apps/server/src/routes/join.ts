@@ -1,3 +1,4 @@
+import { t as translateText } from "./../lib/i18n";
 /**
  * Joining Ferret, before signing in: is sign-up open, and what an invitation
  * link is for, and the API's description (only its shape — every endpoint it describes still needs a key). The invitation id in the link is the secret (long and random),
@@ -63,7 +64,7 @@ join.get("/auth-options", async (c) => {
  */
 join.post("/usage", async (c) => {
   const input = z.object({ event: z.enum(BROWSER_EVENTS), ref: z.string().max(200).optional() }).safeParse(await c.req.json().catch(() => null));
-  if (!input.success) throw new HTTPException(422, { message: "Not a usage event" });
+  if (!input.success) throw new HTTPException(422, { message: translateText("Not a usage event") });
   countEvent(c.var.deps, input.data.event, input.data.event === "visit" ? cleanRef(input.data.ref) : undefined);
   return c.body(null, 204);
 });
@@ -84,7 +85,7 @@ join.get("/invitations/:id", async (c) => {
     .innerJoin(organization, eq(organization.id, invitation.organizationId))
     .innerJoin(user, eq(user.id, invitation.inviterId))
     .where(eq(invitation.id, c.req.param("id")));
-  if (!row) throw new HTTPException(404, { message: "This invitation doesn't exist — ask for a new link" });
+  if (!row) throw new HTTPException(404, { message: translateText("This invitation doesn't exist — ask for a new link") });
   // Its sender no longer an owner or admin there: it can't be accepted, so it's as good as cancelled.
   const withdrawn = row.status === "pending" && !(await mayStillInvite(c.var.db, { ...row, role: row.role ?? "member" }));
   const expired = row.status === "pending" && row.expiresAt < new Date();

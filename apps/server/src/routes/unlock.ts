@@ -1,3 +1,4 @@
+import { t as translateText } from "./../lib/i18n";
 /**
  * /api/v1/sign-in — "email me a link to sign in again" (works signed out). The
  * request always answers the same, so it never says whether an account exists.
@@ -24,6 +25,6 @@ unlock.post("/unlock-request", async (c) => {
 
 unlock.post("/unlock", async (c) => {
   const { token } = await body(c.req.raw, z.object({ token: z.string().min(20).max(100) }));
-  if (!(await useUnlock(c.var.db, token))) throw new HTTPException(410, { message: "This link was used already or has expired" });
+  if (!(await useUnlock(c.var.db, token))) throw new HTTPException(410, { message: translateText("This link was used already or has expired") });
   return c.body(null, 204);
 });

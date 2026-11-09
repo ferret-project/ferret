@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * Collections: coins, Barbies, baseball cards — things kept as a set. A collection has a name, a description and,
  * usually, a template (lib/templates.ts) whose fields are its columns; things in it have `collectionId`, and new ones
@@ -20,7 +21,7 @@ async function checkTemplate(v: Caller, templateId: string | null | undefined) {
     .select({ id: itemTemplate.id })
     .from(itemTemplate)
     .where(and(eq(itemTemplate.id, templateId), eq(itemTemplate.householdId, v.householdId), isNull(itemTemplate.deletedAt)));
-  if (!found) throw notFound("Template");
+  if (!found) throw notFound(translateText("Template"));
 }
 
 /** Every collection, with what's in it: owned (and pieces, counting duplicates), wanted, worth, cost, a photo. */
@@ -75,7 +76,7 @@ export async function listCollections(v: Caller): Promise<CollectionSummary[]> {
 
 export async function getCollection(v: Caller, id: string) {
   const found = (await listCollections(v)).find((c) => c.id === id);
-  if (!found) throw notFound("Collection");
+  if (!found) throw notFound(translateText("Collection"));
   return found;
 }
 
@@ -85,14 +86,14 @@ export async function createCollection(v: Caller, input: CollectionInput) {
     .insert(collection)
     .values({ householdId: v.householdId, name: input.name, description: input.description ?? null, templateId: input.templateId ?? null })
     .returning();
-  await logActivity(v, "collection.create", row!.id, `Started the ${row!.name} collection`);
+  await logActivity(v, "collection.create", row!.id, translateText("Started the {v0} collection", { v0: row!.name }));
   return getCollection(v, row!.id);
 }
 
 export async function updateCollection(v: Caller, id: string, input: CollectionPatch) {
   await checkTemplate(v, input.templateId);
   const [row] = await v.db.update(collection).set(input).where(collectionIn(v, id)).returning();
-  if (!row) throw notFound("Collection");
+  if (!row) throw notFound(translateText("Collection"));
   // Its name is in what its things say to search.
   if (input.name) {
     const inIt = await v.db.select({ id: item.id }).from(item).where(and(itemScope(v, { wanted: "include" }), eq(item.collectionId, id)));
@@ -107,11 +108,11 @@ export async function updateCollection(v: Caller, id: string, input: CollectionP
  */
 export async function deleteCollection(v: Caller, id: string) {
   const [row] = await v.db.update(collection).set({ deletedAt: new Date() }).where(collectionIn(v, id)).returning();
-  if (!row) throw notFound("Collection");
+  if (!row) throw notFound(translateText("Collection"));
   const now = new Date();
   await v.db.update(item).set({ deletedAt: now }).where(and(eq(item.householdId, v.householdId), eq(item.collectionId, id), eq(item.wanted, true), isNull(item.deletedAt)));
   const owned = await v.db.select({ id: item.id }).from(item).where(and(eq(item.householdId, v.householdId), eq(item.collectionId, id), isNull(item.deletedAt)));
   await v.db.update(item).set({ collectionId: null }).where(and(eq(item.householdId, v.householdId), eq(item.collectionId, id), isNull(item.deletedAt)));
   for (const i of owned) await itemChanged(v, i.id);
-  await logActivity(v, "collection.delete", id, `Removed the ${row.name} collection`);
+  await logActivity(v, "collection.delete", id, translateText("Removed the {v0} collection", { v0: row.name }));
 }

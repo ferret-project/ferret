@@ -1,3 +1,5 @@
+import { t as translateText } from "./i18n";
+import { tr } from "./i18n";
 /**
  * The first-time checklist on a new household's dashboard: a home, its rooms, categories, the first things, the
  * family. Each step is ticked from what's really there (not from clicks), and it goes away once done — or when hidden.
@@ -24,28 +26,28 @@ export function SetupChecklist({ householdId, o }: { householdId: string; o: Ove
   const [hidden, setHidden] = useState(() => isHidden(householdId));
   const canEdit = useCanEdit(householdId);
   const steps: { label: string; detail: string; done: boolean; href: string; action: string }[] = [
-    { label: "Add your home", detail: "A property — or several: a cabin, a storage unit.", done: o.properties > 0, href: PLACES_HREF, action: "Places" },
-    { label: "Add its rooms", detail: "Kitchen, garage, shelves and closets inside them.", done: o.locations > 0, href: PLACES_HREF, action: "Places" },
+    { label: translateText("Add your home"), detail: translateText("A property — or several: a cabin, a storage unit."), done: o.properties > 0, href: PLACES_HREF, action: translateText("Places") },
+    { label: translateText("Add its rooms"), detail: translateText("Kitchen, garage, shelves and closets inside them."), done: o.locations > 0, href: PLACES_HREF, action: translateText("Places") },
     {
-      label: "Choose categories",
-      detail: "Start from the suggested ones and change them later.",
+      label: translateText("Choose categories"),
+      detail: translateText("Start from the suggested ones and change them later."),
       done: (categories.data?.length ?? 0) > 0,
       href: CATEGORIES_HREF,
-      action: "Categories",
+      action: translateText("Categories"),
     },
     {
-      label: "Add your first things",
-      detail: "Walk through a room with your camera, or import a spreadsheet.",
+      label: translateText("Add your first things"),
+      detail: translateText("Walk through a room with your camera, or import a spreadsheet."),
       done: o.total.items > 0,
       href: WALKTHROUGH_HREF,
-      action: "Walk through",
+      action: translateText("Walk through"),
     },
     {
-      label: "Invite your household",
-      detail: "So everyone can find things — viewers can only look.",
+      label: translateText("Invite your household"),
+      detail: translateText("So everyone can find things — viewers can only look."),
       done: (org.data?.members.length ?? 0) > 1,
       href: SETTINGS_HREF,
-      action: "Invite",
+      action: translateText("Invite"),
     },
   ];
   const left = steps.filter((s) => !s.done).length;
@@ -59,11 +61,9 @@ export function SetupChecklist({ householdId, o }: { householdId: string; o: Ove
           <span className="icon-[tabler--rocket] size-6 text-primary" />
           <div className="min-w-0 flex-1">
             <h2 id="setup-title" className="text-lg font-semibold text-base-content">
-              Getting started
-            </h2>
+              {translateText("Getting started")}</h2>
             <p className="text-sm text-base-content/70">
-              {steps.length - left} of {steps.length} done
-            </p>
+              {steps.length - left}{tr(" of {v0} done", { v0: steps.length })}</p>
           </div>
           <button
             type="button"
@@ -77,8 +77,7 @@ export function SetupChecklist({ householdId, o }: { householdId: string; o: Ove
               }
             }}
           >
-            Hide
-          </button>
+            {translateText("Hide")}</button>
         </div>
         <div className="h-1.5 overflow-hidden rounded-full bg-base-content/10" aria-hidden>
           <div className="h-full rounded-full bg-primary" style={{ width: `${((steps.length - left) / steps.length) * 100}%` }} />
@@ -92,7 +91,7 @@ export function SetupChecklist({ householdId, o }: { householdId: string; o: Ove
                 }`}
               >
                 {s.done ? <span className="icon-[tabler--check] size-4" /> : i + 1}
-                <span className="sr-only">{s.done ? " (done)" : ""}</span>
+                <span className="sr-only">{s.done ? translateText(" (done)") : ""}</span>
               </span>
               <span className="min-w-0 flex-1">
                 <span className={`block font-medium ${s.done ? "text-base-content/70 line-through" : "text-base-content"}`}>{s.label}</span>
@@ -105,8 +104,7 @@ export function SetupChecklist({ householdId, o }: { householdId: string; o: Ove
                   </a>
                   {s.href === WALKTHROUGH_HREF && (
                     <a href={IMPORT_HREF} className="btn btn-soft btn-primary btn-sm">
-                      Import
-                    </a>
+                      {translateText("Import")}</a>
                   )}
                 </span>
               )}

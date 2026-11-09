@@ -1,3 +1,4 @@
+import { t as translateText } from "./../lib/i18n";
 /**
  * Attachment analysis jobs. Photos go to the vision model; documents (PDFs and
  * document photos) go to docling for a full Markdown transcription, then to the

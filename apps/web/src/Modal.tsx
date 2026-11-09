@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * A FlyonUI modal driven by React (no FlyonUI JS): the `open` class plus
  * `overlay-open:` variants from flyonui/variants.css. Esc and the backdrop close it.
@@ -32,7 +33,7 @@ export function Modal({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
   const close = (
-    <button type="button" className="btn btn-circle btn-sm btn-text absolute end-3 top-3" aria-label="Close" onClick={onClose}>
+    <button type="button" className="btn btn-circle btn-sm btn-text absolute end-3 top-3" aria-label={translateText("Close")} onClick={onClose}>
       <span className="icon-[tabler--x] size-4 text-base-content" />
     </button>
   );

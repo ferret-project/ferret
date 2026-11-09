@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * Say it instead of typing it (AI-7; server: POST /transcribe → the Speech port, a Whisper server): tap to record,
  * tap again (or wait 10 s) to stop; the words come back into the field. Shown only when the server has speech to text.
@@ -12,7 +13,7 @@ import { useFeatures } from "./lib/features";
 const MAX_MS = 10_000;
 const TYPES = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"];
 
-export function SpeakButton({ onText, label = "Say it" }: { onText: (text: string) => void; label?: string }) {
+export function SpeakButton({ onText, label = translateText("Say it") }: { onText: (text: string) => void; label?: string }) {
   const features = useFeatures();
   const [state, setState] = useState<"idle" | "recording" | "reading">("idle");
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +41,7 @@ export function SpeakButton({ onText, label = "Say it" }: { onText: (text: strin
           const recorded = new Blob(chunks, { type: rec.mimeType || mimeType || "audio/webm" });
           const { text } = await api.transcribe(await toWav(recorded).catch(() => recorded));
           if (text) onText(text.replace(/[.。!?]+$/, ""));
-          else setError("Didn't catch that — try again");
+          else setError(translateText("Didn't catch that — try again"));
         } catch (err) {
           setError((err as Error).message);
         }
@@ -51,7 +52,7 @@ export function SpeakButton({ onText, label = "Say it" }: { onText: (text: strin
       setState("recording");
       timer.current = setTimeout(() => rec.state === "recording" && rec.stop(), MAX_MS);
     } catch {
-      setError("Ferret can't use the microphone — check the browser's permission");
+      setError(translateText("Ferret can't use the microphone — check the browser's permission"));
       setState("idle");
     }
   }
@@ -61,7 +62,7 @@ export function SpeakButton({ onText, label = "Say it" }: { onText: (text: strin
       <button
         type="button"
         className={`btn btn-square ${state === "recording" ? "btn-error" : "btn-soft btn-primary"}`}
-        aria-label={state === "recording" ? "Stop recording" : label}
+        aria-label={state === "recording" ? translateText("Stop recording") : label}
         aria-pressed={state === "recording"}
         disabled={state === "reading"}
         onClick={() => (state === "recording" ? recorder.current?.stop() : void start())}

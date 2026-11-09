@@ -1,3 +1,4 @@
+import { t as translateText } from "./../lib/i18n";
 /**
  * Daily: removes for good whatever was deleted more than 30 days ago, in every
  * household — items with their photos and documents (encrypted files too),

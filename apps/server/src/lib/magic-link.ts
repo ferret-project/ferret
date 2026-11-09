@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * "Email me a sign-in link" — Better Auth's magic-link plugin, behind the same kind of front as password reset
  * (lib/password-reset.ts), and only when Ferret can send email:

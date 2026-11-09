@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * Semantic search: embeds the query and asks the vector store for the nearest
  * item summaries and document chunks in this household, best hit per item.
@@ -137,16 +138,16 @@ async function judged(judge: TextModel, query: string, candidates: [string, stri
   // Worded after trying several on a set of yes/no cases (eval/search.ts): asking what someone is "looking for" made
   // the model refuse a kayak for "go out on the lake"; asking whether they'd be glad to see it gets both kinds right.
   const prompt =
-    `Home inventory search. Query: "${query}"\nCandidates:\n` +
+    translateText("Home inventory search. Query: \"{v0}\"\nCandidates:\n", { v0: query }) +
     candidates.map(([, text], i) => `${i + 1}. ${text.replace(/\s+/g, " ").slice(0, 300)}`).join("\n") +
-    `\n\nKeep a candidate if a person typing that query would be glad to see it: it's the thing named, holds it, or is ` +
-    `the tool for the task described. Drop it if the query names a different kind of object that this candidate merely ` +
-    `resembles or shares a category with. Return the numbers to keep.`;
+    translateText("\n\nKeep a candidate if a person typing that query would be glad to see it: it's the thing named, holds it, or is ") +
+    translateText("the tool for the task described. Drop it if the query names a different kind of object that this candidate merely ") +
+    translateText("resembles or shares a category with. Return the numbers to keep.");
   const schema = { type: "object", properties: { matches: { type: "array", items: { type: "integer" } } }, required: ["matches"] };
   try {
     const answer = (await Promise.race([
       judge.json({ prompt, schema }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error("judge timed out")), JUDGE_TIMEOUT_MS)),
+      new Promise((_, reject) => setTimeout(() => reject(new Error(translateText("judge timed out"))), JUDGE_TIMEOUT_MS)),
     ])) as { matches?: unknown };
     // A debugging switch for eval/search.ts (Node); Node only.
     if ((globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.DEBUG_JUDGE) console.log(`[judge] ${query}\n${prompt.split("\n\n").at(-1)}\n→ ${JSON.stringify(answer)}`);

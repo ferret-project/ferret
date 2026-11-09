@@ -1,3 +1,4 @@
+import { t as translateText } from "./../lib/i18n";
 /**
  * /api/v1/api-keys — the signed-in user's API keys for the current household
  * (Settings → Claude & API). Only a real sign-in can manage keys: a key can't make
@@ -51,7 +52,7 @@ apiKeys.get("/", async (c) => c.json({ data: (await ownKeys(c)).map(summary) }))
 apiKeys.post("/", async (c) => {
   await requireFeature({ deps: c.var.deps, householdId: c.var.householdId }, "apiKeys");
   const parsed = apiKeyInput.safeParse(await c.req.json().catch(() => null));
-  if (!parsed.success) throw new HTTPException(422, { message: "Invalid input", cause: parsed.error.issues });
+  if (!parsed.success) throw new HTTPException(422, { message: translateText("Invalid input"), cause: parsed.error.issues });
   const { name, readOnly, expiresInDays } = parsed.data;
   const metadata: KeyMetadata = {
     householdId: c.var.householdId,
@@ -75,7 +76,7 @@ apiKeys.post("/", async (c) => {
 
 apiKeys.delete("/:id", async (c) => {
   const key = (await ownKeys(c)).find((k) => k.id === c.req.param("id"));
-  if (!key) throw new HTTPException(404, { message: "API key not found" });
+  if (!key) throw new HTTPException(404, { message: translateText("API key not found") });
   await c.var.db.delete(apikey).where(and(eq(apikey.id, key.id), eq(apikey.referenceId, c.var.user.id)));
   return c.body(null, 204);
 });

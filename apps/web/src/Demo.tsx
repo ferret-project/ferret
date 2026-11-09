@@ -1,3 +1,6 @@
+import { locale } from "./i18n";
+import { t as translateText } from "./i18n";
+import { tr } from "./i18n";
 /**
  * The public demo (the server's DEMO setting, given by /auth-options): the shared account offered on the sign-in screen,
  * a note at the top of the dashboard saying what's kept and for how long, the browser's usage counts (lib/demo-counts.ts),
@@ -24,8 +27,7 @@ export function DemoCounts() {
 function RunYourOwn({ className = "" }: { className?: string }) {
   return (
     <a href="/docs/hosting/install.html" className={`link link-primary tap ${className}`} onClick={() => countUsage("self_host.click")}>
-      Run your own Ferret
-    </a>
+      {translateText("Run your own Ferret")}</a>
   );
 }
 
@@ -36,8 +38,7 @@ export function DemoSignIn({ demo, busy, onSignIn }: { demo: DemoOptions; busy: 
   if (demo.paused) {
     return (
       <div className="alert alert-soft alert-info text-sm" role="status">
-        The demo is resting for now — please come back later.
-      </div>
+        {translateText("The demo is resting for now — please come back later.")}</div>
     );
   }
   return (
@@ -45,26 +46,20 @@ export function DemoSignIn({ demo, busy, onSignIn }: { demo: DemoOptions; busy: 
       <div className="card-body gap-3 p-4">
         <div>
           <h2 id="demo-title" className="font-semibold text-base-content">
-            Try the demo
-          </h2>
+            {translateText("Try the demo")}</h2>
           <p className="text-sm text-base-content/70">
-            A made-up house, shared by everyone trying Ferret — change anything you like; it starts afresh every night.
-          </p>
+            {translateText("A made-up house, shared by everyone trying Ferret — change anything you like; it starts afresh every night.")}</p>
         </div>
         <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-          <dt className="text-base-content/70">Email</dt>
+          <dt className="text-base-content/70">{translateText("Email")}</dt>
           <dd className="font-mono break-all select-all">{demo.email}</dd>
-          <dt className="text-base-content/70">Password</dt>
+          <dt className="text-base-content/70">{translateText("Password")}</dt>
           <dd className="font-mono select-all">{demo.password}</dd>
         </dl>
         <button type="button" className="btn btn-primary" disabled={busy} onClick={onSignIn}>
           {busy ? <span className="loading loading-spinner loading-sm" /> : <span className="icon-[tabler--door-enter] size-5" />}
-          Sign in to the demo
-        </button>
-        <p className="text-xs text-base-content/70">
-          Or create your own account below: it and its households are deleted after {demo.visitorDays} days. Or{" "}
-          <RunYourOwn /> at home.
-        </p>
+          {translateText("Sign in to the demo")}</button>
+        <p className="text-xs text-base-content/70">{tr("Or create your own account below: it and its households are deleted after {v0} days. Or{v1}", { v0: demo.visitorDays, v1: " " })}<RunYourOwn /> {translateText("at home.")}</p>
       </div>
     </section>
   );
@@ -82,26 +77,19 @@ export function DemoNote() {
       <div className="min-w-0 flex-1 basis-60">
         {shared ? (
           <>
-            <p className="font-medium">You're in the shared demo.</p>
+            <p className="font-medium">{translateText("You're in the shared demo.")}</p>
             <p>
-              Everyone trying Ferret sees this house, and it starts afresh every night. Account settings are locked here —
-              make your own account to try those too.
-            </p>
+              {translateText("Everyone trying Ferret sees this house, and it starts afresh every night. Account settings are locked here — make your own account to try those too.")}</p>
           </>
         ) : (
-          <p>
-            This is the Ferret demo: your account and its households are deleted {demo.visitorDays} days after you made
-            them.
-          </p>
+          <p>{tr("This is the Ferret demo: your account and its households are deleted {v0} days after you made them.", { v0: demo.visitorDays })}</p>
         )}
         <p className="mt-1">
-          Like it? <RunYourOwn /> — on a computer at home, so your things never leave it.
-        </p>
+          {translateText("Like it? ")}<RunYourOwn /> {translateText("— on a computer at home, so your things never leave it.")}</p>
       </div>
       {shared && (
         <button type="button" className="btn btn-soft btn-info btn-sm btn-wrap" onClick={() => signOut()}>
-          Sign out to make your own
-        </button>
+          {translateText("Sign out to make your own")}</button>
       )}
     </div>
   );
@@ -131,11 +119,11 @@ export function DemoUsage() {
   const r = report.data;
   const funnel: [string, number][] = r
     ? [
-        ["Visits", total(r.counts, "visit")],
-        ["Tried the demo", total(r.counts, "demo.sign_in")],
-        ["Made an account", total(r.counts, "demo.sign_up")],
-        ["Came back a day later", total(r.counts, "return.d1")],
-        ["…and a week later", total(r.counts, "return.d7")],
+        [translateText("Visits"), total(r.counts, "visit")],
+        [translateText("Tried the demo"), total(r.counts, "demo.sign_in")],
+        [translateText("Made an account"), total(r.counts, "demo.sign_up")],
+        [translateText("Came back a day later"), total(r.counts, "return.d1")],
+        [translateText("…and a week later"), total(r.counts, "return.d7")],
       ]
     : [];
   const refs = new Map<string, number>();
@@ -153,41 +141,37 @@ export function DemoUsage() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 id="demo-usage-title" className="card-title flex items-center gap-2">
             <span className="icon-[tabler--flask] size-5 text-primary" aria-hidden />
-            Demo
-          </h2>
-          <select className="select select-sm w-auto" value={days} onChange={(e) => setDays(Number(e.target.value))} aria-label="Period">
-            <option value={7}>Last 7 days</option>
-            <option value={30}>Last 30 days</option>
-            <option value={90}>Last 90 days</option>
+            {translateText("Demo")}</h2>
+          <select className="select select-sm w-auto" value={days} onChange={(e) => setDays(Number(e.target.value))} aria-label={translateText("Period")}>
+            <option value={7}>{translateText("Last 7 days")}</option>
+            <option value={30}>{translateText("Last 30 days")}</option>
+            <option value={90}>{translateText("Last 90 days")}</option>
           </select>
         </div>
-        <p className="text-sm text-base-content/70">
-          Counts of what visitors do — never who they are or what they add. Visitors&rsquo; accounts go after{" "}
-          {r?.visitorDays ?? demo.visitorDays} days.
-        </p>
+        <p className="text-sm text-base-content/70">{tr("Counts of what visitors do — never who they are or what they add. Visitors’ accounts go after{v0}", { v0: " " })}{r?.visitorDays ?? demo.visitorDays} {translateText("days.")}</p>
         {report.isError && <div className="alert alert-soft alert-error text-sm">{report.error.message}</div>}
         {r && (
           <>
             <dl className="grid grid-cols-[repeat(auto-fit,minmax(6rem,1fr))] gap-3">
-              <Stat label="Visitors’ accounts now" value={r.visitorAccounts} />
-              <Stat label="Their households" value={r.visitorHouseholds} />
-              <Stat label="AI calls today" value={`${r.ai.today} of ${r.ai.perDay}`} />
+              <Stat label={translateText("Visitors’ accounts now")} value={r.visitorAccounts} />
+              <Stat label={translateText("Their households")} value={r.visitorHouseholds} />
+              <Stat label={translateText("AI calls today")} value={`${r.ai.today} of ${r.ai.perDay}`} />
             </dl>
-            {r.paused && <div className="alert alert-soft alert-warning text-sm">The demo is paused (DEMO_PAUSED).</div>}
+            {r.paused && <div className="alert alert-soft alert-warning text-sm">{translateText("The demo is paused (DEMO_PAUSED).")}</div>}
             {r.counts === null ? (
               <div className="alert alert-soft alert-info text-sm">
                 {r.countsError
-                  ? `Couldn’t read the counts: ${r.countsError}`
-                  : "The counts are being kept, but can’t be read back from here."}
+                  ? translateText("Couldn’t read the counts: {v0}", { v0: r.countsError })
+                  : translateText("The counts are being kept, but can’t be read back from here.")}
               </div>
             ) : (
               <>
                 <div>
-                  <h3 className="mb-2 font-medium">From a visit to coming back</h3>
+                  <h3 className="mb-2 font-medium">{translateText("From a visit to coming back")}</h3>
                   <ul className="space-y-2">
                     {funnel.map(([label, n]) => (
                       <li key={label} className="grid grid-cols-[minmax(0,10rem)_1fr_auto] items-center gap-3 text-sm">
-                        <span>{label}</span>
+                        <span>{translateText(label)}</span>
                         <progress className="progress progress-primary" value={n} max={top} aria-hidden />
                         <span className="tabular-nums">{n}</span>
                       </li>
@@ -196,18 +180,18 @@ export function DemoUsage() {
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <h3 className="mb-2 font-medium">What they tried</h3>
+                    <h3 className="mb-2 font-medium">{translateText("What they tried")}</h3>
                     <ul className="divide-y divide-base-300 text-sm">
                       {FEATURES.map(([event, label]) => (
                         <li key={event} className="flex justify-between gap-3 py-1.5">
-                          <span>{label}</span>
+                          <span>{translateText(label)}</span>
                           <span className="tabular-nums">{total(r.counts, event)}</span>
                         </li>
                       ))}
                     </ul>
                   </div>
                   <div>
-                    <h3 className="mb-2 font-medium">Where visits came from</h3>
+                    <h3 className="mb-2 font-medium">{translateText("Where visits came from")}</h3>
                     {refs.size ? (
                       <ul className="divide-y divide-base-300 text-sm">
                         {[...refs].sort((a, b) => b[1] - a[1]).map(([ref, n]) => (
@@ -218,22 +202,22 @@ export function DemoUsage() {
                         ))}
                       </ul>
                     ) : (
-                      <p className="text-sm text-base-content/70">No visits yet. Links with ?ref= show here.</p>
+                      <p className="text-sm text-base-content/70">{translateText("No visits yet. Links with ?ref= show here.")}</p>
                     )}
                   </div>
                 </div>
                 {byDay.size > 0 && (
                   <div className="overflow-x-auto">
                     <table className="table table-sm">
-                      <caption className="sr-only">By day (UTC)</caption>
+                      <caption className="sr-only">{translateText("By day (UTC)")}</caption>
                       <thead>
                         <tr>
-                          <th>Day (UTC)</th>
-                          <th className="text-end">Visits</th>
-                          <th className="text-end">Tried</th>
-                          <th className="text-end">Accounts</th>
-                          <th className="text-end">Things</th>
-                          <th className="text-end">Searches</th>
+                          <th>{translateText("Day (UTC)")}</th>
+                          <th className="text-end">{translateText("Visits")}</th>
+                          <th className="text-end">{translateText("Tried")}</th>
+                          <th className="text-end">{translateText("Accounts")}</th>
+                          <th className="text-end">{translateText("Things")}</th>
+                          <th className="text-end">{translateText("Searches")}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -263,7 +247,7 @@ export function DemoUsage() {
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="rounded-box bg-base-200 p-3">
-      <dt className="text-sm text-base-content/70">{label}</dt>
+      <dt className="text-sm text-base-content/70">{translateText(label)}</dt>
       <dd className="text-xl font-semibold tabular-nums">{value}</dd>
     </div>
   );
@@ -302,18 +286,17 @@ export function DemoSwitches() {
       <div className="card-body gap-3">
         <h2 id="demo-switches-title" className="card-title flex items-center gap-2">
           <span className="icon-[tabler--toggle-right] size-5 text-primary" aria-hidden />
-          Parts of the demo
-        </h2>
-        <p className="text-sm text-base-content/70">Switch one off to stop its cost or its misuse without closing the demo. Changes reach every visitor within seconds.</p>
+          {translateText("Parts of the demo")}</h2>
+        <p className="text-sm text-base-content/70">{translateText("Switch one off to stop its cost or its misuse without closing the demo. Changes reach every visitor within seconds.")}</p>
         <ul className="divide-y divide-base-300">
           {PARTS.map(([part, label, what]) => (
             <li key={part} className="py-2">
               <label className="flex cursor-pointer items-start justify-between gap-3">
                 <span className="min-w-0">
-                  <span className="block font-medium">{label}</span>
-                  <span className="block text-sm text-base-content/70">{what}</span>
+                  <span className="block font-medium">{translateText(label)}</span>
+                  <span className="block text-sm text-base-content/70">{translateText(what)}</span>
                 </span>
-                <input type="checkbox" className="switch switch-primary mt-1 shrink-0" checked={!off.has(part)} disabled={save.isPending} onChange={(e) => flip(part, e.target.checked)} aria-label={`${label}: ${off.has(part) ? "off" : "on"}`} />
+                <input type="checkbox" className="switch switch-primary mt-1 shrink-0" checked={!off.has(part)} disabled={save.isPending} onChange={(e) => flip(part, e.target.checked)} aria-label={translateText("{v0}: {v1}", { v0: translateText(label), v1: off.has(part) ? translateText("off") : translateText("on") })} />
               </label>
             </li>
           ))}
@@ -324,7 +307,7 @@ export function DemoSwitches() {
   );
 }
 
-const number = (n: number) => Math.round(n).toLocaleString();
+const number = (n: number) => Math.round(n).toLocaleString(locale());
 const bytes = (n: number) => (n < 1e6 ? `${Math.round(n / 1e3)} KB` : n < 1e9 ? `${(n / 1e6).toFixed(1)} MB` : `${(n / 1e9).toFixed(2)} GB`);
 
 /** What the demo's hosting has used this month, against what its plan includes (the server's HostingUsage port). */
@@ -340,12 +323,11 @@ export function HostingUsageCard() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 id="hosting-usage-title" className="card-title flex items-center gap-2">
             <span className="icon-[tabler--cloud] size-5 text-primary" aria-hidden />
-            {u?.title ?? "Hosting this month"}
+            {u?.title ?? translateText("Hosting this month")}
           </h2>
           <button type="button" className="btn btn-text btn-sm" disabled={usage.isFetching} onClick={() => void usage.refetch()}>
             {usage.isFetching ? <span className="loading loading-spinner loading-xs" /> : <span className="icon-[tabler--refresh] size-4" aria-hidden />}
-            Refresh
-          </button>
+            {translateText("Refresh")}</button>
         </div>
         {u?.note && <p className="text-sm text-base-content/70">{u.note}</p>}
         {usage.data?.error && <div className="alert alert-soft alert-warning text-sm">{usage.data.error}</div>}
@@ -358,9 +340,8 @@ export function HostingUsageCard() {
                 return (
                   <li key={label} className="text-sm">
                     <div className="flex flex-wrap justify-between gap-x-3">
-                      <span>{label}</span>
-                      <span className="tabular-nums text-base-content/70">
-                        {show(used)} of {show(included)} · {used / included < 0.001 && used > 0 ? "<0.1" : ((used / included) * 100).toFixed(1)}%
+                      <span>{translateText(label)}</span>
+                      <span className="tabular-nums text-base-content/70">{tr("{v0} of {v1} · ", { v0: show(used), v1: show(included) })}{used / included < 0.001 && used > 0 ? "<0.1" : ((used / included) * 100).toFixed(1)}%
                       </span>
                     </div>
                     <progress className={`progress ${used / included > 0.8 ? "progress-warning" : "progress-primary"}`} value={Math.min(used, included)} max={included} aria-hidden />

@@ -1,3 +1,5 @@
+import { tn } from "./i18n";
+import { t as translateText } from "./i18n";
 /**
  * Importing things: rows from a spreadsheet (the web app reads the CSV and maps its columns — @ferret/shared's
  * draftRows) or devices from Home Assistant (lib/home-assistant.ts). Places and categories come by name or path and
@@ -63,8 +65,8 @@ async function batchFor(v: Caller, input: ImportInput) {
   if (!input.rows.length && !input.batchId) return ""; // only places: nothing to undo
   if (input.batchId) {
     const [b] = await v.db.select().from(importBatch).where(and(eq(importBatch.id, input.batchId), eq(importBatch.householdId, v.householdId)));
-    if (!b) throw notFound("Import");
-    if (b.undoneAt) throw new HTTPException(409, { message: "That import was undone" });
+    if (!b) throw notFound(translateText("Import"));
+    if (b.undoneAt) throw new HTTPException(409, { message: translateText("That import was undone") });
     return b.id;
   }
   const [b] = await v.db.insert(importBatch).values({ householdId: v.householdId, source: input.source, name: input.name, createdBy: v.userId }).returning();
@@ -92,9 +94,9 @@ export async function importItems(v: Caller, input: ImportInput): Promise<Import
       .select({ id: property.id, name: property.name })
       .from(property)
       .where(and(eq(property.id, input.propertyId), eq(property.householdId, v.householdId), isNull(property.deletedAt)));
-    if (!propertyRow) throw notFound("Property");
+    if (!propertyRow) throw notFound(translateText("Property"));
   } else if (input.rows.some((r) => r.place) || input.places?.some((p) => p.path)) {
-    throw new HTTPException(422, { message: "Choose the property new places go in" });
+    throw new HTTPException(422, { message: translateText("Choose the property new places go in") });
   }
   const batchId = await batchFor(v, input);
 
@@ -155,7 +157,7 @@ export async function importItems(v: Caller, input: ImportInput): Promise<Import
   for (const p of input.places ?? []) {
     if (p.haAreaId && haPlaces.has(p.haAreaId)) continue;
     if (p.locationId) {
-      if (!everywhere.some((l) => l.id === p.locationId)) throw notFound("Place");
+      if (!everywhere.some((l) => l.id === p.locationId)) throw notFound(translateText("Place"));
       if (p.haAreaId) await remember(p.locationId, p.haAreaId);
       continue;
     }
@@ -177,7 +179,7 @@ export async function importItems(v: Caller, input: ImportInput): Promise<Import
         .select({ id: location.id })
         .from(location)
         .where(and(eq(location.id, row.locationId), eq(location.householdId, v.householdId), isNull(location.deletedAt)));
-      if (!found) throw notFound("Place");
+      if (!found) throw notFound(translateText("Place"));
       return found.id;
     }
     if (!row.place || !propertyRow) return null;
@@ -213,20 +215,20 @@ export async function importItems(v: Caller, input: ImportInput): Promise<Import
   for (const [index, row] of input.rows.entries()) {
     try {
       if (room !== null && room <= 0) {
-        result.skipped.push({ index, reason: "Your plan's room for things is full — upgrade to import more" });
+        result.skipped.push({ index, reason: translateText("Your plan's room for things is full — upgrade to import more") });
         continue;
       }
       if (row.haDeviceId && haHere.has(row.haDeviceId)) {
-        result.skipped.push({ index, reason: "Already in Ferret" });
+        result.skipped.push({ index, reason: translateText("Already in Ferret") });
         continue;
       }
       if (row.importKey && keysHere.has(row.importKey)) {
-        result.skipped.push({ index, reason: "Already in Ferret" });
+        result.skipped.push({ index, reason: translateText("Already in Ferret") });
         continue;
       }
       const serial = row.serialNumber?.trim().toLowerCase();
       if (serial && serialsHere.has(serial)) {
-        result.skipped.push({ index, reason: `Already in Ferret (serial number ${row.serialNumber})` });
+        result.skipped.push({ index, reason: translateText("Already in Ferret (serial number {v0})", { v0: row.serialNumber }) });
         continue;
       }
       const { place, locationId: _l, haAreaId, category: categoryName, tags, warrantyEnds, soldOn, soldCents, quantity, ...fields } = row;
@@ -258,11 +260,11 @@ export async function importItems(v: Caller, input: ImportInput): Promise<Import
       result.created++;
       if (room !== null) room--;
     } catch (e) {
-      result.skipped.push({ index, reason: e instanceof HTTPException ? e.message : "Couldn't be saved" });
+      result.skipped.push({ index, reason: e instanceof HTTPException ? e.message : translateText("Couldn't be saved") });
     }
   }
   if (result.created) {
-    await logActivity(v, "import.items", batchId, `Imported ${result.created} ${result.created === 1 ? "thing" : "things"} from ${input.name}`);
+    await logActivity(v, "import.items", batchId, tn(result.created, "Imported {count} thing from {v2}", "Imported {count} things from {v2}", { v2: input.name }));
   }
   return result;
 }
@@ -300,15 +302,15 @@ export async function listImports(v: Caller): Promise<ImportBatchSummary[]> {
 /** Everything an import added that's still here goes to Recently deleted (places and categories it made stay). */
 export async function undoImport(v: Caller, id: string) {
   const [b] = await v.db.select().from(importBatch).where(and(eq(importBatch.id, id), eq(importBatch.householdId, v.householdId)));
-  if (!b) throw notFound("Import");
-  if (b.undoneAt) throw new HTTPException(409, { message: "That import was already undone" });
+  if (!b) throw notFound(translateText("Import"));
+  if (b.undoneAt) throw new HTTPException(409, { message: translateText("That import was already undone") });
   const rows = await v.db
     .select({ id: item.id })
     .from(item)
     .where(and(eq(item.householdId, v.householdId), eq(item.importBatchId, id), isNull(item.deletedAt)));
   for (const r of rows) await deleteItem(v, r.id);
   await v.db.update(importBatch).set({ undoneAt: new Date() }).where(eq(importBatch.id, id));
-  await logActivity(v, "import.undo", id, `Undid the import of ${b.name} (${rows.length} ${rows.length === 1 ? "thing" : "things"} to Recently deleted)`);
+  await logActivity(v, "import.undo", id, tn(rows.length, "Undid the import of {v0} ({count} thing to Recently deleted)", "Undid the import of {v0} ({count} things to Recently deleted)", { v0: b.name }));
   return { removed: rows.length };
 }
 
@@ -323,7 +325,7 @@ export async function applyHomeAssistant(v: Caller, input: HomeAssistantApply) {
       .select({ id: item.id })
       .from(item)
       .where(and(eq(item.id, u.itemId), eq(item.householdId, v.householdId), isNull(item.deletedAt), isNotNull(item.haDeviceId)));
-    if (!row) throw notFound("Item");
+    if (!row) throw notFound(translateText("Item"));
     const patch: ItemPatch = {};
     if (u.name !== undefined) patch.name = u.name;
     if (u.brand !== undefined) patch.brand = u.brand;
@@ -334,7 +336,7 @@ export async function applyHomeAssistant(v: Caller, input: HomeAssistantApply) {
         .select({ id: location.id })
         .from(location)
         .where(and(eq(location.householdId, v.householdId), eq(location.haAreaId, u.haAreaId), isNull(location.deletedAt)));
-      if (!place) throw new HTTPException(422, { message: "That room isn't a place in Ferret yet — import it first" });
+      if (!place) throw new HTTPException(422, { message: translateText("That room isn't a place in Ferret yet — import it first") });
       patch.locationId = place.id;
     }
     if (Object.keys(patch).length) {

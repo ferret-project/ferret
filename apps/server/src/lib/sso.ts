@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * Single sign-on for a self-hosted Ferret (docs: hosting/single-sign-on).
  *
@@ -52,7 +53,7 @@ export function ssoPlugins(db: Db, config: Config, onAccountCreated?: () => void
             // An address the provider hasn't checked is never trusted to sign in as (or link to) an account.
             requireEmailVerification: true,
             mapProfileToUser: (profile) => ({
-              name: String(profile.name ?? profile.preferred_username ?? profile.email ?? "Someone"),
+              name: String(profile.name ?? profile.preferred_username ?? profile.email ?? translateText("Someone")),
               emailVerified: profile.email_verified === true,
             }),
           },
@@ -75,10 +76,10 @@ function trustedHeaderSignIn(db: Db, config: Config, onAccountCreated?: () => vo
     endpoints: {
       trustedHeaderSignIn: createAuthEndpoint("/sign-in/trusted-header", { method: "POST" }, async (ctx) => {
         const headers = ctx.request?.headers;
-        if (headers?.get(PROXY_MARK) !== "1") throw new APIError("UNAUTHORIZED", { message: "Not from the sign-in proxy" });
+        if (headers?.get(PROXY_MARK) !== "1") throw new APIError("UNAUTHORIZED", { message: translateText("Not from the sign-in proxy") });
         const email = headers.get(config.TRUSTED_HEADER_EMAIL)?.trim().toLowerCase();
         const username = headers.get(config.TRUSTED_HEADER_USER)?.trim() || email;
-        if (!email || !username || !email.includes("@")) throw new APIError("UNAUTHORIZED", { message: "The sign-in proxy didn't say who you are" });
+        if (!email || !username || !email.includes("@")) throw new APIError("UNAUTHORIZED", { message: translateText("The sign-in proxy didn't say who you are") });
 
         const [linked] = await db
           .select({ userId: account.userId })
@@ -99,7 +100,7 @@ function trustedHeaderSignIn(db: Db, config: Config, onAccountCreated?: () => vo
           }
           else {
             if (!(await maySignUp(db, config, email))) {
-              throw new APIError("FORBIDDEN", { code: "INVITE_ONLY", message: "Ferret is invite-only — ask someone in your household for an invitation link" });
+              throw new APIError("FORBIDDEN", { code: "INVITE_ONLY", message: translateText("Ferret is invite-only — ask someone in your household for an invitation link") });
             }
             const name = headers.get(config.TRUSTED_HEADER_NAME)?.trim() || username;
             const [made] = await db.insert(user).values({ id: crypto.randomUUID(), name, email, emailVerified: true }).returning({ id: user.id });
@@ -109,7 +110,7 @@ function trustedHeaderSignIn(db: Db, config: Config, onAccountCreated?: () => vo
           await db.insert(account).values({ id: crypto.randomUUID(), accountId: username, providerId: TRUSTED_HEADER_PROVIDER, userId });
         }
         const found = await ctx.context.internalAdapter.findUserById(userId);
-        if (!found) throw new APIError("UNAUTHORIZED", { message: "No such account" });
+        if (!found) throw new APIError("UNAUTHORIZED", { message: translateText("No such account") });
         const made = await ctx.context.internalAdapter.createSession(found.id);
         await setSessionCookie(ctx, { session: made, user: found });
         return ctx.json({ ok: true });

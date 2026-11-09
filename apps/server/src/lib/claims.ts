@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * Warranty claims: what went wrong, the provider's claim number, where it
  * stands, and how it ended (with what it cost us). Same Caller pattern as
@@ -43,7 +44,7 @@ export async function listClaims(v: Caller, filter: { itemId?: string; warrantyI
 
 async function getClaim(v: Caller, id: string) {
   const [found] = (await listClaims(v)).filter((c) => c.id === id);
-  if (!found) throw notFound("Claim");
+  if (!found) throw notFound(translateText("Claim"));
   return found;
 }
 
@@ -57,7 +58,7 @@ export async function fileClaim(v: Caller, warrantyId: string, input: ClaimInput
     .from(warranty)
     .innerJoin(item, eq(item.id, warranty.itemId))
     .where(and(eq(warranty.id, warrantyId), eq(warranty.householdId, v.householdId), isNull(warranty.deletedAt), isNull(item.deletedAt)));
-  if (!w) throw notFound("Warranty");
+  if (!w) throw notFound(translateText("Warranty"));
   const status = input.status ?? "filed";
   const [row] = await v.db
     .insert(warrantyClaim)
@@ -71,7 +72,7 @@ export async function fileClaim(v: Caller, warrantyId: string, input: ClaimInput
       resolvedOn: settled(status, input.resolvedOn, todayFor(v)) ?? null,
     })
     .returning({ id: warrantyClaim.id });
-  await logActivity(v, "claim.create", row!.id, `Filed a warranty claim for ${w.itemName}: ${input.problem.slice(0, 80)}`, w.itemId);
+  await logActivity(v, "claim.create", row!.id, translateText("Filed a warranty claim for {v0}: {v1}", { v0: w.itemName, v1: input.problem.slice(0, 80) }), w.itemId);
   return getClaim(v, row!.id);
 }
 
@@ -82,7 +83,7 @@ export async function updateClaim(v: Caller, id: string, input: ClaimPatch) {
   if (changes.resolvedOn === undefined) delete changes.resolvedOn;
   await v.db.update(warrantyClaim).set(changes).where(claimIn(v, id));
   if (input.status && input.status !== current.status) {
-    await logActivity(v, "claim.update", id, `Warranty claim for ${current.itemName}: ${input.status.replace("_", " ")}`, current.itemId);
+    await logActivity(v, "claim.update", id, translateText("Warranty claim for {v0}: {v1}", { v0: current.itemName, v1: input.status.replace("_", " ") }), current.itemId);
   }
   return getClaim(v, id);
 }
@@ -90,5 +91,5 @@ export async function updateClaim(v: Caller, id: string, input: ClaimPatch) {
 export async function deleteClaim(v: Caller, id: string) {
   const current = await getClaim(v, id);
   await v.db.update(warrantyClaim).set({ deletedAt: new Date() }).where(claimIn(v, id));
-  await logActivity(v, "claim.delete", id, `Removed a warranty claim for ${current.itemName}`, current.itemId);
+  await logActivity(v, "claim.delete", id, translateText("Removed a warranty claim for {v0}", { v0: current.itemName }), current.itemId);
 }

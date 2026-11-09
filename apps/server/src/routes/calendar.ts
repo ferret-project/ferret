@@ -1,3 +1,4 @@
+import { t as translateText, withLanguage, preferredLanguage } from "./../lib/i18n";
 /**
  * Calendar feeds of due maintenance: settings under /api/v1/calendar (a real
  * sign-in only), and the feed itself at /calendar/:token.ics, which calendar
@@ -51,18 +52,20 @@ export const calendar = new Hono<AppEnv>();
 calendar.get("/:file", async (c) => {
   const token = /^([\w-]{20,100})\.ics$/.exec(c.req.param("file"))?.[1];
   const feed = token ? await findFeed(c.var.db, token) : undefined;
-  if (!feed) throw new HTTPException(404, { message: "Unknown calendar" });
+  if (!feed) throw new HTTPException(404, { message: translateText("Unknown calendar") });
   // Someone who left the household stops getting its calendar.
-  if (!(await membership(c.var.db, feed.householdId, feed.userId))) throw new HTTPException(404, { message: "Unknown calendar" });
+  if (!(await membership(c.var.db, feed.householdId, feed.userId))) throw new HTTPException(404, { message: translateText("Unknown calendar") });
   // Its household's plan no longer has calendar feeds: paused (the link works again if the plan does).
   if (!(await featureOn({ deps: c.var.deps, householdId: feed.householdId }, "calendarFeeds"))) {
-    throw new HTTPException(403, { message: "This calendar is paused" });
+    throw new HTTPException(403, { message: translateText("This calendar is paused") });
   }
 
   const [household] = await c.var.db.select({ name: organization.name }).from(organization).where(eq(organization.id, feed.householdId));
   const caller = { deps: c.var.deps, db: c.var.db, householdId: feed.householdId, userId: feed.userId, ...(await householdLocale(c.var.db, feed.householdId)), via: "web" as const };
-  const tasks = await listMaintenance(caller, { status: "open" });
-  const ics = toICalendar(tasks, { name: `${household?.name ?? "Ferret"} maintenance`, appUrl: c.var.config.PUBLIC_URL, timeZone: caller.timeZone });
+  const ics = await withLanguage(await preferredLanguage(c.var.db, feed.userId, feed.householdId), async () => {
+    const tasks = await listMaintenance(caller, { status: "open" });
+    return toICalendar(tasks, { name: translateText("{v0} maintenance", { v0: household?.name ?? "Ferret" }), appUrl: c.var.config.PUBLIC_URL, timeZone: caller.timeZone });
+  });
   return c.body(ics, 200, {
     "Content-Type": "text/calendar; charset=utf-8",
     "Cache-Control": "private, max-age=300",

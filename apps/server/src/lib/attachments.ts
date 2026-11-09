@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * Adding a photo or document to an item: sniff the real type, store it
  * encrypted, make a thumbnail, and queue the analysis. Shared by the upload
@@ -40,9 +41,9 @@ export async function setMainPhoto(v: Caller, attachmentId: string) {
     .from(attachment)
     .innerJoin(item, eq(item.id, attachment.itemId))
     .where(and(eq(attachment.id, attachmentId), eq(attachment.householdId, v.householdId), eq(attachment.kind, "photo"), isNull(attachment.deletedAt)));
-  if (!row) throw new HTTPException(404, { message: "Photo not found" });
+  if (!row) throw new HTTPException(404, { message: translateText("Photo not found") });
   await v.db.update(attachment).set({ mainAt: new Date() }).where(eq(attachment.id, row.id));
-  await logActivity(v, "attachment.main", row.id, `Made ${row.filename} the main photo of ${row.name}`, row.itemId);
+  await logActivity(v, "attachment.main", row.id, translateText("Made {v0} the main photo of {v1}", { v0: row.filename, v1: row.name }), row.itemId);
   return { id: row.id, itemId: row.itemId };
 }
 
@@ -93,14 +94,14 @@ export async function addAttachment(
     .select({ id: item.id, name: item.name })
     .from(item)
     .where(and(eq(item.id, itemId), eq(item.householdId, v.householdId), isNull(item.deletedAt)));
-  if (!owner) throw new HTTPException(404, { message: "Item not found" });
+  if (!owner) throw new HTTPException(404, { message: translateText("Item not found") });
   // The public demo's admin can stop uploads (lib/demo-switches.ts); never set on a home Ferret.
-  if (await isOff(v.db, "uploads")) throw new HTTPException(503, { message: "Adding photos and files is paused in the demo for now." });
+  if (await isOff(v.db, "uploads")) throw new HTTPException(503, { message: translateText("Adding photos and files is paused in the demo for now.") });
 
   const { bytes, kind } = upload;
   const contentType = sniffContentType(bytes);
   if (!contentType || !uploadTypes[kind].includes(contentType)) {
-    throw new HTTPException(415, { message: `Unsupported file type for a ${kind}` });
+    throw new HTTPException(415, { message: translateText("Unsupported file type for a {v0}", { v0: kind }) });
   }
   await requireRoom(v, { bytes: bytes.length }); // a plan's room for files (lib/plan.ts)
 
@@ -148,6 +149,6 @@ export async function addAttachment(
   // A PDF's thumbnail is its first page, drawn in the background.
   if (isPdf && !thumb && v.deps.pdfPages && v.deps.jobs) await v.deps.jobs.enqueue(PDF_THUMB_JOB, { attachmentId: id });
   await itemChanged(v, owner.id); // its file name is searchable right away
-  await logActivity(v, "attachment.create", id, `Added a ${kind} to ${owner.name}`, owner.id);
+  await logActivity(v, "attachment.create", id, translateText("Added a {v0} to {v1}", { v0: kind, v1: owner.name }), owner.id);
   return row!;
 }

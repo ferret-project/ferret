@@ -4,6 +4,7 @@
  * draw; every amount on screen goes through `money`.
  */
 import { DEFAULT_CURRENCY, currencySymbol as symbolOf, formatMoney, parseMoney } from "@ferret/shared/utils";
+import { locale } from "../i18n";
 
 let current = DEFAULT_CURRENCY;
 const KEY = "ferret.currency.";
@@ -33,16 +34,16 @@ export function rememberedCurrency(householdId: string) {
 }
 
 /** An amount (×100): whole units from 1,000 up (totals), unless `exact` (one thing's value or price). */
-export const money = (cents: number, exact = false) => formatMoney(cents, current, { exact });
+export const money = (cents: number, exact = false) => formatMoney(cents, current, { exact, locale: locale() });
 
 /** An amount in whole units only (chart labels, totals in a sentence). */
-export const moneyWhole = (cents: number) => formatMoney(cents, current, { whole: true });
+export const moneyWhole = (cents: number) => formatMoney(cents, current, { whole: true, locale: locale() });
 
 /** The currency's symbol, for the prefix on amount fields: "$", "€". */
-export const currencySymbol = () => symbolOf(current);
+export const currencySymbol = () => symbolOf(current, locale());
 
 /** The reader's decimal mark ("," in German), to read what they type. */
-export const decimalMark = (): "." | "," => ((1.5).toLocaleString().includes(",") ? "," : ".");
+export const decimalMark = (): "." | "," => ((1.5).toLocaleString(locale()).includes(",") ? "," : ".");
 
 /** What's typed in an amount field ("12,50", "1.234", "$80") → ×100; null when empty or not an amount. */
 export function toCents(raw: FormDataEntryValue | string | null | undefined) {
@@ -53,5 +54,5 @@ export function toCents(raw: FormDataEntryValue | string | null | undefined) {
 /** An amount for an amount field to start from: "12.5" → "12,50" in German. */
 export function centsToInput(cents: number | null | undefined, wholeOnly = false) {
   if (cents == null) return "";
-  return (cents / 100).toLocaleString(undefined, { useGrouping: false, maximumFractionDigits: wholeOnly ? 0 : 2, minimumFractionDigits: wholeOnly || cents % 100 === 0 ? 0 : 2 });
+  return (cents / 100).toLocaleString(locale(), { useGrouping: false, maximumFractionDigits: wholeOnly ? 0 : 2, minimumFractionDigits: wholeOnly || cents % 100 === 0 ? 0 : 2 });
 }

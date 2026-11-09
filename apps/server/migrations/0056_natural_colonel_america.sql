@@ -1,0 +1,1 @@
+ALTER TABLE `activity` ADD `cleared_fields` text;

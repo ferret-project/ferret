@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * "Add from photos": snap (or pick) photos and each becomes an item — "New
  * item" until someone applies what the vision model reads off it on the
@@ -68,7 +69,7 @@ export function AddFromPhotos(props: {
         onClick={() => input.current?.click()}
       >
         {progress ? <span className="loading loading-spinner loading-sm" /> : <span className="icon-[tabler--camera-plus] size-5" />}
-        {progress ? `Adding ${progress.done + 1} of ${progress.total}…` : "Add from photos"}
+        {progress ? translateText("Adding {v0} of {v1}…", { v0: progress.done + 1, v1: progress.total }) : translateText("Add from photos")}
       </button>
       {/* No `capture`: iPhone then offers the camera or the library, and several photos at once. */}
       <input

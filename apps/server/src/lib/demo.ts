@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * The public demo (DEMO=true). Never on a real Ferret.
  *
@@ -71,10 +72,10 @@ export async function ensureDemo(p: DemoParts, { plant = true }: { plant?: boole
   const { config, auth, deps } = p;
   if (!config.DEMO) return null;
   // loadConfig makes sure the demo has its own admin.
-  const adminId = await ensureAccount(auth, config.DEMO_ADMIN_EMAIL!, "Demo admin", config.DEMO_ADMIN_PASSWORD!);
+  const adminId = await ensureAccount(auth, config.DEMO_ADMIN_EMAIL!, translateText("Demo admin"), config.DEMO_ADMIN_PASSWORD!);
   const [chosen] = await deps.db.select({ value: serverSetting.value }).from(serverSetting).where(eq(serverSetting.key, "admin"));
   if (chosen?.value !== adminId) await setServerAdmin(deps.db, config.DEMO_ADMIN_EMAIL!);
-  const demoId = await ensureAccount(auth, config.DEMO_EMAIL, "Demo visitor", config.DEMO_PASSWORD);
+  const demoId = await ensureAccount(auth, config.DEMO_EMAIL, translateText("Demo visitor"), config.DEMO_PASSWORD);
   if (!plant) return { demoId, adminId, householdId: null };
   const stale = await deps.db
     .select({ id: organization.id })
@@ -345,20 +346,20 @@ export const demoGuard = createMiddleware<AppEnv>(async (c, next) => {
   if (resting && path.startsWith("/api/") && !RESTING_OPEN.test(path)) {
     const session = await c.var.auth.api.getSession({ headers: c.req.raw.headers });
     if (!session || !(await isServerAdmin(c.var.db, session.user.id))) {
-      return c.json({ error: { code: "demo_paused", message: "The demo is resting for now — please come back later." } }, 503);
+      return c.json({ error: { code: "demo_paused", message: translateText("The demo is resting for now — please come back later.") } }, 503);
     }
   }
   if (off.has("signups") && c.req.method === "POST" && path === "/api/auth/sign-up/email") {
-    return c.json({ code: "SIGNUPS_PAUSED", message: "New accounts are paused in the demo for now — try the shared demo account." }, 403);
+    return c.json({ code: "SIGNUPS_PAUSED", message: translateText("New accounts are paused in the demo for now — try the shared demo account.") }, 403);
   }
-  if (OFF_FOR_ALL.test(path)) throw locked("Not in the demo — on your own Ferret, this downloads everything as a ZIP.");
+  if (OFF_FOR_ALL.test(path)) throw locked(translateText("Not in the demo — on your own Ferret, this downloads everything as a ZIP."));
   const method = c.req.method;
   const guarded = LOCKED_AUTH.test(path) || HIDDEN.test(path) || LOCKED_API.some(([re, methods]) => re.test(path) && methods.includes(method));
   if (!guarded) return next();
   const session = await c.var.auth.api.getSession({ headers: c.req.raw.headers });
   if (!isDemoAccount(config, session?.user.email)) return next();
   if (HIDDEN.test(path) && method === "GET") return c.json(path.startsWith("/api/auth/") ? [] : { data: [] });
-  throw locked("The demo account is shared, so this is locked — make your own account to try it.");
+  throw locked(translateText("The demo account is shared, so this is locked — make your own account to try it."));
 });
 
 /**
@@ -386,7 +387,7 @@ const aiKey = (d: Date) => `${AI_COUNT}${d.toISOString().slice(0, 10)}`;
 
 export class AiBudgetSpent extends Error {
   constructor() {
-    super("The demo's AI budget for today is used up — it comes back tomorrow (UTC).");
+    super(translateText("The demo's AI budget for today is used up — it comes back tomorrow (UTC)."));
   }
 }
 
@@ -409,7 +410,7 @@ export async function aiSpentToday(db: Deps["db"], now = new Date()) {
 
 export class AiPartOff extends Error {
   constructor(part: DemoPart) {
-    super(`This part of the demo (${part}) is switched off for now.`);
+    super(translateText("This part of the demo ({v0}) is switched off for now.", { v0: part }));
   }
 }
 

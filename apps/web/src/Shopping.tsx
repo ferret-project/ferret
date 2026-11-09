@@ -1,3 +1,6 @@
+import { locale } from "./i18n";
+import { t as translateText } from "./i18n";
+import { tr } from "./i18n";
 /**
  * #/shopping — what to buy: tracked things that have run out, or are at or below their "keep at least" (server:
  * stock.shoppingList). Laid out like a shopping cart: how many of each (a stepper), tick what goes in the trolley, then
@@ -58,11 +61,11 @@ export function Shopping({ householdId }: { householdId: string }) {
     <div className="min-h-dvh bg-base-200">
       <nav className="navbar sticky top-0 z-10 border-b border-base-300 bg-base-100/85 backdrop-blur-md px-4">
         <div className="navbar-start w-full min-w-0 items-center gap-2">
-          <a href="#/" className="btn btn-text btn-sm btn-square" aria-label="Back">
+          <a href="#/" className="btn btn-text btn-sm btn-square" aria-label={translateText("Back")}>
             <span className="icon-[tabler--arrow-left] size-5" />
           </a>
-          <h1 className="truncate text-lg font-semibold">Shopping list</h1>
-          <HelpLink page="guide/stock.html#shopping-list" label="Shopping list" />
+          <h1 className="truncate text-lg font-semibold">{translateText("Shopping list")}</h1>
+          <HelpLink page="guide/stock.html#shopping-list" label={translateText("Shopping list")} />
         </div>
         <BarSearch />
       </nav>
@@ -71,19 +74,15 @@ export function Shopping({ householdId }: { householdId: string }) {
         {list.isError && <div className="alert alert-soft alert-error">{list.error.message}</div>}
         {bought.isSuccess && (
           <div className="alert alert-soft alert-success" role="status">
-            <span className="icon-[tabler--circle-check] size-5" />
-            Added to stock — {bought.data} {bought.data === 1 ? "thing" : "things"} off the list.
-          </div>
+            <span className="icon-[tabler--circle-check] size-5" />{tr("Added to stock — {v0} ", { v0: bought.data })}{bought.data === 1 ? translateText("thing") : translateText("things")} {translateText("off the list.")}</div>
         )}
         {list.data && items.length === 0 && (
           <div className="card">
             <div className="card-body items-center gap-3 text-center">
               <span className="icon-[tabler--shopping-cart-check] size-10 text-primary" />
-              <h2 className="text-lg font-semibold">Nothing to buy</h2>
+              <h2 className="text-lg font-semibold">{translateText("Nothing to buy")}</h2>
               <p className="max-w-sm text-sm text-base-content/70">
-                Things you track show up here when they run out, or drop to the number you keep at least — set it on the item's
-                Stock card.
-              </p>
+                {translateText("Things you track show up here when they run out, or drop to the number you keep at least — set it on the item's Stock card.")}</p>
             </div>
           </div>
         )}
@@ -111,32 +110,32 @@ export function Shopping({ householdId }: { householdId: string }) {
             <section className="card lg:sticky lg:top-20" aria-labelledby="cart-title">
               <div className="card-body gap-4">
                 <h2 id="cart-title" className="text-lg font-semibold text-base-content">
-                  {canEdit ? "In the trolley" : "To buy"}
+                  {canEdit ? translateText("In the trolley") : translateText("To buy")}
                 </h2>
                 <dl className="flex flex-col gap-2 text-sm">
                   <div className="flex justify-between gap-2">
-                    <dt className="text-base-content/70">On the list</dt>
+                    <dt className="text-base-content/70">{translateText("On the list")}</dt>
                     <dd className="font-medium">{items.length}</dd>
                   </div>
                   {canEdit && (
                     <div className="flex justify-between gap-2">
-                      <dt className="text-base-content/70">Ticked</dt>
+                      <dt className="text-base-content/70">{translateText("Ticked")}</dt>
                       <dd className="font-medium">{ticked.length}</dd>
                     </div>
                   )}
                   {priced && (
                     <div className="flex justify-between gap-2 border-t border-base-content/10 pt-2">
-                      <dt className="text-base-content/70">About{canEdit && ticked.length ? " (ticked)" : ""}</dt>
+                      <dt className="text-base-content/70">{translateText("About")}{canEdit && ticked.length ? translateText(" (ticked)") : ""}</dt>
                       <dd className="font-semibold">{money(estimate(canEdit && ticked.length ? ticked : items))}</dd>
                     </div>
                   )}
                 </dl>
-                {priced && <p className="-mt-2 text-xs text-base-content/70">From what each cost last time, where it's known.</p>}
+                {priced && <p className="-mt-2 text-xs text-base-content/70">{translateText("From what each cost last time, where it's known.")}</p>}
                 {canEdit && (
                   <>
                     <button type="button" className="btn btn-primary" disabled={!ticked.length || bought.isPending} onClick={() => bought.mutate(ticked)}>
                       {bought.isPending ? <span className="loading loading-spinner loading-sm" /> : <span className="icon-[tabler--shopping-cart-check] size-5" />}
-                      {ticked.length ? `Bought ${ticked.length === 1 ? "it" : `these ${ticked.length}`}` : "Tick what you bought"}
+                      {ticked.length ? translateText("Bought {v0}", { v0: ticked.length === 1 ? translateText("it") : translateText("these {v0}", { v0: ticked.length }) }) : translateText("Tick what you bought")}
                     </button>
                     {bought.isError && <p className="text-sm text-error">{bought.error.message}</p>}
                   </>
@@ -148,23 +147,22 @@ export function Shopping({ householdId }: { householdId: string }) {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="btn btn-soft btn-secondary btn-wrap"
-                    title="Puts them in your Amazon cart, as many as above (Amazon asks you to sign in if you aren't)"
+                    title={translateText("Puts them in your Amazon cart, as many as above (Amazon asks you to sign in if you aren't)")}
                   >
                     <span className="icon-[tabler--shopping-cart-plus] size-5" />
-                    {c.count === 1 ? "Add the Amazon one to your cart" : `Add the ${c.count} from Amazon to your cart`}
+                    {c.count === 1 ? translateText("Add the Amazon one to your cart") : translateText("Add the {v0} from Amazon to your cart", { v0: c.count })}
                     {amazonCarts.length > 1 ? ` (${c.site.replace(/^www\./, "")})` : ""}
                   </a>
                 ))}
                 <div className="flex flex-wrap gap-2 border-t border-base-content/10 pt-3">
                   <button type="button" className="btn btn-soft btn-primary btn-sm" onClick={() => void copy()}>
                     <span className={`${copied ? "icon-[tabler--check]" : "icon-[tabler--copy]"} size-4`} />
-                    {copied ? "Copied" : "Copy list"}
+                    {copied ? translateText("Copied") : translateText("Copy list")}
                   </button>
                   {canShare && (
-                    <button type="button" className="btn btn-soft btn-primary btn-sm" onClick={() => void navigator.share({ title: "Shopping list", text: list.data!.text }).catch(() => {})}>
+                    <button type="button" className="btn btn-soft btn-primary btn-sm" onClick={() => void navigator.share({ title: translateText("Shopping list"), text: list.data!.text }).catch(() => {})}>
                       <span className="icon-[tabler--share] size-4" />
-                      Share
-                    </button>
+                      {translateText("Share")}</button>
                   )}
                 </div>
               </div>
@@ -185,7 +183,7 @@ function Row(props: { item: ShoppingItem; canEdit: boolean; count: number; onCou
         <input
           type="checkbox"
           className="checkbox checkbox-primary"
-          aria-label={`${item.name} is in the trolley`}
+          aria-label={translateText("{v0} is in the trolley", { v0: item.name })}
           checked={props.inCart}
           onChange={(e) => props.onCart(e.target.checked)}
         />
@@ -202,28 +200,28 @@ function Row(props: { item: ShoppingItem; canEdit: boolean; count: number; onCou
           {item.name}
         </a>
         <p className="text-sm text-base-content/70">
-          <span className={out ? "font-medium text-error" : "text-warning"}>{out ? "None left" : `${item.quantity} left`}</span>
-          {item.minQuantity != null ? ` · keep at least ${item.minQuantity}` : ""}
+          <span className={out ? "font-medium text-error" : "text-warning"}>{out ? translateText("None left") : translateText("{v0} left", { v0: item.quantity })}</span>
+          {item.minQuantity != null ? translateText(" · keep at least {v0}", { v0: item.minQuantity }) : ""}
           {item.place ? ` · ${item.place}` : ""}
         </p>
-        {item.forTask && <p className="text-sm text-warning">For {forTaskText(item.forTask)}</p>}
+        {item.forTask && <p className="text-sm text-warning">{tr("For {v0}", { v0: forTaskText(item.forTask) })}</p>}
       </div>
       <div className="ms-auto flex items-center gap-3">
         {canEdit ? (
           // How many to buy: a stepper.
-          <div className="join" role="group" aria-label={`How many ${item.name} to buy`}>
-            <button type="button" className="btn btn-soft btn-sm join-item btn-square" aria-label="One fewer" disabled={count <= 1} onClick={() => props.onCount(count - 1)}>
+          <div className="join" role="group" aria-label={translateText("How many {v0} to buy", { v0: item.name })}>
+            <button type="button" className="btn btn-soft btn-sm join-item btn-square" aria-label={translateText("One fewer")} disabled={count <= 1} onClick={() => props.onCount(count - 1)}>
               <span className="icon-[tabler--minus] size-4" />
             </button>
             <span className="join-item flex min-w-10 items-center justify-center bg-base-200 px-2 text-sm font-medium tabular-nums" aria-live="polite">
               {count}
             </span>
-            <button type="button" className="btn btn-soft btn-sm join-item btn-square" aria-label="One more" disabled={count >= 10000} onClick={() => props.onCount(count + 1)}>
+            <button type="button" className="btn btn-soft btn-sm join-item btn-square" aria-label={translateText("One more")} disabled={count >= 10000} onClick={() => props.onCount(count + 1)}>
               <span className="icon-[tabler--plus] size-4" />
             </button>
           </div>
         ) : (
-          <span className="text-sm text-base-content/70">Buy {count}</span>
+          <span className="text-sm text-base-content/70">{tr("Buy {v0}", { v0: count })}</span>
         )}
         {item.unitCents != null && <span className="w-16 text-end text-sm font-medium tabular-nums">{money(item.unitCents * count)}</span>}
         {item.amazon && (
@@ -232,8 +230,8 @@ function Row(props: { item: ShoppingItem; canEdit: boolean; count: number; onCou
             target="_blank"
             rel="noopener noreferrer"
             className="btn btn-text btn-sm btn-square"
-            aria-label={`Add ${count} ${item.name} to your Amazon cart`}
-            title="Add to Amazon cart"
+            aria-label={translateText("Add {v0} {v1} to your Amazon cart", { v0: count, v1: item.name })}
+            title={translateText("Add to Amazon cart")}
           >
             <span className="icon-[tabler--shopping-cart-plus] size-5" />
           </a>
@@ -245,5 +243,5 @@ function Row(props: { item: ShoppingItem; canEdit: boolean; count: number; onCou
 
 /** "Replace furnace filter, due 2026-11-03" → "Replace furnace filter, due Nov 3". */
 function forTaskText(text: string) {
-  return text.replace(/due (\d{4}-\d{2}-\d{2})$/, (_, d: string) => `due ${new Date(`${d}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`);
+  return text.replace(/due (\d{4}-\d{2}-\d{2})$/, (_, d: string) => translateText("due {v0}", { v0: new Date(`${d}T00:00:00`).toLocaleDateString(locale(), { month: "short", day: "numeric" }) }));
 }

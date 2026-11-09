@@ -1,3 +1,6 @@
+import { t as translateText, withLanguage, currentLanguage } from "./lib/i18n";
+import { languageOf } from "@ferret/shared/i18n";
+import { language } from "./routes/language";
 /**
  * The Ferret app — runtime-agnostic. An entry point (server.ts for Node) builds the Deps and calls createApp().
  */
@@ -129,11 +132,11 @@ export function createApp(deps: Deps, config: Config, opts: AppOptions = {}) {
             enqueue: (email) => jobs.enqueue(RESET_JOB, { email }),
             send: (to, token) =>
               notifier.send(mailTo(config.MAIL_URL!, to.email), {
-                title: "Choose a new Ferret password",
+                title: translateText("Choose a new Ferret password"),
                 body:
-                  `Hi ${to.name}, someone (hopefully you) asked to reset your Ferret password. ` +
-                  `Choose a new one here — the link works once, for an hour:\n\n${config.PUBLIC_URL}/#/reset-password/${token}\n\n` +
-                  "If you didn't ask, ignore this: your password stays as it is.",
+                  translateText("Hi {v0}, someone (hopefully you) asked to reset your Ferret password. ", { v0: to.name }) +
+                  translateText("Choose a new one here — the link works once, for an hour:\n\n{v0}/#/reset-password/{v1}\n\n", { v0: config.PUBLIC_URL, v1: token }) +
+                  translateText("If you didn't ask, ignore this: your password stays as it is."),
               }),
             changed: (who) => jobs.enqueue(PASSWORD_CHANGED_JOB, { userId: who.id, email: who.email }),
           }
@@ -145,10 +148,10 @@ export function createApp(deps: Deps, config: Config, opts: AppOptions = {}) {
             enqueue: (email) => jobs.enqueue(MAGIC_LINK_JOB, { email }),
             send: (email, url) =>
               notifier.send(mailTo(config.MAIL_URL!, email), {
-                title: "Sign in to Ferret",
+                title: translateText("Sign in to Ferret"),
                 body:
-                  `Here's your link to sign in to Ferret — it works once, for 15 minutes:\n\n${url}\n\n` +
-                  "If you didn't ask for it, ignore this: nobody can use it without your email.",
+                  translateText("Here's your link to sign in to Ferret — it works once, for 15 minutes:\n\n{v0}\n\n", { v0: url }) +
+                  translateText("If you didn't ask for it, ignore this: nobody can use it without your email."),
               }),
           }
         : undefined,
@@ -156,7 +159,7 @@ export function createApp(deps: Deps, config: Config, opts: AppOptions = {}) {
     onAccountCreated: jobs && config.ADMIN_WEBHOOK_URL ? () => jobs.enqueue(NEW_ACCOUNT_JOB, {}) : undefined,
     // New accounts confirm their email (lib/email-verification.ts): the link goes out from a job.
     verifyEmail: emailEnabled(deps, config)
-      ? (to, url) => jobs!.enqueue(VERIFY_EMAIL_JOB, { email: to.email, name: to.name, url })
+      ? (to, url) => jobs!.enqueue(VERIFY_EMAIL_JOB, { email: to.email, name: to.name, url, language: currentLanguage() })
       : undefined,
     // Invitations: the link is emailed too, when Ferret can send email (lib/invitation-email.ts).
     inviteEmail: emailEnabled(deps, config) ? (invitation) => queueInvitationEmail(deps.db, jobs!, invitation) : undefined,
@@ -167,6 +170,19 @@ export function createApp(deps: Deps, config: Config, opts: AppOptions = {}) {
   });
   const files = new FileStore(deps.db, deps.blobs, config.FILES_KEY);
   const app = new Hono<AppEnv>();
+  app.use(async (c, next) => withLanguage(languageOf(c.req.header("Accept-Language")), next));
+  // Better Auth owns its responses. Translate only human-readable error copy, preserving status, codes and cookies.
+  app.use("/api/auth/*", async (c, next) => {
+    await next();
+    if (c.res.status < 400 || !c.res.headers.get("Content-Type")?.includes("application/json")) return;
+    const data = await c.res.clone().json().catch(() => null) as { message?: unknown } | null;
+    if (data && typeof data.message === "string") {
+      data.message = translateText(data.message);
+      const headers = new Headers(c.res.headers);
+      headers.delete("Content-Length");
+      c.res = new Response(JSON.stringify(data), { status: c.res.status, headers });
+    }
+  });
   const origins = trustedOrigins(config);
 
   // Request log, without the secret in calendar feed addresses (/calendar/<token>.ics — the token is the credential).
@@ -214,7 +230,7 @@ export function createApp(deps: Deps, config: Config, opts: AppOptions = {}) {
   app.use((c, next) => (c.req.path === "/docs" || c.req.path.startsWith("/docs/") ? docsHeaders(c, next) : appHeaders(c, next)));
   // JSON bodies are small; only uploads (their own limit, MAX_UPLOAD_MB) and /mcp (photos as base64) carry files.
   app.use("/api/*", (c, next) =>
-    UPLOAD_PATH.test(c.req.path) ? next() : bodyLimit({ maxSize: 1024 * 1024, onError: (c) => c.json({ error: { code: "http_413", message: "Request too large" } }, 413) })(c, next),
+    UPLOAD_PATH.test(c.req.path) ? next() : bodyLimit({ maxSize: 1024 * 1024, onError: (c) => c.json({ error: { code: "http_413", message: translateText("Request too large") } }, 413) })(c, next),
   );
   app.use(
     "/api/*",
@@ -237,7 +253,7 @@ export function createApp(deps: Deps, config: Config, opts: AppOptions = {}) {
     const origin = c.req.header("origin");
     if (site === "same-origin" || site === "none") return next();
     if (origin !== undefined ? ownOrigins.has(origin) : site === undefined) return next();
-    return c.json({ error: { code: "http_403", message: "Not from this Ferret" } }, 403);
+    return c.json({ error: { code: "http_403", message: translateText("Not from this Ferret") } }, 403);
   });
   app.use(async (c, next) => {
     c.set("deps", deps);
@@ -296,6 +312,7 @@ export function createApp(deps: Deps, config: Config, opts: AppOptions = {}) {
   });
   app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw));
   app.route("/api/v1/api-keys", apiKeys);
+  app.route("/api/v1/language", language);
   app.route("/api/v1/maintenance", maintenance);
   app.route("/api/v1/attention", attention);
   app.route("/api/v1/calendar", calendarSettings);
@@ -336,7 +353,7 @@ export function createApp(deps: Deps, config: Config, opts: AppOptions = {}) {
 
   app.notFound((c) =>
     c.req.path.startsWith("/api/")
-      ? c.json({ error: { code: "not_found", message: "Not found" } }, 404)
+      ? c.json({ error: { code: "not_found", message: translateText("Not found") } }, 404)
       : c.text("Not found", 404),
   );
   app.onError(async (err, c) => {
@@ -347,11 +364,17 @@ export function createApp(deps: Deps, config: Config, opts: AppOptions = {}) {
       );
     }
     // A query string that doesn't fit its schema (bodies go through body() and are 422s already).
-    if (err instanceof z.ZodError) return c.json({ error: { code: "http_422", message: "Invalid input", details: err.issues } }, 422);
+    if (err instanceof z.ZodError) {
+      const issues = err.issues.map((issue) => {
+        const mapped = currentLanguage() === "hu" && issue.code !== "custom" ? z.locales.hu().localeError(issue as Parameters<ReturnType<typeof z.locales.hu>["localeError"]>[0]) : undefined;
+        return { ...issue, message: typeof mapped === "string" ? mapped : mapped?.message ?? translateText(issue.message) };
+      });
+      return c.json({ error: { code: "http_422", message: translateText("Invalid input"), details: issues } }, 422);
+    }
     console.error(err);
     // A bug, not a refusal: in the service error log as "Ferret itself", by route (not by id), so the server admin hears.
     await recordServiceError(deps.db, "ferret", `${c.req.method} ${c.req.routePath}`, err).catch(() => {});
-    return c.json({ error: { code: "internal", message: "Something went wrong" } }, 500);
+    return c.json({ error: { code: "internal", message: translateText("Something went wrong") } }, 500);
   });
 
   return { app, auth, files };

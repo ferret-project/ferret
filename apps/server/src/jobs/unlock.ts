@@ -1,3 +1,4 @@
+import { t as translateText } from "./../lib/i18n";
 /**
  * "Email me a link to sign in again": makes a one-time unlock link for the
  * account (if there is one — the request never says) and sends it by email
@@ -23,16 +24,16 @@ export function sendUnlockLink(deps: Deps & { files: FileStore; appUrl: string; 
     if (!token) return; // one went out in the last few minutes
 
     const url = `${deps.appUrl}/#/unlock/${token}`;
-    const title = "Sign in to Ferret again";
+    const title = translateText("Sign in to Ferret again");
     const body =
-      `Someone${ipAddress ? ` at ${ipAddress}` : ""} asked to clear the wrong-password count on your Ferret account, ` +
-      `so you can sign in again straight away. Open this link (it works once, for 30 minutes):\n\n${url}\n\n` +
-      "If that wasn't you, ignore this — and consider turning on two-step sign-in in Settings → Security.";
+      translateText("Someone{v0} asked to clear the wrong-password count on your Ferret account, ", { v0: ipAddress ? translateText(" at {v0}", { v0: ipAddress }) : "" }) +
+      translateText("so you can sign in again straight away. Open this link (it works once, for 30 minutes):\n\n{v0}\n\n", { v0: url }) +
+      translateText("If that wasn't you, ignore this — and consider turning on two-step sign-in in Settings → Security.");
 
     if (notifier && deps.mailUrl) await notifier.send(mailTo(deps.mailUrl, account.email), { title, body });
     if (push) {
       for (const sub of await db.select().from(pushSubscription).where(eq(pushSubscription.userId, account.id))) {
-        await push.send(sub, { title, body: "Tap to clear the wrong-password count and sign in again.", url, tag: "ferret-unlock" });
+        await push.send(sub, { title, body: translateText("Tap to clear the wrong-password count and sign in again."), url, tag: "ferret-unlock" });
       }
     }
     if (notifier) {

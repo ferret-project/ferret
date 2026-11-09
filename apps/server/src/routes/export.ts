@@ -1,3 +1,4 @@
+import { t as translateText } from "./../lib/i18n";
 /**
  * /api/v1/export — the insurance export (items as JSON for the printable report, or a CSV download), and
  * "Download everything": the household's data and files as a ZIP (lib/household-export.ts).
@@ -26,7 +27,7 @@ exporter.get("/items.csv", async (c) => {
   const rows = await exportRows(callerOf(c), opts);
   return c.body(toCsv(rows, { currency: c.var.currency, gone: Boolean(opts.gone) }), 200, {
     "Content-Type": "text/csv; charset=utf-8",
-    "Content-Disposition": `attachment; filename="ferret-${opts.gone ? "lost-and-stolen" : "inventory"}-${todayFor(c.var)}.csv"`,
+    "Content-Disposition": translateText("attachment; filename=\"ferret-{v0}-{v1}.csv\"", { v0: opts.gone ? translateText("lost-and-stolen") : translateText("inventory"), v1: todayFor(c.var) }),
     "Cache-Control": "no-store",
   });
 });
@@ -36,11 +37,11 @@ exporter.get("/items.csv", async (c) => {
  * as it's made; nothing is kept on the server.
  */
 exporter.get("/everything.zip", requireSession, async (c) => {
-  if (c.var.role !== "owner" && c.var.role !== "admin") throw new HTTPException(403, { message: "Only the household's owner and admins can download everything" });
+  if (c.var.role !== "owner" && c.var.role !== "admin") throw new HTTPException(403, { message: translateText("Only the household's owner and admins can download everything") });
   const { filename, stream } = await householdExport(callerOf(c), c.var.files);
   return c.body(stream, 200, {
     "Content-Type": "application/zip",
-    "Content-Disposition": `attachment; filename="${filename}"`,
+    "Content-Disposition": translateText("attachment; filename=\"{v0}\"", { v0: filename }),
     "Cache-Control": "no-store",
   });
 });

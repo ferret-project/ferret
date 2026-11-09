@@ -1,3 +1,4 @@
+import { t as translateText } from "./../lib/i18n";
 /** /api/v1/backup — the server's backups (Settings → Server, the server admin only): lib/backup.ts. */
 import type { BackupSnapshot, BackupStatus } from "@ferret/shared";
 import { Hono } from "hono";
@@ -12,7 +13,7 @@ backup.use(requireUser, requireServerAdmin);
 
 const backups = (c: { var: AppEnv["Variables"] }) => {
   const b = c.var.deps.backups;
-  if (!b) throw new HTTPException(409, { message: "Backups are off: set BACKUP_DIR" });
+  if (!b) throw new HTTPException(409, { message: translateText("Backups are off: set BACKUP_DIR") });
   return b;
 };
 
@@ -45,7 +46,7 @@ backup.get("/snapshots", async (c) => {
 backup.post("/snapshots/:name/check", async (c) => {
   const b = backups(c);
   const name = c.req.param("name");
-  if (!/^ferret-\d{8}T\d{6}Z$/.test(name) || !(await listSnapshots(b.target)).includes(name)) throw new HTTPException(404, { message: "No such backup" });
+  if (!/^ferret-\d{8}T\d{6}Z$/.test(name) || !(await listSnapshots(b.target)).includes(name)) throw new HTTPException(404, { message: translateText("No such backup") });
   try {
     const { summary } = await checkSnapshot({ ...b, filesKey: c.var.config.FILES_KEY }, name);
     return c.json({ ok: true, summary });

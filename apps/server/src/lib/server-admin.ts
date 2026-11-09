@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * The server admin: the one person who looks after what belongs to the whole server rather than one household —
  * backups (Settings → Server). It's the first account made on the server until handed over (Settings → Server, or
@@ -32,8 +33,8 @@ export async function setServerAdmin(db: Db, email: string) {
     .select({ id: user.id, name: user.name, email: user.email, emailVerified: user.emailVerified })
     .from(user)
     .where(eq(sql`lower(${user.email})`, email.trim().toLowerCase()));
-  if (!to) throw new HTTPException(404, { message: `No account with the email ${email.trim()}` });
-  if (!to.emailVerified) throw new HTTPException(409, { message: `${to.email} hasn't confirmed its email yet` });
+  if (!to) throw new HTTPException(404, { message: translateText("No account with the email {v0}", { v0: email.trim() }) });
+  if (!to.emailVerified) throw new HTTPException(409, { message: translateText("{v0} hasn't confirmed its email yet", { v0: to.email }) });
   await db
     .insert(serverSetting)
     .values({ key: ADMIN, value: to.id })

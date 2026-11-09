@@ -1,3 +1,4 @@
+import { t as translateText } from "./../lib/i18n";
 /**
  * Share links (lib/shares.ts). `/api/v1/shares` manages them — the household's owner and admins, signed in (not an API
  * key). `/api/v1/shared/:token` is what a link opens, with no account: the view, its CSV, and (when shared) the shown
@@ -13,7 +14,7 @@ import { todayFor } from "../lib/household-time";
 
 export const shares = new Hono<AppEnv>();
 shares.use(requireUser, requireHousehold, requireSession, async (c, next) => {
-  if (c.var.role !== "owner" && c.var.role !== "admin") throw new HTTPException(403, { message: "Only the household's owner and admins can share" });
+  if (c.var.role !== "owner" && c.var.role !== "admin") throw new HTTPException(403, { message: translateText("Only the household's owner and admins can share") });
   await next();
 });
 shares.get("/", async (c) => c.json({ data: await listShares(callerOf(c), c.var.files, c.var.config.PUBLIC_URL) }));
@@ -46,7 +47,7 @@ shared.get("/:token/items.csv", async (c) => {
   const rows = (await sharedRows(v, link)).map((r) => ({ ...r, notes: null }));
   return c.body(toCsv(rows, { currency: v.currency }), 200, {
     "Content-Type": "text/csv; charset=utf-8",
-    "Content-Disposition": `attachment; filename="shared-inventory-${todayFor(v)}.csv"`,
+    "Content-Disposition": translateText("attachment; filename=\"shared-inventory-{v0}.csv\"", { v0: todayFor(v) }),
   });
 });
 for (const variant of ["original", "thumbnail"] as const) {
@@ -55,11 +56,11 @@ for (const variant of ["original", "thumbnail"] as const) {
     const file = await sharedFile(v, link, c.req.param("id"));
     const thumb = variant === "thumbnail" && file.thumbnailKey;
     const bytes = await c.var.files.get(file.householdId, thumb ? file.thumbnailKey! : file.blobKey);
-    if (!bytes) throw new HTTPException(404, { message: "That file is missing" });
+    if (!bytes) throw new HTTPException(404, { message: translateText("That file is missing") });
     return c.body(bytes, 200, {
       "Content-Type": thumb ? "image/webp" : file.contentType,
       "Content-Length": String(bytes.length),
-      "Content-Disposition": `inline; filename*=UTF-8''${encodeURIComponent(file.filename)}`,
+      "Content-Disposition": translateText("inline; filename*=UTF-8''{v0}", { v0: encodeURIComponent(file.filename) }),
       "X-Content-Type-Options": "nosniff",
     });
   });

@@ -1,3 +1,7 @@
+import { locale } from "./i18n";
+import { t as translateText } from "./i18n";
+import { LanguageSettings } from "./LanguageSettings";
+import { tr } from "./i18n";
 /**
  * Settings, in tabs (each its own #/settings… link): Household (members,
  * invitations), Plan & usage (PlanUsage.tsx), Notifications (calendar, push, other apps), Security (two-step
@@ -33,12 +37,12 @@ import { NotInPlan, PlanUsage, usePlanFeature } from "./PlanUsage";
 import { useRole } from "./lib/auth";
 
 const TABS: { section: SettingsSection; label: string; icon: string }[] = [
-  { section: "household", label: "Household", icon: "icon-[tabler--users]" },
-  { section: "plan", label: "Usage", icon: "icon-[tabler--gauge]" },
-  { section: "notifications", label: "Notifications", icon: "icon-[tabler--bell]" },
-  { section: "security", label: "Security", icon: "icon-[tabler--shield-lock]" },
-  { section: "api", label: "Claude & API", icon: "icon-[tabler--key]" },
-  { section: "server", label: "Server", icon: "icon-[tabler--server]" },
+  { section: "household", get label() { return translateText("Household"); }, icon: "icon-[tabler--users]" },
+  { section: "plan", get label() { return translateText("Usage"); }, icon: "icon-[tabler--gauge]" },
+  { section: "notifications", get label() { return translateText("Notifications"); }, icon: "icon-[tabler--bell]" },
+  { section: "security", get label() { return translateText("Security"); }, icon: "icon-[tabler--shield-lock]" },
+  { section: "api", get label() { return translateText("Claude & API"); }, icon: "icon-[tabler--key]" },
+  { section: "server", get label() { return translateText("Server"); }, icon: "icon-[tabler--server]" },
 ];
 
 export function Settings(props: { section: SettingsSection; householdName: string; householdId: string }) {
@@ -52,16 +56,16 @@ export function Settings(props: { section: SettingsSection; householdName: strin
       <header className="sticky top-0 z-10 border-b border-base-300 bg-base-100/85 backdrop-blur-md">
         <nav className="navbar px-4">
           <div className="navbar-start items-center gap-2">
-            <a href="#/" className="btn btn-text btn-sm btn-square" aria-label="Back to your stuff">
+            <a href="#/" className="btn btn-text btn-sm btn-square" aria-label={translateText("Back to your stuff")}>
               <span className="icon-[tabler--arrow-left] size-5" />
             </a>
-            <h1 className="text-lg font-semibold">Settings</h1>
+            <h1 className="text-lg font-semibold">{translateText("Settings")}</h1>
           </div>
           <div className="navbar-end items-center">
             <span className="badge badge-soft badge-primary">{householdName}</span>
           </div>
         </nav>
-        <nav className="tabs tabs-bordered mx-auto max-w-4xl overflow-x-auto px-4 max-sm:px-1" aria-label="Settings sections">
+        <nav className="tabs tabs-bordered mx-auto max-w-4xl overflow-x-auto px-4 max-sm:px-1" aria-label={translateText("Settings sections")}>
           {tabs.map((t) => (
             <a
               key={t.section}
@@ -79,6 +83,7 @@ export function Settings(props: { section: SettingsSection; householdName: strin
       <main className="mx-auto flex max-w-3xl flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         {section === "household" && (
           <>
+            <LanguageSettings householdId={householdId} canManage={role === "owner" || role === "admin"} />
             <Household householdName={householdName} />
             <TimeZoneCard householdId={householdId} canManage={role === "owner" || role === "admin"} />
             <CurrencyCard householdId={householdId} canManage={role === "owner" || role === "admin"} />
@@ -98,7 +103,7 @@ export function Settings(props: { section: SettingsSection; householdName: strin
         )}
         {section === "security" && <Security />}
         {section === "server" &&
-          (serverAdmin ? <Server /> : me.isSuccess && <div className="alert alert-soft alert-info">Only the server admin sees this.</div>)}
+          (serverAdmin ? <Server /> : me.isSuccess && <div className="alert alert-soft alert-info">{translateText("Only the server admin sees this.")}</div>)}
         {section === "api" && (
           <>
             <ApiKeys householdName={householdName} householdId={householdId} />
@@ -128,24 +133,18 @@ function ApiKeys({ householdName, householdId }: { householdName: string; househ
             <div className="space-y-1">
               <h2 id="api-keys-title" className="card-title flex items-center gap-2">
                 <span className="icon-[tabler--key] size-5 text-primary" />
-                API keys
-                <HelpLink page="guide/claude.html" label="Claude and the API" />
+                {translateText("API keys")}<HelpLink page="guide/claude.html" label={translateText("Claude and the API")} />
               </h2>
-              <p className="text-sm text-base-content/70">
-                Let Claude (or your own scripts) look things up and keep {householdName}'s inventory up to date. A key only
-                works for this household, and you can revoke it any time.
-              </p>
+              <p className="text-sm text-base-content/70">{tr("Let Claude (or your own scripts) look things up and keep {v0}'s inventory up to date. A key only works for this household, and you can revoke it any time.", { v0: householdName })}</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <a href={API_HREF} className="btn btn-soft btn-primary">
                 <span className="icon-[tabler--book] size-5" />
-                API reference
-              </a>
+                {translateText("API reference")}</a>
               {feature.on && (
                 <button type="button" className="btn btn-primary" onClick={() => setCreating(true)}>
                   <span className="icon-[tabler--plus] size-5" />
-                  New key
-                </button>
+                  {translateText("New key")}</button>
               )}
             </div>
           </div>
@@ -157,8 +156,7 @@ function ApiKeys({ householdName, householdId }: { householdName: string; househ
           {revoke.isError && <div className="alert alert-soft alert-error">{revoke.error.message}</div>}
           {feature.on && keys.data && keys.data.data.length === 0 && (
             <div className="rounded-box border border-dashed border-base-content/20 p-6 text-center text-sm text-base-content/70">
-              No keys yet. Make one to connect Claude.
-            </div>
+              {translateText("No keys yet. Make one to connect Claude.")}</div>
           )}
           {keys.data && keys.data.data.length > 0 && (
             <ul className="space-y-2 *:flex *:flex-wrap *:items-center *:gap-3 *:rounded-box *:p-2 *:hover:bg-neutral/10">
@@ -197,31 +195,29 @@ function KeyRow({ apiKey, onRevoke, busy }: { apiKey: ApiKeySummary; onRevoke: (
       </div>
       <div className="min-w-0 flex-1">
         <h3 className="flex flex-wrap items-center gap-2 font-medium text-base-content">
-          <span className="truncate">{apiKey.name ?? "Unnamed key"}</span>
-          {apiKey.readOnly && <span className="badge badge-soft badge-info badge-sm">Read-only</span>}
-          {expired && <span className="badge badge-soft badge-error badge-sm">Expired</span>}
+          <span className="truncate">{apiKey.name ?? translateText("Unnamed key")}</span>
+          {apiKey.readOnly && <span className="badge badge-soft badge-info badge-sm">{translateText("Read-only")}</span>}
+          {expired && <span className="badge badge-soft badge-error badge-sm">{translateText("Expired")}</span>}
         </h3>
         <p className="flex flex-wrap gap-x-2 text-sm text-base-content/70">
           <code>{apiKey.start}…</code>
-          <span>made {formatDate(apiKey.createdAt)}</span>
-          <span>{apiKey.lastUsedAt ? `last used ${formatDate(apiKey.lastUsedAt)}` : "never used"}</span>
-          {apiKey.expiresAt && !expired && <span>expires {formatDate(apiKey.expiresAt)}</span>}
+          <span>{tr("made {v0}", { v0: formatDate(apiKey.createdAt) })}</span>
+          <span>{apiKey.lastUsedAt ? translateText("last used {v0}", { v0: formatDate(apiKey.lastUsedAt) }) : translateText("never used")}</span>
+          {apiKey.expiresAt && !expired && <span>{tr("expires {v0}", { v0: formatDate(apiKey.expiresAt) })}</span>}
         </p>
       </div>
       {confirming ? (
         <div className="flex shrink-0 gap-1 max-sm:w-full max-sm:justify-end">
           <button type="button" className="btn btn-error btn-sm" onClick={onRevoke} disabled={busy}>
-            Revoke
-          </button>
+            {translateText("Revoke")}</button>
           <button type="button" className="btn btn-text btn-sm" onClick={() => setConfirming(false)}>
-            Keep
-          </button>
+            {translateText("Keep")}</button>
         </div>
       ) : (
         <button
           type="button"
           className="btn btn-text btn-sm btn-square btn-error shrink-0"
-          aria-label={`Revoke ${apiKey.name ?? "key"}`}
+          aria-label={translateText("Revoke {v0}", { v0: apiKey.name ?? translateText("key") })}
           onClick={() => setConfirming(true)}
         >
           <span className="icon-[tabler--trash] size-5" />
@@ -238,16 +234,11 @@ function ConnectClaude() {
       <div className="card-body gap-3">
         <h2 id="connect-title" className="card-title flex items-center gap-2">
           <span className="icon-[tabler--plug-connected] size-5 text-primary" />
-          Connect Claude
-        </h2>
-        <p className="text-sm text-base-content/70">
-          Ferret speaks MCP at the address below. Send the key as <code>Authorization: Bearer …</code>.
-        </p>
-        <CopyField label="MCP server URL" value={mcpUrl()} icon="icon-[tabler--world]" />
-        <p className="text-sm text-base-content/70">
-          In Claude Code, run this once (with your key in place of <code>ferret_…</code>):
-        </p>
-        <CopyField label="Claude Code command" value={claudeCommand("ferret_…")} icon="icon-[tabler--terminal-2]" />
+          {translateText("Connect Claude")}</h2>
+        <p className="text-sm text-base-content/70">{tr("Ferret speaks MCP at the address below. Send the key as {v0}.", { v0: <code>{"Authorization: Bearer …"}</code> })}</p>
+        <CopyField label={translateText("MCP server URL")} value={mcpUrl()} icon="icon-[tabler--world]" />
+        <p className="text-sm text-base-content/70">{tr("In Claude Code, run this once (with your key in place of {v0}):", { v0: <code>{"ferret_…"}</code> })}</p>
+        <CopyField label={translateText("Claude Code command")} value={claudeCommand("ferret_…")} icon="icon-[tabler--terminal-2]" />
       </div>
     </section>
   );
@@ -255,13 +246,13 @@ function ConnectClaude() {
 
 const mcpUrl = () => `${window.location.origin}/mcp`;
 const claudeCommand = (key: string) =>
-  `claude mcp add --transport http ferret ${mcpUrl()} --header "Authorization: Bearer ${key}"`;
+  translateText("claude mcp add --transport http ferret {v0} --header \"Authorization: Bearer {v1}\"", { v0: mcpUrl(), v1: key });
 
 const EXPIRY_OPTIONS = [
-  { label: "Never", days: null },
-  { label: "30 days", days: 30 },
-  { label: "90 days", days: 90 },
-  { label: "1 year", days: 365 },
+  { get label() { return translateText("Never"); }, days: null },
+  { get label() { return translateText("30 days"); }, days: 30 },
+  { get label() { return translateText("90 days"); }, days: 90 },
+  { get label() { return translateText("1 year"); }, days: 365 },
 ] as const;
 
 function CreateKeyModal({ onClose, onCreated }: { onClose: () => void; onCreated: (key: NewApiKey) => void }) {
@@ -281,25 +272,22 @@ function CreateKeyModal({ onClose, onCreated }: { onClose: () => void; onCreated
       <form className="flex flex-col gap-6" onSubmit={onSubmit}>
         <div className="space-y-1 text-center">
           <h3 id="new-api-key-title" className="text-2xl font-semibold text-base-content">
-            New API key
-          </h3>
-          <p className="text-base-content/80">For Claude, or a script of your own</p>
+            {translateText("New API key")}</h3>
+          <p className="text-base-content/80">{translateText("For Claude, or a script of your own")}</p>
         </div>
 
         <div className="space-y-4">
           <div>
             <label className="label-text" htmlFor="key-name">
-              Name
-            </label>
+              {translateText("Name")}</label>
             <div className="input">
               <span className="icon-[tabler--tag] my-auto me-3 size-5 shrink-0 text-base-content/80" />
-              <input id="key-name" name="name" className="grow" placeholder="e.g. Claude Code on my Mac" maxLength={60} required autoFocus />
+              <input id="key-name" name="name" className="grow" placeholder={translateText("e.g. Claude Code on my Mac")} maxLength={60} required autoFocus />
             </div>
           </div>
           <div>
             <label className="label-text" htmlFor="key-expires">
-              Expires
-            </label>
+              {translateText("Expires")}</label>
             <select id="key-expires" name="expires" className="select" defaultValue="">
               {EXPIRY_OPTIONS.map((o) => (
                 <option key={o.label} value={o.days ?? ""}>
@@ -311,8 +299,8 @@ function CreateKeyModal({ onClose, onCreated }: { onClose: () => void; onCreated
           <label className="flex min-h-11 items-start gap-3">
             <input type="checkbox" name="readOnly" className="switch switch-primary mt-0.5" />
             <span>
-              <span className="label-text block text-base">Read-only</span>
-              <span className="text-sm text-base-content/70">Can search and ask, but not add, change or remove anything.</span>
+              <span className="label-text block text-base">{translateText("Read-only")}</span>
+              <span className="text-sm text-base-content/70">{translateText("Can search and ask, but not add, change or remove anything.")}</span>
             </span>
           </label>
         </div>
@@ -321,12 +309,10 @@ function CreateKeyModal({ onClose, onCreated }: { onClose: () => void; onCreated
 
         <div className="flex flex-wrap items-center justify-end gap-4">
           <button type="button" className="btn btn-secondary btn-soft" onClick={onClose}>
-            Cancel
-          </button>
+            {translateText("Cancel")}</button>
           <button type="submit" className="btn btn-primary" disabled={create.isPending}>
             {create.isPending && <span className="loading loading-spinner loading-sm" />}
-            Create key
-          </button>
+            {translateText("Create key")}</button>
         </div>
       </form>
     </Modal>
@@ -343,21 +329,18 @@ function RevealKeyModal({ apiKey, onClose }: { apiKey: NewApiKey; onClose: () =>
               <span className="icon-[tabler--key] size-8" />
             </div>
           </div>
-          <h3 id="api-key-created-title" className="text-2xl font-semibold text-base-content">
-            {apiKey.name} is ready
-          </h3>
-          <p className="text-base-content/80">Copy it now. Ferret only keeps a fingerprint, so it can't show it to you again.</p>
+          <h3 id="api-key-created-title" className="text-2xl font-semibold text-base-content">{tr("{v0} is ready", { v0: apiKey.name })}</h3>
+          <p className="text-base-content/80">{translateText("Copy it now. Ferret only keeps a fingerprint, so it can't show it to you again.")}</p>
         </div>
-        <CopyField label="API key" value={apiKey.key} icon="icon-[tabler--key]" />
+        <CopyField label={translateText("API key")} value={apiKey.key} icon="icon-[tabler--key]" />
         <div className="space-y-2">
-          <p className="text-sm text-base-content/70">Connect Claude Code with it:</p>
-          <CopyField label="Claude Code command" value={claudeCommand(apiKey.key)} icon="icon-[tabler--terminal-2]" />
+          <p className="text-sm text-base-content/70">{translateText("Connect Claude Code with it:")}</p>
+          <CopyField label={translateText("Claude Code command")} value={claudeCommand(apiKey.key)} icon="icon-[tabler--terminal-2]" />
         </div>
         <hr className="-mx-6 border-base-content/20 sm:-mx-10" />
         <div className="flex justify-end">
           <button type="button" className="btn btn-primary" onClick={onClose}>
-            Done
-          </button>
+            {translateText("Done")}</button>
         </div>
       </div>
     </Modal>
@@ -365,4 +348,4 @@ function RevealKeyModal({ apiKey, onClose }: { apiKey: NewApiKey; onClose: () =>
 }
 
 const formatDate = (iso: string) =>
-  new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  new Date(iso).toLocaleDateString(locale(), { month: "short", day: "numeric", year: "numeric" });

@@ -1,3 +1,5 @@
+import { locale } from "./i18n";
+import { t as translateText } from "./i18n";
 /**
  * Plans and usage. Every server counts what each person uses, per period — AI actions by kind,
  * online barcode lookups — in `plan_usage`, and when the household was last used (`household_setting.lastActiveOn`).
@@ -68,21 +70,21 @@ export async function allow(w: Who, kind: UsageKind): Promise<Allowance> {
   if (!plan) return { ok: true, plan };
   const { limits } = plan;
   if (kind.startsWith("ai.")) {
-    if (!limits.ai) return { ok: false, reason: `AI isn't part of the ${plan.name} plan.` };
+    if (!limits.ai) return { ok: false, reason: translateText("AI isn't part of the {v0} plan.", { v0: plan.name }) };
     if (limits.aiActions === null) return { ok: true, plan };
     const used = aiActionsIn(await usedByKind(w, periodOf(plan)));
     if (used + AI_WEIGHT[kind]! > limits.aiActions) {
-      return { ok: false, reason: `This period's ${limits.aiActions.toLocaleString("en-US")} AI actions are used up${renews(plan)}.` };
+      return { ok: false, reason: translateText("This period's {v0} AI actions are used up{v1}.", { v0: limits.aiActions.toLocaleString(locale()), v1: renews(plan) }) };
     }
   }
   if (kind === "barcode.lookup" && limits.barcodeLookups !== null) {
     const used = (await usedByKind(w, periodOf(plan))).get("barcode.lookup") ?? 0;
-    if (used >= limits.barcodeLookups) return { ok: false, reason: `This period's ${limits.barcodeLookups} online barcode lookups are used up${renews(plan)}.` };
+    if (used >= limits.barcodeLookups) return { ok: false, reason: translateText("This period's {v0} online barcode lookups are used up{v1}.", { v0: limits.barcodeLookups, v1: renews(plan) }) };
   }
   return { ok: true, plan };
 }
 
-const renews = (plan: HouseholdPlan) => (plan.period?.end ? ` — they come back on ${plan.period.end}` : "");
+const renews = (plan: HouseholdPlan) => (plan.period?.end ? translateText(" — they come back on {v0}", { v0: plan.period.end }) : "");
 
 /** `allow`, as a 402 for the person waiting (Ask Ferret). Returns the plan, for `recordUsage`. */
 export async function requireAllowed(w: Who, kind: UsageKind) {
@@ -106,7 +108,7 @@ export const featureOn = async (w: Pick<Who, "deps" | "householdId">, feature: P
 export async function requireFeature(w: Pick<Who, "deps" | "householdId">, feature: PlanFeature) {
   const plan = await planOf(w);
   if (plan && !plan.limits[feature]) {
-    throw new HTTPException(402, { message: `${PLAN_FEATURE_NAMES[feature]} aren't part of the ${plan.name} plan — upgrade to use them.` });
+    throw new HTTPException(402, { message: translateText("{v0} aren't part of the {v1} plan — upgrade to use them.", { v0: PLAN_FEATURE_NAMES[feature], v1: plan.name }) });
   }
 }
 
@@ -148,10 +150,10 @@ export async function requireRoom(w: Pick<Who, "db" | "deps" | "householdId">, w
   const plan = await planOf(w);
   if (!plan) return;
   if ("items" in what && plan.limits.items !== null && (await itemCount(w)) + what.items > plan.limits.items) {
-    throw new HTTPException(402, { message: `The ${plan.name} plan holds ${plan.limits.items} things — remove some, or upgrade to add more.` });
+    throw new HTTPException(402, { message: translateText("The {v0} plan holds {v1} things — remove some, or upgrade to add more.", { v0: plan.name, v1: plan.limits.items }) });
   }
   if ("bytes" in what && plan.limits.fileBytes !== null && (await fileBytes(w)) + what.bytes > plan.limits.fileBytes) {
-    throw new HTTPException(402, { message: `The ${plan.name} plan holds ${formatBytes(plan.limits.fileBytes)} of photos and files — remove some, or upgrade to add more.` });
+    throw new HTTPException(402, { message: translateText("The {v0} plan holds {v1} of photos and files — remove some, or upgrade to add more.", { v0: plan.name, v1: formatBytes(plan.limits.fileBytes) }) });
   }
 }
 
@@ -204,7 +206,7 @@ export async function planReport(w: Pick<Who, "db" | "deps" | "householdId">, ow
   const actions = (p: { asks: number; photos: number; documents: number }) =>
     p.asks * AI_WEIGHT["ai.ask"]! + p.photos * AI_WEIGHT["ai.photo"]! + p.documents * AI_WEIGHT["ai.document"]!;
   const byPerson = [...people.entries()]
-    .map(([userId, p]) => ({ userId: userId || null, name: userId ? (nameOf.get(userId) ?? "Someone who left") : "Ferret (in the background)", aiActions: actions(p), ...p }))
+    .map(([userId, p]) => ({ userId: userId || null, name: userId ? (nameOf.get(userId) ?? translateText("Someone who left")) : translateText("Ferret (in the background)"), aiActions: actions(p), ...p }))
     .sort((a, b) => b.aiActions - a.aiActions || b.barcodeLookups - a.barcodeLookups);
   const [members] = await w.db.select({ n: sql<number>`count(*)` }).from(member).where(eq(member.organizationId, w.householdId));
   const limits = plan?.limits;

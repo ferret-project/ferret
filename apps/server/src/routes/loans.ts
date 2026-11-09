@@ -1,3 +1,4 @@
+import { t as translateText } from "./../lib/i18n";
 /**
  * Lending (lib/loans.ts): `/api/v1/loans` and an item's `/items/:id/loans`, for the household; `/api/v1/borrowed/:token`
  * is the borrower's page from a reminder email (no account): what they have, "I've given it back", "stop reminding

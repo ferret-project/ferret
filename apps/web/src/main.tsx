@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { RouterProvider } from "@tanstack/react-router";
 import { router } from "./router";
 import "./index.css";
+import { LanguageRoot } from "./i18n";
 
 const queryClient = new QueryClient({
   // Once more after a failure — but not when the server said no (not found, not allowed): asking again won't change it.
@@ -18,6 +19,8 @@ const queryClient = new QueryClient({
   },
 });
 
+window.addEventListener("ferret-language", () => queryClient.clear());
+
 // Push reminders, and the app's own files kept for offline capture (public/sw.js). Once loaded (and whenever the signal
 // comes back), the worker refreshes its copy from the build's precache.json.
 if ("serviceWorker" in navigator) {
@@ -31,8 +34,8 @@ if ("serviceWorker" in navigator) {
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
+    <LanguageRoot><QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
-    </QueryClientProvider>
+    </QueryClientProvider></LanguageRoot>
   </StrictMode>,
 );

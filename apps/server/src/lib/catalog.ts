@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * Categories (what a thing is, nested) and tags (free labels — a tag is also a
  * collection, with its own page). Same Caller pattern as lib/inventory.ts:
@@ -75,13 +76,13 @@ export async function categoryDescendants(v: Caller, id: string) {
 export async function createCategory(v: Caller, input: CategoryInput) {
   if (input.parentId) {
     const [parent] = await v.db.select({ id: category.id }).from(category).where(categoryIn(v, input.parentId));
-    if (!parent) throw notFound("Parent category");
+    if (!parent) throw notFound(translateText("Parent category"));
   }
   const [row] = await v.db
     .insert(category)
     .values({ householdId: v.householdId, name: input.name, parentId: input.parentId ?? null, icon: input.icon ?? null, fields: input.fields ?? [] })
     .returning();
-  await logActivity(v, "category.create", row!.id, `Added category ${row!.name}`);
+  await logActivity(v, "category.create", row!.id, translateText("Added category {v0}", { v0: row!.name }));
   return row!;
 }
 
@@ -89,12 +90,12 @@ export async function createCategory(v: Caller, input: CategoryInput) {
 export async function updateCategory(v: Caller, id: string, input: CategoryPatch) {
   const subtree = await categoryDescendants(v, id);
   if (input.parentId) {
-    if (subtree.includes(input.parentId)) throw new HTTPException(422, { message: "A category can't go inside itself" });
+    if (subtree.includes(input.parentId)) throw new HTTPException(422, { message: translateText("A category can't go inside itself") });
     const [parent] = await v.db.select({ id: category.id }).from(category).where(categoryIn(v, input.parentId));
-    if (!parent) throw notFound("Parent category");
+    if (!parent) throw notFound(translateText("Parent category"));
   }
   const [row] = await v.db.update(category).set(input).where(categoryIn(v, id)).returning();
-  if (!row) throw notFound("Category");
+  if (!row) throw notFound(translateText("Category"));
   await reindex(v, await itemsInCategories(v, subtree));
   return row;
 }
@@ -102,7 +103,7 @@ export async function updateCategory(v: Caller, id: string, input: CategoryPatch
 /** Removes a category; its subcategories and items move up to its parent (or to no category). */
 export async function deleteCategory(v: Caller, id: string) {
   const [current] = await v.db.select().from(category).where(categoryIn(v, id));
-  if (!current) throw notFound("Category");
+  if (!current) throw notFound(translateText("Category"));
   const affected = await itemsInCategories(v, await categoryDescendants(v, id));
   await v.db
     .update(category)
@@ -113,7 +114,7 @@ export async function deleteCategory(v: Caller, id: string) {
     .set({ categoryId: current.parentId })
     .where(and(eq(item.householdId, v.householdId), eq(item.categoryId, id)));
   await v.db.update(category).set({ deletedAt: new Date() }).where(categoryIn(v, id));
-  await logActivity(v, "category.delete", id, `Removed category ${current.name}`);
+  await logActivity(v, "category.delete", id, translateText("Removed category {v0}", { v0: current.name }));
   await reindex(v, affected);
 }
 
@@ -131,25 +132,25 @@ async function reindex(v: Caller, itemIds: string[]) {
  * yet). Everyone can rename, nest or remove them.
  */
 export const STARTER_CATEGORIES: { name: string; icon: string; children?: { name: string; icon: string }[]; fields?: CategoryField[] }[] = [
-  { name: "Appliances", icon: "fridge", children: [{ name: "Kitchen", icon: "microwave" }, { name: "Laundry", icon: "wash-machine" }, { name: "Heating & cooling", icon: "air-conditioning" }] },
-  { name: "Electronics", icon: "device-tv",
-    children: [{ name: "TVs", icon: "device-tv" }, { name: "Computers", icon: "device-laptop" }, { name: "Phones & tablets", icon: "device-mobile" }, { name: "Audio", icon: "headphones" }, { name: "Cameras", icon: "camera" }],
-    fields: [{ key: "screen_size", label: "Screen size", type: "number", unit: "in" }] },
-  { name: "Furniture", icon: "armchair" },
-  { name: "Tools", icon: "tool", children: [{ name: "Power tools", icon: "plug" }, { name: "Hand tools", icon: "hammer" }, { name: "Garden", icon: "plant-2" }] },
-  { name: "Kitchen", icon: "tools-kitchen-2" },
-  { name: "Jewelry & watches", icon: "diamond", fields: [{ key: "material", label: "Material", type: "text" }] },
-  { name: "Art & collectibles", icon: "palette", fields: [{ key: "artist", label: "Artist / maker", type: "text" }] },
-  { name: "Clothing", icon: "shirt" },
-  { name: "Sports & outdoors", icon: "bike" },
-  { name: "Vehicles", icon: "car", fields: [{ key: "vin", label: "VIN", type: "text" }, { key: "plate", label: "Plate", type: "text" }] },
-  { name: "Documents & valuables", icon: "file-certificate" },
-  { name: "Seasonal & decorations", icon: "christmas-tree" },
+  { get name() { return translateText("Appliances"); }, icon: "fridge", children: [{ get name() { return translateText("Kitchen"); }, icon: "microwave" }, { get name() { return translateText("Laundry"); }, icon: "wash-machine" }, { get name() { return translateText("Heating & cooling"); }, icon: "air-conditioning" }] },
+  { get name() { return translateText("Electronics"); }, icon: "device-tv",
+    children: [{ name: "TVs", icon: "device-tv" }, { get name() { return translateText("Computers"); }, icon: "device-laptop" }, { get name() { return translateText("Phones & tablets"); }, icon: "device-mobile" }, { get name() { return translateText("Audio"); }, icon: "headphones" }, { get name() { return translateText("Cameras"); }, icon: "camera" }],
+    fields: [{ key: "screen_size", get label() { return translateText("Screen size"); }, type: "number", unit: "in" }] },
+  { get name() { return translateText("Furniture"); }, icon: "armchair" },
+  { get name() { return translateText("Tools"); }, icon: "tool", children: [{ get name() { return translateText("Power tools"); }, icon: "plug" }, { get name() { return translateText("Hand tools"); }, icon: "hammer" }, { get name() { return translateText("Garden"); }, icon: "plant-2" }] },
+  { get name() { return translateText("Kitchen"); }, icon: "tools-kitchen-2" },
+  { get name() { return translateText("Jewelry & watches"); }, icon: "diamond", fields: [{ key: "material", get label() { return translateText("Material"); }, type: "text" }] },
+  { get name() { return translateText("Art & collectibles"); }, icon: "palette", fields: [{ key: "artist", get label() { return translateText("Artist / maker"); }, type: "text" }] },
+  { get name() { return translateText("Clothing"); }, icon: "shirt" },
+  { get name() { return translateText("Sports & outdoors"); }, icon: "bike" },
+  { get name() { return translateText("Vehicles"); }, icon: "car", fields: [{ key: "vin", label: "VIN", type: "text" }, { key: "plate", get label() { return translateText("Plate"); }, type: "text" }] },
+  { get name() { return translateText("Documents & valuables"); }, icon: "file-certificate" },
+  { get name() { return translateText("Seasonal & decorations"); }, icon: "christmas-tree" },
 ];
 
 export async function addStarterCategories(v: Caller) {
   const existing = await allCategories(v);
-  if (existing.length) throw new HTTPException(409, { message: "There are categories already" });
+  if (existing.length) throw new HTTPException(409, { message: translateText("There are categories already") });
   for (const c of STARTER_CATEGORIES) {
     const [parent] = await v.db
       .insert(category)
@@ -159,7 +160,7 @@ export async function addStarterCategories(v: Caller) {
       await v.db.insert(category).values({ householdId: v.householdId, name: child.name, icon: child.icon, parentId: parent!.id, fields: [] });
     }
   }
-  await logActivity(v, "category.create", v.householdId, "Added the starter categories");
+  await logActivity(v, "category.create", v.householdId, translateText("Added the starter categories"));
   return categoryTree(v);
 }
 
@@ -224,7 +225,7 @@ export async function findTag(v: Caller, name: string) {
 /** Rename a tag; renaming onto an existing tag merges them. */
 export async function renameTag(v: Caller, id: string, name: string) {
   const [current] = await v.db.select().from(tag).where(and(eq(tag.id, id), eq(tag.householdId, v.householdId)));
-  if (!current) throw notFound("Tag");
+  if (!current) throw notFound(translateText("Tag"));
   const target = await findTag(v, name);
   const tagged = await v.db.select({ itemId: itemTag.itemId }).from(itemTag).where(eq(itemTag.tagId, id));
   if (target && target.id !== id) {
@@ -242,7 +243,7 @@ export async function renameTag(v: Caller, id: string, name: string) {
 
 export async function deleteTag(v: Caller, id: string) {
   const [current] = await v.db.select().from(tag).where(and(eq(tag.id, id), eq(tag.householdId, v.householdId)));
-  if (!current) throw notFound("Tag");
+  if (!current) throw notFound(translateText("Tag"));
   const tagged = await v.db.select({ itemId: itemTag.itemId }).from(itemTag).where(eq(itemTag.tagId, id));
   await v.db.delete(itemTag).where(eq(itemTag.tagId, id));
   await v.db.delete(tag).where(eq(tag.id, id));

@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * The service error log: every failed call to a service Ferret depends on, for the server admin. `watched()` wraps a
  * port (deps.ai, deps.vectors…) so any method that throws — or whose promise rejects — is recorded here before the
@@ -17,20 +18,20 @@ import { serverAdmin } from "./server-admin";
 
 /** What each port is called, for people. */
 export const SERVICE_NAMES: Record<string, string> = {
-  ai: "Vision & embeddings (Ollama)",
-  chat: "Chat model",
-  documents: "Document reader (docling)",
-  vectors: "Vector store (Qdrant)",
-  reranker: "Reranker",
-  speech: "Speech to text",
-  notifier: "Apprise",
-  push: "Web Push",
-  products: "Barcode lookup (UPCitemdb)",
-  maps: "Apple Maps",
-  recalls: "Recalls (CPSC)",
-  turnstile: "Sign-up check (Turnstile)",
-  jobs: "Background jobs (gave up)",
-  ferret: "Ferret itself (unexpected errors)",
+  get ai() { return translateText("Vision & embeddings (Ollama)"); },
+  get chat() { return translateText("Chat model"); },
+  get documents() { return translateText("Document reader (docling)"); },
+  get vectors() { return translateText("Vector store (Qdrant)"); },
+  get reranker() { return translateText("Reranker"); },
+  get speech() { return translateText("Speech to text"); },
+  get notifier() { return translateText("Apprise"); },
+  get push() { return translateText("Web Push"); },
+  get products() { return translateText("Barcode lookup (UPCitemdb)"); },
+  get maps() { return translateText("Apple Maps"); },
+  get recalls() { return translateText("Recalls (CPSC)"); },
+  get turnstile() { return translateText("Sign-up check (Turnstile)"); },
+  get jobs() { return translateText("Background jobs (gave up)"); },
+  get ferret() { return translateText("Ferret itself (unexpected errors)"); },
 };
 
 const NOTIFY_EVERY_MS = 6 * 60 * 60 * 1000;
@@ -188,17 +189,17 @@ type Row = typeof serviceError.$inferSelect;
  */
 export function triageText(row: Row, about: ServerAbout, timeZone: string) {
   const r = parseRecord(row.detail);
-  const when = row.count === 1 ? localTime(row.lastAt, timeZone) : `${row.count} times, ${localTime(row.firstAt, timeZone)} → ${localTime(row.lastAt, timeZone)}`;
+  const when = row.count === 1 ? localTime(row.lastAt, timeZone) : translateText("{v0} times, {v1} → {v2}", { v0: row.count, v1: localTime(row.firstAt, timeZone), v2: localTime(row.lastAt, timeZone) });
   const lines = [`${SERVICE_NAMES[row.service] ?? row.service} (${row.service}.${row.operation}) — ${when}`, row.message];
   if (r) {
-    const facts = [r.kind && `error: ${r.kind}`, r.ms !== undefined && `took ${r.ms >= 1000 ? `${(r.ms / 1000).toFixed(1)} s` : `${r.ms} ms`}`, r.cause && `cause: ${r.cause}`].filter(Boolean);
+    const facts = [r.kind && `error: ${r.kind}`, r.ms !== undefined && `took ${r.ms >= 1000 ? translateText("{v0} s", { v0: (r.ms / 1000).toFixed(1) }) : translateText("{v0} ms", { v0: r.ms })}`, r.cause && `cause: ${r.cause}`].filter(Boolean);
     if (facts.length) lines.push(facts.join(" · "));
     const detail = Object.entries(r.detail ?? {}).filter(([, v]) => v !== undefined && v !== null && v !== "");
     if (detail.length) lines.push(...detail.map(([k, v]) => `  ${k}: ${String(v)}`));
-    if (r.calledFrom?.length) lines.push(`called from: ${r.calledFrom.join(" ← ")}`);
-    if (r.thrownAt?.length) lines.push(`thrown at: ${r.thrownAt.join(" ← ")}`);
+    if (r.calledFrom?.length) lines.push(translateText("called from: {v0}", { v0: r.calledFrom.join(" ← ") }));
+    if (r.thrownAt?.length) lines.push(translateText("thrown at: {v0}", { v0: r.thrownAt.join(" ← ") }));
   }
-  lines.push(`server: ${about.host} (${about.kind}, ${about.runtime}) · Ferret ${about.version}`);
+  lines.push(translateText("server: {v0} ({v1}, {v2}) · Ferret {v3}", { v0: about.host, v1: about.kind, v2: about.runtime, v3: about.version }));
   return lines.join("\n");
 }
 
@@ -260,31 +261,29 @@ export async function alertServiceErrors(
   const stopped = (s: string) => now.getTime() - newest(s)[0]!.lastAt.getTime() >= STOPPED_MS;
   const lines = services.map((s) => {
     const latest = newest(s)[0]!;
-    return `• ${SERVICE_NAMES[s] ?? s}: ${latest.message}${stopped(s) ? ` (last seen ${localTime(latest.lastAt, timeZone)} — not since)` : ""}`;
+    return `• ${SERVICE_NAMES[s] ?? s}: ${latest.message}${stopped(s) ? translateText(" (last seen {v0} — not since)", { v0: localTime(latest.lastAt, timeZone) }) : ""}`;
   });
   const name = (s: string) => SERVICE_NAMES[s] ?? s;
   const allStopped = services.every(stopped);
   const alert = {
     // Which server, in the title: several servers may write to the same inbox.
-    title: `${
-      services.length === 1
+    title: translateText("{v0} ({v1})", { v0: services.length === 1
         ? allStopped
-          ? `Ferret couldn't reach ${name(services[0]!)} earlier`
-          : `Ferret can't reach ${name(services[0]!)}`
+          ? translateText("Ferret couldn't reach {v0} earlier", { v0: name(services[0]!) })
+          : translateText("Ferret can't reach {v0}", { v0: name(services[0]!) })
         : allStopped
-          ? `${services.length} services Ferret uses were failing earlier`
-          : `${services.length} services Ferret uses are failing`
-    } (${deps.about.host})`,
+          ? translateText("{v0} services Ferret uses were failing earlier", { v0: services.length })
+          : translateText("{v0} services Ferret uses are failing", { v0: services.length }), v1: deps.about.host }),
     body: `${lines.join("\n")}\n\n${
       allStopped
-        ? "These have stopped by themselves; Ferret will tell you if they start again. Details are in Settings → Server."
-        : "Ferret carries on without them where it can. Details are in Settings → Server."
+        ? translateText("These have stopped by themselves; Ferret will tell you if they start again. Details are in Settings → Server.")
+        : translateText("Ferret carries on without them where it can. Details are in Settings → Server.")
     }`,
     url: `${deps.appUrl}/#/settings/server`,
   };
   // The email has room for the details: each service's newest few entries, as triage notes.
   const notes = services.flatMap((s) => newest(s).slice(0, 3)).map((r) => triageText(r, deps.about, timeZone));
-  const details = `── For triage ──\n\n${notes.join("\n\n")}`;
+  const details = translateText("── For triage ──\n\n{v0}", { v0: notes.join("\n\n") });
   await notifyPerson(deps, admin.id, { ...alert, tag: "ferret-service-errors" }, { email: who?.email, details });
   if (deps.adminWebhook) await postToWebhook(deps.adminWebhook, alert, `${deps.appUrl}/icon-192.png`).catch((err) => console.error("admin webhook", err));
   for (const s of services) await deps.db.update(serviceError).set({ notifiedAt: now }).where(and(eq(serviceError.service, s)));
@@ -300,8 +299,8 @@ export async function postToWebhook(url: string, alert: { title: string; body: s
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username: "Ferret", content, allowed_mentions: { parse: [] }, ...(avatar && { avatar_url: avatar }) }),
+    body: JSON.stringify({ username: translateText("Ferret"), content, allowed_mentions: { parse: [] }, ...(avatar && { avatar_url: avatar }) }),
     signal: AbortSignal.timeout(10_000),
   });
-  if (!res.ok) throw new Error(`Discord webhook: ${res.status}`);
+  if (!res.ok) throw new Error(translateText("Discord webhook: {v0}", { v0: res.status }));
 }

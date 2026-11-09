@@ -1,3 +1,7 @@
+import { tn } from "./i18n";
+import { locale } from "./i18n";
+import { t as translateText } from "./i18n";
+import { tr } from "./i18n";
 /**
  * Browsing by place: property cards on the dashboard, a property's rooms, and a
  * room's breadcrumbs and the places inside it (closets, shelves…). The items
@@ -34,7 +38,7 @@ const fullAddress = (p: Property) => {
 /** Apple Maps (the app on an iPhone, the website elsewhere) at an address. */
 const appleMapsUrl = (addr: string) => `https://maps.apple.com/?address=${encodeURIComponent(addr)}`;
 
-const things = (n: number) => `${n.toLocaleString()} ${n === 1 ? "thing" : "things"}`;
+const things = (n: number) => tn(n, "{v0} thing", "{v0} things", { v0: n.toLocaleString(locale()) });
 
 /** The dashboard's "Places": one card per property, then anything not in a place yet. */
 export function PropertyCards({ tree, canEdit }: { tree: PlacesTree; canEdit: boolean }) {
@@ -43,13 +47,12 @@ export function PropertyCards({ tree, canEdit }: { tree: PlacesTree; canEdit: bo
       <section className="card">
         <div className="card-body items-center gap-3 text-center">
           <span className="icon-[tabler--home-plus] size-10 text-primary" />
-          <h2 className="text-lg font-semibold">Where do you keep things?</h2>
-          <p className="max-w-sm text-sm text-base-content/70">Add your home and its rooms, then browse your things room by room.</p>
+          <h2 className="text-lg font-semibold">{translateText("Where do you keep things?")}</h2>
+          <p className="max-w-sm text-sm text-base-content/70">{translateText("Add your home and its rooms, then browse your things room by room.")}</p>
           {canEdit && (
             <a href={PLACES_HREF} className="btn btn-primary">
               <span className="icon-[tabler--plus] size-5" />
-              Add your home
-            </a>
+              {translateText("Add your home")}</a>
           )}
         </div>
       </section>
@@ -60,12 +63,10 @@ export function PropertyCards({ tree, canEdit }: { tree: PlacesTree; canEdit: bo
       <div className="flex flex-wrap items-center justify-between gap-x-2">
         <h2 id="places-title" className="flex items-center gap-2 font-semibold text-base-content">
           <span className="icon-[tabler--map-pin] size-5 text-primary" />
-          Places
-        </h2>
+          {translateText("Places")}</h2>
         {canEdit && (
           <a href={PLACES_HREF} className="tap link link-primary link-hover text-sm">
-            Edit places
-          </a>
+            {translateText("Edit places")}</a>
         )}
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -74,9 +75,7 @@ export function PropertyCards({ tree, canEdit }: { tree: PlacesTree; canEdit: bo
         ))}
       </div>
       {tree.unplacedItems > 0 && (
-        <a href={missingHref("place")} className="tap link link-hover text-sm text-base-content/70">
-          {things(tree.unplacedItems)} not in a place yet →
-        </a>
+        <a href={missingHref("place")} className="tap link link-hover text-sm text-base-content/70">{tr("{v0} not in a place yet →", { v0: things(tree.unplacedItems) })}</a>
       )}
     </section>
   );
@@ -98,7 +97,7 @@ function PropertyCard({ property: p }: { property: Property }) {
         <div className="min-w-0 flex-1">
           <h3 className="truncate font-semibold text-base-content">{p.name}</h3>
           <p className="text-sm text-base-content/70">
-            {p.locations.length} {p.locations.length === 1 ? "room" : "rooms"} · {things(sum.items)}
+            {p.locations.length} {p.locations.length === 1 ? translateText("room") : translateText("rooms")} · {things(sum.items)}
           </p>
         </div>
         <div className="text-end">
@@ -127,8 +126,7 @@ export function PlaceTiles({ nodes, title }: { nodes: LocationNode[]; title: str
                 {sum.valueCents > 0 && <p className="text-sm font-medium text-base-content">{money(sum.valueCents)}</p>}
                 {n.children.length > 0 && (
                   <p className="text-xs text-base-content/70">
-                    {n.children.length} {n.children.length === 1 ? "place" : "places"} inside
-                  </p>
+                    {n.children.length} {n.children.length === 1 ? translateText("place") : translateText("places")} {translateText("inside")}</p>
                 )}
               </div>
             </a>
@@ -152,10 +150,10 @@ export function PropertyHeader({ property: p, canEdit, maps }: { property: Prope
   return (
     <section className="card overflow-hidden">
       {addr && maps && !mapFailed && (
-        <a href={appleMapsUrl(addr)} target="_blank" rel="noreferrer" aria-label={`${p.name} in Apple Maps`} className="block bg-base-200">
+        <a href={appleMapsUrl(addr)} target="_blank" rel="noreferrer" aria-label={translateText("{v0} in Apple Maps", { v0: p.name })} className="block bg-base-200">
           <img
             src={`/api/v1/properties/${p.id}/map${dark ? "?scheme=dark" : ""}`}
-            alt={`Map of ${addr}`}
+            alt={translateText("Map of {v0}", { v0: addr })}
             width={600}
             height={260}
             className="aspect-[60/26] w-full object-cover"
@@ -171,13 +169,11 @@ export function PropertyHeader({ property: p, canEdit, maps }: { property: Prope
         </div>
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-xl font-semibold text-base-content">{p.name}</h1>
-          <p className="text-sm text-base-content/70">
-            {PROPERTY_TYPES[p.type].label} · {things(sum.items)}, {money(sum.valueCents)} in contents
-          </p>
+          <p className="text-sm text-base-content/70">{tr("{v0} · {v1}, {v2} in contents", { v0: PROPERTY_TYPES[p.type].label, v1: things(sum.items), v2: money(sum.valueCents) })}</p>
           {address(p) && <p className="truncate text-sm text-base-content/70">{address(p)}</p>}
           {(p.details.yearBuilt || p.details.valueCents) && (
             <p className="text-sm text-base-content/70">
-              {[p.details.yearBuilt && `Built ${p.details.yearBuilt}`, p.details.valueCents != null && `Valued at ${money(p.details.valueCents)}`]
+              {[p.details.yearBuilt && translateText("Built {v0}", { v0: p.details.yearBuilt }), p.details.valueCents != null && translateText("Valued at {v0}", { v0: money(p.details.valueCents) })]
                 .filter(Boolean)
                 .join(" · ")}
             </p>
@@ -185,12 +181,11 @@ export function PropertyHeader({ property: p, canEdit, maps }: { property: Prope
           {addr && (
             <a href={appleMapsUrl(addr)} target="_blank" rel="noreferrer" className="btn btn-soft btn-primary btn-sm mt-2">
               <span className="icon-[tabler--map-2] size-4" />
-              Open in Maps
-            </a>
+              {translateText("Open in Maps")}</a>
           )}
         </div>
         {canEdit && (
-          <a href={PLACES_HREF} className="btn btn-text btn-sm btn-circle" aria-label={`Edit ${p.name}'s rooms`}>
+          <a href={PLACES_HREF} className="btn btn-text btn-sm btn-circle" aria-label={translateText("Edit {v0}'s rooms", { v0: p.name })}>
             <span className="icon-[tabler--pencil] size-4" />
           </a>
         )}
@@ -216,7 +211,7 @@ export function Breadcrumbs({ tree, locationId, beside }: { tree: PlacesTree | u
   const here = trail.pop()!;
   return (
     <div className="flex flex-col gap-1">
-      <nav className="breadcrumbs py-0 text-sm" aria-label="Where this is">
+      <nav className="breadcrumbs py-0 text-sm" aria-label={translateText("Where this is")}>
         <ul>
           <li>
             <a href={propertyHref(found.property.id)} className="tap text-base-content/70">

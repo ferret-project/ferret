@@ -436,6 +436,8 @@ export const activity = sqliteTable(
     entityType: text("entity_type").notNull(),
     entityId: text("entity_id").notNull(),
     summary: text("summary"),
+    /** Stable field IDs intentionally emptied by a person; null for legacy activity. */
+    clearedFields: text("cleared_fields", { mode: "json" }).$type<string[]>(),
     /** The item it's about (its photos, warranties, maintenance…): an item's history. No FK — history outlives a purge. */
     itemId: text("item_id"),
     createdAt: timestamps.createdAt,

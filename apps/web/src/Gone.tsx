@@ -1,3 +1,6 @@
+import { locale } from "./i18n";
+import { t as translateText } from "./i18n";
+import { tr } from "./i18n";
 /**
  * Item lifecycle: things you no longer have — sold, given away, thrown out, lost, stolen. They leave lists, totals,
  * search, the insurance report and reminders (server: itemScope), but keep their page and history, and can be brought
@@ -17,14 +20,14 @@ import { DialogActions, Modal } from "./Modal";
 import { money, currencySymbol, toCents } from "./lib/money";
 
 export const DISPOSITIONS: { value: ItemDisposition; label: string; past: string; icon: string; amount?: string }[] = [
-  { value: "sold", label: "Sold it", past: "Sold", icon: "icon-[tabler--cash]", amount: "Sold for" },
-  { value: "given", label: "Gave it away", past: "Given away", icon: "icon-[tabler--gift]" },
-  { value: "discarded", label: "Threw it out", past: "Thrown out", icon: "icon-[tabler--trash-x]" },
-  { value: "lost", label: "Lost it", past: "Lost", icon: "icon-[tabler--map-pin-question]", amount: "Insurance paid" },
-  { value: "stolen", label: "It was stolen", past: "Stolen", icon: "icon-[tabler--shield-x]", amount: "Insurance paid" },
+  { value: "sold", get label() { return translateText("Sold it"); }, get past() { return translateText("Sold"); }, icon: "icon-[tabler--cash]", get amount() { return translateText("Sold for"); } },
+  { value: "given", get label() { return translateText("Gave it away"); }, get past() { return translateText("Given away"); }, icon: "icon-[tabler--gift]" },
+  { value: "discarded", get label() { return translateText("Threw it out"); }, get past() { return translateText("Thrown out"); }, icon: "icon-[tabler--trash-x]" },
+  { value: "lost", get label() { return translateText("Lost it"); }, get past() { return translateText("Lost"); }, icon: "icon-[tabler--map-pin-question]", get amount() { return translateText("Insurance paid"); } },
+  { value: "stolen", get label() { return translateText("It was stolen"); }, get past() { return translateText("Stolen"); }, icon: "icon-[tabler--shield-x]", get amount() { return translateText("Insurance paid"); } },
 ];
 const byValue = (v: ItemDisposition | null | undefined) => DISPOSITIONS.find((d) => d.value === v);
-const formatDate = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+const formatDate = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString(locale(), { month: "short", day: "numeric", year: "numeric" });
 
 /** Every query that lists or totals things: a thing leaving (or coming back) changes them all. */
 function useRefreshAll(householdId: string) {
@@ -61,10 +64,10 @@ export function GoneDialog({ item, householdId, onClose, onDone }: { item: ItemL
     });
   }
   return (
-    <Modal id="item-gone" title={`No longer have ${item.name}?`} onClose={onClose}>
+    <Modal id="item-gone" title={translateText("No longer have {v0}?", { v0: item.name })} onClose={onClose}>
       <form className="flex flex-col gap-5" onSubmit={onSubmit}>
         <fieldset>
-          <legend className="label-text mb-2">What happened</legend>
+          <legend className="label-text mb-2">{translateText("What happened")}</legend>
           <div className="@container">
             <div className="grid grid-cols-1 gap-2 @sm:grid-cols-2">
               {DISPOSITIONS.map((d) => (
@@ -80,8 +83,7 @@ export function GoneDialog({ item, householdId, onClose, onDone }: { item: ItemL
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="label-text" htmlFor="gone-when">
-              When
-            </label>
+              {translateText("When")}</label>
             <input id="gone-when" name="when" type="date" className="input" defaultValue={today()} max={today()} required />
           </div>
           {kind.amount && (
@@ -91,32 +93,28 @@ export function GoneDialog({ item, householdId, onClose, onDone }: { item: ItemL
               </label>
               <div className="input">
                 <span className="my-auto me-1 text-base-content/70">{currencySymbol()}</span>
-                <input id="gone-amount" name="amount" className="grow" inputMode="decimal" placeholder="optional" />
+                <input id="gone-amount" name="amount" className="grow" inputMode="decimal" placeholder={translateText("optional")} />
               </div>
             </div>
           )}
         </div>
         <div>
           <label className="label-text" htmlFor="gone-note">
-            Note
-          </label>
+            {translateText("Note")}</label>
           <input
             id="gone-note"
             name="note"
             className="input"
             maxLength={2000}
-            placeholder={what === "stolen" ? "e.g. from the garage — police report 26-1234" : what === "sold" ? "e.g. to a neighbour, on Marketplace" : "optional"}
+            placeholder={what === "stolen" ? translateText("e.g. from the garage — police report 26-1234") : what === "sold" ? translateText("e.g. to a neighbour, on Marketplace") : translateText("optional")}
           />
         </div>
         <p className="text-sm text-base-content/70">
-          It leaves your lists, totals and the insurance report, and its maintenance stops — but it keeps its page, photos and
-          history, and you can bring it back.
-        </p>
+          {translateText("It leaves your lists, totals and the insurance report, and its maintenance stops — but it keeps its page, photos and history, and you can bring it back.")}</p>
         {save.isError && <div className="alert alert-soft alert-error">{save.error.message}</div>}
         <DialogActions>
           <button type="button" className="btn btn-secondary btn-soft" onClick={onClose}>
-            Cancel
-          </button>
+            {translateText("Cancel")}</button>
           <button type="submit" className="btn btn-primary" disabled={save.isPending}>
             {save.isPending && <span className="loading loading-spinner loading-sm" />}
             {kind.past}
@@ -140,16 +138,15 @@ export function GoneBanner({ item, householdId }: { item: ItemListing; household
       <div className="min-w-0 flex-1">
         <p className="font-medium">
           {kind.past}
-          {item.disposedOn ? ` on ${formatDate(item.disposedOn)}` : ""}
-          {item.disposalCents != null ? ` — ${kind.value === "sold" ? "for" : "insurance paid"} ${money(item.disposalCents)}` : ""}
+          {item.disposedOn ? translateText(" on {v0}", { v0: formatDate(item.disposedOn) }) : ""}
+          {item.disposalCents != null ? (kind.value === "sold" ? translateText(" — sale price: {v0}", { v0: money(item.disposalCents) }) : translateText(" — insurance paid: {v0}", { v0: money(item.disposalCents) })) : ""}
         </p>
         {item.disposalNote && <p className="text-sm">{item.disposalNote}</p>}
-        <p className="text-sm">Not in your lists or totals any more.</p>
+        <p className="text-sm">{translateText("Not in your lists or totals any more.")}</p>
       </div>
       {canEdit && (
         <button type="button" className="btn btn-soft btn-sm" disabled={back.isPending} onClick={() => back.mutate()}>
-          Bring it back
-        </button>
+          {translateText("Bring it back")}</button>
       )}
       {back.isError && <p className="w-full text-sm text-error">{back.error.message}</p>}
     </div>
@@ -165,11 +162,11 @@ export function Past({ householdId }: { householdId: string }) {
     <div className="min-h-dvh bg-base-200">
       <nav className="navbar sticky top-0 z-10 border-b border-base-300 bg-base-100/85 backdrop-blur-md px-4">
         <div className="navbar-start w-full min-w-0 items-center gap-2">
-          <a href="#/" className="btn btn-text btn-sm btn-square" aria-label="Back">
+          <a href="#/" className="btn btn-text btn-sm btn-square" aria-label={translateText("Back")}>
             <span className="icon-[tabler--arrow-left] size-5" />
           </a>
-          <h1 className="truncate text-lg font-semibold">Past things</h1>
-          <HelpLink page="guide/past-things.html" label="Past things" />
+          <h1 className="truncate text-lg font-semibold">{translateText("Past things")}</h1>
+          <HelpLink page="guide/past-things.html" label={translateText("Past things")} />
         </div>
         <BarSearch />
       </nav>
@@ -180,24 +177,18 @@ export function Past({ householdId }: { householdId: string }) {
           <div className="card">
             <div className="card-body items-center gap-3 text-center">
               <span className="icon-[tabler--history] size-10 text-primary" />
-              <h2 className="text-lg font-semibold">Nothing here yet</h2>
+              <h2 className="text-lg font-semibold">{translateText("Nothing here yet")}</h2>
               <p className="max-w-sm text-sm text-base-content/70">
-                When you sell, give away, throw out, lose or have something stolen, mark it on its page (Edit → No longer have
-                it?). It leaves your lists and totals and comes here.
-              </p>
+                {translateText("When you sell, give away, throw out, lose or have something stolen, mark it on its page (Edit → No longer have it?). It leaves your lists and totals and comes here.")}</p>
             </div>
           </div>
         )}
         {lostOrStolen.length > 0 && (
           <div className="alert alert-soft alert-info flex flex-wrap items-center gap-3">
             <span className="icon-[tabler--file-spreadsheet] size-6 shrink-0" />
-            <p className="min-w-0 flex-1 text-sm">
-              {lostOrStolen.length} lost or stolen {lostOrStolen.length === 1 ? "thing" : "things"} — the list an insurer asks for, with what
-              happened and when.
-            </p>
+            <p className="min-w-0 flex-1 text-sm">{tr("{v0} lost or stolen ", { v0: lostOrStolen.length })}{lostOrStolen.length === 1 ? translateText("thing") : translateText("things")} {translateText("— the list an insurer asks for, with what happened and when.")}</p>
             <a className="btn btn-soft btn-info btn-sm" href="/api/v1/export/items.csv?gone=lost" download>
-              Download for a claim (CSV)
-            </a>
+              {translateText("Download for a claim (CSV)")}</a>
           </div>
         )}
         {DISPOSITIONS.map((d) => {

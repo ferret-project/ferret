@@ -1,3 +1,4 @@
+import { t as translateText, withLanguage } from "./i18n";
 /**
  * Item templates: a kind of thing a household keeps many of — coins, trading cards, dolls, toys — with its own fields
  * (year, mint mark, grade…) and the category and tags things made from it start with. An item made from one keeps
@@ -17,9 +18,9 @@ const templateIn = (v: Caller, id: string) => and(eq(itemTemplate.id, id), eq(it
 function checkFields(fields: CategoryField[] | undefined) {
   const keys = new Set<string>();
   for (const f of fields ?? []) {
-    if (keys.has(f.key)) throw new HTTPException(422, { message: `Two fields are called "${f.key}"` });
+    if (keys.has(f.key)) throw new HTTPException(422, { message: translateText("Two fields are called \"{v0}\"", { v0: f.key }) });
     keys.add(f.key);
-    if (f.type === "choice" && !f.options?.length) throw new HTTPException(422, { message: `${f.label} needs its choices` });
+    if (f.type === "choice" && !f.options?.length) throw new HTTPException(422, { message: translateText("{v0} needs its choices", { v0: f.label }) });
   }
 }
 
@@ -29,7 +30,7 @@ async function checkCategory(v: Caller, categoryId: string | null | undefined) {
     .select({ id: category.id })
     .from(category)
     .where(and(eq(category.id, categoryId), eq(category.householdId, v.householdId), isNull(category.deletedAt)));
-  if (!found) throw notFound("Category");
+  if (!found) throw notFound(translateText("Category"));
 }
 
 export async function listTemplates(v: Caller): Promise<ItemTemplate[]> {
@@ -53,7 +54,7 @@ const view = (r: typeof itemTemplate.$inferSelect, itemCount: number): ItemTempl
 
 export async function getTemplate(v: Caller, id: string) {
   const [row] = await v.db.select().from(itemTemplate).where(templateIn(v, id));
-  if (!row) throw notFound("Template");
+  if (!row) throw notFound(translateText("Template"));
   return view(row, 0);
 }
 
@@ -64,7 +65,7 @@ export async function createTemplate(v: Caller, input: TemplateInput) {
     .insert(itemTemplate)
     .values({ householdId: v.householdId, name: input.name, icon: input.icon ?? null, fields: input.fields, categoryId: input.categoryId ?? null, tags: input.tags ?? [] })
     .returning();
-  await logActivity(v, "template.create", row!.id, `Added template ${row!.name}`);
+  await logActivity(v, "template.create", row!.id, translateText("Added template {v0}", { v0: row!.name }));
   return view(row!, 0);
 }
 
@@ -73,21 +74,21 @@ export async function updateTemplate(v: Caller, id: string, input: TemplatePatch
   checkFields(input.fields);
   await checkCategory(v, input.categoryId);
   const [row] = await v.db.update(itemTemplate).set(input).where(templateIn(v, id)).returning();
-  if (!row) throw notFound("Template");
+  if (!row) throw notFound(translateText("Template"));
   if (input.fields || input.name) {
     const made = await v.db.select({ id: item.id }).from(item).where(and(itemScope(v, { gone: "include" }), eq(item.templateId, id)));
     for (const m of made) await itemChanged(v, m.id);
   }
-  await logActivity(v, "template.update", row.id, `Changed template ${row.name}`);
+  await logActivity(v, "template.update", row.id, translateText("Changed template {v0}", { v0: row.name }));
   return view(row, 0);
 }
 
 /** Things made from it keep their values; they just stop showing its fields' names (kept 30 days in case). */
 export async function deleteTemplate(v: Caller, id: string) {
   const [row] = await v.db.update(itemTemplate).set({ deletedAt: new Date() }).where(templateIn(v, id)).returning();
-  if (!row) throw notFound("Template");
+  if (!row) throw notFound(translateText("Template"));
   await v.db.update(item).set({ templateId: null }).where(and(eq(item.householdId, v.householdId), eq(item.templateId, id)));
-  await logActivity(v, "template.delete", id, `Removed template ${row.name}`);
+  await logActivity(v, "template.delete", id, translateText("Removed template {v0}", { v0: row.name }));
 }
 
 const grades = ["Mint", "Near mint", "Excellent", "Very good", "Good", "Fair", "Poor"];
@@ -95,108 +96,108 @@ const grades = ["Mint", "Near mint", "Excellent", "Very good", "Good", "Fair", "
 /** The usual collections, ready to use (and to change). */
 export const STARTER_TEMPLATES: { name: string; icon: string; category?: string; fields: CategoryField[] }[] = [
   {
-    name: "Coin",
+    get name() { return translateText("Coin"); },
     icon: "coin",
-    category: "Art & collectibles",
+    get category() { return translateText("Art & collectibles"); },
     fields: [
-      { key: "year", label: "Year", type: "number" },
-      { key: "mint_mark", label: "Mint mark", type: "text" },
-      { key: "denomination", label: "Denomination", type: "text" },
-      { key: "country", label: "Country", type: "text" },
-      { key: "composition", label: "Metal", type: "text" },
-      { key: "grade", label: "Grade", type: "text" },
-      { key: "graded_by", label: "Graded by", type: "choice", options: ["Not graded", "PCGS", "NGC", "ANACS", "ICG"] },
+      { key: "year", get label() { return translateText("Year"); }, type: "number" },
+      { key: "mint_mark", get label() { return translateText("Mint mark"); }, type: "text" },
+      { key: "denomination", get label() { return translateText("Denomination"); }, type: "text" },
+      { key: "country", get label() { return translateText("Country"); }, type: "text" },
+      { key: "composition", get label() { return translateText("Metal"); }, type: "text" },
+      { key: "grade", get label() { return translateText("Grade"); }, type: "text" },
+      { key: "graded_by", get label() { return translateText("Graded by"); }, type: "choice", options: ["Not graded", "PCGS", "NGC", "ANACS", "ICG"] },
     ],
   },
   {
-    name: "Trading card",
+    get name() { return translateText("Trading card"); },
     icon: "cards",
-    category: "Art & collectibles",
+    get category() { return translateText("Art & collectibles"); },
     fields: [
-      { key: "game", label: "Game or sport", type: "text" },
-      { key: "set", label: "Set", type: "text" },
-      { key: "card_number", label: "Card number", type: "text" },
-      { key: "subject", label: "Player / character", type: "text" },
-      { key: "year", label: "Year", type: "number" },
-      { key: "variant", label: "Variant / parallel", type: "text" },
-      { key: "graded_by", label: "Graded by", type: "choice", options: ["Raw", "PSA", "BGS", "CGC", "SGC"] },
-      { key: "grade", label: "Grade", type: "text" },
+      { key: "game", get label() { return translateText("Game or sport"); }, type: "text" },
+      { key: "set", get label() { return translateText("Set"); }, type: "text" },
+      { key: "card_number", get label() { return translateText("Card number"); }, type: "text" },
+      { key: "subject", get label() { return translateText("Player / character"); }, type: "text" },
+      { key: "year", get label() { return translateText("Year"); }, type: "number" },
+      { key: "variant", get label() { return translateText("Variant / parallel"); }, type: "text" },
+      { key: "graded_by", get label() { return translateText("Graded by"); }, type: "choice", options: ["Raw", "PSA", "BGS", "CGC", "SGC"] },
+      { key: "grade", get label() { return translateText("Grade"); }, type: "text" },
     ],
   },
   {
-    name: "Doll",
+    get name() { return translateText("Doll"); },
     icon: "mood-kid",
-    category: "Art & collectibles",
+    get category() { return translateText("Art & collectibles"); },
     fields: [
-      { key: "maker", label: "Maker", type: "text" },
-      { key: "line", label: "Line / series", type: "text" },
-      { key: "year", label: "Year", type: "number" },
-      { key: "edition", label: "Edition", type: "text" },
-      { key: "packaging", label: "Packaging", type: "choice", options: ["In box, never opened", "In box, opened", "No box"] },
-      { key: "condition_detail", label: "Condition", type: "choice", options: grades },
+      { key: "maker", get label() { return translateText("Maker"); }, type: "text" },
+      { key: "line", get label() { return translateText("Line / series"); }, type: "text" },
+      { key: "year", get label() { return translateText("Year"); }, type: "number" },
+      { key: "edition", get label() { return translateText("Edition"); }, type: "text" },
+      { key: "packaging", get label() { return translateText("Packaging"); }, type: "choice", options: ["In box, never opened", "In box, opened", "No box"] },
+      { key: "condition_detail", get label() { return translateText("Condition"); }, type: "choice", options: grades },
     ],
   },
   {
-    name: "Toy or action figure",
+    get name() { return translateText("Toy or action figure"); },
     icon: "horse-toy",
-    category: "Art & collectibles",
+    get category() { return translateText("Art & collectibles"); },
     fields: [
-      { key: "maker", label: "Maker", type: "text" },
-      { key: "line", label: "Line / series", type: "text" },
-      { key: "year", label: "Year", type: "number" },
-      { key: "complete", label: "Complete with accessories", type: "choice", options: ["Yes", "No", "Not sure"] },
-      { key: "packaging", label: "Packaging", type: "choice", options: ["Sealed", "In box, opened", "Loose"] },
+      { key: "maker", get label() { return translateText("Maker"); }, type: "text" },
+      { key: "line", get label() { return translateText("Line / series"); }, type: "text" },
+      { key: "year", get label() { return translateText("Year"); }, type: "number" },
+      { key: "complete", get label() { return translateText("Complete with accessories"); }, type: "choice", options: ["Yes", "No", "Not sure"] },
+      { key: "packaging", get label() { return translateText("Packaging"); }, type: "choice", options: ["Sealed", "In box, opened", "Loose"] },
     ],
   },
   {
-    name: "Comic book",
+    get name() { return translateText("Comic book"); },
     icon: "book",
-    category: "Art & collectibles",
+    get category() { return translateText("Art & collectibles"); },
     fields: [
-      { key: "series", label: "Series", type: "text" },
-      { key: "issue", label: "Issue", type: "text" },
-      { key: "publisher", label: "Publisher", type: "text" },
-      { key: "year", label: "Year", type: "number" },
-      { key: "variant", label: "Cover / variant", type: "text" },
-      { key: "graded_by", label: "Graded by", type: "choice", options: ["Raw", "CGC", "CBCS", "PGX"] },
-      { key: "grade", label: "Grade", type: "text" },
+      { key: "series", get label() { return translateText("Series"); }, type: "text" },
+      { key: "issue", get label() { return translateText("Issue"); }, type: "text" },
+      { key: "publisher", get label() { return translateText("Publisher"); }, type: "text" },
+      { key: "year", get label() { return translateText("Year"); }, type: "number" },
+      { key: "variant", get label() { return translateText("Cover / variant"); }, type: "text" },
+      { key: "graded_by", get label() { return translateText("Graded by"); }, type: "choice", options: ["Raw", "CGC", "CBCS", "PGX"] },
+      { key: "grade", get label() { return translateText("Grade"); }, type: "text" },
     ],
   },
   {
-    name: "Stamp",
+    get name() { return translateText("Stamp"); },
     icon: "mail",
-    category: "Art & collectibles",
+    get category() { return translateText("Art & collectibles"); },
     fields: [
-      { key: "country", label: "Country", type: "text" },
-      { key: "year", label: "Year", type: "number" },
-      { key: "catalog_number", label: "Catalogue number", type: "text" },
-      { key: "denomination", label: "Face value", type: "text" },
-      { key: "state", label: "Mint or used", type: "choice", options: ["Mint, never hinged", "Mint, hinged", "Used"] },
+      { key: "country", get label() { return translateText("Country"); }, type: "text" },
+      { key: "year", get label() { return translateText("Year"); }, type: "number" },
+      { key: "catalog_number", get label() { return translateText("Catalogue number"); }, type: "text" },
+      { key: "denomination", get label() { return translateText("Face value"); }, type: "text" },
+      { key: "state", get label() { return translateText("Mint or used"); }, type: "choice", options: ["Mint, never hinged", "Mint, hinged", "Used"] },
     ],
   },
   {
-    name: "Vinyl record",
+    get name() { return translateText("Vinyl record"); },
     icon: "vinyl",
-    category: "Art & collectibles",
+    get category() { return translateText("Art & collectibles"); },
     fields: [
-      { key: "artist", label: "Artist", type: "text" },
-      { key: "label", label: "Label", type: "text" },
-      { key: "catalog_number", label: "Catalogue number", type: "text" },
-      { key: "year", label: "Year", type: "number" },
-      { key: "format", label: "Format", type: "choice", options: ["LP", "EP", "7″ single", "12″ single", "Box set"] },
-      { key: "pressing", label: "Pressing", type: "text" },
+      { key: "artist", get label() { return translateText("Artist"); }, type: "text" },
+      { key: "label", get label() { return translateText("Label"); }, type: "text" },
+      { key: "catalog_number", get label() { return translateText("Catalogue number"); }, type: "text" },
+      { key: "year", get label() { return translateText("Year"); }, type: "number" },
+      { key: "format", get label() { return translateText("Format"); }, type: "choice", options: ["LP", "EP", "7″ single", "12″ single", "Box set"] },
+      { key: "pressing", get label() { return translateText("Pressing"); }, type: "text" },
     ],
   },
   {
     name: "LEGO set",
     icon: "lego",
-    category: "Art & collectibles",
+    get category() { return translateText("Art & collectibles"); },
     fields: [
-      { key: "set_number", label: "Set number", type: "text" },
-      { key: "theme", label: "Theme", type: "text" },
-      { key: "pieces", label: "Pieces", type: "number" },
-      { key: "year", label: "Year", type: "number" },
-      { key: "state", label: "State", type: "choice", options: ["Sealed", "Built, complete", "Built, missing pieces", "In bags"] },
+      { key: "set_number", get label() { return translateText("Set number"); }, type: "text" },
+      { key: "theme", get label() { return translateText("Theme"); }, type: "text" },
+      { key: "pieces", get label() { return translateText("Pieces"); }, type: "number" },
+      { key: "year", get label() { return translateText("Year"); }, type: "number" },
+      { key: "state", get label() { return translateText("State"); }, type: "choice", options: ["Sealed", "Built, complete", "Built, missing pieces", "In bags"] },
     ],
   },
 ];
@@ -210,11 +211,14 @@ export async function addStarterTemplates(v: Caller) {
     .where(and(eq(category.householdId, v.householdId), isNull(category.deletedAt), isNull(category.parentId)));
   const added: string[] = [];
   for (const t of STARTER_TEMPLATES) {
-    if (have.has(t.name.toLowerCase())) continue;
-    const categoryId = categories.find((c) => c.name === t.category)?.id ?? null;
-    await v.db.insert(itemTemplate).values({ householdId: v.householdId, name: t.name, icon: t.icon, fields: t.fields, categoryId, tags: [] });
+    const names = [withLanguage("en", () => t.name), withLanguage("hu", () => t.name)];
+    if (names.some((name) => have.has(name.toLowerCase()))) continue;
+    const categoryNames = [withLanguage("en", () => t.category), withLanguage("hu", () => t.category)];
+    const categoryId = categories.find((c) => categoryNames.includes(c.name))?.id ?? null;
+    const fields = t.fields.map((field) => ({ ...field, options: field.options?.map((option) => translateText(option)) }));
+    await v.db.insert(itemTemplate).values({ householdId: v.householdId, name: t.name, icon: t.icon, fields, categoryId, tags: [] });
     added.push(t.name);
   }
-  if (added.length) await logActivity(v, "template.create", v.householdId, `Added the starter templates (${added.join(", ")})`);
+  if (added.length) await logActivity(v, "template.create", v.householdId, translateText("Added the starter templates ({v0})", { v0: added.join(", ") }));
   return listTemplates(v);
 }

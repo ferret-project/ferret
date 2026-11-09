@@ -1,3 +1,5 @@
+import { t as translateText } from "./i18n";
+import { tr } from "./i18n";
 /**
  * Deleting for good (server: lib/deletion.ts): the household — its owner only, typing its name — on Settings →
  * Household; your account — typing your email, with your password — on Settings → Security. Each says first what goes,
@@ -34,16 +36,11 @@ export function DeleteHousehold({ householdName }: { householdName: string }) {
       <div className="card-body gap-3">
         <h2 id="delete-household-heading" className="card-title flex items-center gap-2">
           <span className="icon-[tabler--trash] size-5 text-error" />
-          Delete this household
-        </h2>
-        <p className="text-sm text-base-content/70">
-          Everything in {householdName} — things, photos, documents, places, history — is deleted for good, and everyone in it loses access. Download
-          everything first if you might want it.
-        </p>
+          {translateText("Delete this household")}</h2>
+        <p className="text-sm text-base-content/70">{tr("Everything in {v0} — things, photos, documents, places, history — is deleted for good, and everyone in it loses access. Download everything first if you might want it.", { v0: householdName })}</p>
         <div>
           <button type="button" className="btn btn-soft btn-error btn-wrap" onClick={() => setOpen(true)}>
-            Delete household…
-          </button>
+            {translateText("Delete household…")}</button>
         </div>
       </div>
       {open && <DeleteHouseholdDialog householdName={householdName} onClose={() => setOpen(false)} />}
@@ -65,34 +62,30 @@ function DeleteHouseholdDialog({ householdName, onClose }: { householdName: stri
     if (matches) remove.mutate();
   };
   return (
-    <Modal id="delete-household" title="Delete household" onClose={onClose}>
+    <Modal id="delete-household" title={translateText("Delete household")} onClose={onClose}>
       <form onSubmit={submit} className="flex flex-col gap-4">
-        <p>
-          This deletes <strong>{householdName}</strong> and everything in it, for good. It can't be undone.{plans && " If it's on a plan, the plan ends now."}
+        <p>{tr("This deletes {v0} and everything in it, for good. It can't be undone.", { v0: <strong>{householdName}</strong> })}{plans && translateText(" If it's on a plan, the plan ends now.")}
         </p>
         {alsoAccount && (
-          <p>
-            It's your only household, so <strong>your account is deleted too</strong>, and you're signed out.
-          </p>
+          <p>{tr("It's your only household, so {v0}, and you're signed out.", { v0: <strong>{translateText("your account is deleted too")}</strong> })}</p>
         )}
         <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium">Type the household's name to confirm</span>
+          <span className="text-sm font-medium">{translateText("Type the household's name to confirm")}</span>
           <input className="input" value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" placeholder={householdName} />
         </label>
         {info.data?.needsPassword && (
           <label className="flex flex-col gap-1">
-            <span className="text-sm font-medium">Your password</span>
+            <span className="text-sm font-medium">{translateText("Your password")}</span>
             <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
           </label>
         )}
-        {alsoAccount && !info.data?.needsPassword && <p className="text-sm text-base-content/70">You'll need to have signed in within the last 15 minutes.</p>}
+        {alsoAccount && !info.data?.needsPassword && <p className="text-sm text-base-content/70">{translateText("You'll need to have signed in within the last 15 minutes.")}</p>}
         {remove.isError && <div className="alert alert-soft alert-error">{remove.error.message}</div>}
         <DialogActions>
           <button type="button" className="btn btn-text" onClick={onClose}>
-            Cancel
-          </button>
+            {translateText("Cancel")}</button>
           <button type="submit" className="btn btn-error" disabled={!matches || remove.isPending}>
-            {remove.isPending ? <span className="loading loading-spinner loading-sm" /> : "Delete for good"}
+            {remove.isPending ? <span className="loading loading-spinner loading-sm" /> : translateText("Delete for good")}
           </button>
         </DialogActions>
       </form>
@@ -107,15 +100,12 @@ export function DeleteAccount() {
       <div className="card-body gap-3">
         <h2 id="delete-account-heading" className="card-title flex items-center gap-2">
           <span className="icon-[tabler--user-x] size-5 text-error" />
-          Delete your account
-        </h2>
+          {translateText("Delete your account")}</h2>
         <p className="text-sm text-base-content/70">
-          Your account is deleted for good, with any household only you are in. Households you share stay with the others.
-        </p>
+          {translateText("Your account is deleted for good, with any household only you are in. Households you share stay with the others.")}</p>
         <div>
           <button type="button" className="btn btn-soft btn-error btn-wrap" onClick={() => setOpen(true)}>
-            Delete account…
-          </button>
+            {translateText("Delete account…")}</button>
         </div>
       </div>
       {open && <DeleteAccountDialog onClose={() => setOpen(false)} />}
@@ -139,50 +129,42 @@ export function DeleteAccountDialog({ onClose }: { onClose: () => void }) {
     if (ready) remove.mutate();
   };
   return (
-    <Modal id="delete-account" title="Delete account" onClose={onClose}>
+    <Modal id="delete-account" title={translateText("Delete account")} onClose={onClose}>
       <form onSubmit={submit} className="flex flex-col gap-4">
-        {info.isPending && <span className="loading loading-spinner loading-sm" aria-label="Loading" />}
+        {info.isPending && <span className="loading loading-spinner loading-sm" aria-label={translateText("Loading")} />}
         {d?.serverAdmin && (
-          <div className="alert alert-soft alert-warning">You're this server's admin. Hand that over to someone else first (Settings → Server).</div>
+          <div className="alert alert-soft alert-warning">{translateText("You're this server's admin. Hand that over to someone else first (Settings → Server).")}</div>
         )}
         {d && d.blockers.length > 0 && (
-          <div className="alert alert-soft alert-warning">
-            Other people are in {d.blockers.map((b) => b.name).join(", ")}. Make one of them its owner (Settings → Household), or delete it, first.
-          </div>
+          <div className="alert alert-soft alert-warning">{tr("Other people are in {v0}. Make one of them its owner (Settings → Household), or delete it, first.", { v0: d.blockers.map((b) => b.name).join(", ") })}</div>
         )}
         {d && !blocked && (
           <>
             <p>
-              This deletes your account for good. It can't be undone.
-              {d.households.length > 0 && (
-                <>
-                  {" "}
-                  These households, which only you are in, are deleted with it: <strong>{d.households.map((h) => h.name).join(", ")}</strong>.
-                  {plans && " If one is on a plan, the plan ends now."} Download everything first if you might want it.
-                </>
+              {translateText("This deletes your account for good. It can't be undone.")}{d.households.length > 0 && (
+                <>{tr("{v0}These households, which only you are in, are deleted with it: {v1}.", { v0: " ", v1: <strong>{d.households.map((h) => h.name).join(", ")}</strong> })}{plans && translateText(" If one is on a plan, the plan ends now.")} {translateText("Download everything first if you might want it.")}</>
               )}
             </p>
             <label className="flex flex-col gap-1">
-              <span className="text-sm font-medium">Type your email address to confirm</span>
+              <span className="text-sm font-medium">{translateText("Type your email address to confirm")}</span>
               <input className="input" type="email" value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" placeholder={email} />
             </label>
             {d.needsPassword ? (
               <label className="flex flex-col gap-1">
-                <span className="text-sm font-medium">Your password</span>
+                <span className="text-sm font-medium">{translateText("Your password")}</span>
                 <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
               </label>
             ) : (
-              <p className="text-sm text-base-content/70">You'll need to have signed in within the last 15 minutes.</p>
+              <p className="text-sm text-base-content/70">{translateText("You'll need to have signed in within the last 15 minutes.")}</p>
             )}
           </>
         )}
         {remove.isError && <div className="alert alert-soft alert-error">{remove.error.message}</div>}
         <DialogActions>
           <button type="button" className="btn btn-text" onClick={onClose}>
-            Cancel
-          </button>
+            {translateText("Cancel")}</button>
           <button type="submit" className="btn btn-error" disabled={!ready || remove.isPending}>
-            {remove.isPending ? <span className="loading loading-spinner loading-sm" /> : "Delete for good"}
+            {remove.isPending ? <span className="loading loading-spinner loading-sm" /> : translateText("Delete for good")}
           </button>
         </DialogActions>
       </form>

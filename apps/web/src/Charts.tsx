@@ -1,3 +1,6 @@
+import { locale } from "./i18n";
+import { t as translateText } from "./i18n";
+import { tr } from "./i18n";
 /**
  * The dashboard's two charts, drawn as plain SVG in the theme's colours: what everything's worth over time (a running
  * total by the month things came in), and what it's worth by category (a donut). No chart library: FlyonUI's charts
@@ -7,7 +10,7 @@
 import { useState } from "react";
 import { moneyWhole as money } from "./lib/money";
 const monthName = (month: string, withYear = true) =>
-  new Date(`${month}-01T00:00:00`).toLocaleDateString(undefined, withYear ? { month: "short", year: "numeric" } : { month: "short" });
+  new Date(`${month}-01T00:00:00`).toLocaleDateString(locale(), withYear ? { month: "short", year: "numeric" } : { month: "short" });
 
 function monthsBack(n: number) {
   const out: string[] = [];
@@ -47,7 +50,7 @@ export function WorthOverTime({ byMonth }: { byMonth: { month: string; valueCent
         <p className="text-sm text-base-content/70">
           <span className="font-medium text-base-content">{monthName(points[shown]!.month)}</span>: {money(points[shown]!.valueCents)}
         </p>
-        {points.length > 12 && now > yearAgo && <p className="text-sm text-success">+{money(now - yearAgo)} in a year</p>}
+        {points.length > 12 && now > yearAgo && <p className="text-sm text-success">{tr("+{v0} in a year", { v0: money(now - yearAgo) })}</p>}
       </div>
       <div
         className="relative"
@@ -72,10 +75,10 @@ export function WorthOverTime({ byMonth }: { byMonth: { month: string; valueCent
       <div className="flex justify-between text-xs text-base-content/70" aria-hidden>
         <span>{monthName(points[0]!.month)}</span>
         <span>{monthName(points[Math.floor(points.length / 2)]!.month)}</span>
-        <span>Now</span>
+        <span>{translateText("Now")}</span>
       </div>
       <table className="sr-only">
-        <caption>Worth at the end of each month</caption>
+        <caption>{translateText("Worth at the end of each month")}</caption>
         <tbody>
           {points.map((p) => (
             <tr key={p.month}>
@@ -103,7 +106,7 @@ export function CategoryDonut({ groups, href }: { groups: { name: string; valueC
   const valued = groups.filter((g) => g.valueCents > 0);
   const top = valued.slice(0, 6);
   const rest = valued.slice(6).reduce((n, g) => n + g.valueCents, 0);
-  const slices = [...top.map((g, i) => ({ ...g, colour: SLICE_COLOURS[i]! })), ...(rest ? [{ name: "Everything else", valueCents: rest, items: 0, colour: "text-base-content/30" }] : [])];
+  const slices = [...top.map((g, i) => ({ ...g, colour: SLICE_COLOURS[i]! })), ...(rest ? [{ name: translateText("Everything else"), valueCents: rest, items: 0, colour: "text-base-content/30" }] : [])];
   const total = slices.reduce((n, s) => n + s.valueCents, 0) || 1;
   const [hover, setHover] = useState<string | null>(null);
   const R = 15.9155; // circumference 100, so dash lengths are percentages
@@ -135,7 +138,7 @@ export function CategoryDonut({ groups, href }: { groups: { name: string; valueC
           })}
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-          <span className="text-xs text-base-content/70">{hover ?? "Total"}</span>
+          <span className="text-xs text-base-content/70">{hover ?? translateText("Total")}</span>
           <span className="font-semibold text-base-content">{money(hover ? slices.find((s) => s.name === hover)!.valueCents : total)}</span>
         </div>
       </div>

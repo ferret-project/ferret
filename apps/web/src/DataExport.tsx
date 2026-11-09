@@ -1,3 +1,5 @@
+import { t as translateText } from "./i18n";
+import { tr } from "./i18n";
 /**
  * Settings → Household → "Download everything" (owners and admins): the household's data and files as a ZIP that
  * opens without Ferret (GET /export/everything.zip, streamed). Files come out decrypted, so it asks first.
@@ -22,19 +24,14 @@ export function DataExport({ householdName, householdId }: { householdName: stri
         <div className="space-y-1">
           <h2 id="export-title" className="card-title flex items-center gap-2">
             <span className="icon-[tabler--file-zip] size-5 text-primary" />
-            Download everything
-            <HelpLink page="guide/download-everything.html" label="Download everything" />
+            {translateText("Download everything")}<HelpLink page="guide/download-everything.html" label={translateText("Download everything")} />
           </h2>
-          <p className="text-sm text-base-content/70">
-            All of {householdName}'s data and files in one ZIP that opens without Ferret: every item with its warranties, claims and
-            maintenance history (<code>ferret.json</code>), a spreadsheet (<code>items.csv</code>), and every photo and document.
-          </p>
+          <p className="text-sm text-base-content/70">{tr("All of {v0}'s data and files in one ZIP that opens without Ferret: every item with its warranties, claims and maintenance history ({v1}), a spreadsheet ({v2}), and every photo and document.", { v0: householdName, v1: <code>ferret.json</code>, v2: <code>items.csv</code> })}</p>
         </div>
         <div>
           <button type="button" className="btn btn-soft btn-primary" onClick={() => setConfirming(true)}>
             <span className="icon-[tabler--download] size-5" />
-            Download everything…
-          </button>
+            {translateText("Download everything…")}</button>
         </div>
       </div>
 
@@ -43,21 +40,16 @@ export function DataExport({ householdName, householdId }: { householdName: stri
           <div className="flex flex-col gap-5">
             <div className="space-y-1 text-center">
               <h3 id="export-confirm-title" className="text-xl font-semibold">
-                Download everything?
-              </h3>
+                {translateText("Download everything?")}</h3>
               <p className="text-base-content/80">
-                The photos and documents in it aren't encrypted, so anyone who gets the file can read them. Keep it somewhere safe.
-                With many photos it's large and takes a while.
-              </p>
+                {translateText("The photos and documents in it aren't encrypted, so anyone who gets the file can read them. Keep it somewhere safe. With many photos it's large and takes a while.")}</p>
             </div>
             <div className="flex flex-wrap justify-end gap-3">
               <button type="button" className="btn btn-secondary btn-soft" onClick={() => setConfirming(false)}>
-                Cancel
-              </button>
+                {translateText("Cancel")}</button>
               <a href="/api/v1/export/everything.zip" download className="btn btn-primary" onClick={() => setConfirming(false)}>
                 <span className="icon-[tabler--download] size-5" />
-                Download
-              </a>
+                {translateText("Download")}</a>
             </div>
           </div>
         </Modal>

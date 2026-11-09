@@ -1,3 +1,6 @@
+import { tn } from "./i18n";
+import { withLanguage, preferredLanguage } from "./i18n";
+import { t as translateText } from "./i18n";
 /**
  * The weekly summary: once a week, on the day each person picks (Settings → Notifications; `person_setting`), from
  * REMIND_HOUR — everything in the bell, urgent and not ("soon": claims waiting, things to name, possible recalls,
@@ -55,24 +58,27 @@ export interface WeeklyDigest {
 
 /** This person's week, or null when there's nothing to say. */
 export async function weeklyDigest(v: Caller, appUrl: string): Promise<WeeklyDigest | null> {
+  return withLanguage(await preferredLanguage(v.db, v.userId, v.householdId), async () => {
   const [items, loans] = await Promise.all([needsAttention(v), listLoans(v)]);
   const lent = loans.filter((l) => l.direction === "lent");
   if (!items.length && !lent.length) return null;
   const sections: string[] = [];
   for (const [kinds, heading] of GROUPS) {
     const these = items.filter((a) => kinds.includes(a.kind));
-    if (these.length) sections.push(`${heading}\n${these.map((a) => `• ${a.title} — ${a.detail}${a.severity === "urgent" ? " (!)" : ""}`).join("\n")}`);
+    if (these.length) sections.push(`${translateText(heading)}\n${these.map((a) => `• ${a.title} — ${a.detail}${a.severity === "urgent" ? " (!)" : ""}`).join("\n")}`);
   }
   const listed = new Set(items.filter((a) => a.kind === "loan").map((a) => a.id));
   const quiet = lent.filter((l) => !listed.has(l.id));
-  if (quiet.length) sections.push(`Lent out\n${quiet.map((l) => `• ${l.itemName} — with ${l.person} since ${l.since}`).join("\n")}`);
+  if (quiet.length) sections.push(translateText("Lent out\n{v0}", { v0: quiet.map((l) => translateText("• {v0} — with {v1} since {v2}", { v0: l.itemName, v1: l.person, v2: l.since })).join("\n") }));
   const urgent = items.filter((a) => a.severity === "urgent").length;
   const count = items.length;
   return {
-    title: count ? `Your week in Ferret: ${count} ${count === 1 ? "thing" : "things"} to look at${urgent ? ` (${urgent} urgent)` : ""}` : "Your week in Ferret",
+    title: count ? tn(count, "Your week in Ferret: {count} thing to look at{v2}", "Your week in Ferret: {count} things to look at{v2}", { v2: urgent ? translateText(" ({v0} urgent)", { v0: urgent }) : "" }) : translateText("Your week in Ferret"),
     body: `${sections.join("\n\n")}\n\n${appUrl}/#/`,
-    short: count ? items.slice(0, 4).map((a) => a.title).join(" · ") : `${lent.length} ${lent.length === 1 ? "thing" : "things"} lent out`,
+    short: count ? items.slice(0, 4).map((a) => a.title).join(" · ") : tn(lent.length, "{count} thing lent out", "{count} things lent out"),
   };
+
+  });
 }
 
 /** From the hourly reminder tick: everyone whose day it is, once. */

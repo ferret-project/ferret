@@ -1,3 +1,4 @@
+import { t as translateText } from "./../lib/i18n";
 /**
  * The household's own settings (Settings → Household): its time zone and currency (lib/household-time.ts). Anyone in it can read
  * them; the owner and admins change them. And deleting it for good — its owner, signed in for real.
@@ -8,7 +9,8 @@ import { HTTPException } from "hono/http-exception";
 import { type HouseholdDeletionInfo, householdDeleteInput } from "@ferret/shared";
 import type { Context } from "hono";
 import { and, eq, ne } from "drizzle-orm";
-import { member, organization } from "../db/schema";
+import { member, organization, householdLanguage } from "../db/schema";
+import { preferredLanguage } from "../lib/i18n";
 import { type AppEnv, body, requireHousehold, requireSession, requireUser, requireWriter } from "../lib/context";
 import { accountDeletionInfo, confirmIdentity, deleteAccount, deleteHouseholds } from "../lib/deletion";
 import { emailEnabled } from "../lib/email-verification";
@@ -21,6 +23,7 @@ export const household = new Hono<AppEnv>();
 household.use("/*", requireUser, requireHousehold);
 
 const settings = async (c: { var: AppEnv["Variables"] }): Promise<HouseholdSettings> => ({
+  language: await preferredLanguage(c.var.db, null, c.var.householdId),
   timeZone: await chosenTimeZone(c.var.db, c.var.householdId),
   serverTimeZone: serverTimeZone(),
   currency: await householdCurrency(c.var.db, c.var.householdId),
@@ -30,8 +33,9 @@ const settings = async (c: { var: AppEnv["Variables"] }): Promise<HouseholdSetti
 household.get("/settings", async (c) => c.json(await settings(c)));
 
 household.put("/settings", requireWriter, async (c) => {
-  if (c.var.role !== "owner" && c.var.role !== "admin") throw new HTTPException(403, { message: "Only the household's owner and admins can change this" });
+  if (c.var.role !== "owner" && c.var.role !== "admin") throw new HTTPException(403, { message: translateText("Only the household's owner and admins can change this") });
   const input = await body(c.req.raw, householdSettingsInput);
+  if (input.language !== undefined) await c.var.db.insert(householdLanguage).values({ householdId: c.var.householdId, language: input.language }).onConflictDoUpdate({ target: householdLanguage.householdId, set: { language: input.language } });
   if (input.timeZone !== undefined) await setHouseholdTimeZone(c.var.db, c.var.householdId, input.timeZone);
   if (input.currency !== undefined) await setHouseholdCurrency(c.var.db, c.var.householdId, input.currency);
   if (input.aiFill) await setHouseholdAiFill(c.var.db, c.var.householdId, input.aiFill);
@@ -40,7 +44,7 @@ household.put("/settings", requireWriter, async (c) => {
 
 /** Owners and admins (who invite people): whether invitations are emailed here, and when each pending one went out. */
 household.get("/invitations", async (c) => {
-  if (c.var.role !== "owner" && c.var.role !== "admin") throw new HTTPException(403, { message: "Only the household's owner and admins see invitations" });
+  if (c.var.role !== "owner" && c.var.role !== "admin") throw new HTTPException(403, { message: translateText("Only the household's owner and admins see invitations") });
   return c.json({ email: emailEnabled(c.var.deps, c.var.config), data: await invitationEmails(c.var.db, c.var.householdId) } satisfies InvitationEmails);
 });
 
@@ -68,11 +72,11 @@ household.get("/deletion", requireSession, async (c) => {
  * with it in the same step (confirmed like deleting an account). The beforeDelete hooks run first and may stop it.
  */
 household.delete("/", requireSession, async (c) => {
-  if (c.var.role !== "owner") throw new HTTPException(403, { message: "Only the household's owner can delete it" });
+  if (c.var.role !== "owner") throw new HTTPException(403, { message: translateText("Only the household's owner can delete it") });
   const input = await body(c.req.raw, householdDeleteInput);
   const [home] = await c.var.db.select({ name: organization.name }).from(organization).where(eq(organization.id, c.var.householdId));
   if (!home || input.confirm.trim().toLowerCase() !== home.name.trim().toLowerCase()) {
-    throw new HTTPException(422, { message: "Type the household's name exactly to delete it" });
+    throw new HTTPException(422, { message: translateText("Type the household's name exactly to delete it") });
   }
   const { alsoAccount, needsPasswordCheck } = await householdDeletion(c);
   if (alsoAccount) await confirmIdentity(c, needsPasswordCheck, input.password);

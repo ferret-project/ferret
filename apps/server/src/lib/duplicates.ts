@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * Possible duplicates, and merging them (AI-4 with candidate 11). Pairs come from:
  * - the same serial number, or the same barcode and name (worked out when asked);
@@ -119,8 +120,8 @@ async function findPairs(v: Caller): Promise<Found[]> {
       for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) add(ids[i]!, ids[j]!, reason);
     }
   };
-  group((r) => (r.serial?.trim() ? r.serial.replace(/[\s-]/g, "").toLowerCase() : null), "Same serial number");
-  group((r) => (r.barcode ? `${r.barcode}|${r.name.trim().toLowerCase()}` : null), "Same barcode and name");
+  group((r) => (r.serial?.trim() ? r.serial.replace(/[\s-]/g, "").toLowerCase() : null), translateText("Same serial number"));
+  group((r) => (r.barcode ? `${r.barcode}|${r.name.trim().toLowerCase()}` : null), translateText("Same barcode and name"));
 
   // Read alike (from the index job).
   const a = alias(item, "a");
@@ -138,7 +139,7 @@ async function findPairs(v: Caller): Promise<Found[]> {
     .innerJoin(b, and(eq(b.id, itemPair.itemB), isNull(b.deletedAt), isNull(b.disposition), eq(b.wanted, false)))
     .where(and(eq(itemPair.householdId, v.householdId), isNull(itemPair.notDuplicateAt)));
   // Checked again here: an edit since may have told them apart.
-  for (const m of meaning) if (namesAlike(m.aFacts, m.bFacts)) add(m.a, m.b, `Described alike (${Math.round(m.score * 100)}%)`);
+  for (const m of meaning) if (namesAlike(m.aFacts, m.bFacts)) add(m.a, m.b, translateText("Described alike ({v0}%)", { v0: Math.round(m.score * 100) }));
 
   // Not a duplicate: remembered.
   const dismissed = await v.db
@@ -166,16 +167,16 @@ export async function listDuplicates(v: Caller): Promise<DuplicatePair[]> {
     const [a, b] = [side.get(p.a), side.get(p.b)];
     if (!a || !b) return [];
     const reasons = [...p.reasons];
-    if (a.place && a.place === b.place) reasons.push("Same place");
+    if (a.place && a.place === b.place) reasons.push(translateText("Same place"));
     return [{ a, b, reasons }];
   });
 }
 
 /** "Not a duplicate": the pair isn't offered again. */
 export async function notDuplicate(v: Caller, x: string, y: string) {
-  if (x === y) throw new HTTPException(422, { message: "That's the same thing" });
+  if (x === y) throw new HTTPException(422, { message: translateText("That's the same thing") });
   const found = await v.db.select({ id: item.id }).from(item).where(and(itemScope(v, { gone: "include" }), inList(item.id, [x, y])));
-  if (found.length !== 2) throw notFound("Item");
+  if (found.length !== 2) throw notFound(translateText("Item"));
   const [a, b] = ordered(x, y);
   await v.db
     .insert(itemPair)
@@ -228,11 +229,11 @@ async function repoint(db: Db, target: ReturnType<typeof columnsPointingAtItems>
 
 /** Merges `input.from` into `intoId`: fields, tags, links, everything that points at it; the other to Recently deleted. */
 export async function mergeItems(v: Caller, intoId: string, input: MergeInput) {
-  if (intoId === input.from) throw new HTTPException(422, { message: "Pick two different things" });
+  if (intoId === input.from) throw new HTTPException(422, { message: translateText("Pick two different things") });
   const [into] = await withTags(v, await v.db.select().from(item).where(and(eq(item.id, intoId), itemScope(v, { gone: "include" }))));
   const [from] = await withTags(v, await v.db.select().from(item).where(and(eq(item.id, input.from), itemScope(v, { gone: "include" }))));
-  if (!into || !from) throw notFound("Item");
-  if (from.isContainer && into.id === from.containerItemId) throw new HTTPException(422, { message: `${from.name} holds ${into.name} — take it out first` });
+  if (!into || !from) throw notFound(translateText("Item"));
+  if (from.isContainer && into.id === from.containerItemId) throw new HTTPException(422, { message: translateText("{v0} holds {v1} — take it out first", { v0: from.name, v1: into.name }) });
 
   const patch: Record<string, unknown> = {};
   for (const f of MERGE_FIELDS) {
@@ -266,9 +267,9 @@ export async function mergeItems(v: Caller, intoId: string, input: MergeInput) {
   await v.db.delete(itemPair).where(and(eq(itemPair.householdId, v.householdId), or(eq(itemPair.itemA, from.id), eq(itemPair.itemB, from.id))));
   await v.db.delete(itemTag).where(and(eq(itemTag.householdId, v.householdId), eq(itemTag.itemId, from.id)));
 
-  await updateItem(v, into.id, patch as ItemPatch, (name) => `Merged ${from.name} into ${name}`);
+  await updateItem(v, into.id, patch as ItemPatch, (name) => translateText("Merged {v0} into {v1}", { v0: from.name, v1: name }));
   await v.db.update(item).set({ deletedAt: new Date(), mergedIntoId: into.id }).where(and(eq(item.id, from.id), eq(item.householdId, v.householdId)));
-  await logActivity(v, "item.merge", from.id, `Merged into ${into.name}`, from.id);
+  await logActivity(v, "item.merge", from.id, translateText("Merged into {v0}", { v0: into.name }), from.id);
   await itemChanged(v, from.id); // out of search
   await itemChanged(v, into.id);
   return getItem(v, into.id);

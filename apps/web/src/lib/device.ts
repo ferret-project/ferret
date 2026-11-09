@@ -1,3 +1,4 @@
+import { t as translateText } from "./../i18n";
 /**
  * Plain-words labels for sessions and sign-ins: "Safari on iPhone" from a user
  * agent, "Home network" from a private IP. Good enough to recognise your own
@@ -5,35 +6,35 @@
  */
 
 export function describeDevice(userAgent: string | null): { label: string; icon: string } {
-  if (!userAgent) return { label: "Unknown device", icon: "icon-[tabler--device-desktop-question]" };
+  if (!userAgent) return { label: translateText("Unknown device"), icon: "icon-[tabler--device-desktop-question]" };
   const ua = userAgent;
   const os = /iPhone/.test(ua)
     ? "iPhone"
     : /iPad/.test(ua)
       ? "iPad"
       : /Android/.test(ua)
-        ? "Android"
+        ? translateText("Android")
         : /Mac OS X|Macintosh/.test(ua)
-          ? "Mac"
+          ? translateText("Mac")
           : /Windows/.test(ua)
-            ? "Windows"
+            ? translateText("Windows")
             : /CrOS/.test(ua)
               ? "ChromeOS"
               : /Linux/.test(ua)
-                ? "Linux"
+                ? translateText("Linux")
                 : null;
   const browser = /Edg\//.test(ua)
-    ? "Edge"
+    ? translateText("Edge")
     : /Firefox\/|FxiOS/.test(ua)
-      ? "Firefox"
+      ? translateText("Firefox")
       : /Chrome\/|CriOS/.test(ua)
-        ? "Chrome"
+        ? translateText("Chrome")
         : /Safari\//.test(ua)
-          ? "Safari"
+          ? translateText("Safari")
           : /^curl\//.test(ua)
             ? "curl"
             : null;
-  const label = browser && os ? `${browser} on ${os}` : (browser ?? os ?? ua.slice(0, 40));
+  const label = browser && os ? translateText("{v0} on {v1}", { v0: browser, v1: os }) : (browser ?? os ?? ua.slice(0, 40));
   const icon =
     os === "iPhone" || os === "Android"
       ? "icon-[tabler--device-mobile]"
@@ -46,10 +47,10 @@ export function describeDevice(userAgent: string | null): { label: string; icon:
 /** Where an address is: your own network, Tailscale, or out on the internet (shown as the address). */
 export function describeNetwork(address: string | null): string {
   const ip = address && shortIPv6(address);
-  if (!ip || ip === "::") return "Unknown network";
-  if (/^(127\.|::1$)/.test(ip)) return "This server";
-  if (/^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.|^fd7a:115c:a1e0:/i.test(ip)) return `Tailscale · ${ip}`;
-  if (/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|f[cd][0-9a-f]{2}:|fe80:)/i.test(ip)) return `Home network · ${ip}`;
+  if (!ip || ip === "::") return translateText("Unknown network");
+  if (/^(127\.|::1$)/.test(ip)) return translateText("This server");
+  if (/^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.|^fd7a:115c:a1e0:/i.test(ip)) return translateText("Tailscale · {v0}", { v0: ip });
+  if (/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|f[cd][0-9a-f]{2}:|fe80:)/i.test(ip)) return translateText("Home network · {v0}", { v0: ip });
   return ip;
 }
 

@@ -1,3 +1,5 @@
+import { tn } from "./i18n";
+import { t as translateText } from "./i18n";
 /**
  * The sign-in guard: what happens after wrong passwords. Nothing ever locks an
  * account outright (anyone could lock you out by typing your email); instead,
@@ -180,7 +182,7 @@ export async function spendChallenge(db: Db, authSecret: string, header: string 
 // ── The Better Auth plugin ──────────────────────────────────────────────────
 const SIGN_IN = "/sign-in/email";
 
-const minutes = (s: number) => (s < 60 ? `${s} seconds` : `${Math.ceil(s / 60)} ${Math.ceil(s / 60) === 1 ? "minute" : "minutes"}`);
+const minutes = (s: number) => (s < 60 ? translateText("{v0} seconds", { v0: s }) : tn(Math.ceil(s / 60), "{count} minute", "{count} minutes"));
 
 export function signInGuard(opts: { db: Db; authSecret: string; onAlert?: (alert: FailureAlert) => void | Promise<void> }) {
   const { db, authSecret } = opts;
@@ -198,7 +200,7 @@ export function signInGuard(opts: { db: Db; authSecret: string; onAlert?: (alert
             if (guard.waitSeconds > 0) {
               throw new APIError("TOO_MANY_REQUESTS", {
                 code: "SIGN_IN_BACKOFF",
-                message: `Too many wrong passwords from here. Try again in ${minutes(guard.waitSeconds)}.`,
+                message: translateText("Too many wrong passwords from here. Try again in {v0}.", { v0: minutes(guard.waitSeconds) }),
                 retryAfter: guard.waitSeconds,
               });
             }
@@ -207,7 +209,7 @@ export function signInGuard(opts: { db: Db; authSecret: string; onAlert?: (alert
               if (!(await spendChallenge(db, authSecret, ctx.request.headers.get(CHALLENGE_HEADER), level))) {
                 throw new APIError("FORBIDDEN", {
                   code: "CHALLENGE_REQUIRED",
-                  message: "One more check before signing in.",
+                  message: translateText("One more check before signing in."),
                   challenge: await createSignInChallenge(authSecret, level),
                 });
               }

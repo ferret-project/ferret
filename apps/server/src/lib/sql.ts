@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /** SQL helpers that work the same on every SQLite Ferret runs on (libSQL, and others with tighter limits). */
 import { type AnyColumn, type SQL, sql } from "drizzle-orm";
 

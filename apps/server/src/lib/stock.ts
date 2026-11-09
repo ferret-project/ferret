@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * Scan to count: some codes change a count instead of opening an item. Each code has a behaviour per household
  * (stock_rule) — look up (the default), use (take `step` out), restock (put `step` in) or ask — and the scanner's
@@ -36,8 +37,8 @@ export function scanKey(raw: string) {
 
 /** A rule's code, for people. */
 export function codeLabel(code: string) {
-  if (code.startsWith("label:")) return `QR label ${code.slice(6)}`;
-  return /^\d{8,14}$/.test(code) ? `Barcode ${code}` : `Code ${code}`;
+  if (code.startsWith("label:")) return translateText("QR label {v0}", { v0: code.slice(6) });
+  return /^\d{8,14}$/.test(code) ? translateText("Barcode {v0}", { v0: code }) : translateText("Code {v0}", { v0: code });
 }
 
 async function candidatesOf(v: Caller, rows: (typeof item.$inferSelect)[]): Promise<ScanCandidate[]> {
@@ -65,7 +66,7 @@ export async function itemsWithCode(v: Caller, raw: string): Promise<ScanCandida
 export async function adjustStock(v: Caller, itemId: string, delta: number, reason: Reason, note?: string | null, clientId?: string) {
   for (let attempt = 0; attempt < 5; attempt++) {
     const [current] = await v.db.select({ quantity: item.quantity, name: item.name }).from(item).where(and(eq(item.id, itemId), itemScope(v)));
-    if (!current) throw notFound("Item");
+    if (!current) throw notFound(translateText("Item"));
     const next = Math.max(0, current.quantity + delta);
     const applied = next - current.quantity;
     if (applied === 0) return { quantity: current.quantity, applied: 0, movementId: null as string | null };
@@ -76,10 +77,10 @@ export async function adjustStock(v: Caller, itemId: string, delta: number, reas
       .returning({ quantity: item.quantity });
     if (!row) continue; // someone else changed it in between
     const movementId = await recordMovement(v, itemId, applied, next, reason, note, clientId);
-    await logActivity(v, "item.stock", itemId, `${applied < 0 ? `Used ${-applied}` : `Added ${applied}`} ${current.name} (${next} left)`);
+    await logActivity(v, "item.stock", itemId, translateText("{v0} {v1} ({v2} left)", { v0: applied < 0 ? translateText("Used {v0}", { v0: -applied }) : translateText("Added {v0}", { v0: applied }), v1: current.name, v2: next }));
     return { quantity: next, applied, movementId };
   }
-  throw new HTTPException(409, { message: "The count kept changing — try again" });
+  throw new HTTPException(409, { message: translateText("The count kept changing — try again") });
 }
 
 /** Logs a change already made (editing an item's quantity logs through here too). */
@@ -109,8 +110,8 @@ export async function undoMovement(v: Caller, movementId: string) {
     .select()
     .from(stockMovement)
     .where(and(eq(stockMovement.id, movementId), eq(stockMovement.householdId, v.householdId)));
-  if (!m) throw notFound("Change");
-  if (m.undoneAt || m.reason === "undo") throw new HTTPException(409, { message: "That's already been undone" });
+  if (!m) throw notFound(translateText("Change"));
+  if (m.undoneAt || m.reason === "undo") throw new HTTPException(409, { message: translateText("That's already been undone") });
   const result = await adjustStock(v, m.itemId, -m.delta, "undo");
   await v.db.update(stockMovement).set({ undoneAt: new Date() }).where(eq(stockMovement.id, m.id));
   return { itemId: m.itemId, ...result };
@@ -119,7 +120,7 @@ export async function undoMovement(v: Caller, movementId: string) {
 export async function stockSummary(v: Caller, itemId: string, limit = 30): Promise<StockSummary> {
   // Something you no longer have keeps its history (its count just can't change).
   const [row] = await v.db.select({ quantity: item.quantity }).from(item).where(and(eq(item.id, itemId), itemScope(v, { gone: "include" })));
-  if (!row) throw notFound("Item");
+  if (!row) throw notFound(translateText("Item"));
   const [rules, moves] = await Promise.all([
     v.db.select().from(stockRule).where(and(eq(stockRule.householdId, v.householdId), eq(stockRule.itemId, itemId))).orderBy(stockRule.createdAt),
     v.db
@@ -152,8 +153,8 @@ export async function stockSummary(v: Caller, itemId: string, limit = 30): Promi
 /** Sets what scanning `code` does to this item. A QR label must be this item's (or blank — then it becomes its). */
 export async function setStockRule(v: Caller, itemId: string, input: StockRuleInput) {
   const [target] = await v.db.select({ id: item.id }).from(item).where(and(eq(item.id, itemId), itemScope(v)));
-  if (!target) throw notFound("Item");
-  if (isPairingPayload(input.code)) throw new HTTPException(422, { message: "That's a HomeKit or Matter pairing code — save it under Pairing codes instead" });
+  if (!target) throw notFound(translateText("Item"));
+  if (isPairingPayload(input.code)) throw new HTTPException(422, { message: translateText("That's a HomeKit or Matter pairing code — save it under Pairing codes instead") });
   let code = scanKey(input.code);
   // A label's bare code (K7QM2X) typed in: it's that label, if this household has it.
   if (!code.startsWith("label:")) {
@@ -162,8 +163,8 @@ export async function setStockRule(v: Caller, itemId: string, input: StockRuleIn
   }
   if (code.startsWith("label:")) {
     const [tag] = await v.db.select().from(label).where(and(eq(label.householdId, v.householdId), eq(label.code, code.slice(6))));
-    if (!tag) throw new HTTPException(404, { message: "That isn't one of this household's labels" });
-    if (tag.locationId || (tag.itemId && tag.itemId !== itemId)) throw new HTTPException(409, { message: "That label is on something else" });
+    if (!tag) throw new HTTPException(404, { message: translateText("That isn't one of this household's labels") });
+    if (tag.locationId || (tag.itemId && tag.itemId !== itemId)) throw new HTTPException(409, { message: translateText("That label is on something else") });
     if (!tag.itemId) await v.db.update(label).set({ itemId }).where(eq(label.id, tag.id));
   }
   const values = { behaviour: input.behaviour, step: input.step ?? 1 };
@@ -180,7 +181,7 @@ export async function deleteStockRule(v: Caller, itemId: string, ruleId: string)
     .delete(stockRule)
     .where(and(eq(stockRule.id, ruleId), eq(stockRule.itemId, itemId), eq(stockRule.householdId, v.householdId)))
     .returning({ id: stockRule.id });
-  if (!gone.length) throw notFound("Barcode setting");
+  if (!gone.length) throw notFound(translateText("Barcode setting"));
 }
 
 /**
@@ -262,7 +263,7 @@ export async function scan(v: Caller, input: ScanInput, canWrite: boolean, files
 
   if (input.itemId) {
     rows = rows.filter((r) => r.id === input.itemId);
-    if (!rows.length) throw notFound("Item");
+    if (!rows.length) throw notFound(translateText("Item"));
   }
   const candidates = await candidatesOf(v, rows);
 
@@ -328,7 +329,7 @@ export async function shoppingList(v: Caller): Promise<ShoppingList> {
         minQuantity: r.minQuantity ?? null,
         // Short of what one time uses: the difference; enough for one but not for all that share it: another time's worth.
         buy: packs.find((p) => p.itemId === r.id)?.step ?? Math.max(toMin, need ? (r.quantity < need.task.part!.uses ? need.task.part!.uses - r.quantity : need.task.part!.uses) : 0),
-        forTask: need ? `${need.task.title}, due ${need.task.part!.shortOn}` : null,
+        forTask: need ? translateText("{v0}, due {v1}", { v0: need.task.title, v1: need.task.part!.shortOn }) : null,
         photoId: r.photoId,
         unitCents: r.purchasePriceCents ?? r.valueCents ?? null,
         amazon: amazonProductOf(rows.find((x) => x.id === r.id)?.links),
@@ -340,9 +341,9 @@ export async function shoppingList(v: Caller): Promise<ShoppingList> {
 
 /** The list as plain text — for a message, a notes app, a to-do list. */
 export function shoppingText(items: ShoppingItem[]) {
-  if (!items.length) return "Nothing to buy.";
+  if (!items.length) return translateText("Nothing to buy.");
   return [
-    "Shopping list",
-    ...items.map((i) => `- ${i.name}${i.buy > 1 ? ` ×${i.buy}` : ""} (${i.quantity === 0 ? "none left" : `${i.quantity} left`}${i.forTask ? ` — for ${i.forTask}` : ""})`),
+    translateText("Shopping list"),
+    ...items.map((i) => `- ${i.name}${i.buy > 1 ? ` ×${i.buy}` : ""} (${i.quantity === 0 ? translateText("none left") : translateText("{v0} left", { v0: i.quantity })}${i.forTask ? translateText(" — for {v0}", { v0: i.forTask }) : ""})`),
   ].join("\n");
 }

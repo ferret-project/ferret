@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * Maintenance without a manual (AI-6): the text model suggests the upkeep things of an item's kind typically need
  * (a furnace's filter, a water heater's flush, a dryer's vent) into Suggested maintenance — marked "typical", not
@@ -24,12 +25,12 @@ const BATCH = 12;
 const PER_ASK = 60;
 
 export async function askTypicalUpkeep(v: Caller, itemId?: string) {
-  if (!textModelOf(v.deps) || !v.deps.jobs) throw new HTTPException(503, { message: "Typical upkeep needs an AI model, and none is set up on this server" });
+  if (!textModelOf(v.deps) || !v.deps.jobs) throw new HTTPException(503, { message: translateText("Typical upkeep needs an AI model, and none is set up on this server") });
   await requireAllowed(v, "ai.ask");
   let ids: string[];
   if (itemId) {
     const [row] = await v.db.select({ id: item.id }).from(item).where(and(eq(item.id, itemId), itemScope(v)));
-    if (!row) throw notFound("Item");
+    if (!row) throw notFound(translateText("Item"));
     ids = [row.id];
   } else {
     // Things not asked about yet — not boxes, not consumables (they have a "keep at least").

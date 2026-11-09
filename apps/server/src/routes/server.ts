@@ -1,3 +1,4 @@
+import { t as translateText } from "./../lib/i18n";
 /**
  * /api/v1/server — the server's own settings (Settings → Server, the server admin only): who that admin is, and
  * whether things are checked against product recalls.
@@ -58,25 +59,25 @@ server.delete("/errors/:id", async (c) => {
 
 /** The public demo's use (lib/demo.ts, lib/analytics.ts): only on the demo. */
 server.get("/demo", async (c) => {
-  if (!c.var.config.DEMO) throw new HTTPException(404, { message: "Not the demo" });
+  if (!c.var.config.DEMO) throw new HTTPException(404, { message: translateText("Not the demo") });
   const { days } = z.object({ days: z.coerce.number().int().min(1).max(90).default(30) }).parse(c.req.query());
   return c.json(await demoReport(c.var.deps, c.var.config, days));
 });
 
 /** The demo's parts that are switched off (lib/demo-switches.ts), and switching them. */
 server.get("/demo/switches", async (c) => {
-  if (!c.var.config.DEMO) throw new HTTPException(404, { message: "Not the demo" });
+  if (!c.var.config.DEMO) throw new HTTPException(404, { message: translateText("Not the demo") });
   return c.json({ off: [...(await partsOff(c.var.db))] });
 });
 server.put("/demo/switches", async (c) => {
-  if (!c.var.config.DEMO) throw new HTTPException(404, { message: "Not the demo" });
+  if (!c.var.config.DEMO) throw new HTTPException(404, { message: translateText("Not the demo") });
   const { off } = await body(c.req.raw, z.object({ off: z.array(z.enum(DEMO_PARTS)).max(DEMO_PARTS.length) }));
   return c.json({ off: [...(await setPartsOff(c.var.db, off))] });
 });
 
 /** What the demo's hosting has used, against what its plan includes (the HostingUsage port); null without one. */
 server.get("/demo/usage", async (c) => {
-  if (!c.var.config.DEMO) throw new HTTPException(404, { message: "Not the demo" });
+  if (!c.var.config.DEMO) throw new HTTPException(404, { message: translateText("Not the demo") });
   const usage = c.var.deps.hostingUsage;
   if (!usage) return c.json({ usage: null, error: null });
   try {

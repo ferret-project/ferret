@@ -1,3 +1,5 @@
+import { t as translateText } from "./i18n";
+import { tr } from "./i18n";
 /**
  * The home screen's scanner, with scan to count (server: lib/stock.ts). A switch along the top — Auto (each code does
  * what it's set to), Look up, Use, Restock — stays put for the session, so stocking a shelf is scan, scan, scan: each
@@ -15,10 +17,10 @@ import { Scanner } from "./Scanner";
 import { navigateTo } from "./lib/navigate";
 
 const MODES: { value: ScanMode; label: string; help: string }[] = [
-  { value: "auto", label: "Auto", help: "Each code does what it's set to" },
-  { value: "lookup", label: "Look up", help: "Open what's scanned" },
-  { value: "use", label: "Use", help: "Take one out for each scan" },
-  { value: "restock", label: "Restock", help: "Put some in for each scan" },
+  { value: "auto", get label() { return translateText("Auto"); }, get help() { return translateText("Each code does what it's set to"); } },
+  { value: "lookup", get label() { return translateText("Look up"); }, get help() { return translateText("Open what's scanned"); } },
+  { value: "use", get label() { return translateText("Use"); }, get help() { return translateText("Take one out for each scan"); } },
+  { value: "restock", get label() { return translateText("Restock"); }, get help() { return translateText("Put some in for each scan"); } },
 ];
 const MODE_KEY = "ferret-scan-mode";
 
@@ -163,12 +165,12 @@ export function ScanSession({
 
   const top = adding ? (
     <div className="px-3 pb-2 text-center" onPointerDown={prepare}>
-      <p className="font-medium text-white">Scan to add</p>
-      <p className="text-xs text-white/70">Something you already have adds to its count</p>
+      <p className="font-medium text-white">{translateText("Scan to add")}</p>
+      <p className="text-xs text-white/70">{translateText("Something you already have adds to its count")}</p>
     </div>
   ) : (
     <div className="px-3 pb-2" onPointerDown={prepare}>
-      <div className="join w-full" role="radiogroup" aria-label="What a scan does">
+      <div className="join w-full" role="radiogroup" aria-label={translateText("What a scan does")}>
         {MODES.map((m) => (
           <button
             key={m.value}
@@ -232,28 +234,26 @@ function PanelView({
   onOpen: (itemId: string) => void;
   onSeparate: (code: string) => void;
 }) {
-  const card = "rounded-box bg-base-100 p-3 shadow-lg";
+  const card = translateText("rounded-box bg-base-100 p-3 shadow-lg");
   if (panel.kind === "have") {
     const only = panel.items.length === 1 ? panel.items[0]! : null;
     return (
-      <div className={card} role="dialog" aria-label="You have this already">
+      <div className={card} role="dialog" aria-label={translateText("You have this already")}>
         {only ? (
           <>
-            <p className="text-sm text-base-content/70">You have this</p>
+            <p className="text-sm text-base-content/70">{translateText("You have this")}</p>
             <p className="truncate font-medium">{only.name}</p>
             {only.place && <p className="truncate text-sm text-base-content/70">{only.place}</p>}
             <div className="mt-3 flex flex-wrap gap-2">
-              <button type="button" className="btn btn-primary btn-wrap grow" onClick={() => onFollow(panel.code, only.id, "restock")}>
-                Add {panel.step} (now {only.quantity + panel.step})
+              <button type="button" className="btn btn-primary btn-wrap grow" onClick={() => onFollow(panel.code, only.id, "restock")}>{tr("Add {v0} (now ", { v0: panel.step })}{only.quantity + panel.step})
               </button>
               <button type="button" className="btn btn-soft btn-wrap grow" onClick={() => onSeparate(panel.code)}>
-                Add as a separate item
-              </button>
+                {translateText("Add as a separate item")}</button>
             </div>
           </>
         ) : (
           <>
-            <p className="mb-2 font-medium">You have this — add {panel.step} to which?</p>
+            <p className="mb-2 font-medium">{tr("You have this — add {v0} to which?", { v0: panel.step })}</p>
             <ul className="flex max-h-64 flex-col gap-1 overflow-y-auto">
               {panel.items.map((i) => (
                 <li key={i.id}>
@@ -262,24 +262,21 @@ function PanelView({
                       <span className="block truncate">{i.name}</span>
                       {i.place && <span className="block truncate text-xs font-normal text-base-content/70">{i.place}</span>}
                     </span>
-                    <span className="shrink-0 text-sm font-normal">now {i.quantity + panel.step}</span>
+                    <span className="shrink-0 text-sm font-normal">{translateText("now ")}{i.quantity + panel.step}</span>
                   </button>
                 </li>
               ))}
             </ul>
             <button type="button" className="btn btn-soft btn-wrap mt-2 w-full" onClick={() => onSeparate(panel.code)}>
-              Add as a separate item
-            </button>
+              {translateText("Add as a separate item")}</button>
           </>
         )}
         <div className="mt-2 flex flex-wrap justify-between gap-2">
           <button type="button" className="btn btn-text btn-sm" onClick={onDismiss}>
-            Never mind
-          </button>
+            {translateText("Never mind")}</button>
           {only && (
             <button type="button" className="btn btn-text btn-sm" onClick={() => onOpen(only.id)}>
-              Open it
-            </button>
+              {translateText("Open it")}</button>
           )}
         </div>
       </div>
@@ -289,10 +286,9 @@ function PanelView({
     return (
       <div className={`${card} flex items-center gap-3`} role="status" aria-live="polite">
         <span className="icon-[tabler--home-check] size-7 shrink-0 text-success" />
-        <p className="min-w-0 flex-1 text-sm">Saved the pairing code to {panel.name}.</p>
+        <p className="min-w-0 flex-1 text-sm">{tr("Saved the pairing code to {v0}.", { v0: panel.name })}</p>
         <button type="button" className="btn btn-text btn-sm" onClick={onDismiss}>
-          OK
-        </button>
+          {translateText("OK")}</button>
       </div>
     );
   }
@@ -303,8 +299,7 @@ function PanelView({
         <span className="icon-[tabler--alert-triangle] size-6 shrink-0 text-error" />
         <p className="min-w-0 flex-1 text-sm">{panel.message}</p>
         <button type="button" className="btn btn-text btn-sm" onClick={onDismiss}>
-          OK
-        </button>
+          {translateText("OK")}</button>
       </div>
     );
   }
@@ -317,25 +312,24 @@ function PanelView({
           <p className="truncate font-medium">{panel.item.name}</p>
           <p className="text-sm text-base-content/70">
             {none
-              ? "None left to take"
+              ? translateText("None left to take")
               : panel.undone
-                ? `Undone — ${panel.item.quantity} left`
-                : `${panel.applied > 0 ? `+${panel.applied}` : `−${-panel.applied}`} · ${panel.item.quantity} left`}
+                ? translateText("Undone — {v0} left", { v0: panel.item.quantity })
+                : translateText("{v0} · {v1} left", { v0: panel.applied > 0 ? `+${panel.applied}` : `−${-panel.applied}`, v1: panel.item.quantity })}
           </p>
         </div>
         {!none && !panel.undone && panel.movementId && (
           <button type="button" className="btn btn-soft btn-sm" onClick={() => onUndo(panel)}>
-            Undo
-          </button>
+            {translateText("Undo")}</button>
         )}
       </div>
     );
   }
   if (panel.kind === "choose") {
-    const verb = panel.behaviour === "use" ? `Use ${panel.step} from` : panel.behaviour === "restock" ? `Add ${panel.step} to` : "Which one?";
+    const verb = panel.behaviour === "use" ? translateText("Use {v0} from", { v0: panel.step }) : panel.behaviour === "restock" ? translateText("Add {v0} to", { v0: panel.step }) : translateText("Which one?");
     return (
-      <div className={card} role="dialog" aria-label="Which one?">
-        <p className="mb-2 font-medium">{panel.behaviour === "use" || panel.behaviour === "restock" ? `${verb} which?` : "Which one?"}</p>
+      <div className={card} role="dialog" aria-label={translateText("Which one?")}>
+        <p className="mb-2 font-medium">{panel.behaviour === "use" || panel.behaviour === "restock" ? translateText("{v0} which?", { v0: verb }) : translateText("Which one?")}</p>
         <ul className="flex max-h-64 flex-col gap-1 overflow-y-auto">
           {panel.items.map((i) => (
             <li key={i.id}>
@@ -350,29 +344,22 @@ function PanelView({
           ))}
         </ul>
         <button type="button" className="btn btn-text btn-sm mt-2" onClick={onDismiss}>
-          Never mind
-        </button>
+          {translateText("Never mind")}</button>
       </div>
     );
   }
   return (
-    <div className={card} role="dialog" aria-label={`${panel.item.name}: use, restock or open?`}>
+    <div className={card} role="dialog" aria-label={translateText("{v0}: use, restock or open?", { v0: panel.item.name })}>
       <p className="font-medium">{panel.item.name}</p>
-      <p className="mb-2 text-sm text-base-content/70">{panel.item.quantity} left</p>
+      <p className="mb-2 text-sm text-base-content/70">{tr("{v0} left", { v0: panel.item.quantity })}</p>
       <div className="flex flex-wrap gap-2">
-        <button type="button" className="btn btn-primary grow" onClick={() => onFollow(panel.code, panel.item.id, "use")}>
-          Use {panel.step}
-        </button>
-        <button type="button" className="btn btn-soft btn-primary grow" onClick={() => onFollow(panel.code, panel.item.id, "restock")}>
-          Add {panel.step}
-        </button>
+        <button type="button" className="btn btn-primary grow" onClick={() => onFollow(panel.code, panel.item.id, "use")}>{tr("Use {v0}", { v0: panel.step })}</button>
+        <button type="button" className="btn btn-soft btn-primary grow" onClick={() => onFollow(panel.code, panel.item.id, "restock")}>{tr("Add {v0}", { v0: panel.step })}</button>
         <button type="button" className="btn btn-soft grow" onClick={() => onOpen(panel.item.id)}>
-          Open
-        </button>
+          {translateText("Open")}</button>
       </div>
       <button type="button" className="btn btn-text btn-sm mt-2" onClick={onDismiss}>
-        Never mind
-      </button>
+        {translateText("Never mind")}</button>
     </div>
   );
 }
@@ -398,19 +385,17 @@ function PairingPanel({
       onSaved(t.label);
     },
   });
-  const what = `${panel.type === "homekit" ? "HomeKit" : "Matter"} code${panel.category ? ` (${panel.category})` : ""}`;
+  const what = translateText("{v0} code{v1}", { v0: panel.type === "homekit" ? "HomeKit" : translateText("Matter"), v1: panel.category ? ` (${panel.category})` : "" });
   return (
-    <div className="rounded-box bg-base-100 p-3 shadow-lg" role="dialog" aria-label={`Which item is this ${what} for?`}>
-      <p className="mb-2 font-medium">A {what} — which item is it for?</p>
-      <ItemPicker householdId={householdId} id="pairing-item" name="pairingItem" label="Item" value={target} onChange={setTarget} />
+    <div className="rounded-box bg-base-100 p-3 shadow-lg" role="dialog" aria-label={translateText("Which item is this {v0} for?", { v0: what })}>
+      <p className="mb-2 font-medium">{tr("A {v0} — which item is it for?", { v0: what })}</p>
+      <ItemPicker householdId={householdId} id="pairing-item" name="pairingItem" label={translateText("Item")} value={target} onChange={setTarget} />
       {save.isError && <p className="mt-2 text-sm text-error">{save.error.message}</p>}
       <div className="mt-3 flex flex-wrap justify-end gap-2">
         <button type="button" className="btn btn-text btn-sm" onClick={onDismiss}>
-          Never mind
-        </button>
+          {translateText("Never mind")}</button>
         <button type="button" className="btn btn-primary btn-sm" disabled={!target || save.isPending} onClick={() => target && save.mutate(target)}>
-          Save code
-        </button>
+          {translateText("Save code")}</button>
       </div>
     </div>
   );

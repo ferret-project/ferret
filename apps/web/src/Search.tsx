@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * The search box on the home screens, and how search flows:
  * - **Clear**: the ✕ in the box, or Esc (a second Esc leaves the box).
@@ -227,18 +228,18 @@ export function SearchBox(props: {
             onKeyDown={onKeyDown}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
-            aria-label="Search your stuff"
+            aria-label={translateText("Search your stuff")}
             enterKeyHint="search"
             autoComplete="off"
             autoCorrect="off"
             spellCheck={false}
           />
-          {props.busy && <span className="loading loading-spinner loading-sm shrink-0 text-base-content/70" aria-label="Searching" />}
+          {props.busy && <span className="loading loading-spinner loading-sm shrink-0 text-base-content/70" aria-label={translateText("Searching")} />}
           {props.value ? (
             <button
               type="button"
               className="btn btn-text btn-sm btn-circle shrink-0"
-              aria-label="Clear the search"
+              aria-label={translateText("Clear the search")}
               onClick={() => {
                 props.onChange("");
                 input.current?.focus();
@@ -248,7 +249,7 @@ export function SearchBox(props: {
             </button>
           ) : (
             !focused && (
-              <span className="flex shrink-0 items-center gap-1 text-base-content/70 pointer-coarse:hidden" title={`${COMMAND_K} or / to search`}>
+              <span className="flex shrink-0 items-center gap-1 text-base-content/70 pointer-coarse:hidden" title={translateText("{v0} or / to search", { v0: COMMAND_K })}>
                 <kbd className="kbd border-base-content/15 bg-base-200 font-sans text-sm text-base-content/70">{COMMAND_K}</kbd>
               </span>
             )
@@ -260,7 +261,7 @@ export function SearchBox(props: {
         // Pressing in here mustn't take the focus from the box (that would close it before the click lands).
         <div className="absolute inset-x-0 top-full z-20 mt-1 rounded-box border border-base-content/10 bg-base-100 p-3 shadow-lg" onMouseDown={(e) => e.preventDefault()}>
           <div className="mb-2 flex items-center justify-between gap-2">
-            <span className="text-sm text-base-content/70">Recent searches</span>
+            <span className="text-sm text-base-content/70">{translateText("Recent searches")}</span>
             <button
               type="button"
               className="btn btn-text btn-xs"
@@ -269,8 +270,7 @@ export function SearchBox(props: {
                 writeRecent(props.householdId, []);
               }}
             >
-              Clear
-            </button>
+              {translateText("Clear")}</button>
           </div>
           <div className="flex flex-wrap gap-2">
             {recent.map((r) => (

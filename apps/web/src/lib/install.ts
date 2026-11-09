@@ -1,3 +1,4 @@
+import { t as translateText } from "./../i18n";
 /**
  * Installing Ferret on a phone (Install.tsx shows the offer). iOS has no install API: the offer says how (Share → Add
  * to Home Screen). Chrome/Edge on Android fire `beforeinstallprompt`, kept here from the first page load (it comes

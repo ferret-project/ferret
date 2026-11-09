@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * Web Push with web-standard APIs only (fetch + WebCrypto), so the same code sends from Node and from a Worker:
  * VAPID (RFC 8292) to say who's sending, and the message encrypted for the browser (RFC 8291, aes128gcm).
@@ -35,7 +36,7 @@ async function hkdf(salt: Bytes, ikm: Bytes, info: Bytes, length: number) {
 /** The VAPID key pair as WebCrypto keys (from web-push's base64url format: a 65-byte public point and a 32-byte scalar). */
 async function vapidSigningKey(publicKey: string, privateKey: string) {
   const pub = fromB64url(publicKey);
-  if (pub.length !== 65 || pub[0] !== 4) throw new Error("VAPID_PUBLIC_KEY isn't an uncompressed P-256 public key");
+  if (pub.length !== 65 || pub[0] !== 4) throw new Error(translateText("VAPID_PUBLIC_KEY isn't an uncompressed P-256 public key"));
   const jwk = { kty: "EC", crv: "P-256", x: toB64url(pub.slice(1, 33)), y: toB64url(pub.slice(33, 65)), d: privateKey, ext: true };
   return crypto.subtle.importKey("jwk", jwk, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
 }
@@ -91,7 +92,7 @@ export class WebCryptoPush implements Push {
     const res = await this.fetcher(target.endpoint, {
       method: "POST",
       headers: {
-        Authorization: `vapid t=${await vapidToken(target.endpoint, this.subject, await this.key)}, k=${this.publicKey}`,
+        Authorization: translateText("vapid t={v0}, k={v1}", { v0: await vapidToken(target.endpoint, this.subject, await this.key), v1: this.publicKey }),
         "Content-Encoding": "aes128gcm",
         "Content-Type": "application/octet-stream",
         TTL: String(12 * 3600),
@@ -102,8 +103,8 @@ export class WebCryptoPush implements Push {
     if (!res.ok) {
       const answer = (await res.text().catch(() => "")).slice(0, 200);
       // Apple's way of refusing the subject (it wants a mailto: or https: address on a public domain).
-      const hint = answer.includes("BadJwtToken") ? ` — check VAPID_SUBJECT (${this.subject}): Apple refuses one that isn't on a public domain` : "";
-      throw new Error(`Push service answered ${res.status}: ${answer}${hint}`);
+      const hint = answer.includes("BadJwtToken") ? translateText(" — check VAPID_SUBJECT ({v0}): Apple refuses one that isn't on a public domain", { v0: this.subject }) : "";
+      throw new Error(translateText("Push service answered {v0}: {v1}{v2}", { v0: res.status, v1: answer, v2: hint }));
     }
     return "sent" as const;
   }

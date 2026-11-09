@@ -1,3 +1,6 @@
+import { locale } from "./i18n";
+import { t as translateText } from "./i18n";
+import { tr } from "./i18n";
 /**
  * Settings → Household: its name (Rename, owners and admins), who's in it, their roles, and invitations. An invitation
  * is a link that only works for the address it was made for; when the server can
@@ -16,10 +19,10 @@ import { Modal } from "./Modal";
 import { navigateTo } from "./lib/navigate";
 
 const ROLES: Record<HouseholdRole, { label: string; help: string }> = {
-  owner: { label: "Owner", help: "Everything, including removing the household" },
-  admin: { label: "Admin", help: "Adds and changes things, invites and manages people" },
-  member: { label: "Member", help: "Adds and changes things" },
-  viewer: { label: "Viewer", help: "Can look and ask, but not change anything" },
+  owner: { get label() { return translateText("Owner"); }, get help() { return translateText("Everything, including removing the household"); } },
+  admin: { get label() { return translateText("Admin"); }, get help() { return translateText("Adds and changes things, invites and manages people"); } },
+  member: { get label() { return translateText("Member"); }, get help() { return translateText("Adds and changes things"); } },
+  viewer: { get label() { return translateText("Viewer"); }, get help() { return translateText("Can look and ask, but not change anything"); } },
 };
 const INVITABLE: HouseholdRole[] = ["member", "viewer", "admin"];
 
@@ -31,7 +34,7 @@ export const inviteLink = (id: string) => `${window.location.origin}/#/invite/${
 /** Better Auth client calls return { data, error } rather than throwing. */
 async function run<T>(call: Promise<{ data: T | null; error: { message?: string; statusText?: string } | null }>) {
   const { data, error } = await call;
-  if (error) throw new Error(error.message || error.statusText || "Something went wrong");
+  if (error) throw new Error(error.message || error.statusText || translateText("Something went wrong"));
   return data as T;
 }
 
@@ -78,18 +81,16 @@ export function Household({ householdName }: { householdName: string }) {
               <span className="icon-[tabler--users] size-5 text-primary" />
               {householdName}
             </h2>
-            <p className="text-sm text-base-content/70">Everyone here shares the same inventory.</p>
+            <p className="text-sm text-base-content/70">{translateText("Everyone here shares the same inventory.")}</p>
           </div>
           {canManage && (
             <div className="flex flex-wrap gap-2">
               <button type="button" className="btn btn-secondary btn-soft" onClick={() => setRenaming(true)}>
                 <span className="icon-[tabler--pencil] size-5" />
-                Rename
-              </button>
+                {translateText("Rename")}</button>
               <button type="button" className="btn btn-primary" onClick={() => setInviting(true)}>
                 <span className="icon-[tabler--user-plus] size-5" />
-                Invite
-              </button>
+                {translateText("Invite")}</button>
             </div>
           )}
         </div>
@@ -123,7 +124,7 @@ export function Household({ householdName }: { householdName: string }) {
 
         {canManage && pending.length > 0 && (
           <div className="space-y-2">
-            <h3 className="text-sm font-medium text-base-content/70">Waiting to join</h3>
+            <h3 className="text-sm font-medium text-base-content/70">{translateText("Waiting to join")}</h3>
             <ul className="space-y-2 *:flex *:flex-wrap *:items-center *:gap-3 *:rounded-box *:border *:border-dashed *:border-base-content/20 *:p-2">
               {pending.map((i) => (
                 <li key={i.id}>
@@ -135,8 +136,7 @@ export function Household({ householdName }: { householdName: string }) {
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-base-content">{i.email}</p>
                     <p className="text-sm text-base-content/70">
-                      {ROLES[i.role as HouseholdRole]?.label ?? i.role} · link works until {formatDate(i.expiresAt)}
-                    </p>
+                      {ROLES[i.role as HouseholdRole]?.label ?? i.role}{tr(" · link works until {v0}", { v0: formatDate(i.expiresAt) })}</p>
                     <EmailStatus emails={emails.data} id={i.id} />
                   </div>
                   <div className="flex flex-wrap gap-2 max-sm:w-full max-sm:justify-end">
@@ -158,21 +158,18 @@ export function Household({ householdName }: { householdName: string }) {
                         }
                       >
                         <span className="icon-[tabler--send] size-4" />
-                        Send again
-                      </button>
+                        {translateText("Send again")}</button>
                     )}
                     <button type="button" className="btn btn-soft btn-primary btn-sm" onClick={() => setInvited({ id: i.id, email: i.email })}>
                       <span className="icon-[tabler--link] size-4" />
-                      Link
-                    </button>
+                      {translateText("Link")}</button>
                     <button
                       type="button"
                       className="btn btn-text btn-error btn-sm"
                       disabled={busy}
                       onClick={() => act(() => run(authClient.organization.cancelInvitation({ invitationId: i.id })))}
                     >
-                      Cancel
-                    </button>
+                      {translateText("Cancel")}</button>
                   </div>
                 </li>
               ))}
@@ -223,26 +220,25 @@ function MemberRow(props: {
       <div className="min-w-0 flex-1">
         <h3 className="flex flex-wrap items-center gap-2 font-medium text-base-content">
           <span className="truncate">{props.name}</span>
-          {props.isMe && <span className="badge badge-soft badge-primary badge-sm">You</span>}
+          {props.isMe && <span className="badge badge-soft badge-primary badge-sm">{translateText("You")}</span>}
         </h3>
         <p className="truncate text-sm text-base-content/70">{props.email}</p>
       </div>
       {confirming ? (
         <div className="flex items-center gap-2 max-sm:w-full max-sm:justify-end">
-          <span className="text-sm text-base-content/80">{props.isMe ? "Leave?" : `Remove ${props.name}?`}</span>
+          <span className="text-sm text-base-content/80">{props.isMe ? translateText("Leave?") : translateText("Remove {v0}?", { v0: props.name })}</span>
           <button type="button" className="btn btn-error btn-sm" disabled={props.busy} onClick={props.isMe ? props.onLeave : props.onRemove}>
-            {props.isMe ? "Leave" : "Remove"}
+            {props.isMe ? translateText("Leave") : translateText("Remove")}
           </button>
           <button type="button" className="btn btn-text btn-sm" onClick={() => setConfirming(false)}>
-            Keep
-          </button>
+            {translateText("Keep")}</button>
         </div>
       ) : (
         <div className={`flex items-center gap-2 ${props.canManage ? "max-sm:w-full max-sm:justify-end" : ""}`}>
           {props.canManage ? (
             <select
               className="select select-sm w-32"
-              aria-label={`Role for ${props.name}`}
+              aria-label={translateText("Role for {v0}", { v0: props.name })}
               value={props.role}
               disabled={props.busy}
               onChange={(e) => props.onRole(e.target.value as HouseholdRole)}
@@ -262,7 +258,7 @@ function MemberRow(props: {
             <button
               type="button"
               className="btn btn-text btn-sm btn-circle"
-              aria-label={props.isMe ? "Leave this household" : `Remove ${props.name}`}
+              aria-label={props.isMe ? translateText("Leave this household") : translateText("Remove {v0}", { v0: props.name })}
               onClick={() => setConfirming(true)}
             >
               <span className={`${props.isMe ? "icon-[tabler--logout]" : "icon-[tabler--user-minus]"} size-4`} />
@@ -277,13 +273,13 @@ function MemberRow(props: {
 /** Whether a pending invitation's email went out — or, without email here, that it never does. */
 function EmailStatus({ emails, id }: { emails?: InvitationEmails; id: string }) {
   if (!emails) return null;
-  if (!emails.email) return <p className="text-sm text-base-content/70">Not emailed — send them the link yourself</p>;
+  if (!emails.email) return <p className="text-sm text-base-content/70">{translateText("Not emailed — send them the link yourself")}</p>;
   const row = emails.data.find((e) => e.id === id);
   if (row?.error) return <p className="text-sm text-error">{row.error}</p>;
-  if (row?.sentAt) return <p className="text-sm text-base-content/70">Sent by email {formatDate(row.sentAt)}</p>;
-  if (row) return <p className="text-sm text-base-content/70">Sending by email…</p>;
+  if (row?.sentAt) return <p className="text-sm text-base-content/70">{tr("Sent by email {v0}", { v0: formatDate(row.sentAt) })}</p>;
+  if (row) return <p className="text-sm text-base-content/70">{translateText("Sending by email…")}</p>;
   // Made before Ferret emailed invitations.
-  return <p className="text-sm text-base-content/70">Not emailed yet</p>;
+  return <p className="text-sm text-base-content/70">{translateText("Not emailed yet")}</p>;
 }
 
 /** Send again: not while it's on its way, nor a few minutes after it went (the server would skip it). */
@@ -319,14 +315,12 @@ function RenameModal(props: { householdId: string; householdName: string; onClos
       <form className="flex flex-col gap-6" onSubmit={onSubmit}>
         <div className="space-y-1 text-center">
           <h3 id="rename-household-title" className="text-2xl font-semibold text-base-content">
-            Rename household
-          </h3>
-          <p className="text-base-content/80">Everyone in it sees the new name. Nothing else changes.</p>
+            {translateText("Rename household")}</h3>
+          <p className="text-base-content/80">{translateText("Everyone in it sees the new name. Nothing else changes.")}</p>
         </div>
         <div>
           <label className="label-text" htmlFor="rename-household-name">
-            Household name
-          </label>
+            {translateText("Household name")}</label>
           <input
             id="rename-household-name"
             name="name"
@@ -335,19 +329,17 @@ function RenameModal(props: { householdId: string; householdName: string; onClos
             maxLength={NAME_MAX}
             required
             pattern=".*\S.*"
-            title="A name with at least one letter or number"
+            title={translateText("A name with at least one letter or number")}
             autoFocus
           />
         </div>
         {error && <div className="alert alert-soft alert-error">{error}</div>}
         <div className="flex flex-wrap items-center justify-end gap-4">
           <button type="button" className="btn btn-secondary btn-soft" onClick={props.onClose}>
-            Cancel
-          </button>
+            {translateText("Cancel")}</button>
           <button type="submit" className="btn btn-primary" disabled={busy}>
             {busy && <span className="loading loading-spinner loading-sm" />}
-            Save
-          </button>
+            {translateText("Save")}</button>
         </div>
       </form>
     </Modal>
@@ -381,24 +373,21 @@ function InviteModal(props: { householdName: string; emailOn: boolean; onClose: 
     <Modal id="invite" onClose={props.onClose}>
       <form className="flex flex-col gap-6" onSubmit={onSubmit}>
         <div className="space-y-1 text-center">
-          <h3 id="invite-title" className="text-2xl font-semibold text-base-content">
-            Invite to {props.householdName}
-          </h3>
-          <p className="text-base-content/80">{props.emailOn ? "Ferret emails them a link to join" : "You'll get a link to send them"}</p>
+          <h3 id="invite-title" className="text-2xl font-semibold text-base-content">{tr("Invite to {v0}", { v0: props.householdName })}</h3>
+          <p className="text-base-content/80">{props.emailOn ? translateText("Ferret emails them a link to join") : translateText("You'll get a link to send them")}</p>
         </div>
         <div className="space-y-4">
           <div>
             <label className="label-text" htmlFor="invite-email">
-              Their email
-            </label>
+              {translateText("Their email")}</label>
             <div className="input">
               <span className="icon-[tabler--mail] my-auto me-3 size-5 shrink-0 text-base-content/80" />
-              <input id="invite-email" name="email" type="email" className="grow" placeholder="sam@example.com" required autoFocus />
+              <input id="invite-email" name="email" type="email" className="grow" placeholder={translateText("sam@example.com")} required autoFocus />
             </div>
-            <p className="helper-text">They sign up (or in) with this address to join.</p>
+            <p className="helper-text">{translateText("They sign up (or in) with this address to join.")}</p>
           </div>
           <fieldset className="space-y-2">
-            <legend className="label-text">They can…</legend>
+            <legend className="label-text">{translateText("They can…")}</legend>
             {INVITABLE.map((r, i) => (
               <label key={r} className="flex items-start gap-3">
                 <input type="radio" name="role" value={r} className="radio radio-primary mt-0.5" defaultChecked={i === 0} />
@@ -413,11 +402,10 @@ function InviteModal(props: { householdName: string; emailOn: boolean; onClose: 
         {error && <div className="alert alert-soft alert-error">{error}</div>}
         <div className="flex flex-wrap items-center justify-end gap-4">
           <button type="button" className="btn btn-secondary btn-soft" onClick={props.onClose}>
-            Cancel
-          </button>
+            {translateText("Cancel")}</button>
           <button type="submit" className="btn btn-primary" disabled={busy}>
             {busy && <span className="loading loading-spinner loading-sm" />}
-            {props.emailOn ? "Send invitation" : "Create invitation"}
+            {props.emailOn ? translateText("Send invitation") : translateText("Create invitation")}
           </button>
         </div>
       </form>
@@ -438,41 +426,36 @@ function InviteLinkModal(props: { invitation: { id: string; email: string; justN
             </div>
           </div>
           <h3 id="invite-link-title" className="text-2xl font-semibold text-base-content">
-            {props.emailOn ? (props.invitation.justNow ? "Invitation on its way to " : "Invitation for ") : "Send this to "}
+            {props.emailOn ? (props.invitation.justNow ? translateText("Invitation on its way to ") : translateText("Invitation for ")) : translateText("Send this to ")}
             <span className="break-all">{props.invitation.email}</span>
           </h3>
           {props.emailOn ? (
             <p className="text-base-content/80">
-              {props.invitation.justNow ? "Ferret is emailing them this link. " : ""}It works for two weeks, and only for that email address — copy or
-              share it to send it another way too.
-            </p>
+              {props.invitation.justNow ? translateText("Ferret is emailing them this link. ") : ""}{translateText("It works for two weeks, and only for that email address — copy or share it to send it another way too.")}</p>
           ) : (
             <p className="text-base-content/80">
-              Ferret doesn't send this — copy the link and send it yourself. It works for two weeks, and only for that email address.
-            </p>
+              {translateText("Ferret doesn't send this — copy the link and send it yourself. It works for two weeks, and only for that email address.")}</p>
           )}
         </div>
-        <CopyField label="Invitation link" value={link} icon="icon-[tabler--link]" />
+        <CopyField label={translateText("Invitation link")} value={link} icon="icon-[tabler--link]" />
         <div className="flex flex-wrap justify-end gap-3">
           {canShare && (
             <button
               type="button"
               className="btn btn-soft btn-primary"
               onClick={() =>
-                navigator.share({ title: `Join ${props.householdName} on Ferret`, text: `Join ${props.householdName} on Ferret:`, url: link }).catch(() => {})
+                navigator.share({ title: translateText("Join {v0} on Ferret", { v0: props.householdName }), text: translateText("Join {v0} on Ferret:", { v0: props.householdName }), url: link }).catch(() => {})
               }
             >
               <span className="icon-[tabler--share] size-5" />
-              Share
-            </button>
+              {translateText("Share")}</button>
           )}
           <button type="button" className="btn btn-primary" onClick={props.onClose}>
-            Done
-          </button>
+            {translateText("Done")}</button>
         </div>
       </div>
     </Modal>
   );
 }
 
-const formatDate = (d: Date | string) => new Date(d).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+const formatDate = (d: Date | string) => new Date(d).toLocaleDateString(locale(), { month: "short", day: "numeric" });

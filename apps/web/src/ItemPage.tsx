@@ -1,3 +1,7 @@
+import { locale } from "./i18n";
+import { t as translateText, currentLanguage } from "./i18n";
+import { enumLabel } from "@ferret/shared/utils";
+import { tr } from "./i18n";
 /**
  * Item detail: details, photos and documents, plus the uploader.
  * Uploader styling is adapted from FlyonUI Pro "Dashboard Modal 8" and the
@@ -152,7 +156,7 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
   }
 
   function confirmRemove(a: Attachment) {
-    if (window.confirm(`Remove ${a.filename}?`)) remove.mutate(a.id);
+    if (window.confirm(translateText("Remove {v0}?", { v0: a.filename }))) remove.mutate(a.id);
   }
 
   const [viewing, setViewing] = useState<number | null>(null); // the photo shown full screen
@@ -167,10 +171,9 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
           <div className="card">
             <div className="card-body items-center gap-3 text-center">
               <span className="icon-[tabler--arrow-merge] size-10 text-primary" />
-              <h2 className="text-lg font-semibold">This was merged into another</h2>
+              <h2 className="text-lg font-semibold">{translateText("This was merged into another")}</h2>
               <a className="btn btn-primary" href={itemHref(into)}>
-                Open it
-              </a>
+                {translateText("Open it")}</a>
             </div>
           </div>
         </Shell>
@@ -184,7 +187,7 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
   }
   if (item.isError) {
     return (
-      <Shell title="Item">
+      <Shell title={translateText("Item")}>
         <div className="alert alert-soft alert-error">{item.error.message}</div>
       </Shell>
     );
@@ -205,13 +208,13 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
     item.data.brand,
     item.data.model,
     item.data.valueCents != null ? money(item.data.valueCents, true) : null,
-    item.data.quantity !== 1 ? `${item.data.quantity} of them` : null,
-    item.data.condition && `${item.data.condition[0]!.toUpperCase()}${item.data.condition.slice(1)} condition`,
+    item.data.quantity !== 1 ? translateText("{v0} of them", { v0: item.data.quantity }) : null,
+    item.data.condition && translateText("Condition: {v0}", { v0: enumLabel(item.data.condition, currentLanguage()) }),
   ].filter(Boolean);
   const purchase = [
     item.data.purchaseDate &&
-      `Bought ${new Date(`${item.data.purchaseDate}T00:00:00`).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}`,
-    item.data.purchasePriceCents != null && `for ${money(item.data.purchasePriceCents, true)}`,
+      translateText("Bought {v0}", { v0: new Date(`${item.data.purchaseDate}T00:00:00`).toLocaleDateString(locale(), { year: "numeric", month: "short", day: "numeric" }) }),
+    item.data.purchasePriceCents != null && translateText("for {v0}", { v0: money(item.data.purchasePriceCents, true) }),
   ]
     .filter(Boolean)
     .join(" ");
@@ -225,10 +228,10 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
       wide
       action={
         canEdit && (
-          <button type="button" className="btn btn-soft btn-primary btn-sm shrink-0" aria-label="Edit" onClick={() => setEditing(true)}>
+          <button type="button" className="btn btn-soft btn-primary btn-sm shrink-0" aria-label={translateText("Edit")} onClick={() => setEditing(true)}>
             <span className="icon-[tabler--pencil] size-4" />
             {/* A narrow bar (a small phone, or big text): the pencil alone. */}
-            <span className="@max-[20rem]:hidden">Edit</span>
+            <span className="@max-[20rem]:hidden">{translateText("Edit")}</span>
           </button>
         )
       }
@@ -247,16 +250,14 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <h1 className="text-base-content flex items-center gap-2 text-xl font-semibold lg:text-2xl">
               {item.data.name}
-              {item.data.favorite && <span className="icon-[tabler--star-filled] text-warning size-5" aria-label="Favourite" />}
+              {item.data.favorite && <span className="icon-[tabler--star-filled] text-warning size-5" aria-label={translateText("Favourite")} />}
             </h1>
             {/* Its QR label (and any labels people brought), beside its name — like a room's. */}
             <LabelBadge target={{ itemId }} code={item.data.labelCode} ownLabels={item.data.ownLabels} name={item.data.name} householdId={householdId} />
           </div>
           {item.data.container && (
             <a href={itemHref(item.data.container.id)} className="tap link link-hover text-primary flex items-center gap-1 text-sm">
-              <span className="icon-[tabler--package] size-4 shrink-0" />
-              In {item.data.container.name}
-            </a>
+              <span className="icon-[tabler--package] size-4 shrink-0" />{tr("In {v0}", { v0: item.data.container.name })}</a>
           )}
           {item.data.locationId && item.data.place ? (
             <a href={placeHref(item.data.locationId)} className="tap link link-hover text-primary flex items-center gap-1 text-sm">
@@ -266,17 +267,16 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
           ) : canEdit ? (
             <button type="button" className="tap link link-hover text-base-content/70 flex items-center gap-1 text-sm" onClick={() => setEditing(true)}>
               <span className="icon-[tabler--map-pin-question] size-4 shrink-0" />
-              Where is it kept? Add a place
-            </button>
+              {translateText("Where is it kept? Add a place")}</button>
           ) : null}
-          <p className="text-base-content/70 text-sm">{details.join(" · ") || "No details yet"}</p>
+          <p className="text-base-content/70 text-sm">{details.join(" · ") || translateText("No details yet")}</p>
           {item.data.description && <p className="text-base-content/80 mt-1">{item.data.description}</p>}
           {item.data.serialNumber && (
-            <p className="text-base-content/80 text-sm">Serial: {item.data.serialNumber}</p>
+            <p className="text-base-content/80 text-sm">{tr("Serial: {v0}", { v0: item.data.serialNumber })}</p>
           )}
           {purchase && <p className="text-base-content/80 text-sm">{purchase}</p>}
           <ReturnLine returnBy={item.data.returnBy} gone={Boolean(item.data.disposition)} />
-          {item.data.heir && <p className="text-base-content/80 text-sm">Goes to {item.data.heir}</p>}
+          {item.data.heir && <p className="text-base-content/80 text-sm">{tr("Goes to {v0}", { v0: item.data.heir })}</p>}
           <Classification
             item={item.data}
             fields={mergeFields(
@@ -336,22 +336,21 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
       {/* ③ Photos */}
       <section id="item-photos" className="flex scroll-mt-20 flex-col gap-3">
         <div className="flex items-center justify-between gap-2">
-          <SectionTitle icon="icon-[tabler--photo]" title="Photos" count={photos.length} />
+          <SectionTitle icon="icon-[tabler--photo]" title={translateText("Photos")} count={photos.length} />
           {canEdit && !showUploader && (
             <button type="button" className="btn btn-text btn-sm" onClick={() => setAddingFiles(true)}>
               <span className="icon-[tabler--plus] size-4" />
-              Add photos or documents
-            </button>
+              {translateText("Add photos or documents")}</button>
           )}
         </div>
         {/* ② The uploader: open when there's nothing yet, or when asked. */}
         {canEdit && showUploader && (
-          <section className="flex flex-col gap-3" aria-label="Add photos and documents">
+          <section className="flex flex-col gap-3" aria-label={translateText("Add photos and documents")}>
             <div className="grid grid-cols-2 gap-2">
-              <PickerButton icon="icon-[tabler--camera]" label="Take photo" accept="image/*" capture onFiles={(f) => addFiles(f, "photo")} />
+              <PickerButton icon="icon-[tabler--camera]" label={translateText("Take photo")} accept="image/*" capture onFiles={(f) => addFiles(f, "photo")} />
               <PickerButton
                 icon="icon-[tabler--receipt]"
-                label="Scan document"
+                label={translateText("Scan document")}
                 accept="image/*"
                 capture
                 onFiles={(f) => addFiles(f, "document")}
@@ -375,13 +374,13 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
         )}
 
         {photos.length === 0 ? (
-          <p className="text-base-content/70 text-sm">No photos yet. A photo makes it easy to recognise later.</p>
+          <p className="text-base-content/70 text-sm">{translateText("No photos yet. A photo makes it easy to recognise later.")}</p>
         ) : (
           // On a wide screen the big photo is up top, so these are a row of small tiles to manage them.
           <div className="grid grid-cols-3 gap-2 lg:grid-cols-6">
             {photos.map((p, i) => (
               <figure key={p.id} className={`relative ${i === 0 ? "col-span-2 row-span-2 lg:col-span-1 lg:row-span-1" : ""}`}>
-                <button type="button" className="block size-full rounded-box focus-visible:outline-2 focus-visible:outline-primary" aria-label={`Show ${p.filename} full screen`} onClick={() => setViewing(i)}>
+                <button type="button" className="block size-full rounded-box focus-visible:outline-2 focus-visible:outline-primary" aria-label={translateText("Show {v0} full screen", { v0: p.filename })} onClick={() => setViewing(i)}>
                   <img
                     src={api.thumbnailUrl(p.id)}
                     alt={p.analysis?.description || `${item.data.name} — ${p.filename}`}
@@ -393,7 +392,7 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
                   <button
                     type="button"
                     className="btn btn-circle btn-sm absolute end-1.5 top-1.5 border-0 bg-base-100/85"
-                    aria-label={`Remove ${p.filename}`}
+                    aria-label={translateText("Remove {v0}", { v0: p.filename })}
                     onClick={() => confirmRemove(p)}
                   >
                     <span className="icon-[tabler--trash] size-4" />
@@ -403,15 +402,15 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
                   <button
                     type="button"
                     className="btn btn-circle btn-sm absolute start-1.5 top-1.5 border-0 bg-base-100/85"
-                    aria-label={`Crop ${p.filename}${i === 0 ? "" : ", or make it the main photo"}`}
-                    title="Crop, or make it the main photo"
+                    aria-label={translateText("Crop {v0}{v1}", { v0: p.filename, v1: i === 0 ? "" : translateText(", or make it the main photo") })}
+                    title={translateText("Crop, or make it the main photo")}
                     onClick={() => setCropping(p)}
                   >
                     <span className="icon-[tabler--crop] size-4" />
                   </button>
                 )}
                 {i === 0 && photos.length > 1 && (
-                  <span className="badge badge-sm pointer-events-none absolute end-1.5 bottom-1.5 border-0 bg-base-100/90 text-base-content">Main</span>
+                  <span className="badge badge-sm pointer-events-none absolute end-1.5 bottom-1.5 border-0 bg-base-100/90 text-base-content">{translateText("Main")}</span>
                 )}
                 <AnalysisBadge attachment={p} onRetry={canEdit ? () => reanalyze.mutate(p.id) : undefined} />
               </figure>
@@ -461,7 +460,7 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
         onOpenClaim={(claim) => setClaimDialog({ claim })}
         purchaseDate={item.data.purchaseDate}
         onAdd={canEdit ? (w) => addWarranty.mutate(w) : undefined}
-        onRemove={canEdit ? (w) => window.confirm("Remove this warranty?") && removeWarranty.mutate(w.id) : undefined}
+        onRemove={canEdit ? (w) => window.confirm(translateText("Remove this warranty?")) && removeWarranty.mutate(w.id) : undefined}
         busy={addWarranty.isPending || removeWarranty.isPending}
         error={addWarranty.error?.message ?? removeWarranty.error?.message}
       />
@@ -474,7 +473,7 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
       {/* ④ Documents */}
       <section id="item-documents" className="flex scroll-mt-20 flex-col gap-3">
         <div className="flex items-center justify-between gap-2">
-          <SectionTitle icon="icon-[tabler--files]" title="Documents" count={documents.length} />
+          <SectionTitle icon="icon-[tabler--files]" title={translateText("Documents")} count={documents.length} />
           {canEdit && (
             <button
               type="button"
@@ -485,12 +484,11 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
               }}
             >
               <span className="icon-[tabler--plus] size-4" />
-              Add
-            </button>
+              {translateText("Add")}</button>
           )}
         </div>
         {documents.length === 0 ? (
-          <p className="text-base-content/70 text-sm">Receipts, manuals and warranties go here.</p>
+          <p className="text-base-content/70 text-sm">{translateText("Receipts, manuals and warranties go here.")}</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {documents.map((d) => (
@@ -512,16 +510,16 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
                   >
                     <span className="text-base-content/80 block truncate text-sm font-medium">{d.filename}</span>
                     <span className="text-base-content/70 text-xs">
-                      {d.originalRemoved ? "Small copy only" : formatSize(d.size)}
-                      {d.analysisStatus === "pending" && " · Reading…"}
-                      {d.analysisStatus === "failed" && " · Couldn't read it"}
+                      {d.originalRemoved ? translateText("Small copy only") : formatSize(d.size)}
+                      {d.analysisStatus === "pending" && translateText(" · Reading…")}
+                      {d.analysisStatus === "failed" && translateText(" · Couldn't read it")}
                     </span>
                   </a>
                   {canEdit && d.analysisStatus === "failed" && (
                     <button
                       type="button"
                       className="btn btn-circle btn-text btn-sm"
-                      aria-label={`Try reading ${d.filename} again`}
+                      aria-label={translateText("Try reading {v0} again", { v0: d.filename })}
                       onClick={() => reanalyze.mutate(d.id)}
                     >
                       <span className="icon-[tabler--refresh] size-4" />
@@ -531,7 +529,7 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
                     <button
                       type="button"
                       className="btn btn-circle btn-text btn-sm"
-                      aria-label={`Remove ${d.filename}`}
+                      aria-label={translateText("Remove {v0}", { v0: d.filename })}
                       onClick={() => confirmRemove(d)}
                     >
                       <span className="icon-[tabler--trash] size-4" />
@@ -556,16 +554,14 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
  * and when its label or barcode was last scanned.
  */
 function AddedLine({ item: it }: { item: Pick<ItemListing, "createdAt" | "origin" | "originDetail" | "addedBy" | "roomScanId" | "lastScanned"> }) {
-  const when = new Date(it.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  const when = new Date(it.createdAt).toLocaleDateString(locale(), { year: "numeric", month: "short", day: "numeric" });
   const detail = it.originDetail && it.originDetail !== "Home Assistant" ? ` (${it.originDetail})` : "";
   return (
-    <p className="mt-2 text-xs text-base-content/70">
-      Added {when}
-      {it.addedBy ? ` by ${it.addedBy}` : ""}
+    <p className="mt-2 text-xs text-base-content/70">{tr("Added {v0}", { v0: when })}{it.addedBy ? translateText(" by {v0}", { v0: it.addedBy }) : ""}
       {it.origin && (
         <>
           {", "}
-          <a href={addedHref(it.origin)} className="link link-hover tap" title="Everything added this way">
+          <a href={addedHref(it.origin)} className="link link-hover tap" title={translateText("Everything added this way")}>
             {ORIGIN_HOW[it.origin]}
           </a>
           {detail}
@@ -575,12 +571,11 @@ function AddedLine({ item: it }: { item: Pick<ItemListing, "createdAt" | "origin
         <>
           {" · "}
           <a href={roomScanHref(it.roomScanId)} className="link link-hover tap">
-            see the room photo
-          </a>
+            {translateText("see the room photo")}</a>
         </>
       )}
       {it.lastScanned && (
-        <span className="block" title={new Date(it.lastScanned.at).toLocaleString()}>
+        <span className="block" title={new Date(it.lastScanned.at).toLocaleString(locale())}>
           {lastScannedText(it.lastScanned)}
         </span>
       )}
@@ -593,20 +588,18 @@ function ReturnLine({ returnBy, gone }: { returnBy: string | null | undefined; g
   if (!returnBy || gone) return null;
   const days = Math.round((Date.parse(`${returnBy}T00:00:00Z`) - Date.parse(`${today()}T00:00:00Z`)) / 86_400_000);
   if (days < 0) return null;
-  const when = new Date(`${returnBy}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-  const left = days === 0 ? "last day" : days === 1 ? "1 day left" : `${days} days left`;
+  const when = new Date(`${returnBy}T00:00:00`).toLocaleDateString(locale(), { month: "short", day: "numeric", year: "numeric" });
+  const left = days === 0 ? translateText("last day") : days === 1 ? translateText("1 day left") : translateText("{v0} days left", { v0: days });
   return (
     <p className={`flex items-center gap-1 text-sm ${days <= 2 ? "text-warning" : "text-base-content/80"}`}>
-      <span className="icon-[tabler--receipt-refund] size-4" />
-      Return by {when} — {left}
-    </p>
+      <span className="icon-[tabler--receipt-refund] size-4" />{tr("Return by {v0} — {v1}", { v0: when, v1: left })}</p>
   );
 }
 
 /** A row of links down a long item page: Photos 3 · Warranties · Maintenance 1 · Documents 2 · History. */
 function JumpLinks({ sections }: { sections: [id: string, label: string, count: number][] }) {
   return (
-    <nav aria-label="On this page" className="-mx-1 flex gap-1 overflow-x-auto px-1">
+    <nav aria-label={translateText("On this page")} className="-mx-1 flex gap-1 overflow-x-auto px-1">
       {sections.map(([id, label, count]) => (
         <button
           key={id}
@@ -666,7 +659,7 @@ function Shell({ title, action, wide, children }: { title: string; action?: Reac
         <a
           href="#/"
           className="btn btn-text btn-circle"
-          aria-label="Back"
+          aria-label={translateText("Back")}
           // Back to wherever it was opened from (a room, a search…), or home on a fresh visit.
           onClick={(e) => {
             if (window.history.length > 1) {
@@ -694,18 +687,17 @@ function PhotoHero({ photos, name, onOpen }: { photos: Attachment[]; name: strin
   const [shown, setShown] = useState(0);
   const photo = photos[Math.min(shown, photos.length - 1)]!;
   return (
-    <section className="flex flex-col gap-3 max-lg:hidden" aria-label="Photos">
+    <section className="flex flex-col gap-3 max-lg:hidden" aria-label={translateText("Photos")}>
       <button
         type="button"
         className="group relative overflow-hidden rounded-box bg-base-300 focus-visible:outline-2 focus-visible:outline-primary"
-        aria-label={`Show ${photo.filename} full screen`}
+        aria-label={translateText("Show {v0} full screen", { v0: photo.filename })}
         onClick={() => onOpen(photos.indexOf(photo))}
       >
         <img src={api.attachmentUrl(photo.id)} alt={photo.analysis?.description || name} className="aspect-4/3 w-full object-contain" />
         <span className="badge absolute end-3 bottom-3 gap-1 border-0 bg-base-100/85 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
           <span className="icon-[tabler--zoom-in] size-4" />
-          Full screen
-        </span>
+          {translateText("Full screen")}</span>
       </button>
       {photos.length > 1 && (
         <div className="grid grid-cols-5 gap-2">
@@ -713,7 +705,7 @@ function PhotoHero({ photos, name, onOpen }: { photos: Attachment[]; name: strin
             <button
               key={p.id}
               type="button"
-              aria-label={`Show photo ${i + 1}`}
+              aria-label={translateText("Show photo {v0}", { v0: i + 1 })}
               aria-pressed={p.id === photo.id}
               onClick={() => setShown(i)}
               className={`overflow-hidden rounded-field border-2 ${p.id === photo.id ? "border-primary" : "border-transparent opacity-80 hover:opacity-100"}`}
@@ -733,8 +725,7 @@ function AnalysisBadge({ attachment, onRetry }: { attachment: Attachment; onRetr
     return (
       <span className="badge badge-soft badge-primary pointer-events-none absolute start-1.5 bottom-1.5 gap-1 bg-base-100/90">
         <span className="icon-[tabler--sparkles] size-3.5 animate-pulse" />
-        Analyzing
-      </span>
+        {translateText("Analyzing")}</span>
     );
   }
   if (attachment.analysisStatus === "failed" && onRetry) {
@@ -743,11 +734,10 @@ function AnalysisBadge({ attachment, onRetry }: { attachment: Attachment; onRetr
         type="button"
         className="badge badge-soft badge-error absolute start-1.5 bottom-1.5 gap-1 bg-base-100/90"
         onClick={onRetry}
-        aria-label={`Analysis failed for ${attachment.filename}. Try again`}
+        aria-label={translateText("Analysis failed for {v0}. Try again", { v0: attachment.filename })}
       >
         <span className="icon-[tabler--refresh] size-3.5" />
-        Retry
-      </button>
+        {translateText("Retry")}</button>
     );
   }
   return null;
@@ -818,10 +808,8 @@ function DropZone({ onFiles }: { onFiles: (files: FileList) => void }) {
         onDrop={onDrop}
       >
         <span className="icon-[tabler--upload] text-base-content size-8" />
-        <span className="text-base-content font-semibold">
-          <span className="hidden sm:inline">Drag & drop or </span>choose files
-        </span>
-        <span className="text-base-content/70 text-sm">Photos (JPEG, PNG, WebP) or PDF documents</span>
+        <span className="text-base-content font-semibold">{tr("{v0}choose files", { v0: <span className="hidden sm:inline">{translateText("Drag & drop or ")}</span> })}</span>
+        <span className="text-base-content/70 text-sm">{translateText("Photos (JPEG, PNG, WebP) or PDF documents")}</span>
       </button>
       <input
         ref={input}
@@ -864,11 +852,11 @@ function UploadRow({ upload, onRetry, onDismiss }: { upload: Upload; onRetry: ()
         {upload.error && (
           <>
             {upload.retryable && (
-              <button type="button" className="btn btn-circle btn-text btn-sm" aria-label="Retry upload" onClick={onRetry}>
+              <button type="button" className="btn btn-circle btn-text btn-sm" aria-label={translateText("Retry upload")} onClick={onRetry}>
                 <span className="icon-[tabler--refresh] size-4" />
               </button>
             )}
-            <button type="button" className="btn btn-circle btn-text btn-sm" aria-label="Dismiss" onClick={onDismiss}>
+            <button type="button" className="btn btn-circle btn-text btn-sm" aria-label={translateText("Dismiss")} onClick={onDismiss}>
               <span className="icon-[tabler--x] size-4" />
             </button>
           </>
@@ -879,7 +867,7 @@ function UploadRow({ upload, onRetry, onDismiss }: { upload: Upload; onRetry: ()
           <div
             className="progress h-2"
             role="progressbar"
-            aria-label={`Uploading ${upload.file.name}`}
+            aria-label={translateText("Uploading {v0}", { v0: upload.file.name })}
             aria-valuenow={percent}
             aria-valuemin={0}
             aria-valuemax={100}

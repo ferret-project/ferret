@@ -1,3 +1,5 @@
+import { tn } from "./lib/i18n";
+import { t as translateText } from "./lib/i18n";
 /**
  * Authentication: Better Auth stored in our own database.
  * - email + password, passkeys, emailed sign-in links, and single sign-on (lib/sso.ts). Every account but
@@ -92,7 +94,7 @@ export function createAuth(db: Db, config: Config, opts: AuthHooks = {}) {
   const site = new URL(config.PUBLIC_URL);
   const verify = opts.verifyEmail;
   return betterAuth({
-    appName: "Ferret",
+    appName: translateText("Ferret"),
     baseURL: config.PUBLIC_URL,
     basePath: "/api/auth",
     secret: config.AUTH_SECRET,
@@ -206,18 +208,18 @@ export function createAuth(db: Db, config: Config, opts: AuthHooks = {}) {
               .from(schema.invitation)
               .where(and(eq(schema.invitation.organizationId, org.id), eq(schema.invitation.status, "pending")));
             if ((members?.n ?? 0) + (pending?.n ?? 0) >= limit) {
-              throw new APIError("FORBIDDEN", { message: `This household's plan has room for ${limit} ${limit === 1 ? "person" : "people"} — upgrade to invite more.` });
+              throw new APIError("FORBIDDEN", { message: tn(limit, "This household's plan has room for {count} person — upgrade to invite more.", "This household's plan has room for {count} people — upgrade to invite more.") });
             }
           },
           // Renaming (Settings → Household, owners and admins): the name is all that changes through Better Auth's
           // update — nothing in Ferret reads the slug, logo or metadata, so nobody gets to set them.
           beforeUpdateOrganization: async ({ organization: changes }) => {
             if (Object.entries(changes).some(([key, value]) => key !== "name" && value !== undefined)) {
-              throw new APIError("BAD_REQUEST", { message: "Only a household's name can be changed" });
+              throw new APIError("BAD_REQUEST", { message: translateText("Only a household's name can be changed") });
             }
             const name = typeof changes.name === "string" ? changes.name.trim() : "";
             if (!name || name.length > HOUSEHOLD_NAME_MAX) {
-              throw new APIError("BAD_REQUEST", { message: `A household's name is 1 to ${HOUSEHOLD_NAME_MAX} characters` });
+              throw new APIError("BAD_REQUEST", { message: translateText("A household's name is 1 to {v0} characters", { v0: HOUSEHOLD_NAME_MAX }) });
             }
             return { data: { name } };
           },
@@ -225,7 +227,7 @@ export function createAuth(db: Db, config: Config, opts: AuthHooks = {}) {
           // An invitation is only as good as its sender's place in the household now.
           beforeAcceptInvitation: async ({ invitation }) => {
             if (!(await mayStillInvite(db, invitation))) {
-              throw new APIError("FORBIDDEN", { message: "Whoever sent this invitation can't invite people any more — ask for a new one" });
+              throw new APIError("FORBIDDEN", { message: translateText("Whoever sent this invitation can't invite people any more — ask for a new one") });
             }
           },
           // Someone who leaves, or is no longer an owner or admin, takes their invitations and share links with them.
@@ -239,7 +241,7 @@ export function createAuth(db: Db, config: Config, opts: AuthHooks = {}) {
         cancelPendingInvitationsOnReInvite: true,
       }),
       twoFactor({
-        issuer: "Ferret",
+        issuer: translateText("Ferret"),
         backupCodeOptions: { amount: 10 },
       }),
       // After twoFactor, so a sign-in still waiting for its code isn't logged as one.
@@ -253,7 +255,7 @@ export function createAuth(db: Db, config: Config, opts: AuthHooks = {}) {
       ...(reset ? [passwordResetFront(reset.enqueue)] : []),
       // Passkeys belong to this server's name (PUBLIC_URL's host): the browser only offers them here. In development the app
       // runs on another port (Vite), so its origins are allowed too.
-      passkey({ rpID: site.hostname, rpName: "Ferret", origin: [site.origin, ...trustedOrigins(config)] }),
+      passkey({ rpID: site.hostname, rpName: translateText("Ferret"), origin: [site.origin, ...trustedOrigins(config)] }),
       passkeyAdded(opts.onPasskeyAdded),
       ...(link
         ? [
@@ -317,7 +319,7 @@ function passkeyAdded(notify: AuthHooks["onPasskeyAdded"]) {
         {
           matcher: (ctx) => ctx.path === "/passkey/verify-registration",
           handler: createAuthMiddleware(async (ctx) => {
-            if ((ctx.body as { createSession?: unknown } | undefined)?.createSession) throw new APIError("BAD_REQUEST", { message: "Not here" });
+            if ((ctx.body as { createSession?: unknown } | undefined)?.createSession) throw new APIError("BAD_REQUEST", { message: translateText("Not here") });
           }),
         },
       ],
@@ -375,7 +377,7 @@ function signInLog(db: Db, onNewPlace?: AuthHooks["onNewPlace"]) {
 
 /** A household role exactly as Ferret names it: one of owner, admin, member, viewer — never a list. */
 function oneRole(role: unknown) {
-  if (typeof role !== "string" || !Object.hasOwn(roles, role)) throw new APIError("BAD_REQUEST", { message: "Unknown role" });
+  if (typeof role !== "string" || !Object.hasOwn(roles, role)) throw new APIError("BAD_REQUEST", { message: translateText("Unknown role") });
 }
 
 const RANK: Record<string, number> = { viewer: 0, member: 1, admin: 2, owner: 3 };

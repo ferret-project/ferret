@@ -1,3 +1,4 @@
+import { t as translateText } from "./../lib/i18n";
 /**
  * Semantic search indexing. Each item gets one vector for its summary (fields,
  * location path, photo descriptions — see lib/search-text.ts) plus one per chunk of document text, so a line

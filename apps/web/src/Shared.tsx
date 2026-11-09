@@ -1,3 +1,6 @@
+import { locale } from "./i18n";
+import { t as translateText } from "./i18n";
+import { tr } from "./i18n";
 /**
  * What a share link opens (#/s/:token, from /s/<token>) — no account: the report as it is now (ReportDocument), with
  * each item's photos and documents linked when they're shared, a spreadsheet download and Print. Server:
@@ -9,7 +12,7 @@ import { Logo } from "./AuthLayout";
 import { ReportDocument } from "./Report";
 import { showAmountsIn } from "./lib/money";
 
-const longDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+const longDate = (iso: string) => new Date(iso).toLocaleDateString(locale(), { year: "numeric", month: "long", day: "numeric" });
 
 export function Shared({ token }: { token: string }) {
   const view = useQuery({ queryKey: ["shared", token], queryFn: () => api.shared(token), retry: false, staleTime: Infinity });
@@ -30,7 +33,7 @@ export function Shared({ token }: { token: string }) {
             <div className="card-body items-center gap-3 text-center">
               <span className="icon-[tabler--link-off] size-10 text-base-content/70" />
               <h1 className="text-lg font-semibold">{view.error.message}</h1>
-              <p className="max-w-sm text-sm text-base-content/70">Shared links work for a while, then stop. Ask whoever sent it for a new one.</p>
+              <p className="max-w-sm text-sm text-base-content/70">{translateText("Shared links work for a while, then stop. Ask whoever sent it for a new one.")}</p>
             </div>
           </div>
         )}
@@ -38,19 +41,14 @@ export function Shared({ token }: { token: string }) {
           <>
             <section className="card print:hidden">
               <div className="card-body gap-3 p-4 sm:p-6">
-                <p className="text-sm text-base-content/80">
-                  <span className="font-medium">{v.sharedBy ?? "Someone"}</span> shared this from {v.household}'s home inventory
-                  {v.label ? ` — ${v.label}` : ""}. It's read-only, and the link works until {longDate(v.expiresAt)}.
-                </p>
+                <p className="text-sm text-base-content/80">{tr("{v0} shared this from {v1}'s home inventory", { v0: <span className="font-medium">{v.sharedBy ?? translateText("Someone")}</span>, v1: v.household })}{v.label ? ` — ${v.label}` : ""}{tr(". It's read-only, and the link works until {v0}.", { v0: longDate(v.expiresAt) })}</p>
                 <div className="flex flex-wrap gap-3">
                   <button type="button" className="btn btn-wrap btn-primary" onClick={() => window.print()}>
                     <span className="icon-[tabler--printer] size-5" />
-                    Print or save as PDF
-                  </button>
+                    {translateText("Print or save as PDF")}</button>
                   <a className="btn btn-wrap btn-soft btn-primary" href={api.sharedCsvUrl(token)} download>
                     <span className="icon-[tabler--file-spreadsheet] size-5" />
-                    Download spreadsheet (CSV)
-                  </a>
+                    {translateText("Download spreadsheet (CSV)")}</a>
                 </div>
               </div>
             </section>

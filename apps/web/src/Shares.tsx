@@ -1,3 +1,6 @@
+import { locale } from "./i18n";
+import { t as translateText } from "./i18n";
+import { tr } from "./i18n";
 /**
  * Share links (server: lib/shares.ts), for the household's owner and admins:
  * - ShareButton → ShareDialog on the insurance report (whole household or one property) and on a tag's or category's
@@ -17,7 +20,7 @@ import { NotInPlan, usePlanFeature } from "./PlanUsage";
 
 type Target = Pick<ShareInput, "kind" | "propertyId" | "tag" | "categoryId">;
 
-const longDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+const longDate = (iso: string) => new Date(iso).toLocaleDateString(locale(), { month: "short", day: "numeric", year: "numeric" });
 
 /** Owners and admins share; everyone else doesn't see the button. */
 function useCanShare(householdId: string) {
@@ -33,8 +36,7 @@ export function ShareButton({ householdId, target, what, className = "btn btn-so
     <>
       <button type="button" className={className} onClick={() => setOpen(true)}>
         <span className="icon-[tabler--share] size-5" />
-        Share…
-      </button>
+        {translateText("Share…")}</button>
       {open && <ShareDialog householdId={householdId} target={target} what={what} onClose={() => setOpen(false)} />}
     </>
   );
@@ -62,70 +64,54 @@ function ShareDialog({ householdId, target, what, onClose }: { householdId: stri
   }
   const feature = usePlanFeature(householdId, "shareLinks");
   return (
-    <Modal id="share" title={`Share ${what}`} onClose={onClose}>
+    <Modal id="share" title={translateText("Share {v0}", { v0: what })} onClose={onClose}>
       {!feature.on ? (
         <div className="flex flex-col gap-4">
           <NotInPlan feature="shareLinks" planName={feature.planName} />
           <DialogActions>
             <button type="button" className="btn btn-soft" onClick={onClose}>
-              Close
-            </button>
+              {translateText("Close")}</button>
           </DialogActions>
         </div>
       ) : made ? (
         <div className="flex flex-col gap-4">
-          <p>
-            Anyone with this link can see {what} — read-only, no account — until {longDate(made.expiresAt)}. You can turn it off any time in Settings →
-            Household.
-          </p>
+          <p>{tr("Anyone with this link can see {v0} — read-only, no account — until {v1}. You can turn it off any time in Settings → Household.", { v0: what, v1: longDate(made.expiresAt) })}</p>
           <LinkField url={made.url} />
           <p className="text-sm text-base-content/70">
-            It opens only where Ferret can be reached: if Ferret is on your home network only, the person needs to be on it (or your VPN) too.
-          </p>
+            {translateText("It opens only where Ferret can be reached: if Ferret is on your home network only, the person needs to be on it (or your VPN) too.")}</p>
           <DialogActions>
             <button type="button" className="btn btn-primary" onClick={onClose}>
-              Done
-            </button>
+              {translateText("Done")}</button>
           </DialogActions>
         </div>
       ) : (
         <form className="flex flex-col gap-4" onSubmit={onSubmit}>
-          <p className="text-base-content/80">
-            A read-only link to {what}, for someone without an account — an insurer, an adjuster, an executor. It shows things as they are when it's
-            opened, never your notes, and every opening is logged.
-          </p>
+          <p className="text-base-content/80">{tr("A read-only link to {v0}, for someone without an account — an insurer, an adjuster, an executor. It shows things as they are when it's opened, never your notes, and every opening is logged.", { v0: what })}</p>
           <div>
             <label className="label-text" htmlFor="share-label">
-              Who it's for (just for you)
-            </label>
-            <input id="share-label" name="label" className="input" maxLength={80} placeholder="e.g. State Farm claim" autoFocus />
+              {translateText("Who it's for (just for you)")}</label>
+            <input id="share-label" name="label" className="input" maxLength={80} placeholder={translateText("e.g. State Farm claim")} autoFocus />
           </div>
           <div>
             <label className="label-text" htmlFor="share-days">
-              Works for
-            </label>
+              {translateText("Works for")}</label>
             <select id="share-days" name="days" className="select" defaultValue="30">
-              <option value="7">7 days</option>
-              <option value="30">30 days</option>
-              <option value="90">90 days</option>
+              <option value="7">{translateText("7 days")}</option>
+              <option value="30">{translateText("30 days")}</option>
+              <option value="90">{translateText("90 days")}</option>
             </select>
           </div>
           <label className="flex cursor-pointer items-start gap-3">
             <input type="checkbox" name="files" className="switch switch-primary mt-0.5" defaultChecked />
-            <span>
-              Photos, receipts and manuals too
-              <span className="block text-sm text-base-content/70">The proof an insurer asks for. Off: just the list.</span>
-            </span>
+            <span>{tr("Photos, receipts and manuals too{v0}", { v0: <span className="block text-sm text-base-content/70">{translateText("The proof an insurer asks for. Off: just the list.")}</span> })}</span>
           </label>
           {create.isError && <div className="alert alert-soft alert-error">{create.error.message}</div>}
           <DialogActions>
             <button type="button" className="btn btn-secondary btn-soft" onClick={onClose}>
-              Cancel
-            </button>
+              {translateText("Cancel")}</button>
             <button type="submit" className="btn btn-primary" disabled={create.isPending}>
               {create.isPending && <span className="loading loading-spinner loading-sm" />}
-              Make the link
-            </button>
+              {translateText("Make the link")}</button>
           </DialogActions>
         </form>
       )}
@@ -143,17 +129,16 @@ function LinkField({ url }: { url: string }) {
   }
   return (
     <div className="flex flex-col gap-2">
-      <input className="input font-mono text-sm" readOnly value={url} onFocus={(e) => e.currentTarget.select()} aria-label="The link" />
+      <input className="input font-mono text-sm" readOnly value={url} onFocus={(e) => e.currentTarget.select()} aria-label={translateText("The link")} />
       <div className="flex flex-wrap gap-2">
         <button type="button" className="btn btn-soft btn-sm" onClick={() => void copy()}>
           <span className={`${copied ? "icon-[tabler--check]" : "icon-[tabler--copy]"} size-4`} />
-          {copied ? "Copied" : "Copy link"}
+          {copied ? translateText("Copied") : translateText("Copy link")}
         </button>
         {canShare && (
           <button type="button" className="btn btn-soft btn-sm" onClick={() => void navigator.share({ url }).catch(() => {})}>
             <span className="icon-[tabler--share] size-4" />
-            Send…
-          </button>
+            {translateText("Send…")}</button>
         )}
       </div>
     </div>
@@ -182,14 +167,12 @@ export function ShareLinks({ householdId }: { householdId: string }) {
       <div className="card-body gap-3">
         <h2 id="share-links" className="card-title flex items-center gap-2">
           <span className="icon-[tabler--share] size-5 text-primary" />
-          Share links
-          <HelpLink page="guide/sharing.html" label="Share links" />
+          {translateText("Share links")}<HelpLink page="guide/sharing.html" label={translateText("Share links")} />
         </h2>
         {!feature.on && <NotInPlan feature="shareLinks" planName={feature.planName} />}
         {!rows.length ? (
           <p className="text-sm text-base-content/70">
-            None yet. Share the insurance report (Report → Share…), or a tag's or category's things, with someone who has no account.
-          </p>
+            {translateText("None yet. Share the insurance report (Report → Share…), or a tag's or category's things, with someone who has no account.")}</p>
         ) : (
           <ul className="divide-y divide-base-content/10">
             {rows.map((l) => (
@@ -201,16 +184,15 @@ export function ShareLinks({ householdId }: { householdId: string }) {
                       {l.label && <span className="font-normal text-base-content/70"> — {l.label}</span>}
                     </p>
                     <p className="text-sm text-base-content/70">
-                      {l.active ? `Open until ${longDate(l.expiresAt)}` : l.revokedAt ? `Turned off ${longDate(l.revokedAt)}` : `Ran out ${longDate(l.expiresAt)}`}
+                      {l.active ? translateText("Open until {v0}", { v0: longDate(l.expiresAt) }) : l.revokedAt ? translateText("Turned off {v0}", { v0: longDate(l.revokedAt) }) : translateText("Ran out {v0}", { v0: longDate(l.expiresAt) })}
                       {" · "}
                       {l.views ? (
-                        <button type="button" className="link tap" onClick={() => setShowing(showing === l.id ? null : l.id)}>
-                          opened {l.views} {l.views === 1 ? "time" : "times"}
+                        <button type="button" className="link tap" onClick={() => setShowing(showing === l.id ? null : l.id)}>{tr("opened {v0} ", { v0: l.views })}{l.views === 1 ? translateText("time") : translateText("times")}
                         </button>
                       ) : (
-                        "not opened yet"
+                        translateText("not opened yet")
                       )}
-                      {l.includeFiles ? " · with files" : ""}
+                      {l.includeFiles ? translateText(" · with files") : ""}
                     </p>
                   </div>
                   {l.active && (
@@ -219,16 +201,13 @@ export function ShareLinks({ householdId }: { householdId: string }) {
                       {confirming === l.id ? (
                         <>
                           <button type="button" className="btn btn-error btn-sm" disabled={revoke.isPending} onClick={() => revoke.mutate(l.id)}>
-                            Turn off
-                          </button>
+                            {translateText("Turn off")}</button>
                           <button type="button" className="btn btn-text btn-sm" onClick={() => setConfirming(null)}>
-                            Keep
-                          </button>
+                            {translateText("Keep")}</button>
                         </>
                       ) : (
                         <button type="button" className="btn btn-text btn-sm" onClick={() => setConfirming(l.id)}>
-                          Turn off…
-                        </button>
+                          {translateText("Turn off…")}</button>
                       )}
                     </div>
                   )}
@@ -258,7 +237,7 @@ function CopyButton({ url }: { url: string }) {
       }
     >
       <span className={`${copied ? "icon-[tabler--check]" : "icon-[tabler--copy]"} size-4`} />
-      {copied ? "Copied" : "Copy link"}
+      {copied ? translateText("Copied") : translateText("Copy link")}
     </button>
   );
 }
@@ -270,7 +249,7 @@ function Views({ id }: { id: string }) {
     <ul className="rounded-box bg-base-200 p-3 text-sm">
       {views.data.data.map((v) => (
         <li key={v.at} className="truncate">
-          {new Date(v.at).toLocaleString()} · {v.ipAddress ?? "unknown address"}
+          {new Date(v.at).toLocaleString(locale())} · {v.ipAddress ?? translateText("unknown address")}
           {v.userAgent ? <span className="text-base-content/70"> · {v.userAgent}</span> : null}
         </li>
       ))}

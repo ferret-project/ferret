@@ -1,3 +1,4 @@
+import { t as translateText } from "./../lib/i18n";
 /**
  * /api/v1/security — your sessions and recent sign-ins, and deleting your account (a real sign-in only: not with an
  * API key).
@@ -47,11 +48,11 @@ security.get("/account", async (c) => c.json(await accountDeletionInfo(c)));
 security.delete("/account", async (c) => {
   const input = await body(c.req.raw, accountDeleteInput);
   const me = c.var.user;
-  if (input.confirm.trim().toLowerCase() !== me.email.toLowerCase()) throw new HTTPException(422, { message: "Type your email address exactly to delete your account" });
+  if (input.confirm.trim().toLowerCase() !== me.email.toLowerCase()) throw new HTTPException(422, { message: translateText("Type your email address exactly to delete your account") });
   const info = await accountDeletionInfo(c);
-  if (info.serverAdmin) throw new HTTPException(409, { message: "You're the server admin: hand that over first (Settings → Server)" });
+  if (info.serverAdmin) throw new HTTPException(409, { message: translateText("You're the server admin: hand that over first (Settings → Server)") });
   if (info.blockers.length) {
-    throw new HTTPException(409, { message: `Other people are in ${info.blockers.map((b) => b.name).join(", ")}: make one of them its owner, or delete it, first` });
+    throw new HTTPException(409, { message: translateText("Other people are in {v0}: make one of them its owner, or delete it, first", { v0: info.blockers.map((b) => b.name).join(", ") }) });
   }
   await confirmIdentity(c, info.needsPassword, input.password);
   for (const h of info.households) await c.var.extensions?.beforeDelete?.household?.(c, h.id);

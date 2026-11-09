@@ -1,3 +1,5 @@
+import { currentLanguage } from "./i18n";
+import { t as translateText } from "./i18n";
 /**
  * Suggested maintenance (server: lib/suggested-tasks.ts): schedules read from manuals and the AI's typical upkeep for a
  * thing's kind, gathered for the whole household (the Maintenance screen) or one item (its page). Nothing is added by
@@ -35,7 +37,7 @@ export function SuggestedMaintenance({ householdId, itemId }: { householdId: str
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <button type="button" className="btn btn-text btn-sm" disabled={typical.isPending || asked} onClick={() => typical.mutate()}>
           <span className="icon-[tabler--sparkles] size-4 text-primary" />
-          {asked ? "Asked — suggestions appear here" : "Suggest typical upkeep"}
+          {asked ? translateText("Asked — suggestions appear here") : translateText("Suggest typical upkeep")}
         </button>
         {typical.isError && <span className="text-error">{typical.error.message}</span>}
       </div>
@@ -46,20 +48,18 @@ export function SuggestedMaintenance({ householdId, itemId }: { householdId: str
       <div className="card-body gap-2 p-4 sm:p-6">
         <h2 id={`suggested-${itemId ?? "all"}`} className="flex items-center gap-2 font-semibold">
           <span className="icon-[tabler--sparkles] size-5 text-primary" />
-          Suggested maintenance
-          {rows.length > 0 && <span className="badge badge-soft badge-primary badge-sm">{rows.length}</span>}
+          {translateText("Suggested maintenance")}{rows.length > 0 && <span className="badge badge-soft badge-primary badge-sm">{rows.length}</span>}
         </h2>
         {rows.length === 0 && (
           <p className="text-sm text-base-content/70">
-            Upkeep read from your manuals shows up here to add. Ferret can also suggest what things like yours usually need.
-          </p>
+            {translateText("Upkeep read from your manuals shows up here to add. Ferret can also suggest what things like yours usually need.")}</p>
         )}
         <ul className="divide-y divide-base-content/10">
           {rows.map((s) => (
             <li key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
               <span className="min-w-0 flex-1">
                 <span className="block font-medium">
-                  {s.title} — {describeInterval(s.intervalCount, s.intervalUnit)}
+                  {s.title} — {describeInterval(s.intervalCount, s.intervalUnit, currentLanguage())}
                 </span>
                 <span className="block text-xs text-base-content/70">
                   {!itemId && (
@@ -70,16 +70,14 @@ export function SuggestedMaintenance({ householdId, itemId }: { householdId: str
                       {" · "}
                     </>
                   )}
-                  {s.source === "manual" ? `from ${s.filename ?? "its manual"}` : "typical for things like it — check its manual"}
+                  {s.source === "manual" ? translateText("from {v0}", { v0: s.filename ?? translateText("its manual") }) : translateText("typical for things like it — check its manual")}
                 </span>
               </span>
               <span className="flex gap-1">
-                <button type="button" className="btn btn-text btn-primary btn-sm" onClick={() => setAdding(s)} aria-label={`Add ${s.title}`}>
-                  Add
-                </button>
-                <button type="button" className="btn btn-text btn-sm" disabled={dismiss.isPending} onClick={() => dismiss.mutate(s.id)} aria-label={`${s.title} isn't needed`}>
-                  Not needed
-                </button>
+                <button type="button" className="btn btn-text btn-primary btn-sm" onClick={() => setAdding(s)} aria-label={translateText("Add {v0}", { v0: s.title })}>
+                  {translateText("Add")}</button>
+                <button type="button" className="btn btn-text btn-sm" disabled={dismiss.isPending} onClick={() => dismiss.mutate(s.id)} aria-label={translateText("{v0} isn't needed", { v0: s.title })}>
+                  {translateText("Not needed")}</button>
               </span>
             </li>
           ))}
@@ -88,7 +86,7 @@ export function SuggestedMaintenance({ householdId, itemId }: { householdId: str
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" className="btn btn-soft btn-sm" disabled={typical.isPending || asked} onClick={() => typical.mutate()}>
               <span className="icon-[tabler--sparkles] size-4" />
-              {asked ? "Asked — new suggestions appear here" : itemId ? "Suggest typical upkeep" : "Suggest typical upkeep for my things"}
+              {asked ? translateText("Asked — new suggestions appear here") : itemId ? translateText("Suggest typical upkeep") : translateText("Suggest typical upkeep for my things")}
             </button>
             {typical.isError && <span className="text-sm text-error">{typical.error.message}</span>}
           </div>

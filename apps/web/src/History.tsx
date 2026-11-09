@@ -1,3 +1,5 @@
+import { locale } from "./i18n";
+import { t as translateText } from "./i18n";
 /**
  * An item's history (server: lib/history.ts) at the bottom of its page: what happened to it, newest first — added,
  * each edit in words ("Moved Drill: Garage → Basement"), photos, warranties, claims, maintenance, stock. The latest
@@ -51,8 +53,7 @@ export function ItemHistory({ itemId, householdId }: { itemId: string; household
     <section className="flex flex-col gap-3" aria-labelledby={`history-${itemId}`}>
       <h2 id={`history-${itemId}`} className="text-base-content flex items-center gap-2 font-semibold">
         <span className="icon-[tabler--history] text-primary size-5" />
-        History
-      </h2>
+        {translateText("History")}</h2>
       <div className="card">
         <div className="card-body gap-0 p-3 sm:p-4">
           <ol>
@@ -67,10 +68,10 @@ export function ItemHistory({ itemId, householdId }: { itemId: string; household
               </div>
               <div className="min-w-0 flex-1 pb-4">
                 <p className="break-words text-sm text-base-content">{e.summary}</p>
-                <p className="text-xs text-base-content/70" title={new Date(e.at).toLocaleString()}>
-                  {e.by ?? (e.action === "recall.found" ? "Ferret" : "Someone")}
-                  {e.via !== "web" && ` via ${(VIA[e.via] ?? VIA.web!).label}`} · {ago(e.at)}
-                  {e.times > 1 && ` · ${e.times} times`}
+                <p className="text-xs text-base-content/70" title={new Date(e.at).toLocaleString(locale())}>
+                  {e.by ?? (e.action === "recall.found" ? translateText("Ferret") : translateText("Someone"))}
+                  {e.via !== "web" && translateText(" via {v0}", { v0: (VIA[e.via] ?? VIA.web!).label })} · {ago(e.at)}
+                  {e.times > 1 && translateText(" · {v0} times", { v0: e.times })}
                 </p>
               </div>
             </li>
@@ -80,14 +81,12 @@ export function ItemHistory({ itemId, householdId }: { itemId: string; household
             <div className="flex flex-wrap gap-2">
               {!open ? (
                 <button type="button" className="btn btn-text btn-sm" onClick={() => setOpen(true)}>
-                  Show all
-                </button>
+                  {translateText("Show all")}</button>
               ) : (
                 history.hasNextPage && (
                   <button type="button" className="btn btn-text btn-sm" disabled={history.isFetchingNextPage} onClick={() => void history.fetchNextPage()}>
                     {history.isFetchingNextPage && <span className="loading loading-spinner loading-xs" />}
-                    Show older
-                  </button>
+                    {translateText("Show older")}</button>
                 )
               )}
             </div>

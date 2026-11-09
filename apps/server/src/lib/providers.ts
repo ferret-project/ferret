@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * Service providers: the plumber, the HVAC company, the appliance repair shop.
  * Maintenance tasks say who usually does them, and each "done" can say who did
@@ -57,7 +58,7 @@ export async function listProviders(v: Caller): Promise<Provider[]> {
 
 export async function getProvider(v: Caller, id: string) {
   const found = (await listProviders(v)).find((p) => p.id === id);
-  if (!found) throw notFound("Provider");
+  if (!found) throw notFound(translateText("Provider"));
   return found;
 }
 
@@ -87,13 +88,13 @@ export async function createProvider(v: Caller, input: ProviderInput) {
     .insert(provider)
     .values({ ...input, householdId: v.householdId })
     .returning({ id: provider.id, name: provider.name });
-  await logActivity(v, "provider.create", row!.id, `Added ${row!.name}`);
+  await logActivity(v, "provider.create", row!.id, translateText("Added {v0}", { v0: row!.name }));
   return getProvider(v, row!.id);
 }
 
 export async function updateProvider(v: Caller, id: string, input: ProviderPatch) {
   const [row] = await v.db.update(provider).set(input).where(providerIn(v, id)).returning({ id: provider.id });
-  if (!row) throw notFound("Provider");
+  if (!row) throw notFound(translateText("Provider"));
   return getProvider(v, id);
 }
 
@@ -104,17 +105,17 @@ export async function deleteProvider(v: Caller, id: string) {
     .set({ deletedAt: new Date() })
     .where(providerIn(v, id))
     .returning({ id: provider.id, name: provider.name });
-  if (!row) throw notFound("Provider");
+  if (!row) throw notFound(translateText("Provider"));
   await v.db
     .update(maintenanceTask)
     .set({ providerId: null })
     .where(and(eq(maintenanceTask.householdId, v.householdId), eq(maintenanceTask.providerId, id)));
-  await logActivity(v, "provider.delete", id, `Removed ${row.name}`);
+  await logActivity(v, "provider.delete", id, translateText("Removed {v0}", { v0: row.name }));
 }
 
 /** A provider id from a request must be one of this household's. */
 export async function checkProvider(v: Caller, id: string | null | undefined) {
   if (!id) return;
   const [found] = await v.db.select({ id: provider.id }).from(provider).where(providerIn(v, id));
-  if (!found) throw notFound("Provider");
+  if (!found) throw notFound(translateText("Provider"));
 }

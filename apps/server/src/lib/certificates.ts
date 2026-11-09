@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * Certificates for Ferret's own connections (Settings → Server → Certificates, the server admin): certificate
  * authorities to trust for your own services (a self-signed Home Assistant, a step-ca on the LAN…), and client
@@ -93,7 +94,7 @@ export async function listCertificates(deps: Pick<Deps, "db" | "tls">): Promise<
 }
 
 function needTls(deps: Pick<Deps, "tls">) {
-  if (!deps.tls) throw new HTTPException(404, { message: "This server can't use certificates of its own" });
+  if (!deps.tls) throw new HTTPException(404, { message: translateText("This server can't use certificates of its own") });
   return deps.tls;
 }
 
@@ -113,8 +114,8 @@ export async function addTrusted(deps: Pick<Deps, "db" | "tls">, filesKey: strin
   const fresh = found
     .map((d, i) => ({ ...described(d, found.length > 1 ? "" : input.name), pem: blocks[i]! }))
     .filter((c) => !kept.trusted.some((t) => t.fingerprint === c.fingerprint));
-  if (!fresh.length) throw new HTTPException(409, { message: "Ferret already trusts that certificate" });
-  if (kept.trusted.length + fresh.length > MAX_TRUSTED) throw new HTTPException(400, { message: `Up to ${MAX_TRUSTED} trusted certificates` });
+  if (!fresh.length) throw new HTTPException(409, { message: translateText("Ferret already trusts that certificate") });
+  if (kept.trusted.length + fresh.length > MAX_TRUSTED) throw new HTTPException(400, { message: translateText("Up to {v0} trusted certificates", { v0: MAX_TRUSTED }) });
   kept.trusted.push(...fresh);
   await save(deps.db, kept);
   await applyCertificates(deps, filesKey);
@@ -128,7 +129,7 @@ export function cleanHost(host: string) {
   const ipv4 = /^\d{1,3}(\.\d{1,3}){3}$/;
   const ipv6 = /^[0-9a-f:]+$/;
   if (!h || h === "*" || h.length > 253 || !(name.test(h) || ipv4.test(h) || (h.includes(":") && ipv6.test(h)))) {
-    throw new HTTPException(400, { message: `"${host.trim()}" isn't a host name (e.g. ha.example.lan or *.example.lan) or an address` });
+    throw new HTTPException(400, { message: translateText("\"{v0}\" isn't a host name (e.g. ha.example.lan or *.example.lan) or an address", { v0: host.trim() }) });
   }
   return h;
 }
@@ -141,9 +142,9 @@ export async function addClient(
 ) {
   const tls = needTls(deps);
   const hosts = [...new Set(input.hosts.map(cleanHost))];
-  if (!hosts.length) throw new HTTPException(400, { message: "Say which hosts it's for" });
+  if (!hosts.length) throw new HTTPException(400, { message: translateText("Say which hosts it's for") });
   const bytes = fromBase64(input.pkcs12);
-  if (bytes.byteLength > MAX_FILE_BYTES) throw new HTTPException(400, { message: "That file is too big for a certificate" });
+  if (bytes.byteLength > MAX_FILE_BYTES) throw new HTTPException(400, { message: translateText("That file is too big for a certificate") });
   let d: CertificateDetails;
   try {
     d = tls.readPkcs12(bytes, input.password);
@@ -151,9 +152,9 @@ export async function addClient(
     throw refused(err);
   }
   const kept = await load(deps.db);
-  if (kept.clients.length >= MAX_CLIENTS) throw new HTTPException(400, { message: `Up to ${MAX_CLIENTS} client certificates` });
+  if (kept.clients.length >= MAX_CLIENTS) throw new HTTPException(400, { message: translateText("Up to {v0} client certificates", { v0: MAX_CLIENTS }) });
   const taken = kept.clients.flatMap((c) => c.hosts.filter((h) => hosts.includes(h)).map((h) => `${h} (${c.name})`));
-  if (taken.length) throw new HTTPException(409, { message: `Another certificate already goes to ${taken.join(", ")}` });
+  if (taken.length) throw new HTTPException(409, { message: translateText("Another certificate already goes to {v0}", { v0: taken.join(", ") }) });
   const c = described(d, input.name);
   kept.clients.push({ ...c, hosts, sealed: await seal(filesKey, c.id, { pkcs12: input.pkcs12, password: input.password }) });
   await save(deps.db, kept);
@@ -164,7 +165,7 @@ export async function addClient(
 export async function removeCertificate(deps: Pick<Deps, "db" | "tls">, filesKey: string, id: string) {
   const kept = await load(deps.db);
   const next = { trusted: kept.trusted.filter((c) => c.id !== id), clients: kept.clients.filter((c) => c.id !== id) };
-  if (next.trusted.length === kept.trusted.length && next.clients.length === kept.clients.length) throw new HTTPException(404, { message: "No such certificate" });
+  if (next.trusted.length === kept.trusted.length && next.clients.length === kept.clients.length) throw new HTTPException(404, { message: translateText("No such certificate") });
   await save(deps.db, next);
   await applyCertificates(deps, filesKey);
   return listCertificates(deps);

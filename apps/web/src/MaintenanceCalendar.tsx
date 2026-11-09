@@ -1,3 +1,6 @@
+import { tn } from "./i18n";
+import { locale } from "./i18n";
+import { t as translateText } from "./i18n";
 /**
  * Maintenance as a month: each open task on its next due date (overdue ones on today, as in the calendar feed) and
  * its repeats after that, faded — what's expected if each is done on time. Tap a day for its tasks; with no day
@@ -14,11 +17,11 @@ type Entry = { task: MaintenanceTask; kind: TaskOccurrence["kind"]; short: boole
 /** The locale's first day of the week, as JS counts them (0 = Sunday). */
 function weekStart() {
   try {
-    const locale = new Intl.Locale(navigator.language) as Intl.Locale & {
+    const info = new Intl.Locale(locale()) as Intl.Locale & {
       getWeekInfo?: () => { firstDay: number };
       weekInfo?: { firstDay: number };
     };
-    const firstDay = (locale.getWeekInfo?.() ?? locale.weekInfo)?.firstDay; // 1 = Monday … 7 = Sunday
+    const firstDay = (info.getWeekInfo?.() ?? info.weekInfo)?.firstDay; // 1 = Monday … 7 = Sunday
     return firstDay ? firstDay % 7 : 0;
   } catch {
     return 0;
@@ -26,7 +29,7 @@ function weekStart() {
 }
 
 const dayOfWeek = (d: string) => new Date(`${d}T00:00:00Z`).getUTCDay();
-const fmt = (d: string, opts: Intl.DateTimeFormatOptions) => new Date(`${d}T00:00:00Z`).toLocaleDateString(undefined, { ...opts, timeZone: "UTC" });
+const fmt = (d: string, opts: Intl.DateTimeFormatOptions) => new Date(`${d}T00:00:00Z`).toLocaleDateString(locale(), { ...opts, timeZone: "UTC" });
 
 /** This month, yyyy-mm. */
 export const thisMonth = () => today().slice(0, 7);
@@ -95,13 +98,12 @@ export function MaintenanceCalendar(props: {
             <div className="flex items-center gap-1">
               {month !== thisMonth() && (
                 <button type="button" className="btn btn-text btn-sm" onClick={() => go(thisMonth())}>
-                  Today
-                </button>
+                  {translateText("Today")}</button>
               )}
-              <button type="button" className="btn btn-text btn-sm btn-square" aria-label="Previous month" onClick={() => go(addMonths(first, -1).slice(0, 7))}>
+              <button type="button" className="btn btn-text btn-sm btn-square" aria-label={translateText("Previous month")} onClick={() => go(addMonths(first, -1).slice(0, 7))}>
                 <span className="icon-[tabler--chevron-left] size-5" />
               </button>
-              <button type="button" className="btn btn-text btn-sm btn-square" aria-label="Next month" onClick={() => go(addMonths(first, 1).slice(0, 7))}>
+              <button type="button" className="btn btn-text btn-sm btn-square" aria-label={translateText("Next month")} onClick={() => go(addMonths(first, 1).slice(0, 7))}>
                 <span className="icon-[tabler--chevron-right] size-5" />
               </button>
             </div>
@@ -120,8 +122,8 @@ export function MaintenanceCalendar(props: {
               const list = byDay.get(d) ?? [];
               const outside = d < first || d > last;
               const isPicked = picked === d;
-              const label = `${fmt(d, { weekday: "long", month: "long", day: "numeric" })}${d === now ? ", today" : ""}: ${
-                list.length ? `${list.length} ${list.length === 1 ? "task" : "tasks"}` : "nothing due"
+              const label = `${fmt(d, { weekday: "long", month: "long", day: "numeric" })}${d === now ? translateText(", today") : ""}: ${
+                list.length ? tn(list.length, "{count} task", "{count} tasks") : translateText("nothing due")
               }`;
               return (
                 <button
@@ -158,7 +160,7 @@ export function MaintenanceCalendar(props: {
                         {e.task.title}
                       </span>
                     ))}
-                    {list.length > 3 && <span className="px-1 text-xs text-base-content/70">+{list.length - 3} more</span>}
+                    {list.length > 3 && <span className="px-1 text-xs text-base-content/70">+{list.length - 3} {translateText("more")}</span>}
                   </span>
                 </button>
               );
@@ -166,21 +168,16 @@ export function MaintenanceCalendar(props: {
           </div>
           <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-base-content/70">
             <span className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-error" aria-hidden /> Overdue
-            </span>
+              <span className="size-2 rounded-full bg-error" aria-hidden /> {translateText("Overdue")}</span>
             <span className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-warning" aria-hidden /> Due soon
-            </span>
+              <span className="size-2 rounded-full bg-warning" aria-hidden /> {translateText("Due soon")}</span>
             <span className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-primary" aria-hidden /> Later
-            </span>
+              <span className="size-2 rounded-full bg-primary" aria-hidden /> {translateText("Later")}</span>
             <span className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full border border-base-content/50" aria-hidden /> Expected repeat
-            </span>
+              <span className="size-2 rounded-full border border-base-content/50" aria-hidden /> {translateText("Expected repeat")}</span>
             {anyShort && (
               <span className="flex items-center gap-1.5">
-                <span className="icon-[tabler--shopping-cart] size-3.5" aria-hidden /> Not enough parts left by then
-              </span>
+                <span className="icon-[tabler--shopping-cart] size-3.5" aria-hidden /> {translateText("Not enough parts left by then")}</span>
             )}
           </p>
         </div>
@@ -190,23 +187,22 @@ export function MaintenanceCalendar(props: {
         <div className="card-body gap-2 p-4 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 id="month-list" className="font-semibold text-base-content">
-              {picked ? fmt(picked, { weekday: "long", month: "long", day: "numeric" }) : `All of ${fmt(first, { month: "long" })}`}
+              {picked ? fmt(picked, { weekday: "long", month: "long", day: "numeric" }) : translateText("All of {v0}", { v0: fmt(first, { month: "long" }) })}
             </h2>
             {picked && (
               <button type="button" className="btn btn-text btn-sm" onClick={() => setPicked(null)}>
-                Show the whole month
-              </button>
+                {translateText("Show the whole month")}</button>
             )}
           </div>
           {shown.length === 0 ? (
-            <p className="text-sm text-base-content/70">{picked ? "Nothing due that day." : inMonth ? "" : "Nothing due this month."}</p>
+            <p className="text-sm text-base-content/70">{picked ? translateText("Nothing due that day.") : inMonth ? "" : translateText("Nothing due this month.")}</p>
           ) : (
             shown.map((d) => (
               <div key={d}>
                 {!picked && (
                   <h3 className={`pt-2 text-sm font-medium ${d === now ? "text-primary" : "text-base-content/70"}`}>
                     {fmt(d, { weekday: "short", month: "short", day: "numeric" })}
-                    {d === now ? " · Today" : ""}
+                    {d === now ? translateText(" · Today") : ""}
                   </h3>
                 )}
                 <ul className="divide-y divide-base-content/10">

@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * Suggested maintenance: every schedule Ferret found for the household's things — read from their manuals (the
  * analysis job) or the AI's typical upkeep for their kind (lib/typical-upkeep.ts) — in one list on the Maintenance
@@ -107,8 +108,8 @@ const suggestionIn = (v: Pick<Caller, "householdId">, id: string) => and(eq(sugg
 /** "Not needed": remembered, so it isn't suggested again. */
 export async function dismissSuggestedTask(v: Caller, id: string) {
   const [row] = await v.db.update(suggestedTask).set({ dismissedAt: new Date() }).where(suggestionIn(v, id)).returning();
-  if (!row) throw notFound("Suggestion");
-  await logActivity(v, "maintenance.suggestion_dismissed", row.id, `Not needed: ${row.title}`, row.itemId);
+  if (!row) throw notFound(translateText("Suggestion"));
+  await logActivity(v, "maintenance.suggestion_dismissed", row.id, translateText("Not needed: {v0}", { v0: row.title }), row.itemId);
   return { ok: true };
 }
 

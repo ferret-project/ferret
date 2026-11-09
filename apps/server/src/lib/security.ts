@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * Settings → Security: a person's signed-in sessions (sign one out, or every
  * other one) and their recent sign-ins. Two-step sign-in itself is Better
@@ -63,12 +64,12 @@ export async function listSessions(db: Db, userId: string, currentId: string): P
 
 /** Signs out one of this person's other sessions (this one signs out the usual way). */
 export async function revokeSession(db: Db, userId: string, currentId: string, id: string) {
-  if (id === currentId) throw new HTTPException(400, { message: "That's this session — use Sign out instead" });
+  if (id === currentId) throw new HTTPException(400, { message: translateText("That's this session — use Sign out instead") });
   const gone = await db
     .delete(session)
     .where(and(eq(session.userId, userId), eq(session.id, id)))
     .returning({ id: session.id });
-  if (!gone.length) throw new HTTPException(404, { message: "No such session" });
+  if (!gone.length) throw new HTTPException(404, { message: translateText("No such session") });
 }
 
 /** Signs out everywhere but here. Returns how many sessions ended. */
@@ -106,8 +107,8 @@ export async function isNewPlace(db: Db, userId: string, ip: string | null | und
 
 /** "Safari on iPhone", "Chrome on Mac" — enough to recognise a device. */
 export function describeDevice(ua: string | null | undefined) {
-  if (!ua) return "an unknown device";
-  const browser = /Edg\//.test(ua) ? "Edge" : /Firefox\//.test(ua) ? "Firefox" : /Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : "a browser";
-  const os = /iPhone/.test(ua) ? "iPhone" : /iPad/.test(ua) ? "iPad" : /Android/.test(ua) ? "Android" : /Mac OS X/.test(ua) ? "Mac" : /Windows/.test(ua) ? "Windows" : /Linux/.test(ua) ? "Linux" : null;
-  return os ? `${browser} on ${os}` : browser;
+  if (!ua) return translateText("an unknown device");
+  const browser = /Edg\//.test(ua) ? translateText("Edge") : /Firefox\//.test(ua) ? translateText("Firefox") : /Chrome\//.test(ua) ? translateText("Chrome") : /Safari\//.test(ua) ? translateText("Safari") : translateText("a browser");
+  const os = /iPhone/.test(ua) ? "iPhone" : /iPad/.test(ua) ? "iPad" : /Android/.test(ua) ? translateText("Android") : /Mac OS X/.test(ua) ? translateText("Mac") : /Windows/.test(ua) ? translateText("Windows") : /Linux/.test(ua) ? translateText("Linux") : null;
+  return os ? translateText("{v0} on {v1}", { v0: browser, v1: os }) : browser;
 }

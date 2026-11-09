@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * Making a key file shows up: `cli.js key export` records it (server_setting "keyfile.last") and queues a message to the
  * server admin, and Settings → Server shows the newest. Not a gate — whoever can run the command can read FILES_KEY from
@@ -51,10 +52,10 @@ export function keyFileNotice(deps: Deps & { files: FileStore; appUrl: string; m
       deps,
       admin.id,
       {
-        title: "A key file was made for Ferret's files",
+        title: translateText("A key file was made for Ferret's files"),
         body:
-          `On ${when}, a key file for FILES_KEY ${r.keyId} was written on the server (${r.where}). With its passphrase it opens ` +
-          "every photo and document. If that wasn't you, someone can run commands on the server — find out who before anything else.",
+          translateText("On {v0}, a key file for FILES_KEY {v1} was written on the server ({v2}). With its passphrase it opens ", { v0: when, v1: r.keyId, v2: r.where }) +
+          translateText("every photo and document. If that wasn't you, someone can run commands on the server — find out who before anything else."),
         url: `${deps.appUrl}/#/settings/server`,
         tag: "ferret-key-file",
       },

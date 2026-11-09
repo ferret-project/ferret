@@ -1,3 +1,6 @@
+import { locale } from "./i18n";
+import { t as translateText } from "./i18n";
+import { tr } from "./i18n";
 /**
  * Making it pay off:
  * - RecallCard on an item's page (its open recalls: hazard, what to do, the CPSC's page; "Not mine" / "Dealt with it"),
@@ -19,7 +22,7 @@ import { itemHref, REPORT_HREF } from "./lib/route";
 import { DialogActions, Modal } from "./Modal";
 import { money, currencySymbol, toCents, centsToInput } from "./lib/money";
 
-const shortDate = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+const shortDate = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString(locale(), { month: "short", day: "numeric", year: "numeric" });
 
 function useRecallRefresh(householdId: string, itemId?: string) {
   const qc = useQueryClient();
@@ -52,7 +55,7 @@ function RecallBox({ recall: r, householdId, showItem }: { recall: ItemRecall; h
         <span className="icon-[tabler--alert-triangle] size-6 shrink-0" />
         <div className="min-w-0 flex-1">
           <p className="font-semibold">
-            {sure ? "Recalled" : "Possibly recalled — check the model"}
+            {sure ? translateText("Recalled") : translateText("Possibly recalled — check the model")}
             {showItem && (
               <>
                 {": "}
@@ -72,7 +75,7 @@ function RecallBox({ recall: r, householdId, showItem }: { recall: ItemRecall; h
           {r.recall.hazard && <p>{r.recall.hazard}</p>}
           {r.recall.remedy && (
             <p>
-              <span className="font-medium">What to do: </span>
+              <span className="font-medium">{translateText("What to do: ")}</span>
               {r.recall.remedy}
             </p>
           )}
@@ -83,17 +86,14 @@ function RecallBox({ recall: r, householdId, showItem }: { recall: ItemRecall; h
         {r.recall.url && (
           <a href={r.recall.url} target="_blank" rel="noreferrer" className="btn btn-soft btn-sm">
             <span className="icon-[tabler--external-link] size-4" />
-            The recall notice
-          </a>
+            {translateText("The recall notice")}</a>
         )}
         {canEdit && (
           <>
             <button type="button" className="btn btn-soft btn-sm" disabled={resolve.isPending} onClick={() => resolve.mutate("dismissed")}>
-              Not mine
-            </button>
+              {translateText("Not mine")}</button>
             <button type="button" className="btn btn-soft btn-sm" disabled={resolve.isPending} onClick={() => resolve.mutate("done")}>
-              Dealt with it
-            </button>
+              {translateText("Dealt with it")}</button>
           </>
         )}
       </div>
@@ -117,11 +117,11 @@ export function RecallAlert({ householdId }: { householdId: string }) {
       {sure.slice(0, 5).map((r) => (
         <RecallBox key={r.id} recall={r} householdId={householdId} showItem />
       ))}
-      {sure.length > 5 && <p className="text-sm text-base-content/70">And {sure.length - 5} more — they're in the bell.</p>}
+      {sure.length > 5 && <p className="text-sm text-base-content/70">{translateText("And ")}{sure.length - 5} {translateText("more — they're in the bell.")}</p>}
       {maybe.length > 0 && (
         <div className="alert alert-soft alert-warning flex flex-wrap items-center gap-x-2 gap-y-1 py-2 text-sm" role="status">
           <span className="icon-[tabler--alert-triangle] size-5 shrink-0" />
-          <span>Possible recalls — check the model:</span>
+          <span>{translateText("Possible recalls — check the model:")}</span>
           {maybe.map((r, i) => (
             <span key={r.itemId}>
               <a href={itemHref(r.itemId)} className="link font-medium">
@@ -140,13 +140,13 @@ export function RecallAlert({ householdId }: { householdId: string }) {
 
 /** A policy's usual limits, to start from (the amounts are typical — check yours). */
 const PRESETS: { label: string; scope: CoverageInput["scope"]; cents: number; hint: string }[] = [
-  { label: "Personal property (Coverage C)", scope: "all", cents: 0, hint: "Everything you own — on your declarations page." },
-  { label: "Jewelry & watches", scope: "tag", cents: 150_000, hint: "Theft is often limited to $1,500." },
-  { label: "Firearms", scope: "tag", cents: 250_000, hint: "Often $2,500." },
-  { label: "Silverware", scope: "tag", cents: 250_000, hint: "Often $2,500." },
-  { label: "Cash & coins", scope: "tag", cents: 20_000, hint: "Often $200." },
-  { label: "Electronics", scope: "category", cents: 0, hint: "Some policies limit these." },
-  { label: "Art & collectibles", scope: "tag", cents: 0, hint: "Usually need a separate rider." },
+  { get label() { return translateText("Personal property (Coverage C)"); }, scope: "all", cents: 0, get hint() { return translateText("Everything you own — on your declarations page."); } },
+  { get label() { return translateText("Jewelry & watches"); }, scope: "tag", cents: 150_000, get hint() { return translateText("Theft is often limited to $1,500."); } },
+  { get label() { return translateText("Firearms"); }, scope: "tag", cents: 250_000, get hint() { return translateText("Often $2,500."); } },
+  { get label() { return translateText("Silverware"); }, scope: "tag", cents: 250_000, get hint() { return translateText("Often $2,500."); } },
+  { get label() { return translateText("Cash & coins"); }, scope: "tag", cents: 20_000, get hint() { return translateText("Often $200."); } },
+  { get label() { return translateText("Electronics"); }, scope: "category", cents: 0, get hint() { return translateText("Some policies limit these."); } },
+  { get label() { return translateText("Art & collectibles"); }, scope: "tag", cents: 0, get hint() { return translateText("Usually need a separate rider."); } },
 ];
 
 export function Coverage({ householdId }: { householdId: string }) {
@@ -159,19 +159,17 @@ export function Coverage({ householdId }: { householdId: string }) {
     <div className="min-h-dvh bg-base-200">
       <nav className="navbar sticky top-0 z-10 border-b border-base-300 bg-base-100/85 backdrop-blur-md px-4">
         <div className="navbar-start w-full min-w-0 items-center gap-2">
-          <a href="#/" className="btn btn-text btn-sm btn-square" aria-label="Back">
+          <a href="#/" className="btn btn-text btn-sm btn-square" aria-label={translateText("Back")}>
             <span className="icon-[tabler--arrow-left] size-5" />
           </a>
-          <h1 className="truncate text-lg font-semibold">Insurance coverage</h1>
-          <HelpLink page="guide/coverage.html" label="Coverage" />
+          <h1 className="truncate text-lg font-semibold">{translateText("Insurance coverage")}</h1>
+          <HelpLink page="guide/coverage.html" label={translateText("Coverage")} />
         </div>
         <BarSearch />
       </nav>
       <main className="mx-auto flex max-w-3xl flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <p className="text-sm text-base-content/70">
-          Your policy's limits, next to what your things are worth. A homeowner's or renter's policy covers your belongings up to one amount, and
-          often much less for some kinds of things — jewelry, firearms, silverware. The numbers are on your policy's declarations page.
-        </p>
+          {translateText("Your policy's limits, next to what your things are worth. A homeowner's or renter's policy covers your belongings up to one amount, and often much less for some kinds of things — jewelry, firearms, silverware. The numbers are on your policy's declarations page.")}</p>
         {checks.isPending && <span className="loading loading-spinner text-primary mx-auto my-12" />}
         {rows.map((c) => (
           <CoverageRow key={c.id} check={c} onEdit={canEdit ? () => setEditing(c) : undefined} />
@@ -179,7 +177,7 @@ export function Coverage({ householdId }: { householdId: string }) {
         {canEdit && (
           <section className="card">
             <div className="card-body gap-3">
-              <h2 className="card-title text-base">{rows.length ? "Add another limit" : "Add your policy's limits"}</h2>
+              <h2 className="card-title text-base">{rows.length ? translateText("Add another limit") : translateText("Add your policy's limits")}</h2>
               <div className="flex flex-wrap gap-2">
                 {PRESETS.filter((p) => !used.has(p.label)).map((p) => (
                   <button key={p.label} type="button" className="btn btn-soft btn-sm" title={p.hint} onClick={() => setEditing({ label: p.label, scope: p.scope, limitCents: p.cents })}>
@@ -188,13 +186,9 @@ export function Coverage({ householdId }: { householdId: string }) {
                   </button>
                 ))}
                 <button type="button" className="btn btn-text btn-sm" onClick={() => setEditing({ scope: "tag" })}>
-                  Something else…
-                </button>
+                  {translateText("Something else…")}</button>
               </div>
-              <p className="text-sm text-base-content/70">
-                A limit on a kind of thing counts what's in a category (Electronics) or has a tag (Jewelry) — tag the things it covers. Values come
-                from each thing's value, or what you paid; see the <a href={REPORT_HREF} className="link">insurance report</a> for the list.
-              </p>
+              <p className="text-sm text-base-content/70">{tr("A limit on a kind of thing counts what's in a category (Electronics) or has a tag (Jewelry) — tag the things it covers. Values come from each thing's value, or what you paid; see the {v0} for the list.", { v0: <a href={REPORT_HREF} className="link">{translateText("insurance report")}</a> })}</p>
             </div>
           </section>
         )}
@@ -207,7 +201,7 @@ export function Coverage({ householdId }: { householdId: string }) {
 function CoverageRow({ check: c, onEdit }: { check: CoverageCheck; onEdit?: () => void }) {
   const short = c.shortCents > 0;
   const pct = c.limitCents ? Math.min(100, Math.round((c.valueCents / c.limitCents) * 100)) : 100;
-  const covers = c.scope === "all" ? "Everything" : c.scope === "category" ? (c.categoryName ?? "A category") : `Tagged ${c.tag}`;
+  const covers = c.scope === "all" ? translateText("Everything") : c.scope === "category" ? (c.categoryName ?? translateText("A category")) : translateText("Tagged {v0}", { v0: c.tag });
   return (
     <section className="card">
       <div className="card-body gap-3 p-4 sm:p-6">
@@ -216,32 +210,27 @@ function CoverageRow({ check: c, onEdit }: { check: CoverageCheck; onEdit?: () =
             <h2 className="font-semibold">{c.label}</h2>
             <p className="text-sm text-base-content/70">
               {covers}
-              {c.propertyName ? ` at ${c.propertyName}` : ""} · {c.items} {c.items === 1 ? "thing" : "things"}
-              {c.unvalued ? ` (${c.unvalued} with no value)` : ""}
+              {c.propertyName ? translateText(" at {v0}", { v0: c.propertyName }) : ""} · {c.items} {c.items === 1 ? translateText("thing") : translateText("things")}
+              {c.unvalued ? translateText(" ({v0} with no value)", { v0: c.unvalued }) : ""}
             </p>
           </div>
           {onEdit && (
             <button type="button" className="btn btn-text btn-sm" onClick={onEdit}>
-              Edit
-            </button>
+              {translateText("Edit")}</button>
           )}
         </div>
         <div>
           <div className="flex flex-wrap justify-between gap-x-4 text-sm">
-            <span>
-              Worth <span className="font-semibold">{money(c.valueCents)}</span>
-            </span>
-            <span>
-              Covered for <span className="font-semibold">{money(c.limitCents)}</span>
-            </span>
+            <span>{tr("Worth {v0}", { v0: <span className="font-semibold">{money(c.valueCents)}</span> })}</span>
+            <span>{tr("Covered for {v0}", { v0: <span className="font-semibold">{money(c.limitCents)}</span> })}</span>
           </div>
-          <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-base-200" role="meter" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`${pct}% of the limit`}>
+          <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-base-200" role="meter" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={translateText("{v0}% of the limit", { v0: pct })}>
             <div className={`h-full rounded-full ${short ? "bg-error" : "bg-success"}`} style={{ width: `${pct}%` }} />
           </div>
           <p className={`mt-1 text-sm font-medium ${short ? "text-error" : "text-success"}`}>
-            {short ? `${money(c.shortCents)} more than the limit — ask about a rider or a higher limit.` : `Within the limit (${money(c.limitCents - c.valueCents)} to spare).`}
+            {short ? translateText("{v0} more than the limit — ask about a rider or a higher limit.", { v0: money(c.shortCents) }) : translateText("Within the limit ({v0} to spare).", { v0: money(c.limitCents - c.valueCents) })}
           </p>
-          {c.unvalued > 0 && <p className="text-sm text-base-content/70">Things with no value aren't counted, so the real total may be higher.</p>}
+          {c.unvalued > 0 && <p className="text-sm text-base-content/70">{translateText("Things with no value aren't counted, so the real total may be higher.")}</p>}
           {c.note && <p className="text-sm text-base-content/70">{c.note}</p>}
         </div>
       </div>
@@ -275,18 +264,16 @@ function CoverageDialog({ householdId, start, onClose }: { householdId: string; 
     });
   }
   return (
-    <Modal id="coverage" title={existing ? `Edit ${existing.label}` : "Add a limit"} onClose={onClose}>
+    <Modal id="coverage" title={existing ? translateText("Edit {v0}", { v0: existing.label }) : translateText("Add a limit")} onClose={onClose}>
       <form className="flex flex-col gap-4" onSubmit={onSubmit}>
         <div>
           <label className="label-text" htmlFor="cov-label">
-            Name
-          </label>
-          <input id="cov-label" name="label" className="input" required maxLength={80} defaultValue={start.label ?? ""} placeholder="e.g. Jewelry & watches" />
+            {translateText("Name")}</label>
+          <input id="cov-label" name="label" className="input" required maxLength={80} defaultValue={start.label ?? ""} placeholder={translateText("e.g. Jewelry & watches")} />
         </div>
         <div>
           <label className="label-text" htmlFor="cov-limit">
-            Covered up to
-          </label>
+            {translateText("Covered up to")}</label>
           <div className="input">
             <span className="my-auto me-1 text-base-content/70">{currencySymbol()}</span>
             <input id="cov-limit" name="limit" className="grow" inputMode="decimal" required defaultValue={start.limitCents ? centsToInput(start.limitCents) : ""} placeholder="1500" />
@@ -294,30 +281,27 @@ function CoverageDialog({ householdId, start, onClose }: { householdId: string; 
         </div>
         <div>
           <label className="label-text" htmlFor="cov-scope">
-            It covers
-          </label>
+            {translateText("It covers")}</label>
           <select id="cov-scope" className="select" value={scope} onChange={(e) => setScope(e.target.value as CoverageInput["scope"])}>
-            <option value="all">Everything</option>
-            <option value="category">Things in a category</option>
-            <option value="tag">Things with a tag</option>
+            <option value="all">{translateText("Everything")}</option>
+            <option value="category">{translateText("Things in a category")}</option>
+            <option value="tag">{translateText("Things with a tag")}</option>
           </select>
         </div>
         {scope === "category" && <CategoryPicker householdId={householdId} value={categoryId} onChange={setCategoryId} />}
         {scope === "tag" && (
           <div>
             <label className="label-text" htmlFor="cov-tag">
-              Tag
-            </label>
+              {translateText("Tag")}</label>
             <input id="cov-tag" name="tag" className="input" required maxLength={40} defaultValue={start.tag ?? (start.label?.split(/\s*[&,]\s*/)[0] ?? "")} />
           </div>
         )}
         {(places.data?.properties.length ?? 0) > 1 && (
           <div>
             <label className="label-text" htmlFor="cov-property">
-              At
-            </label>
+              {translateText("At")}</label>
             <select id="cov-property" name="property" className="select" defaultValue={start.propertyId ?? ""}>
-              <option value="">Every property</option>
+              <option value="">{translateText("Every property")}</option>
               {places.data!.properties.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
@@ -328,25 +312,21 @@ function CoverageDialog({ householdId, start, onClose }: { householdId: string; 
         )}
         <div>
           <label className="label-text" htmlFor="cov-note">
-            Note
-          </label>
-          <input id="cov-note" name="note" className="input" maxLength={500} defaultValue={start.note ?? ""} placeholder="e.g. theft only; policy HO-3 #12345" />
+            {translateText("Note")}</label>
+          <input id="cov-note" name="note" className="input" maxLength={500} defaultValue={start.note ?? ""} placeholder={translateText("e.g. theft only; policy HO-3 #12345")} />
         </div>
         {existing && (
           <div>
-            <button type="button" className="btn btn-text btn-error btn-sm" disabled={remove.isPending} onClick={() => window.confirm(`Remove ${existing.label}?`) && remove.mutate()}>
-              Remove this limit
-            </button>
+            <button type="button" className="btn btn-text btn-error btn-sm" disabled={remove.isPending} onClick={() => window.confirm(translateText("Remove {v0}?", { v0: existing.label })) && remove.mutate()}>
+              {translateText("Remove this limit")}</button>
           </div>
         )}
         {(save.error ?? remove.error) && <div className="alert alert-soft alert-error">{(save.error ?? remove.error)!.message}</div>}
         <DialogActions>
           <button type="button" className="btn btn-secondary btn-soft" onClick={onClose}>
-            Cancel
-          </button>
+            {translateText("Cancel")}</button>
           <button type="submit" className="btn btn-primary" disabled={save.isPending}>
-            Save
-          </button>
+            {translateText("Save")}</button>
         </DialogActions>
       </form>
     </Modal>
@@ -368,27 +348,24 @@ export function WeeklySummary() {
       <div className="card-body gap-3">
         <h2 id="weekly-title" className="card-title flex items-center gap-2">
           <span className="icon-[tabler--calendar-week] size-5 text-primary" />
-          Weekly summary
-        </h2>
+          {translateText("Weekly summary")}</h2>
         <p className="text-sm text-base-content/70">
-          Once a week, everything in the bell — not just what's urgent: possible recalls, coverage gaps, claims waiting, things to name, what's lent
-          out. It comes where your reminders do{s.canEmail ? ", and by email if you like" : ""}.
+          {translateText("Once a week, everything in the bell — not just what's urgent: possible recalls, coverage gaps, claims waiting, things to name, what's lent out. It comes where your reminders do")}{s.canEmail ? translateText(", and by email if you like") : ""}.
         </p>
         <div className="flex flex-wrap items-end gap-4">
           <div>
             <label className="label-text" htmlFor="weekly-day">
-              Send it on
-            </label>
+              {translateText("Send it on")}</label>
             <select
               id="weekly-day"
               className="select w-48"
               value={s.day ?? ""}
               onChange={(e) => save.mutate({ day: e.target.value === "" ? null : Number(e.target.value), email: s.email })}
             >
-              <option value="">Don't send one</option>
+              <option value="">{translateText("Don't send one")}</option>
               {DAYS.map((d, i) => (
                 <option key={d} value={i}>
-                  {d}
+                  {translateText(d)}
                 </option>
               ))}
             </select>
@@ -396,8 +373,7 @@ export function WeeklySummary() {
           {s.canEmail && s.day !== null && (
             <label className="flex h-11 cursor-pointer items-center gap-2">
               <input type="checkbox" className="checkbox checkbox-primary" checked={s.email} onChange={(e) => save.mutate({ day: s.day, email: e.target.checked })} />
-              Also by email
-            </label>
+              {translateText("Also by email")}</label>
           )}
         </div>
         {save.isError && <p className="text-sm text-error">{save.error.message}</p>}

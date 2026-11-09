@@ -90,6 +90,8 @@ interface Operation {
 const id = (what: string) => `The ${what}'s id`;
 
 export const OPERATIONS: Operation[] = [
+  { method: "get", path: "/language", tag: "Account", summary: "Your language preference", auth: "session", returns: "{ language: 'en' | 'hu' }" },
+  { method: "put", path: "/language", tag: "Account", summary: "Choose your UI and notification language", auth: "session", body: z.object({ language: z.enum(["en", "hu"]) }), returns: "{ language: 'en' | 'hu' }" },
   // ── Account ────────────────────────────────────────────────────────────────
   { method: "get", path: "/me", tag: "Account", summary: "Who you are, and your active household", returns: "{ user, activeHouseholdId }" },
   { method: "get", path: "/openapi.json", tag: "Account", summary: "This description of the API (OpenAPI 3.1)", auth: "none" },

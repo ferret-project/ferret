@@ -1,3 +1,7 @@
+import { tn } from "./i18n";
+import { locale } from "./i18n";
+import { t as translateText } from "./i18n";
+import { tr } from "./i18n";
 /**
  * #/deleted — "Recently deleted": items removed in the last 30 days, with who
  * removed them and when they go for good. Restore brings one back with its
@@ -20,25 +24,21 @@ export function Deleted({ householdId }: { householdId: string }) {
     <div className="min-h-dvh bg-base-200">
       <nav className="navbar sticky top-0 z-10 border-b border-base-300 bg-base-100/85 backdrop-blur-md px-4">
         <div className="navbar-start min-w-0 items-center gap-2">
-          <a href="#/" className="btn btn-text btn-sm btn-square" aria-label="Back">
+          <a href="#/" className="btn btn-text btn-sm btn-square" aria-label={translateText("Back")}>
             <span className="icon-[tabler--arrow-left] size-5" />
           </a>
-          <h1 className="truncate text-lg font-semibold">Recently deleted</h1>
+          <h1 className="truncate text-lg font-semibold">{translateText("Recently deleted")}</h1>
         </div>
         <BarSearch />
       </nav>
       <main className="mx-auto flex max-w-3xl flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-        <p className="text-sm text-base-content/70">
-          Deleted things stay here for {TRASH_DAYS} days, with their photos, documents, warranties and maintenance, then go
-          for good.
-        </p>
+        <p className="text-sm text-base-content/70">{tr("Deleted things stay here for {v0} days, with their photos, documents, warranties and maintenance, then go for good.", { v0: TRASH_DAYS })}</p>
         {restored && (
           <div className="alert alert-soft alert-success flex items-center gap-3 text-sm" role="status">
             <span className="icon-[tabler--circle-check] size-5" />
-            <span className="flex-1">{restored.name} is back.</span>
+            <span className="flex-1">{tr("{v0} is back.", { v0: restored.name })}</span>
             <a href={itemHref(restored.id)} className="btn btn-soft btn-success btn-sm">
-              Open
-            </a>
+              {translateText("Open")}</a>
           </div>
         )}
         {deleted.isPending && <span className="loading loading-spinner text-primary mx-auto my-12" />}
@@ -47,8 +47,8 @@ export function Deleted({ householdId }: { householdId: string }) {
           <div className="card">
             <div className="card-body items-center gap-3 text-center">
               <span className="icon-[tabler--trash-off] size-10 text-primary" />
-              <h2 className="text-lg font-semibold">Nothing deleted lately</h2>
-              <p className="max-w-sm text-sm text-base-content/70">Anything you remove in the next {TRASH_DAYS} days will wait here in case you change your mind.</p>
+              <h2 className="text-lg font-semibold">{translateText("Nothing deleted lately")}</h2>
+              <p className="max-w-sm text-sm text-base-content/70">{tr("Anything you remove in the next {v0} days will wait here in case you change your mind.", { v0: TRASH_DAYS })}</p>
             </div>
           </div>
         )}
@@ -105,36 +105,30 @@ function DeletedRow(props: {
       <div className="min-w-0 flex-1">
         <h2 className="truncate font-medium text-base-content">{item.name}</h2>
         {about && <p className="truncate text-sm text-base-content/70">{about}</p>}
-        <p className="text-xs text-base-content/70">
-          Deleted {formatDay(item.deletedAt)}
-          {item.deletedBy && ` by ${item.deletedBy}`} · {daysLeft === 0 ? "goes for good today" : `goes for good in ${daysLeft} ${daysLeft === 1 ? "day" : "days"}`}
+        <p className="text-xs text-base-content/70">{tr("Deleted {v0}", { v0: formatDay(item.deletedAt) })}{item.deletedBy && translateText(" by {v0}", { v0: item.deletedBy })} · {daysLeft === 0 ? translateText("goes for good today") : tn(daysLeft, "goes for good in {count} day", "goes for good in {count} days")}
         </p>
         {(restore.isError || purge.isError) && <p className="text-sm text-error">{restore.error?.message ?? purge.error?.message}</p>}
       </div>
       {canEdit &&
         (confirming ? (
           <div className="flex shrink-0 items-center gap-1 max-sm:w-full max-sm:justify-end">
-            <span className="text-sm text-base-content/80">Gone for good — no undo.</span>
+            <span className="text-sm text-base-content/80">{translateText("Gone for good — no undo.")}</span>
             <button type="button" className="btn btn-error btn-sm" disabled={purge.isPending} onClick={() => purge.mutate()}>
-              Delete
-            </button>
+              {translateText("Delete")}</button>
             <button type="button" className="btn btn-text btn-sm" onClick={() => setConfirming(false)}>
-              Keep
-            </button>
+              {translateText("Keep")}</button>
           </div>
         ) : (
           <div className="flex shrink-0 items-center gap-1 max-sm:w-full max-sm:justify-end">
             <button type="button" className="btn btn-soft btn-primary btn-sm" disabled={restore.isPending} onClick={() => restore.mutate()}>
               {restore.isPending ? <span className="loading loading-spinner loading-xs" /> : <span className="icon-[tabler--arrow-back-up] size-4" />}
-              Restore
-            </button>
+              {translateText("Restore")}</button>
             <button type="button" className="btn btn-text btn-sm btn-error" onClick={() => setConfirming(true)}>
-              Delete now
-            </button>
+              {translateText("Delete now")}</button>
           </div>
         ))}
     </li>
   );
 }
 
-const formatDay = (iso: string) => new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+const formatDay = (iso: string) => new Date(iso).toLocaleDateString(locale(), { month: "short", day: "numeric" });

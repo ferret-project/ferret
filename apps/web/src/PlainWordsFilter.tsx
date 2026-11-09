@@ -1,3 +1,5 @@
+import { locale } from "./i18n";
+import { t as translateText } from "./i18n";
 /**
  * Everything's "Describe what you're looking for" (AI-2; server: lib/plain-filters.ts): plain words — "tools bought
  * last year over $100", "electronics in the garage without a receipt" — become the list's filters, from the
@@ -25,13 +27,13 @@ export interface ExtraFilters {
   origin?: ItemOrigin;
 }
 
-const day = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+const day = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString(locale(), { year: "numeric", month: "short", day: "numeric" });
 const LABEL: Record<keyof ExtraFilters, (v: string) => string> = {
-  minWorth: (v) => `Worth over ${money(Number(v))}`,
-  maxWorth: (v) => `Worth under ${money(Number(v))}`,
-  boughtFrom: (v) => `Bought from ${day(v)}`,
-  boughtTo: (v) => `Bought until ${day(v)}`,
-  q: (v) => `Words: ${v}`,
+  minWorth: (v) => translateText("Worth over {v0}", { v0: money(Number(v)) }),
+  maxWorth: (v) => translateText("Worth under {v0}", { v0: money(Number(v)) }),
+  boughtFrom: (v) => translateText("Bought from {v0}", { v0: day(v) }),
+  boughtTo: (v) => translateText("Bought until {v0}", { v0: day(v) }),
+  q: (v) => translateText("Words: {v0}", { v0: v }),
   missing: (v) => MISSING_LABELS[v as MissingDetail]?.filter ?? v,
   origin: (v) => ORIGIN_FILTER[v as ItemOrigin] ?? v,
 };
@@ -64,7 +66,7 @@ export function PlainWordsFilter(props: {
   };
   return (
     <div className="flex flex-col gap-2">
-      <form onSubmit={submit} className="flex gap-2" role="search" aria-label="Describe what you're looking for">
+      <form onSubmit={submit} className="flex gap-2" role="search" aria-label={translateText("Describe what you're looking for")}>
         <label className="input min-w-0 flex-1">
           <span className="icon-[tabler--sparkles] my-auto size-5 shrink-0 text-primary" />
           <input
@@ -72,13 +74,13 @@ export function PlainWordsFilter(props: {
             type="text"
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Describe it: tools bought last year over $100"
+            placeholder={translateText("Describe it: tools bought last year over $100")}
             maxLength={300}
-            aria-label="Describe what you're looking for"
+            aria-label={translateText("Describe what you're looking for")}
           />
         </label>
         <button type="submit" className="btn btn-soft btn-primary" disabled={ask.isPending || text.trim().length < 3}>
-          {ask.isPending ? <span className="loading loading-spinner loading-sm" /> : "Filter"}
+          {ask.isPending ? <span className="loading loading-spinner loading-sm" /> : translateText("Filter")}
         </button>
       </form>
       {ask.isError && <div className="alert alert-soft alert-error text-sm">{ask.error.message}</div>}
@@ -90,7 +92,7 @@ export function PlainWordsFilter(props: {
               type="button"
               className="tap badge badge-soft badge-primary gap-1"
               onClick={() => props.onExtra(Object.fromEntries(Object.entries(props.extra).filter(([key]) => key !== k)))}
-              aria-label={`Remove ${LABEL[k](v)}`}
+              aria-label={translateText("Remove {v0}", { v0: LABEL[k](v) })}
             >
               {LABEL[k](v)}
               <span className="icon-[tabler--x] size-3.5" />
