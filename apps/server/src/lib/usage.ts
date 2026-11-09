@@ -1,3 +1,5 @@
+import { locale } from "./i18n";
+import { t as translateText } from "./i18n";
 /**
  * Maintenance by use ("change the oil every 5,000 miles"): an item counts something (`item.usageUnit`: miles, km,
  * hours, cycles), people (or Claude) log readings, and a task on it can repeat every so much use (`usageEvery`), as well
@@ -25,7 +27,7 @@ export async function readingsOf(v: Caller, itemId: string) {
 
 export async function usageSummary(v: Caller, itemId: string): Promise<UsageSummary> {
   const [row] = await v.db.select({ unit: item.usageUnit }).from(item).where(and(eq(item.id, itemId), itemScope(v, { gone: "include" })));
-  if (!row) throw notFound("Item");
+  if (!row) throw notFound(translateText("Item"));
   const readings = await v.db
     .select({ id: usageReading.id, value: usageReading.value, readOn: usageReading.readOn, note: usageReading.note, by: user.name })
     .from(usageReading)
@@ -39,15 +41,15 @@ export async function usageSummary(v: Caller, itemId: string): Promise<UsageSumm
 /** Log what the item's count says (the odometer…): its usage tasks' due dates follow. */
 export async function addReading(v: Caller, itemId: string, input: UsageReadingInput) {
   const [row] = await v.db.select({ name: item.name, unit: item.usageUnit }).from(item).where(and(eq(item.id, itemId), itemScope(v)));
-  if (!row) throw notFound("Item");
-  if (!row.unit) throw new HTTPException(422, { message: "Say what it counts first (miles, hours…)" });
+  if (!row) throw notFound(translateText("Item"));
+  if (!row.unit) throw new HTTPException(422, { message: translateText("Say what it counts first (miles, hours…)") });
   const readOn = input.readOn ?? todayFor(v);
-  if (readOn > todayFor(v)) throw new HTTPException(422, { message: "That's in the future" });
+  if (readOn > todayFor(v)) throw new HTTPException(422, { message: translateText("That's in the future") });
   const [reading] = await v.db
     .insert(usageReading)
     .values({ householdId: v.householdId, itemId, value: input.value, readOn, note: input.note ?? null, userId: v.userId })
     .returning();
-  await logActivity(v, "item.usage", itemId, `${row.name}: ${input.value.toLocaleString("en-US")} ${row.unit} on ${readOn}`, itemId);
+  await logActivity(v, "item.usage", itemId, translateText("{v0}: {v1} {v2} on {v3}", { v0: row.name, v1: input.value.toLocaleString(locale()), v2: row.unit, v3: readOn }), itemId);
   await refreshUsageTasks(v, itemId);
   return reading!;
 }
@@ -57,7 +59,7 @@ export async function deleteReading(v: Caller, id: string) {
     .delete(usageReading)
     .where(and(eq(usageReading.id, id), eq(usageReading.householdId, v.householdId)))
     .returning({ itemId: usageReading.itemId });
-  if (!gone) throw notFound("Reading");
+  if (!gone) throw notFound(translateText("Reading"));
   await refreshUsageTasks(v, gone.itemId);
 }
 

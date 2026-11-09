@@ -8,6 +8,7 @@ import { type Plugin, defineConfig } from "vite";
  */
 function precacheList(): Plugin {
   const always = ["/", "/appearance.js", "/manifest.webmanifest", "/favicon.svg", "/apple-touch-icon.png", "/icon-192.png", "/icon-512.png", "/icon-maskable-512.png"];
+
   return {
     name: "ferret-precache",
     apply: "build",
@@ -41,22 +42,23 @@ function noZod(): Plugin {
   };
 }
 
+const apiTarget = process.env.FERRET_API_PROXY ?? "http://localhost:8787";
 export default defineConfig({
   plugins: [react(), tailwindcss(), precacheList(), noZod()],
   server: {
     port: 5173,
     // In dev, the API runs separately on :8787; in production one server serves both.
     proxy: {
-      "/api": "http://localhost:8787",
-      "/healthz": "http://localhost:8787",
-      "/mcp": "http://localhost:8787",
-      "/calendar": "http://localhost:8787",
+      "/api": apiTarget,
+      "/healthz": apiTarget,
+      "/mcp": apiTarget,
+      "/calendar": apiTarget,
       // The help, as the server serves it once built (pnpm --filter @ferret/docs build; or pnpm docs:dev on :5174 to write it).
-      "/docs": "http://localhost:8787",
+      "/docs": apiTarget,
       // QR label links (/l/K7QM); only that exact shape, so Vite's own /@… and /src/… paths stay local.
-      "^/l/[0-9A-Za-z]+$": "http://localhost:8787",
+      "^/l/[0-9A-Za-z]+$": apiTarget,
       // Share links (/s/<token>) and a borrower's link from a reminder email (/b/<token>).
-      "^/[sb]/[\\w-]{20,}$": "http://localhost:8787",
+      "^/[sb]/[\\w-]{20,}$": apiTarget,
     },
   },
 });

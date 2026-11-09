@@ -1,3 +1,6 @@
+import { locale } from "./i18n";
+import { t as translateText } from "./i18n";
+import { tr } from "./i18n";
 /**
  * Lending (server: lib/loans.ts):
  * - LoanCard on an item's page: "Lend or borrow…", or who has it (since, due back, reminders) with "It's back".
@@ -17,12 +20,12 @@ import { useCanEdit } from "./lib/auth";
 import { itemHref } from "./lib/route";
 import { DialogActions, Modal } from "./Modal";
 
-const shortDate = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-const EVERY = { week: "every week", "2weeks": "every 2 weeks", month: "every month" } as const;
+const shortDate = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString(locale(), { month: "short", day: "numeric", year: "numeric" });
+const EVERY = { get week() { return translateText("every week"); }, get "2weeks"() { return translateText("every 2 weeks"); }, get month() { return translateText("every month"); } } as const;
 
 /** "With Sam since May 3 · due back May 10" */
 export function loanLine(l: Pick<LoanSummary, "direction" | "person" | "since" | "dueOn">) {
-  return `${l.direction === "lent" ? `With ${l.person}` : `Borrowed from ${l.person}`} since ${shortDate(l.since)}${l.dueOn ? ` · due back ${shortDate(l.dueOn)}` : ""}`;
+  return translateText("{v0} since {v1}{v2}", { v0: l.direction === "lent" ? translateText("With {v0}", { v0: l.person }) : translateText("Borrowed from {v0}", { v0: l.person }), v1: shortDate(l.since), v2: l.dueOn ? translateText(" · due back {v0}", { v0: shortDate(l.dueOn) }) : "" });
 }
 
 function useRefresh(householdId: string, itemId?: string) {
@@ -50,8 +53,7 @@ export function LoanCard({ itemId, itemName, householdId, canEdit }: { itemId: s
       <div>
         <button type="button" className="btn btn-soft btn-secondary btn-sm" onClick={() => setEditing("new")}>
           <span className="icon-[tabler--arrows-exchange] size-4" />
-          Lend or borrow…
-        </button>
+          {translateText("Lend or borrow…")}</button>
         {dialog}
       </div>
     ) : null;
@@ -61,30 +63,29 @@ export function LoanCard({ itemId, itemName, householdId, canEdit }: { itemId: s
       <div className="card-body gap-3">
         <h2 id={`loan-${itemId}`} className="card-title flex items-center gap-2">
           <span className="icon-[tabler--arrows-exchange] size-5 text-primary" />
-          {open.direction === "lent" ? "Lent out" : "Borrowed"}
-          <HelpLink page="guide/lending.html" label="Lending" />
+          {open.direction === "lent" ? translateText("Lent out") : translateText("Borrowed")}
+          <HelpLink page="guide/lending.html" label={translateText("Lending")} />
         </h2>
         <div>
           <p className={open.overdue ? "font-medium text-warning" : ""}>{loanLine(open)}</p>
           {open.direction === "lent" && open.remindEvery && (
             <p className="text-sm text-base-content/70">
               {open.remindersStoppedAt
-                ? `${open.person} asked for no more reminders`
-                : `Reminding ${open.email} ${EVERY[open.remindEvery]}${open.lastRemindedOn ? ` · last ${shortDate(open.lastRemindedOn)}` : ""}`}
+                ? translateText("{v0} asked for no more reminders", { v0: open.person })
+                : translateText("Reminding {v0} {v1}{v2}", { v0: open.email, v1: EVERY[open.remindEvery], v2: open.lastRemindedOn ? translateText(" · last {v0}", { v0: shortDate(open.lastRemindedOn) }) : "" })}
             </p>
           )}
-          {open.borrowerReturnedAt && <p className="text-sm font-medium text-info">{open.person} says it's back.</p>}
+          {open.borrowerReturnedAt && <p className="text-sm font-medium text-info">{tr("{v0} says it's back.", { v0: open.person })}</p>}
           {open.note && <p className="text-sm text-base-content/70">{open.note}</p>}
         </div>
         {canEdit && (
           <div className="flex flex-wrap gap-2">
             <button type="button" className="btn btn-primary btn-sm" disabled={back.isPending} onClick={() => back.mutate(open.id)}>
               <span className="icon-[tabler--check] size-4" />
-              {open.direction === "lent" ? "It's back" : "Given back"}
+              {open.direction === "lent" ? translateText("It's back") : translateText("Given back")}
             </button>
             <button type="button" className="btn btn-soft btn-sm" onClick={() => setEditing(open)}>
-              Edit
-            </button>
+              {translateText("Edit")}</button>
           </div>
         )}
         {back.isError && <p className="text-sm text-error">{back.error.message}</p>}
@@ -142,87 +143,79 @@ function LoanDialog({
     });
   }
   return (
-    <Modal id="loan" title={loan ? `${itemName}: ${lent ? "lent" : "borrowed"}` : `Lend or borrow ${itemName}`} onClose={onClose}>
+    <Modal id="loan" title={loan ? translateText("{v0}: {v1}", { v0: itemName, v1: lent ? translateText("Lent") : translateText("Borrowed") }) : translateText("Lend or borrow {v0}", { v0: itemName })} onClose={onClose}>
       <form className="flex flex-col gap-4" onSubmit={onSubmit}>
         {!loan && (
           <fieldset className="flex flex-wrap gap-2">
-            <legend className="label-text mb-2">This is</legend>
+            <legend className="label-text mb-2">{translateText("This is")}</legend>
             {(["lent", "borrowed"] as const).map((d) => (
               <label key={d} className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-field border px-3 ${direction === d ? "border-primary bg-primary/10" : "border-base-content/15"}`}>
                 <input type="radio" name="direction" className="radio radio-primary radio-sm" checked={direction === d} onChange={() => setDirection(d)} />
-                {d === "lent" ? "Mine, lent to someone" : "Someone's, borrowed by us"}
+                {d === "lent" ? translateText("Mine, lent to someone") : translateText("Someone's, borrowed by us")}
               </label>
             ))}
           </fieldset>
         )}
         <div>
           <label className="label-text" htmlFor="loan-person">
-            {lent ? "Who has it" : "Whose it is"}
+            {lent ? translateText("Who has it") : translateText("Whose it is")}
           </label>
-          <input id="loan-person" name="person" className="input" required maxLength={80} defaultValue={loan?.person} placeholder="e.g. Sam next door" autoFocus />
+          <input id="loan-person" name="person" className="input" required maxLength={80} defaultValue={loan?.person} placeholder={translateText("e.g. Sam next door")} autoFocus />
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="label-text" htmlFor="loan-since">
-              Since
-            </label>
+              {translateText("Since")}</label>
             <input id="loan-since" name="since" type="date" className="input" defaultValue={loan?.since ?? today()} max={today()} required />
           </div>
           <div>
             <label className="label-text" htmlFor="loan-due">
-              Due back
-            </label>
+              {translateText("Due back")}</label>
             <input id="loan-due" name="due" type="date" className="input" defaultValue={loan?.dueOn ?? ""} />
           </div>
         </div>
         {lent && (
           <div className="rounded-box bg-base-200 p-3">
             <label className="label-text" htmlFor="loan-email">
-              Their email, to remind them (optional)
-            </label>
-            <input id="loan-email" name="email" type="email" className="input" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="sam@example.com" maxLength={320} />
+              {translateText("Their email, to remind them (optional)")}</label>
+            <input id="loan-email" name="email" type="email" className="input" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={translateText("sam@example.com")} maxLength={320} />
             {email.trim() && (
               <div className="mt-3">
                 <label className="label-text" htmlFor="loan-remind">
-                  Remind them
-                </label>
+                  {translateText("Remind them")}</label>
                 <select id="loan-remind" name="remind" className="select" defaultValue={loan?.remindEvery ?? "2weeks"}>
-                  <option value="">Don't</option>
-                  <option value="week">Every week</option>
-                  <option value="2weeks">Every 2 weeks</option>
-                  <option value="month">Every month</option>
+                  <option value="">{translateText("Don't")}</option>
+                  <option value="week">{translateText("Every week")}</option>
+                  <option value="2weeks">{translateText("Every 2 weeks")}</option>
+                  <option value="month">{translateText("Every month")}</option>
                 </select>
               </div>
             )}
             <p className="mt-2 text-sm text-base-content/70">
               {canEmail
-                ? "A friendly email that it's still with them — from the due date if there is one — with a link to say it's back or to stop the reminders."
-                : "Ferret can't send email yet (whoever runs it sets MAIL_URL), so no reminders go until it can."}
+                ? translateText("A friendly email that it's still with them — from the due date if there is one — with a link to say it's back or to stop the reminders.")
+                : translateText("Ferret can't send email yet (whoever runs it sets MAIL_URL), so no reminders go until it can.")}
             </p>
           </div>
         )}
         <div>
           <label className="label-text" htmlFor="loan-note">
-            Note
-          </label>
-          <input id="loan-note" name="note" className="input" maxLength={1000} defaultValue={loan?.note ?? ""} placeholder="optional" />
+            {translateText("Note")}</label>
+          <input id="loan-note" name="note" className="input" maxLength={1000} defaultValue={loan?.note ?? ""} placeholder={translateText("optional")} />
         </div>
         {loan && (
           <div>
-            <button type="button" className="btn btn-text btn-error btn-sm" disabled={remove.isPending} onClick={() => window.confirm("Remove this loan? (Use “It's back” when it's back.)") && remove.mutate()}>
-              Remove — it was a mistake
-            </button>
+            <button type="button" className="btn btn-text btn-error btn-sm" disabled={remove.isPending} onClick={() => window.confirm(translateText("Remove this loan? (Use “It's back” when it's back.)")) && remove.mutate()}>
+              {translateText("Remove — it was a mistake")}</button>
           </div>
         )}
         {(save.error ?? remove.error) && <div className="alert alert-soft alert-error">{(save.error ?? remove.error)!.message}</div>}
         <DialogActions>
           <button type="button" className="btn btn-secondary btn-soft" onClick={onClose}>
-            Cancel
-          </button>
+            {translateText("Cancel")}</button>
           <button type="submit" className="btn btn-primary" disabled={save.isPending}>
             {save.isPending && <span className="loading loading-spinner loading-sm" />}
-            Save
-          </button>
+            {translateText("Save")}</button>
         </DialogActions>
       </form>
     </Modal>
@@ -237,18 +230,18 @@ export function Loans({ householdId }: { householdId: string }) {
   const back = useMutation({ mutationFn: api.loanReturned, onSuccess: refresh });
   const all = [...(loans.data?.data ?? [])].sort((a, b) => Number(b.overdue) - Number(a.overdue) || (a.dueOn ?? "9999").localeCompare(b.dueOn ?? "9999"));
   const groups = [
-    { title: "Lent out", list: all.filter((l) => l.direction === "lent") },
-    { title: "Borrowed", list: all.filter((l) => l.direction === "borrowed") },
+    { title: translateText("Lent out"), list: all.filter((l) => l.direction === "lent") },
+    { title: translateText("Borrowed"), list: all.filter((l) => l.direction === "borrowed") },
   ];
   return (
     <div className="min-h-dvh bg-base-200">
       <nav className="navbar sticky top-0 z-10 border-b border-base-300 bg-base-100/85 backdrop-blur-md px-4">
         <div className="navbar-start w-full min-w-0 items-center gap-2">
-          <a href="#/" className="btn btn-text btn-sm btn-square" aria-label="Back">
+          <a href="#/" className="btn btn-text btn-sm btn-square" aria-label={translateText("Back")}>
             <span className="icon-[tabler--arrow-left] size-5" />
           </a>
-          <h1 className="truncate text-lg font-semibold">Lent &amp; borrowed</h1>
-          <HelpLink page="guide/lending.html" label="Lending" />
+          <h1 className="truncate text-lg font-semibold">{translateText("Lent & borrowed")}</h1>
+          <HelpLink page="guide/lending.html" label={translateText("Lending")} />
         </div>
         <BarSearch />
       </nav>
@@ -258,11 +251,9 @@ export function Loans({ householdId }: { householdId: string }) {
           <div className="card">
             <div className="card-body items-center gap-3 text-center">
               <span className="icon-[tabler--arrows-exchange] size-10 text-primary" />
-              <h2 className="text-lg font-semibold">Nothing's out</h2>
+              <h2 className="text-lg font-semibold">{translateText("Nothing's out")}</h2>
               <p className="max-w-sm text-sm text-base-content/70">
-                Lend something from its page (Lend or borrow…) and it's listed here until it's back — with a reminder email to whoever has it, if
-                you like.
-              </p>
+                {translateText("Lend something from its page (Lend or borrow…) and it's listed here until it's back — with a reminder email to whoever has it, if you like.")}</p>
             </div>
           </div>
         )}
@@ -281,13 +272,13 @@ export function Loans({ householdId }: { householdId: string }) {
                           <span className="block truncate font-medium">{l.itemName}</span>
                           <span className={`block text-sm ${l.overdue ? "text-warning" : "text-base-content/70"}`}>
                             {loanLine(l)}
-                            {l.overdue ? " · overdue" : ""}
-                            {l.borrowerReturnedAt ? ` · ${l.person} says it's back` : ""}
+                            {l.overdue ? translateText(" · overdue") : ""}
+                            {l.borrowerReturnedAt ? translateText(" · {v0} says it's back", { v0: l.person }) : ""}
                           </span>
                         </a>
                         {canEdit && (
                           <button type="button" className="btn btn-soft btn-sm" disabled={back.isPending} onClick={() => back.mutate(l.id)}>
-                            {l.direction === "lent" ? "It's back" : "Given back"}
+                            {l.direction === "lent" ? translateText("It's back") : translateText("Given back")}
                           </button>
                         )}
                       </li>
@@ -319,27 +310,21 @@ export function Borrower({ token }: { token: string }) {
           {view.isError && <p>{view.error.message}</p>}
           {v && (
             <>
-              <h1 className="text-xl font-semibold">
-                Hi {v.person} — you have {v.owner}'s {v.itemName}
-              </h1>
-              <p className="text-base-content/80">
-                {v.owner} lent it to you on {shortDate(v.since)}
-                {v.dueOn ? `, to bring back by ${shortDate(v.dueOn)}` : ""}.
+              <h1 className="text-xl font-semibold">{tr("Hi {v0} — you have {v1}'s {v2}", { v0: v.person, v1: v.owner, v2: v.itemName })}</h1>
+              <p className="text-base-content/80">{tr("{v0} lent it to you on {v1}", { v0: v.owner, v1: shortDate(v.since) })}{v.dueOn ? translateText(", to bring back by {v0}", { v0: shortDate(v.dueOn) }) : ""}.
               </p>
               {v.returned || v.reportedBack ? (
-                <div className="alert alert-soft alert-success">Thanks — {v.owner} knows it's back. No more reminders.</div>
+                <div className="alert alert-soft alert-success">{tr("Thanks — {v0} knows it's back. No more reminders.", { v0: v.owner })}</div>
               ) : (
                 <div className="flex flex-col gap-2">
                   <button type="button" className="btn btn-primary" disabled={back.isPending} onClick={() => back.mutate()}>
                     <span className="icon-[tabler--check] size-5" />
-                    I've given it back
-                  </button>
+                    {translateText("I've given it back")}</button>
                   {v.stopped ? (
-                    <p className="text-sm text-base-content/70">No more reminders will be sent.</p>
+                    <p className="text-sm text-base-content/70">{translateText("No more reminders will be sent.")}</p>
                   ) : (
                     <button type="button" className="btn btn-soft" disabled={stop.isPending} onClick={() => stop.mutate()}>
-                      Stop these reminders
-                    </button>
+                      {translateText("Stop these reminders")}</button>
                   )}
                 </div>
               )}

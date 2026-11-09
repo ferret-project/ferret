@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * "Are you a person?" on the sign-up form (a Turnstile widget, when the server has one; a home Ferret has none). The
  * server says when there is one (/auth-options `humanCheck`); its widget hands back a one-use token, sent with the
@@ -25,10 +26,10 @@ function loadTurnstile() {
     const script = document.createElement("script");
     script.src = SCRIPT;
     script.async = true;
-    script.onload = () => (window.turnstile ? resolve(window.turnstile) : reject(new Error("Turnstile didn't load")));
+    script.onload = () => (window.turnstile ? resolve(window.turnstile) : reject(new Error(translateText("Turnstile didn't load"))));
     script.onerror = () => {
       loading = undefined;
-      reject(new Error("Turnstile didn't load"));
+      reject(new Error(translateText("Turnstile didn't load")));
     };
     document.head.append(script);
   });

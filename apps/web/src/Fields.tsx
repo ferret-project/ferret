@@ -1,6 +1,8 @@
+import { t as translateText } from "./i18n";
 /** Extra fields, as categories and item templates define them: the editor, and keys made from their names. */
 import type { CategoryField } from "@ferret/shared";
-import { categoryFieldTypes } from "@ferret/shared/utils";
+import { currentLanguage } from "./i18n";
+import { enumLabel, categoryFieldTypes } from "@ferret/shared/utils";
 
 const slug = (label: string) =>
   label
@@ -31,25 +33,25 @@ export function FieldsEditor(props: { legend: string; hint: string; fields: Cate
       <p className="text-sm text-base-content/70">{props.hint}</p>
       {fields.map((f, i) => (
         <div key={i} className="flex flex-wrap items-center gap-2">
-          <input className="input min-w-32 flex-1" aria-label="Field name" placeholder="Field name" value={f.label} maxLength={60} onChange={(e) => setField(i, { label: e.target.value })} />
-          <select className="select w-28" aria-label="Field type" value={f.type} onChange={(e) => setField(i, { type: e.target.value as CategoryField["type"] })}>
+          <input className="input min-w-32 flex-1" aria-label={translateText("Field name")} placeholder={translateText("Field name")} value={f.label} maxLength={60} onChange={(e) => setField(i, { label: e.target.value })} />
+          <select className="select w-28" aria-label={translateText("Field type")} value={f.type} onChange={(e) => setField(i, { type: e.target.value as CategoryField["type"] })}>
             {categoryFieldTypes.map((t) => (
               <option key={t} value={t}>
-                {t}
+                {enumLabel(t, currentLanguage())}
               </option>
             ))}
           </select>
           {f.type === "number" && (
-            <input className="input w-20" aria-label="Unit" placeholder="unit" value={f.unit ?? ""} maxLength={12} onChange={(e) => setField(i, { unit: e.target.value || undefined })} />
+            <input className="input w-20" aria-label={translateText("Unit")} placeholder={translateText("unit")} value={f.unit ?? ""} maxLength={12} onChange={(e) => setField(i, { unit: e.target.value || undefined })} />
           )}
-          <button type="button" className="btn btn-text btn-sm btn-circle" aria-label={`Remove field ${f.label}`} onClick={() => onChange(fields.filter((_, j) => j !== i))}>
+          <button type="button" className="btn btn-text btn-sm btn-circle" aria-label={translateText("Remove field {v0}", { v0: f.label })} onClick={() => onChange(fields.filter((_, j) => j !== i))}>
             <span className="icon-[tabler--x] size-4" />
           </button>
           {f.type === "choice" && (
             <input
               className="input w-full"
-              aria-label="Choices"
-              placeholder="Choices, separated by commas"
+              aria-label={translateText("Choices")}
+              placeholder={translateText("Choices, separated by commas")}
               value={(f.options ?? []).join(", ")}
               onChange={(e) => setField(i, { options: e.target.value.split(",").map((o) => o.trimStart()) })}
             />
@@ -59,8 +61,7 @@ export function FieldsEditor(props: { legend: string; hint: string; fields: Cate
       {fields.length < props.max && (
         <button type="button" className="btn btn-soft btn-primary btn-sm" onClick={() => onChange([...fields, { key: "", label: "", type: "text" }])}>
           <span className="icon-[tabler--plus] size-4" />
-          Add a field
-        </button>
+          {translateText("Add a field")}</button>
       )}
     </fieldset>
   );

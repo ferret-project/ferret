@@ -1,3 +1,6 @@
+import { tn } from "./i18n";
+import { t as translateText } from "./i18n";
+import { tr } from "./i18n";
 /**
  * Import from Home Assistant: its address and a long-lived token (used once, for this read — never stored; the
  * address is remembered on this device), then:
@@ -55,31 +58,24 @@ export function ImportHomeAssistant({ householdId }: { householdId: string }) {
     <section className="card">
       <form className="card-body gap-4" onSubmit={onSubmit}>
         <p className="text-base-content/80">
-          Ferret reads Home Assistant's rooms and devices once — the appliances, TVs, speakers, thermostats and network gear it knows —
-          and you choose which become items. Nothing is changed in Home Assistant.
-        </p>
+          {translateText("Ferret reads Home Assistant's rooms and devices once — the appliances, TVs, speakers, thermostats and network gear it knows — and you choose which become items. Nothing is changed in Home Assistant.")}</p>
         <div>
           <label className="label-text" htmlFor="ha-url">
-            Home Assistant's address
-          </label>
+            {translateText("Home Assistant's address")}</label>
           <input id="ha-url" className="input" type="url" inputMode="url" required value={url} onChange={(e) => setUrl(e.target.value)} placeholder="http://homeassistant.local:8123" autoComplete="url" />
         </div>
         <div>
           <label className="label-text" htmlFor="ha-token">
-            Long-lived access token
-          </label>
+            {translateText("Long-lived access token")}</label>
           <input id="ha-token" className="input font-mono" type="password" required value={token} onChange={(e) => setToken(e.target.value)} autoComplete="off" spellCheck={false} />
           <p className="mt-1 text-sm text-base-content/70">
-            In Home Assistant: your profile → Security → Long-lived access tokens → Create token (an administrator's). Ferret uses it for
-            this one read and doesn't keep it — delete the token in Home Assistant afterwards if you like.
-          </p>
+            {translateText("In Home Assistant: your profile → Security → Long-lived access tokens → Create token (an administrator's). Ferret uses it for this one read and doesn't keep it — delete the token in Home Assistant afterwards if you like.")}</p>
         </div>
         {read.isError && <div className="alert alert-soft alert-error">{read.error.message}</div>}
         <div>
           <button type="submit" className="btn btn-primary" disabled={read.isPending}>
             {read.isPending ? <span className="loading loading-spinner loading-sm" /> : <span className="icon-[tabler--plug-connected] size-5" />}
-            Read devices
-          </button>
+            {translateText("Read devices")}</button>
         </div>
       </form>
     </section>
@@ -93,10 +89,10 @@ type FloorTarget = { kind: "home" } | { kind: "own" } | { kind: "property"; id: 
 
 /** Areas people use for "not a room" (e.g. "ignore", "Other"): unticked to start with. */
 const NOT_A_ROOM = /^(ignore|other|none|unassigned|misc)$/i;
-const FIELD_NAMES: Record<HaChange["field"], string> = { name: "Name", brand: "Maker", model: "Model", serialNumber: "Serial number", area: "Room" };
+const FIELD_NAMES: Record<HaChange["field"], string> = { get name() { return translateText("Name"); }, get brand() { return translateText("Maker"); }, get model() { return translateText("Model"); }, get serialNumber() { return translateText("Serial number"); }, get area() { return translateText("Room"); } };
 
 const HaSteps = ({ current }: { current: number }) => (
-  <Steps label="Import steps" steps={[{ label: "Connect" }, { label: "Choose rooms and things" }, { label: "Import" }]} current={current} />
+  <Steps label={translateText("Import steps")} steps={[{ label: "Connect" }, { label: "Choose rooms and things" }, { label: "Import" }]} current={current} />
 );
 
 function flatten(nodes: LocationNode[], out: LocationNode[] = []) {
@@ -119,7 +115,7 @@ function Choose({ householdId, view, onBack }: { householdId: string; view: HaRe
   const usual = [...roomsIn.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
   const [homeId, setHomeId] = useState<string | null>(null);
   const home = properties.find((p) => p.id === homeId) ?? properties.find((p) => p.id === usual) ?? properties[0];
-  const [newHome, setNewHome] = useState("Home");
+  const [newHome, setNewHome] = useState(translateText("Home"));
   const [byFloor, setByFloor] = useState(view.floors.length > 0);
   const [floorTargets, setFloorTargets] = useState<Record<string, FloorTarget>>({});
   const [choices, setChoices] = useState<Record<string, AreaChoice>>({});
@@ -180,7 +176,7 @@ function Choose({ householdId, view, onBack }: { householdId: string; view: HaRe
     return c !== "mapped" && c.mode !== "none";
   });
   const takenCount = changed.reduce((n, d) => n + d.changes.filter((c) => takeChanges.has(`${d.id}:${c.field}`) && canTake(d, c)).length, 0);
-  const floorsShown = [...view.floors, { id: "", name: "No floor", level: 99, propertyId: null }].filter((f) => view.areas.some((a) => (a.floorId ?? "") === f.id));
+  const floorsShown = [...view.floors, { id: "", name: translateText("No floor"), level: 99, propertyId: null }].filter((f) => view.areas.some((a) => (a.floorId ?? "") === f.id));
 
   function canTake(d: HaDevice, c: HaChange) {
     return c.field !== "area" || willHavePlace(d.areaId);
@@ -201,10 +197,10 @@ function Choose({ householdId, view, onBack }: { householdId: string; view: HaRe
       brand: d.manufacturer,
       model: d.model,
       serialNumber: d.serialNumber,
-      notes: `From Home Assistant${d.integration ? ` (${d.integration})` : ""}`,
+      notes: translateText("From Home Assistant{v0}", { v0: d.integration ? ` (${d.integration})` : "" }),
       // Its area even when that's left out (no place): remembered, so a re-import knows it hasn't moved.
       haAreaId: d.areaId,
-      links: d.configurationUrl ? [{ url: d.configurationUrl, label: "Its settings page" }] : undefined,
+      links: d.configurationUrl ? [{ url: d.configurationUrl, label: translateText("Its settings page") }] : undefined,
       haDeviceId: d.id,
     };
   }
@@ -212,7 +208,7 @@ function Choose({ householdId, view, onBack }: { householdId: string; view: HaRe
   /** Properties made as needed (the home, a floor of its own), then one part per property. */
   async function parts(): Promise<ImportPart[]> {
     const made = new Map<string, string>();
-    const homeProperty = home?.id ?? (await api.createProperty({ name: newHome.trim() || "Home" })).id;
+    const homeProperty = home?.id ?? (await api.createProperty({ name: newHome.trim() || translateText("Home") })).id;
     const propertyFor = async (floorId: string | null) => {
       const t = floorTarget(floorId);
       if (t.kind === "home") return homeProperty;
@@ -275,22 +271,21 @@ function Choose({ householdId, view, onBack }: { householdId: string; view: HaRe
         <span className="min-w-0 flex-1">
           <span className="block truncate font-medium">{d.name}</span>
           <span className="block truncate text-sm text-base-content/70">
-            {[[d.manufacturer, d.model].filter(Boolean).join(" "), d.integration, d.alsoIds.length ? `seen ${d.alsoIds.length + 1} times in HA` : null].filter(Boolean).join(" · ") || "\u00a0"}
+            {[[d.manufacturer, d.model].filter(Boolean).join(" "), d.integration, d.alsoIds.length ? translateText("seen {v0} times in HA", { v0: d.alsoIds.length + 1 }) : null].filter(Boolean).join(" · ") || "\u00a0"}
           </span>
         </span>
         {d.itemId && (
           <a href={itemHref(d.itemId)} className="badge badge-soft badge-success tap shrink-0">
-            In Ferret
-          </a>
+            {translateText("In Ferret")}</a>
         )}
       </label>
     </li>
   );
 
   const summary = [
-    newRooms.length && `${newRooms.length} ${newRooms.length === 1 ? "room" : "rooms"}`,
-    chosen.length && `${chosen.length} ${chosen.length === 1 ? "device" : "devices"}`,
-    takenCount && `${takenCount} ${takenCount === 1 ? "change" : "changes"}`,
+    newRooms.length && tn(newRooms.length, "{count} room", "{count} rooms"),
+    chosen.length && tn(chosen.length, "{count} device", "{count} devices"),
+    takenCount && tn(takenCount, "{count} change", "{count} changes"),
   ].filter(Boolean);
 
   return (
@@ -300,28 +295,23 @@ function Choose({ householdId, view, onBack }: { householdId: string; view: HaRe
       <section className="card">
         <div className="card-body gap-4">
           <div className="flex flex-wrap items-start justify-between gap-2">
-            <p className="min-w-0 flex-1 text-base-content/80">
-              {view.areas.length} rooms and {real.length} devices in Home Assistant
-              {view.hidden + virtual.length > 0 ? ` (and ${view.hidden + virtual.length} that are probably software or services)` : ""}.
+            <p className="min-w-0 flex-1 text-base-content/80">{tr("{v0} rooms and {v1} devices in Home Assistant", { v0: view.areas.length, v1: real.length })}{view.hidden + virtual.length > 0 ? translateText(" (and {v0} that are probably software or services)", { v0: view.hidden + virtual.length }) : ""}.
             </p>
             <button type="button" className="btn btn-text btn-sm" onClick={onBack}>
-              Start again
-            </button>
+              {translateText("Start again")}</button>
           </div>
           {places.data && !properties.length && (
             <div>
               <label className="label-text" htmlFor="ha-new-home">
-                Your home's name
-              </label>
+                {translateText("Your home's name")}</label>
               <input id="ha-new-home" className="input" value={newHome} onChange={(e) => setNewHome(e.target.value)} maxLength={120} />
-              <p className="mt-1 text-sm text-base-content/70">Ferret makes it, and the rooms go in it.</p>
+              <p className="mt-1 text-sm text-base-content/70">{translateText("Ferret makes it, and the rooms go in it.")}</p>
             </div>
           )}
           {properties.length > 1 && (
             <div>
               <label className="label-text" htmlFor="ha-property">
-                Rooms go in
-              </label>
+                {translateText("Rooms go in")}</label>
               <select id="ha-property" className="select" value={home?.id ?? ""} onChange={(e) => setHomeId(e.target.value)}>
                 {properties.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -334,7 +324,7 @@ function Choose({ householdId, view, onBack }: { householdId: string; view: HaRe
           {view.floors.length > 0 && (
             <label className="flex cursor-pointer items-center gap-3">
               <input type="checkbox" className="switch switch-primary" checked={byFloor} onChange={(e) => setByFloor(e.target.checked)} />
-              <span>New rooms go under their floor</span>
+              <span>{translateText("New rooms go under their floor")}</span>
             </label>
           )}
         </div>
@@ -344,11 +334,10 @@ function Choose({ householdId, view, onBack }: { householdId: string; view: HaRe
         <section className="card" aria-labelledby="ha-changes">
           <div className="card-body gap-3">
             <h2 id="ha-changes" className="card-title text-base">
-              Changed in Home Assistant since the last import
-            </h2>
+              {translateText("Changed in Home Assistant since the last import")}</h2>
             {changed.length > 0 && (
               <>
-                <p className="text-sm text-base-content/70">Ticked changes are made in Ferret; unticked ones are left as they are, and not offered again.</p>
+                <p className="text-sm text-base-content/70">{translateText("Ticked changes are made in Ferret; unticked ones are left as they are, and not offered again.")}</p>
                 <ul className="divide-y divide-base-content/10">
                   {changed.map((d) => (
                     <li key={d.id} className="py-2">
@@ -375,8 +364,8 @@ function Choose({ householdId, view, onBack }: { householdId: string; view: HaRe
                                   }}
                                 />
                                 <span className="min-w-0 text-sm">
-                                  {FIELD_NAMES[c.field]}: <span className="text-base-content/70 line-through">{c.ferret ?? "none"}</span> → {c.ha ?? "none"}
-                                  {!ok && <span className="block text-base-content/70">Tick its room under Rooms to move it there.</span>}
+                                  {FIELD_NAMES[c.field]}: <span className="text-base-content/70 line-through">{c.ferret ?? translateText("none")}</span> → {c.ha ?? translateText("none")}
+                                  {!ok && <span className="block text-base-content/70">{translateText("Tick its room under Rooms to move it there.")}</span>}
                                 </span>
                               </label>
                             </li>
@@ -390,10 +379,9 @@ function Choose({ householdId, view, onBack }: { householdId: string; view: HaRe
             )}
             {view.removed.length > 0 && (
               <details className="rounded-box bg-base-200 p-3">
-                <summary className="cursor-pointer font-medium">No longer in Home Assistant ({view.removed.length})</summary>
+                <summary className="cursor-pointer font-medium">{tr("No longer in Home Assistant ({v0})", { v0: view.removed.length })}</summary>
                 <p className="mt-1 text-sm text-base-content/70">
-                  Replaced, sold, or just taken out of Home Assistant? Open one and use Edit → No longer have it? if it's gone.
-                </p>
+                  {translateText("Replaced, sold, or just taken out of Home Assistant? Open one and use Edit → No longer have it? if it's gone.")}</p>
                 <ul className="mt-2 space-y-1">
                   {view.removed.map((r) => (
                     <li key={r.itemId}>
@@ -412,8 +400,7 @@ function Choose({ householdId, view, onBack }: { householdId: string; view: HaRe
       <section className="card" aria-labelledby="ha-rooms">
         <div className="card-body gap-3">
           <h2 id="ha-rooms" className="card-title text-base">
-            Rooms
-          </h2>
+            {translateText("Rooms")}</h2>
           {floorsShown.map((f) => {
             const t = floorTarget(f.id || null);
             const targetProp = targetProperty(t);
@@ -425,22 +412,20 @@ function Choose({ householdId, view, onBack }: { householdId: string; view: HaRe
                   {f.id && (
                     <select
                       className="select select-sm w-full sm:w-60"
-                      aria-label={`Where ${f.name}'s rooms go`}
+                      aria-label={translateText("Where {v0}'s rooms go", { v0: f.name })}
                       value={t.kind === "property" ? t.id : t.kind}
                       onChange={(e) => {
                         const v = e.target.value;
                         setFloorTargets({ ...floorTargets, [f.id]: v === "home" ? { kind: "home" } : v === "own" ? { kind: "own" } : { kind: "property", id: v } });
                       }}
                     >
-                      <option value="home">In {home?.name ?? (newHome.trim() || "Home")}</option>
+                      <option value="home">{translateText("In ")}{home?.name ?? (newHome.trim() || translateText("Home"))}</option>
                       {properties
                         .filter((p) => p.id !== home?.id)
                         .map((p) => (
-                          <option key={p.id} value={p.id}>
-                            In {p.name}
-                          </option>
+                          <option key={p.id} value={p.id}>{tr("In {v0}", { v0: p.name })}</option>
                         ))}
-                      <option value="own">Its own property, “{f.name}”</option>
+                      <option value="own">{tr("Its own property, “{v0}”", { v0: f.name })}</option>
                     </select>
                   )}
                 </div>
@@ -448,31 +433,31 @@ function Choose({ householdId, view, onBack }: { householdId: string; view: HaRe
                   {list.map((a) => {
                     const c = choiceFor(a.id);
                     const set = (next: AreaChoice) => setChoices({ ...choices, [a.id]: next });
-                    const where = t.kind === "own" ? `${f.name} (new property)` : (targetProp?.name ?? (newHome.trim() || "Home"));
+                    const where = t.kind === "own" ? translateText("{v0} (new property)", { v0: f.name }) : (targetProp?.name ?? (newHome.trim() || translateText("Home")));
                     return (
                       <li key={a.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2">
                         <div className="min-w-0 flex-1 basis-40">
                           <p className="truncate font-medium">{a.name}</p>
                           <p className="text-sm text-base-content/70">
                             {c === "mapped"
-                              ? `In Ferret: ${pathOf(a.locationId) ?? "a place"}`
+                              ? translateText("In Ferret: {v0}", { v0: pathOf(a.locationId) ?? translateText("a place") })
                               : c.mode === "new"
-                                ? `New place: ${where} › ${newPath(a.id)}`
+                                ? translateText("New place: {v0} › {v1}", { v0: where, v1: newPath(a.id) })
                                 : c.mode === "existing"
-                                  ? "Goes in a place you have"
-                                  : "Not a place in Ferret"}
+                                  ? translateText("Goes in a place you have")
+                                  : translateText("Not a place in Ferret")}
                           </p>
                         </div>
                         {c !== "mapped" && (
                           <select
                             className="select w-full sm:w-44"
-                            aria-label={`What ${a.name} becomes`}
+                            aria-label={translateText("What {v0} becomes", { v0: a.name })}
                             value={c.mode}
                             onChange={(e) => set(e.target.value === "existing" ? { mode: "existing", locationId: null } : { mode: e.target.value as "new" | "none" })}
                           >
-                            <option value="new">A new place</option>
-                            {targetProp && <option value="existing">A place I have</option>}
-                            <option value="none">Leave it out</option>
+                            <option value="new">{translateText("A new place")}</option>
+                            {targetProp && <option value="existing">{translateText("A place I have")}</option>}
+                            <option value="none">{translateText("Leave it out")}</option>
                           </select>
                         )}
                         {c !== "mapped" && c.mode === "existing" && targetProp && (
@@ -481,10 +466,10 @@ function Choose({ householdId, view, onBack }: { householdId: string; view: HaRe
                               householdId={householdId}
                               id={`ha-area-${a.id}`}
                               name={`area-${a.id}`}
-                              label="Which place"
+                              label={translateText("Which place")}
                               value={c.locationId}
                               onChange={(locationId) => set({ mode: "existing", locationId })}
-                              noneLabel="Pick a place"
+                              noneLabel={translateText("Pick a place")}
                               propertyId={targetProp.id}
                             />
                           </div>
@@ -502,9 +487,8 @@ function Choose({ householdId, view, onBack }: { householdId: string; view: HaRe
       <section className="card" aria-labelledby="ha-devices">
         <div className="card-body gap-3">
           <h2 id="ha-devices" className="card-title text-base">
-            Devices
-          </h2>
-          <input className="input" type="search" placeholder="Find a device, maker or integration" value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Find a device" />
+            {translateText("Devices")}</h2>
+          <input className="input" type="search" placeholder={translateText("Find a device, maker or integration")} value={filter} onChange={(e) => setFilter(e.target.value)} aria-label={translateText("Find a device")} />
           {[...groups.keys()].sort(byLevel).map((areaId) => {
             const list = groups.get(areaId)!;
             const open = list.filter((d) => !d.itemId);
@@ -512,10 +496,10 @@ function Choose({ householdId, view, onBack }: { householdId: string; view: HaRe
             return (
               <div key={areaId || "none"}>
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-base-content/10 pb-1 pt-3">
-                  <h3 className="font-semibold">{areaId === NO_AREA ? "No room in Home Assistant" : areas.get(areaId)!.name}</h3>
+                  <h3 className="font-semibold">{areaId === NO_AREA ? translateText("No room in Home Assistant") : areas.get(areaId)!.name}</h3>
                   {open.length > 0 && (
                     <button type="button" className="btn btn-text btn-xs" onClick={() => toggle(open.map((d) => d.id), !allOn)}>
-                      {allOn ? "Untick all" : "Tick all"}
+                      {allOn ? translateText("Untick all") : translateText("Tick all")}
                     </button>
                   )}
                 </div>
@@ -525,8 +509,8 @@ function Choose({ householdId, view, onBack }: { householdId: string; view: HaRe
           })}
           {virtual.filter(matches).length > 0 && (
             <details className="rounded-box bg-base-200 p-3">
-              <summary className="cursor-pointer font-medium">Probably not things ({virtual.filter(matches).length})</summary>
-              <p className="mt-1 text-sm text-base-content/70">Apps, services, integrations and Home Assistant's own bridges. Tick any that are real.</p>
+              <summary className="cursor-pointer font-medium">{tr("Probably not things ({v0})", { v0: virtual.filter(matches).length })}</summary>
+              <p className="mt-1 text-sm text-base-content/70">{translateText("Apps, services, integrations and Home Assistant's own bridges. Tick any that are real.")}</p>
               <ul className="divide-y divide-base-content/10">{virtual.filter(matches).map(deviceRow)}</ul>
             </details>
           )}
@@ -535,14 +519,14 @@ function Choose({ householdId, view, onBack }: { householdId: string; view: HaRe
 
       <div className="sticky bottom-[max(1rem,env(safe-area-inset-bottom))] z-10 flex flex-wrap items-center justify-end gap-3 rounded-box bg-base-100 p-3 shadow-md max-sm:bottom-20">
         {run.isError && <div className="w-full"><ImportStatus run={run} progress={progress} describe={() => ""} /></div>}
-        <span className="min-w-0 flex-1 text-sm text-base-content/70">{summary.length ? summary.join(", ") : changed.length ? "No changes ticked" : "Nothing new"}</span>
+        <span className="min-w-0 flex-1 text-sm text-base-content/70">{summary.length ? summary.join(", ") : changed.length ? translateText("No changes ticked") : translateText("Nothing new")}</span>
         <button
           type="button"
           className="btn btn-primary"
           disabled={!places.data || (!summary.length && !changed.length)}
-          onClick={() => run.mutate({ source: "homeassistant", name: "Home Assistant", parts, then: applyChanges })}
+          onClick={() => run.mutate({ source: "homeassistant", name: translateText("Home Assistant"), parts, then: applyChanges })}
         >
-          {summary.length ? "Import" : "Done"}
+          {summary.length ? translateText("Import") : translateText("Done")}
         </button>
       </div>
     </>

@@ -9,6 +9,8 @@ data/
 *.db-shm
 .DS_Store
 coverage/
+test-results/
+playwright-report/
 
 # Playwright MCP screenshots/snapshots
 .playwright-mcp/

@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * An item's history: everything the activity log says about it — added, each edit in words (lib/inventory.ts
  * describeChanges), moves, photos and documents, warranties and claims, maintenance done, stock used and added, pairing
@@ -10,7 +11,7 @@ import { type Caller, itemScope, notFound } from "./inventory";
 
 export async function itemHistory(v: Caller, itemId: string, page: { limit: number; offset: number }) {
   const [found] = await v.db.select({ id: item.id }).from(item).where(and(eq(item.id, itemId), itemScope(v, { gone: "include" })));
-  if (!found) throw notFound("Item");
+  if (!found) throw notFound(translateText("Item"));
   const rows = await v.db
     .select({ a: activity, by: user.name })
     .from(activity)

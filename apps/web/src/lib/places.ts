@@ -1,3 +1,6 @@
+import { tn } from "./../i18n";
+import { t as translateText } from "./../i18n";
+import { locale } from "./../i18n";
 import type { LocationNode, PlacesTree } from "@ferret/shared";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "./api";
@@ -24,9 +27,9 @@ export function findLocation(tree: PlacesTree | undefined, id: string) {
   }
 }
 
-const things = (n: number) => `${n.toLocaleString()} ${n === 1 ? "thing" : "things"}`;
+const things = (n: number) => tn(n, "{v0} thing", "{v0} things", { v0: n.toLocaleString(locale()) });
 
 /** "12 things (3 here)" — the "here" part only when some of them are in places inside it. */
 export function countLabel(n: LocationNode) {
-  return n.totalCount === n.itemCount ? things(n.totalCount) : `${things(n.totalCount)} (${n.itemCount.toLocaleString()} here)`;
+  return n.totalCount === n.itemCount ? things(n.totalCount) : translateText("{v0} ({v1} here)", { v0: things(n.totalCount), v1: n.itemCount.toLocaleString(locale()) });
 }

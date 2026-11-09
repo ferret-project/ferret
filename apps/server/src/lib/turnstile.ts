@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * "Are you a person?" on sign-up, by a Turnstile widget — for a server where anyone can make an account (and
  * so have a confirmation email sent to any address). Only with TURNSTILE_SITE_KEY + TURNSTILE_SECRET; a home Ferret
@@ -31,7 +32,7 @@ export class TurnstileCheck implements HumanCheck {
       signal: AbortSignal.timeout(10_000),
       body: new URLSearchParams({ secret: this.secret, response: token, ...(ip && { remoteip: ip }) }),
     });
-    if (!res.ok) throw new Error(`Turnstile siteverify answered ${res.status}`);
+    if (!res.ok) throw new Error(translateText("Turnstile siteverify answered {v0}", { v0: res.status }));
     const out = (await res.json()) as { success?: boolean; action?: string; hostname?: string; challenge_ts?: string };
     const issuedAt = out.challenge_ts ? Date.parse(out.challenge_ts) : NaN;
     return { success: out.success === true, action: out.action, hostname: out.hostname, issuedAt: Number.isNaN(issuedAt) ? undefined : issuedAt };
@@ -72,18 +73,18 @@ export const signUpHumanCheck = createMiddleware<AppEnv>(async (c, next) => {
   const check = c.var.deps.humanCheck;
   if (!check) return next();
   const token = c.req.header(TURNSTILE_HEADER);
-  if (!token || token.length > 2048) return refused("Tick the \"I'm a person\" check first.");
+  if (!token || token.length > 2048) return refused(translateText("Tick the \"I'm a person\" check first."));
   let result: Awaited<ReturnType<HumanCheck["verify"]>>;
   try {
     result = await check.verify(token, c.req.header("cf-connecting-ip"));
   } catch {
-    return refused("Couldn't check you're a person just now — try again in a moment.");
+    return refused(translateText("Couldn't check you're a person just now — try again in a moment."));
   }
   const hostnames = turnstileHostnames(c.var.config);
   const fresh = result.issuedAt !== undefined && Date.now() - result.issuedAt <= TOKEN_LIFE_MS;
   if (!result.success || !fresh || result.action !== SIGN_UP_ACTION || !result.hostname || !hostnames.has(result.hostname.toLowerCase())) {
-    return refused("That check didn't pass — try it again.");
+    return refused(translateText("That check didn't pass — try it again."));
   }
-  if (!(await firstUse(c.var.db, token))) return refused("That check was used already — tick it again.");
+  if (!(await firstUse(c.var.db, token))) return refused(translateText("That check was used already — tick it again."));
   await next();
 });

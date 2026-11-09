@@ -1,3 +1,7 @@
+import { tn } from "./i18n";
+import { locale } from "./i18n";
+import { t as translateText } from "./i18n";
+import { tr } from "./i18n";
 /**
  * #/import — bringing things in: a spreadsheet (ImportCsv.tsx: any CSV, with Ferret's own export and
  * Amazon's order history recognised) or Home Assistant's devices (ImportHomeAssistant.tsx). Both send rows to
@@ -19,21 +23,21 @@ const PART = 100;
 
 export function Import({ householdId, source }: { householdId: string; source: ImportSource | null }) {
   const canEdit = useCanEdit(householdId);
-  const title = source === "csv" ? "Import a spreadsheet" : source === "homeassistant" ? "Import from Home Assistant" : "Import";
+  const title = source === "csv" ? translateText("Import a spreadsheet") : source === "homeassistant" ? translateText("Import from Home Assistant") : translateText("Import");
   return (
     <div className="min-h-dvh bg-base-200">
       <nav className="navbar sticky top-0 z-10 border-b border-base-300 bg-base-100/85 backdrop-blur-md px-4">
         <div className="navbar-start w-full min-w-0 items-center gap-2">
-          <a href={source ? IMPORT_HREF : "#/"} className="btn btn-text btn-sm btn-square" aria-label="Back">
+          <a href={source ? IMPORT_HREF : "#/"} className="btn btn-text btn-sm btn-square" aria-label={translateText("Back")}>
             <span className="icon-[tabler--arrow-left] size-5" />
           </a>
           <h1 className="truncate text-lg font-semibold">{title}</h1>
-          <HelpLink page="guide/importing.html" label="Importing" />
+          <HelpLink page="guide/importing.html" label={translateText("Importing")} />
         </div>
       </nav>
       <main className="mx-auto flex max-w-3xl flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         {!canEdit ? (
-          <div className="alert alert-soft alert-info">You can look around, but not add things, in this household.</div>
+          <div className="alert alert-soft alert-info">{translateText("You can look around, but not add things, in this household.")}</div>
         ) : source === "csv" ? (
           <ImportCsv householdId={householdId} />
         ) : source === "homeassistant" ? (
@@ -55,14 +59,14 @@ function Choices() {
     {
       href: importHref("csv"),
       icon: "icon-[tabler--file-spreadsheet]",
-      title: "A spreadsheet (CSV)",
-      text: "Any list of things — you say which column is which. Ferret's own export and Amazon's order history are recognised.",
+      title: translateText("A spreadsheet (CSV)"),
+      text: translateText("Any list of things — you say which column is which. Ferret's own export and Amazon's order history are recognised."),
     },
     {
       href: importHref("homeassistant"),
       icon: "icon-[tabler--smart-home]",
-      title: "Home Assistant",
-      text: "The appliances, TVs, speakers, cameras and network gear it knows — with their maker, model and room.",
+      title: translateText("Home Assistant"),
+      text: translateText("The appliances, TVs, speakers, cameras and network gear it knows — with their maker, model and room."),
       // Only where the server can reach a Home Assistant.
       hidden: features?.homeAssistant === false,
     },
@@ -101,8 +105,7 @@ function RecentImports({ householdId }: { householdId: string }) {
     <section className="card" aria-labelledby="recent-imports">
       <div className="card-body gap-3">
         <h2 id="recent-imports" className="card-title text-base">
-          Recent imports
-        </h2>
+          {translateText("Recent imports")}</h2>
         <ul className="divide-y divide-base-content/10">
           {rows.map((b) => (
             <li key={b.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 py-3">
@@ -110,26 +113,22 @@ function RecentImports({ householdId }: { householdId: string }) {
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{b.name}</p>
                 <p className="text-sm text-base-content/70">
-                  {new Date(b.importedAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                  {new Date(b.importedAt).toLocaleDateString(locale(), { month: "short", day: "numeric", year: "numeric" })}
                   {b.by ? ` · ${b.by}` : ""} ·{" "}
-                  {b.undoneAt ? "undone" : `${b.items} ${b.items === 1 ? "thing" : "things"}`}
+                  {b.undoneAt ? translateText("undone") : tn(b.items, "{count} thing", "{count} things")}
                 </p>
               </div>
               {!b.undoneAt &&
                 (confirming === b.id ? (
                   <div className="flex flex-wrap items-center gap-2">
                     <button type="button" className="btn btn-error btn-sm" disabled={undo.isPending} onClick={() => undo.mutate(b.id)}>
-                      {undo.isPending && <span className="loading loading-spinner loading-xs" />}
-                      Undo — remove {b.items}
-                    </button>
+                      {undo.isPending && <span className="loading loading-spinner loading-xs" />}{tr("Undo — remove {v0}", { v0: b.items })}</button>
                     <button type="button" className="btn btn-text btn-sm" onClick={() => setConfirming(null)}>
-                      Keep
-                    </button>
+                      {translateText("Keep")}</button>
                   </div>
                 ) : (
                   <button type="button" className="btn btn-soft btn-sm" onClick={() => setConfirming(b.id)}>
-                    Undo…
-                  </button>
+                    {translateText("Undo…")}</button>
                 ))}
             </li>
           ))}
@@ -137,12 +136,8 @@ function RecentImports({ householdId }: { householdId: string }) {
         {undo.isError && <div className="alert alert-soft alert-error">{undo.error.message}</div>}
         {undo.data && (
           <p className="text-sm text-base-content/70">
-            {undo.data.removed} {undo.data.removed === 1 ? "thing" : "things"} moved to{" "}
-            <a href={DELETED_HREF} className="link tap">
-              Recently deleted
-            </a>
-            .
-          </p>
+            {undo.data.removed} {undo.data.removed === 1 ? translateText("thing") : translateText("things")}{tr(" moved to{v0}{v1}.", { v0: " ", v1: <a href={DELETED_HREF} className="link tap">
+              {translateText("Recently deleted")}</a> })}</p>
         )}
       </div>
     </section>
@@ -216,9 +211,9 @@ export function ImportStatus({
       <div className="card">
         <div className="card-body gap-3">
           <p className="font-medium">
-            {progress.total ? `Importing… ${progress.done} of ${progress.total}` : "Importing…"}
+            {progress.total ? translateText("Importing… {v0} of {v1}", { v0: progress.done, v1: progress.total }) : translateText("Importing…")}
           </p>
-          <progress className="progress progress-primary w-full" value={progress.done} max={progress.total} aria-label="Import progress" />
+          <progress className="progress progress-primary w-full" value={progress.done} max={progress.total} aria-label={translateText("Import progress")} />
         </div>
       </div>
     );
@@ -227,37 +222,34 @@ export function ImportStatus({
     return (
       <div className="alert alert-soft alert-error" role="alert">
         {run.error.message}
-        {progress && progress.done > 0 ? ` — the first ${progress.done} went in; see Recent imports to undo them.` : ""}
+        {progress && progress.done > 0 ? translateText(" — the first {v0} went in; see Recent imports to undo them.", { v0: progress.done }) : ""}
       </div>
     );
   }
   const r = run.data;
   if (!r) return null;
-  const made = [r.placesCreated && `${r.placesCreated} new ${r.placesCreated === 1 ? "place" : "places"}`, r.categoriesCreated && `${r.categoriesCreated} new ${r.categoriesCreated === 1 ? "category" : "categories"}`].filter(Boolean);
+  const made = [r.placesCreated && tn(r.placesCreated, "{count} new place", "{count} new places"), r.categoriesCreated && tn(r.categoriesCreated, "{count} new category", "{count} new categories")].filter(Boolean);
   return (
     <section className="card" aria-live="polite">
       <div className="card-body gap-3">
         <h2 className="card-title flex items-center gap-2">
           <span className="icon-[tabler--circle-check] size-6 text-success" />
           {r.created
-            ? `Imported ${r.created} ${r.created === 1 ? "thing" : "things"}`
+            ? tn(r.created, "Imported {count} thing", "Imported {count} things")
             : r.placesCreated
-              ? `Made ${r.placesCreated} ${r.placesCreated === 1 ? "place" : "places"}`
+              ? tn(r.placesCreated, "Made {count} place", "Made {count} places")
               : r.updated
-                ? "Updated from Home Assistant"
-                : "Nothing new to import"}
+                ? translateText("Updated from Home Assistant")
+                : translateText("Nothing new to import")}
         </h2>
-        {r.created > 0 && made.length > 0 && <p className="text-sm text-base-content/70">And made {made.join(" and ")}.</p>}
+        {r.created > 0 && made.length > 0 && <p className="text-sm text-base-content/70">{tr("And made {v0}.", { v0: made.join(" and ") })}</p>}
         {r.updated > 0 && (
           <p className="text-sm text-base-content/70">
-            {r.updated} {r.updated === 1 ? "thing" : "things"} changed to match Home Assistant.
-          </p>
+            {r.updated} {r.updated === 1 ? translateText("thing") : translateText("things")} {translateText("changed to match Home Assistant.")}</p>
         )}
         {r.skipped.length > 0 && (
           <details className="rounded-box bg-base-200 p-3">
-            <summary className="cursor-pointer font-medium">
-              {r.skipped.length} not imported
-            </summary>
+            <summary className="cursor-pointer font-medium">{tr("{v0} not imported", { v0: r.skipped.length })}</summary>
             <ul className="mt-2 space-y-1 text-sm">
               {r.skipped.slice(0, 200).map((s) => (
                 <li key={s.index}>
@@ -269,13 +261,11 @@ export function ImportStatus({
         )}
         <div className="flex flex-wrap gap-2">
           <a href={ITEMS_HREF} className="btn btn-primary">
-            See everything
-          </a>
+            {translateText("See everything")}</a>
           <a href={IMPORT_HREF} className="btn btn-soft">
-            Done
-          </a>
+            {translateText("Done")}</a>
         </div>
-        <p className="text-sm text-base-content/70">Not what you wanted? Undo it under Import → Recent imports.</p>
+        <p className="text-sm text-base-content/70">{translateText("Not what you wanted? Undo it under Import → Recent imports.")}</p>
       </div>
     </section>
   );

@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * The AI helpers that read words (sorting imports, filters from plain words, replacement estimates, typical upkeep):
  * the text model they use (the chat model, else the vision model's own text) and the plan gate each call goes through
@@ -12,7 +13,7 @@ export const textModelOf = (deps: Pick<Deps, "chat" | "ai">): TextModel | undefi
 /** For a person waiting (a request): the model, or a 503 when there's none; 402 when the plan's allowance is used up. */
 export async function requireTextModel(w: Who & { deps: Deps }) {
   const model = textModelOf(w.deps);
-  if (!model) throw new HTTPException(503, { message: "This needs an AI model, and none is set up on this server" });
+  if (!model) throw new HTTPException(503, { message: translateText("This needs an AI model, and none is set up on this server") });
   const plan = await requireAllowed(w, "ai.ask");
   return { model, counted: () => recordUsage(w, "ai.ask", 1, plan) };
 }

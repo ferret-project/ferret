@@ -1,3 +1,4 @@
+import { t as translateText, currentLanguage } from "./i18n";
 /**
  * Making a household: the first one (App.tsx `CreateHousehold`, when an account has none) and any after it
  * ("New household…" in the household switcher, the account menu and the More page).
@@ -22,8 +23,8 @@ export const HOUSEHOLD_NAME_MAX = 100;
 export async function createHousehold(name: string) {
   const slug = `${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${crypto.randomUUID().slice(0, 6)}`;
   const result = await authClient.organization.create({ name, slug });
-  if (result.error || !result.data) throw new Error(result.error?.message || "Could not create the household");
-  await api.setHouseholdSettings({ timeZone: deviceTimeZone(), currency: currencyForLocale(navigator.language) }, result.data.id).catch(() => {});
+  if (result.error || !result.data) throw new Error(result.error?.message || translateText("Could not create the household"));
+  await api.setHouseholdSettings({ timeZone: deviceTimeZone(), currency: currencyForLocale(navigator.language), language: currentLanguage() }, result.data.id).catch(() => {});
   return result.data;
 }
 
@@ -50,35 +51,31 @@ export function NewHouseholdDialog({ onClose }: { onClose: () => void }) {
       <form className="flex flex-col gap-6" onSubmit={onSubmit}>
         <div className="space-y-1 text-center">
           <h3 id="new-household-title" className="text-2xl font-semibold text-base-content">
-            New household
-          </h3>
-          <p className="text-base-content/80">A separate inventory — say, a holiday home or your parents' place. You can invite people to it later.</p>
+            {translateText("New household")}</h3>
+          <p className="text-base-content/80">{translateText("A separate inventory — say, a holiday home or your parents' place. You can invite people to it later.")}</p>
         </div>
         <div>
           <label className="label-text" htmlFor="new-household-name">
-            Household name
-          </label>
+            {translateText("Household name")}</label>
           <input
             id="new-household-name"
             name="name"
             className="input"
-            placeholder="e.g. The Lake House"
+            placeholder={translateText("e.g. The Lake House")}
             maxLength={HOUSEHOLD_NAME_MAX}
             required
             pattern=".*\S.*"
-            title="A name with at least one letter or number"
+            title={translateText("A name with at least one letter or number")}
             autoFocus
           />
         </div>
         {error && <div className="alert alert-soft alert-error">{error}</div>}
         <div className="flex flex-wrap items-center justify-end gap-4">
           <button type="button" className="btn btn-secondary btn-soft" onClick={onClose}>
-            Cancel
-          </button>
+            {translateText("Cancel")}</button>
           <button type="submit" className="btn btn-primary" disabled={busy}>
             {busy && <span className="loading loading-spinner loading-sm" />}
-            Create household
-          </button>
+            {translateText("Create household")}</button>
         </div>
       </form>
     </Modal>

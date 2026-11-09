@@ -1,3 +1,6 @@
+import { locale } from "./i18n";
+import { t as translateText } from "./i18n";
+import { tr } from "./i18n";
 /**
  * Warranty claims on an item's page: each warranty lists its claims with their
  * status, and the dialog files a new one or follows one to its end (claim
@@ -13,14 +16,14 @@ import { DialogActions, Modal } from "./Modal";
 import { money, currencySymbol, toCents, centsToInput } from "./lib/money";
 
 export const CLAIM_STATUS: Record<ClaimStatus, { label: string; badge: string }> = {
-  filed: { label: "Filed", badge: "badge-info" },
-  in_progress: { label: "In progress", badge: "badge-warning" },
-  approved: { label: "Approved", badge: "badge-success" },
-  denied: { label: "Denied", badge: "badge-error" },
-  resolved: { label: "Resolved", badge: "badge-neutral" },
+  filed: { get label() { return translateText("Filed"); }, badge: "badge-info" },
+  in_progress: { get label() { return translateText("In progress"); }, badge: "badge-warning" },
+  approved: { get label() { return translateText("Approved"); }, badge: "badge-success" },
+  denied: { get label() { return translateText("Denied"); }, badge: "badge-error" },
+  resolved: { get label() { return translateText("Resolved"); }, badge: "badge-neutral" },
 };
 
-const formatDate = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+const formatDate = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString(locale(), { month: "short", day: "numeric", year: "numeric" });
 
 /** A warranty's claims, under it on the item page. */
 export function ClaimList({ claims, onOpen }: { claims: WarrantyClaim[]; onOpen: (c: WarrantyClaim) => void }) {
@@ -34,7 +37,7 @@ export function ClaimList({ claims, onOpen }: { claims: WarrantyClaim[]; onOpen:
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm text-base-content">{c.problem}</span>
               <span className="block text-xs text-base-content/70">
-                {[`Filed ${formatDate(c.filedOn)}`, c.reference && `#${c.reference}`, c.resolution].filter(Boolean).join(" · ")}
+                {[translateText("Filed {v0}", { v0: formatDate(c.filedOn) }), c.reference && `#${c.reference}`, c.resolution].filter(Boolean).join(" · ")}
               </span>
             </span>
             <span className={`badge badge-soft badge-sm shrink-0 ${CLAIM_STATUS[c.status].badge}`}>{CLAIM_STATUS[c.status].label}</span>
@@ -88,33 +91,29 @@ export function ClaimDialog(props: { householdId: string; itemId: string; warran
   const closed = status === "denied" || status === "resolved";
   const provider = c?.warrantyProvider ?? props.warranty?.provider;
   return (
-    <Modal id="claim-dialog" title={c ? "Warranty claim" : `File a claim${provider ? ` with ${provider}` : ""}`} onClose={props.onClose}>
+    <Modal id="claim-dialog" title={c ? translateText("Warranty claim") : translateText("File a claim{v0}", { v0: provider ? translateText(" with {v0}", { v0: provider }) : "" })} onClose={props.onClose}>
       <form className="flex flex-col gap-6" onSubmit={onSubmit}>
         <fieldset className="space-y-4" disabled={!props.canEdit}>
           <div>
             <label className="label-text" htmlFor="claim-problem">
-              What went wrong
-            </label>
+              {translateText("What went wrong")}</label>
             <textarea id="claim-problem" name="problem" className="textarea" rows={2} defaultValue={c?.problem} maxLength={2000} required autoFocus={!c} />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label-text" htmlFor="claim-filed">
-                Filed on
-              </label>
+                {translateText("Filed on")}</label>
               <input id="claim-filed" name="filedOn" type="date" className="input" defaultValue={c?.filedOn ?? today()} max={today()} />
             </div>
             <div>
               <label className="label-text" htmlFor="claim-reference">
-                Claim number
-              </label>
-              <input id="claim-reference" name="reference" className="input" defaultValue={c?.reference ?? ""} maxLength={120} placeholder="from the provider" />
+                {translateText("Claim number")}</label>
+              <input id="claim-reference" name="reference" className="input" defaultValue={c?.reference ?? ""} maxLength={120} placeholder={translateText("from the provider")} />
             </div>
           </div>
           <div>
             <label className="label-text" htmlFor="claim-status">
-              Status
-            </label>
+              {translateText("Status")}</label>
             <select id="claim-status" className="select" value={status} onChange={(e) => setStatus(e.target.value as ClaimStatus)}>
               {claimStatuses.map((s) => (
                 <option key={s} value={s}>
@@ -127,21 +126,18 @@ export function ClaimDialog(props: { householdId: string; itemId: string; warran
             <>
               <div>
                 <label className="label-text" htmlFor="claim-resolution">
-                  What happened
-                </label>
-                <input id="claim-resolution" name="resolution" className="input" defaultValue={c?.resolution ?? ""} maxLength={2000} placeholder="e.g. Motor replaced under warranty" />
+                  {translateText("What happened")}</label>
+                <input id="claim-resolution" name="resolution" className="input" defaultValue={c?.resolution ?? ""} maxLength={2000} placeholder={translateText("e.g. Motor replaced under warranty")} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="label-text" htmlFor="claim-resolved">
-                    Closed on
-                  </label>
+                    {translateText("Closed on")}</label>
                   <input id="claim-resolved" name="resolvedOn" type="date" className="input" defaultValue={c?.resolvedOn ?? ""} />
                 </div>
                 <div>
                   <label className="label-text" htmlFor="claim-cost">
-                    It cost us
-                  </label>
+                    {translateText("It cost us")}</label>
                   <div className="input">
                     <span className="my-auto me-1 text-base-content/70">{currencySymbol()}</span>
                     <input
@@ -150,7 +146,7 @@ export function ClaimDialog(props: { householdId: string; itemId: string; warran
                       className="grow"
                       inputMode="decimal"
                       defaultValue={centsToInput(c?.costCents)}
-                      placeholder="deductible, shipping…"
+                      placeholder={translateText("deductible, shipping…")}
                     />
                   </div>
                 </div>
@@ -159,11 +155,10 @@ export function ClaimDialog(props: { householdId: string; itemId: string; warran
           )}
           <div>
             <label className="label-text" htmlFor="claim-notes">
-              Notes
-            </label>
-            <textarea id="claim-notes" name="notes" className="textarea" rows={2} defaultValue={c?.notes ?? ""} maxLength={5000} placeholder="Who you spoke to, what they asked for…" />
+              {translateText("Notes")}</label>
+            <textarea id="claim-notes" name="notes" className="textarea" rows={2} defaultValue={c?.notes ?? ""} maxLength={5000} placeholder={translateText("Who you spoke to, what they asked for…")} />
           </div>
-          {c?.costCents ? <p className="text-sm text-base-content/70">Cost so far: {money(c.costCents)}</p> : null}
+          {c?.costCents ? <p className="text-sm text-base-content/70">{tr("Cost so far: {v0}", { v0: money(c.costCents) })}</p> : null}
         </fieldset>
         {(save.isError || remove.isError) && <div className="alert alert-soft alert-error">{save.error?.message ?? remove.error?.message}</div>}
         {props.canEdit && c && (
@@ -172,21 +167,19 @@ export function ClaimDialog(props: { householdId: string; itemId: string; warran
               type="button"
               className="btn btn-text btn-error"
               disabled={remove.isPending}
-              onClick={() => window.confirm("Remove this claim?") && remove.mutate()}
+              onClick={() => window.confirm(translateText("Remove this claim?")) && remove.mutate()}
             >
               <span className="icon-[tabler--trash] size-5" />
-              Remove
-            </button>
+              {translateText("Remove")}</button>
           </div>
         )}
         {props.canEdit && (
           <DialogActions>
             <button type="button" className="btn btn-secondary btn-soft" onClick={props.onClose}>
-              Cancel
-            </button>
+              {translateText("Cancel")}</button>
             <button type="submit" className="btn btn-primary" disabled={save.isPending}>
               {save.isPending && <span className="loading loading-spinner loading-sm" />}
-              {c ? "Save" : "File claim"}
+              {c ? translateText("Save") : translateText("File claim")}
             </button>
           </DialogActions>
         )}

@@ -1,3 +1,4 @@
+import { t as translateText } from "./../lib/i18n";
 /**
  * Every background job and when the periodic ones run, for any entry point: server.ts (Node) registers the handlers
  * with its job runner and drives the periodic work with timers; another runtime drives the same schedule its own way.
@@ -40,6 +41,7 @@ import {
 } from "./security-alert";
 import { NEW_ACCOUNT_JOB, newAccountAlert } from "./new-account";
 import { UNLOCK_JOB, sendUnlockLink } from "./unlock";
+import { jobLanguage, withLanguage } from "../lib/i18n";
 
 const SERVICE_ALERT_JOB = "service-errors.alert";
 
@@ -140,7 +142,7 @@ export function jobSchedule({
     handlers[type] = async (payload, ctx) => {
       const started = Date.now();
       try {
-        await handler(payload, ctx);
+        await withLanguage(await jobLanguage(db, payload), () => handler(payload, ctx));
       } catch (err) {
         if (ctx.lastAttempt) await recordServiceError(db, "jobs", type, err, new Date(), { ms: Date.now() - started }).catch(() => {});
         throw err;

@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * Where you are in a few-step job (import a file, walk through a room): numbered steps joined by a line, the ones done
  * ticked (and links back, when they have one), the current one in the primary colour.
@@ -38,7 +39,7 @@ export function Steps(props: { label: string; steps: { label: string; href?: str
                   {text}
                 </>
               )}
-              <span className="sr-only">{done ? "(done)" : now ? "(current step)" : ""}</span>
+              <span className="sr-only">{done ? translateText("(done)") : now ? translateText("(current step)") : ""}</span>
             </li>
           );
         })}

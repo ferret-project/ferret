@@ -1,3 +1,6 @@
+import { locale } from "./i18n";
+import { t as translateText } from "./i18n";
+import { tr } from "./i18n";
 /**
  * #/duplicates — Possible duplicates (server: lib/duplicates.ts): pairs with the same serial number, the same barcode
  * and name, or descriptions that read nearly the same. Each pair side by side; "Merge…" compares them field by field,
@@ -31,11 +34,11 @@ export function Duplicates({ householdId }: { householdId: string }) {
     <div className="min-h-dvh bg-base-200">
       <nav className="navbar sticky top-0 z-10 border-b border-base-300 bg-base-100/85 px-4 backdrop-blur-md">
         <div className="navbar-start w-full min-w-0 items-center gap-2">
-          <a href="#/" className="btn btn-text btn-sm btn-square" aria-label="Back">
+          <a href="#/" className="btn btn-text btn-sm btn-square" aria-label={translateText("Back")}>
             <span className="icon-[tabler--arrow-left] size-5" />
           </a>
-          <h1 className="truncate text-lg font-semibold">Possible duplicates</h1>
-          <HelpLink page="guide/ai.html#possible-duplicates" label="Possible duplicates" />
+          <h1 className="truncate text-lg font-semibold">{translateText("Possible duplicates")}</h1>
+          <HelpLink page="guide/ai.html#possible-duplicates" label={translateText("Possible duplicates")} />
         </div>
         <BarSearch />
       </nav>
@@ -47,10 +50,9 @@ export function Duplicates({ householdId }: { householdId: string }) {
           <div className="card">
             <div className="card-body items-center gap-3 text-center">
               <span className="icon-[tabler--copy-check] size-10 text-primary" />
-              <h2 className="text-lg font-semibold">No duplicates found</h2>
+              <h2 className="text-lg font-semibold">{translateText("No duplicates found")}</h2>
               <p className="max-w-sm text-sm text-base-content/70">
-                Things with the same serial number, the same barcode and name, or descriptions that read nearly the same show up here.
-              </p>
+                {translateText("Things with the same serial number, the same barcode and name, or descriptions that read nearly the same show up here.")}</p>
             </div>
           </div>
         )}
@@ -71,12 +73,10 @@ export function Duplicates({ householdId }: { householdId: string }) {
               {canEdit && (
                 <div className="flex flex-wrap justify-end gap-2">
                   <button type="button" className="btn btn-text btn-sm" disabled={notDup.isPending} onClick={() => notDup.mutate(p)}>
-                    Not a duplicate
-                  </button>
+                    {translateText("Not a duplicate")}</button>
                   <button type="button" className="btn btn-primary btn-sm" onClick={() => setMerging(p)}>
                     <span className="icon-[tabler--arrow-merge] size-4" />
-                    Merge…
-                  </button>
+                    {translateText("Merge…")}</button>
                 </div>
               )}
             </div>
@@ -110,9 +110,9 @@ function Side({ side }: { side: DuplicateSide }) {
       <span className="min-w-0 text-sm">
         <span className="block truncate font-semibold text-base-content">{side.name}</span>
         {(side.brand || side.model) && <span className="block truncate text-base-content/80">{[side.brand, side.model].filter(Boolean).join(" ")}</span>}
-        {side.serialNumber && <span className="block truncate text-base-content/70">Serial {side.serialNumber}</span>}
+        {side.serialNumber && <span className="block truncate text-base-content/70">{tr("Serial {v0}", { v0: side.serialNumber })}</span>}
         {side.place && <span className="block truncate text-base-content/70">{side.place}</span>}
-        <span className="block text-base-content/70">Added {new Date(side.createdAt).toLocaleDateString()}</span>
+        <span className="block text-base-content/70">{tr("Added {v0}", { v0: new Date(side.createdAt).toLocaleDateString(locale()) })}</span>
       </span>
     </a>
   );
@@ -120,20 +120,20 @@ function Side({ side }: { side: DuplicateSide }) {
 
 /** Fields compared in the merge dialog, and how to show them. */
 const FIELDS: { key: keyof ItemListing; label: string; show?: (v: unknown) => string }[] = [
-  { key: "name", label: "Name" },
-  { key: "brand", label: "Brand" },
-  { key: "model", label: "Model" },
-  { key: "serialNumber", label: "Serial number" },
-  { key: "barcode", label: "Barcode" },
-  { key: "place", label: "Place" },
-  { key: "category", label: "Category" },
-  { key: "condition", label: "Condition" },
-  { key: "purchaseDate", label: "Bought" },
-  { key: "purchasePriceCents", label: "Price paid", show: (v) => money(Number(v), true) },
-  { key: "valueCents", label: "Value", show: (v) => money(Number(v), true) },
-  { key: "quantity", label: "Quantity" },
-  { key: "description", label: "Description" },
-  { key: "notes", label: "Notes" },
+  { key: "name", get label() { return translateText("Name"); } },
+  { key: "brand", get label() { return translateText("Brand"); } },
+  { key: "model", get label() { return translateText("Model"); } },
+  { key: "serialNumber", get label() { return translateText("Serial number"); } },
+  { key: "barcode", get label() { return translateText("Barcode"); } },
+  { key: "place", get label() { return translateText("Place"); } },
+  { key: "category", get label() { return translateText("Category"); } },
+  { key: "condition", get label() { return translateText("Condition"); } },
+  { key: "purchaseDate", get label() { return translateText("Bought"); } },
+  { key: "purchasePriceCents", get label() { return translateText("Price paid"); }, show: (v) => money(Number(v), true) },
+  { key: "valueCents", get label() { return translateText("Value"); }, show: (v) => money(Number(v), true) },
+  { key: "quantity", get label() { return translateText("Quantity"); } },
+  { key: "description", get label() { return translateText("Description"); } },
+  { key: "notes", get label() { return translateText("Notes"); } },
 ];
 /** The server's names for the fields where a place or category is shown by name. */
 const SERVER_FIELD: Partial<Record<keyof ItemListing, string>> = { place: "locationId", category: "categoryId" };
@@ -158,25 +158,25 @@ function MergeDialog({ pair, onClose, onMerged }: { pair: DuplicatePair; onClose
   const fills = kept && other ? FIELDS.filter((f) => !has(kept[f.key]) && has(other[f.key])) : [];
   const shown = (f: (typeof FIELDS)[number], it: ItemListing) => (f.show ? f.show(it[f.key]) : String(it[f.key]));
   return (
-    <Modal id="merge" title="Merge two things" onClose={onClose}>
+    <Modal id="merge" title={translateText("Merge two things")} onClose={onClose}>
       {(a.isPending || b.isPending) && <span className="loading loading-spinner mx-auto my-8 block text-primary" />}
       {(a.isError || b.isError) && <div className="alert alert-soft alert-error">{(a.error ?? b.error)!.message}</div>}
       {kept && other && (
         <div className="flex flex-col gap-4">
           <fieldset className="flex flex-col gap-2">
-            <legend className="mb-1 text-sm font-medium">Keep</legend>
+            <legend className="mb-1 text-sm font-medium">{translateText("Keep")}</legend>
             {(["a", "b"] as const).map((k) => (
               <label key={k} className="flex cursor-pointer items-center gap-3">
                 <input type="radio" className="radio radio-primary" name="keep" checked={keep === k} onChange={() => (setKeep(k), setTake(new Set()))} />
                 <span>
-                  {pair[k].name} <span className="text-sm text-base-content/70">(added {new Date(pair[k].createdAt).toLocaleDateString()})</span>
+                  {pair[k].name} <span className="text-sm text-base-content/70">{tr("(added {v0})", { v0: new Date(pair[k].createdAt).toLocaleDateString(locale()) })}</span>
                 </span>
               </label>
             ))}
           </fieldset>
           {differ.length > 0 && (
             <div className="flex flex-col gap-2">
-              <p className="text-sm font-medium">Where they differ, use:</p>
+              <p className="text-sm font-medium">{translateText("Where they differ, use:")}</p>
               {differ.map((f) => (
                 <div key={String(f.key)} className="flex flex-col gap-1 rounded-box border border-base-content/10 p-3">
                   <span className="text-sm text-base-content/70">{f.label}</span>
@@ -204,22 +204,15 @@ function MergeDialog({ pair, onClose, onMerged }: { pair: DuplicatePair; onClose
             </div>
           )}
           {fills.length > 0 && (
-            <p className="text-sm text-base-content/70">
-              From {other.name}, filling gaps: {fills.map((f) => f.label.toLowerCase()).join(", ")}.
-            </p>
+            <p className="text-sm text-base-content/70">{tr("From {v0}, filling gaps: {v1}.", { v0: other.name, v1: fills.map((f) => f.label.toLowerCase()).join(", ") })}</p>
           )}
-          <p className="text-sm text-base-content/70">
-            Photos, documents, warranties, maintenance, stock, labels, loans, tags and history all move to the one kept. {other.name} goes to
-            Recently deleted, and its old links lead here.
-          </p>
+          <p className="text-sm text-base-content/70">{tr("Photos, documents, warranties, maintenance, stock, labels, loans, tags and history all move to the one kept. {v0} goes to Recently deleted, and its old links lead here.", { v0: other.name })}</p>
           {merge.isError && <div className="alert alert-soft alert-error">{merge.error.message}</div>}
           <DialogActions>
             <button type="button" className="btn btn-text" onClick={onClose}>
-              Cancel
-            </button>
+              {translateText("Cancel")}</button>
             <button type="button" className="btn btn-primary" disabled={merge.isPending} onClick={() => merge.mutate()}>
-              Merge
-            </button>
+              {translateText("Merge")}</button>
           </DialogActions>
         </div>
       )}

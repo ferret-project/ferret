@@ -1,3 +1,4 @@
+import { t as translateText, LanguageSelector } from "./i18n";
 /**
  * The signed-out screens' frame (sign in, create an account, forgot / reset password, check your email, the two-step
  * code, an invitation, naming a household): the form on the left, and on a wide screen a panel on the right that says
@@ -8,8 +9,7 @@ import type { ReactNode } from "react";
 export function Logo({ className = "" }: { className?: string }) {
   return (
     <span className={`inline-flex items-center gap-2 font-bold tracking-tight ${className}`}>
-      <PawMark className="size-[1.4em] shrink-0" /> Ferret
-    </span>
+      <PawMark className="size-[1.4em] shrink-0" /> {translateText("Ferret")}</span>
   );
 }
 
@@ -27,10 +27,10 @@ export function PawMark({ className }: { className?: string }) {
 }
 
 const POINTS = [
-  { icon: "icon-[tabler--search]", text: "Find anything by what it is, what it's for, or a word on its receipt." },
-  { icon: "icon-[tabler--shield-check]", text: "Warranties, manuals and maintenance, with a reminder before they matter." },
-  { icon: "icon-[tabler--file-certificate]", text: "An insurance report ready the day you need one." },
-  { icon: "icon-[tabler--lock]", text: "Shared with your household, kept on your own server, files encrypted." },
+  { icon: "icon-[tabler--search]", get text() { return translateText("Find anything by what it is, what it's for, or a word on its receipt."); } },
+  { icon: "icon-[tabler--shield-check]", get text() { return translateText("Warranties, manuals and maintenance, with a reminder before they matter."); } },
+  { icon: "icon-[tabler--file-certificate]", get text() { return translateText("An insurance report ready the day you need one."); } },
+  { icon: "icon-[tabler--lock]", get text() { return translateText("Shared with your household, kept on your own server, files encrypted."); } },
 ];
 
 export function AuthLayout(props: {
@@ -45,6 +45,7 @@ export function AuthLayout(props: {
       <div className="flex items-center justify-center p-6 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:p-10">
         <div className="flex w-full max-w-sm flex-col gap-6">
           <Logo className="text-2xl text-primary" />
+          <LanguageSelector />
           <div className="flex flex-col gap-2">
             {props.icon && (
               <span className="mb-2 flex size-12 items-center justify-center rounded-box bg-primary/10 text-primary">
@@ -61,7 +62,7 @@ export function AuthLayout(props: {
         {/* A big, faint paw as the panel's picture. */}
         <PawMark className="pointer-events-none absolute -end-24 -bottom-24 size-[28rem] opacity-10" />
         <div className="relative flex max-w-md flex-col gap-8">
-          <p className="text-4xl font-semibold leading-tight">Find anything you own.</p>
+          <p className="text-4xl font-semibold leading-tight">{translateText("Find anything you own.")}</p>
           <ul className="flex flex-col gap-5">
             {POINTS.map((p) => (
               <li key={p.icon} className="flex items-start gap-3">

@@ -1,3 +1,6 @@
+import { locale } from "./i18n";
+import { t as translateText } from "./i18n";
+import { tr } from "./i18n";
 /**
  * Settings → Notifications → Other apps: reminders in ntfy, Pushover,
  * Telegram, email… Each is an Apprise URL the server sends through its
@@ -14,13 +17,13 @@ import { HelpLink } from "./HelpLink";
 
 /** Common services and how their Apprise URLs look (tap one to start from it). */
 const EXAMPLES = [
-  { service: "ntfy", url: "ntfys://ntfy.sh/your-topic" },
-  { service: "Pushover", url: "pover://user_key@app_token" },
-  { service: "Prowl", url: "prowl://api_key" },
-  { service: "Telegram", url: "tgram://bot_token/chat_id" },
-  { service: "Home Assistant", url: "hassios://homeassistant.local/long_lived_token" },
-  { service: "Email", url: "mailtos://user:app_password@gmail.com" },
-  { service: "Discord", url: "discord://webhook_id/webhook_token" },
+  { service: "ntfy", get url() { return "ntfys://ntfy.sh/your-topic"; } },
+  { get service() { return translateText("Pushover"); }, get url() { return "pover://user_key@app_token"; } },
+  { get service() { return translateText("Prowl"); }, get url() { return "prowl://api_key"; } },
+  { get service() { return translateText("Telegram"); }, get url() { return "tgram://bot_token/chat_id"; } },
+  { get service() { return translateText("Home Assistant"); }, get url() { return "hassios://homeassistant.local/long_lived_token"; } },
+  { get service() { return translateText("Email"); }, get url() { return "mailtos://user:app_password@gmail.com"; } },
+  { get service() { return translateText("Discord"); }, get url() { return "discord://webhook_id/webhook_token"; } },
 ] as const;
 
 const SERVICES_URL = "https://appriseit.com/services/";
@@ -44,34 +47,26 @@ export function Notifications({ householdId }: { householdId: string }) {
           <div className="min-w-0 flex-1 basis-64 space-y-1">
             <h2 id="other-apps-title" className="card-title flex items-center gap-2">
               <span className="icon-[tabler--send] size-5 text-primary" />
-              Other apps
-              <HelpLink page="guide/reminders.html#other-apps" label="Other apps" />
+              {translateText("Other apps")}<HelpLink page="guide/reminders.html#other-apps" label={translateText("Other apps")} />
             </h2>
-            <p className="text-sm text-base-content/70">
-              Get the same daily reminder in ntfy, Pushover, Telegram, email and{" "}
-              <a href={SERVICES_URL} target="_blank" rel="noreferrer" className="link link-primary">
-                100+ other apps
-              </a>
-              . Just for you.
-            </p>
+            <p className="text-sm text-base-content/70">{tr("Get the same daily reminder in ntfy, Pushover, Telegram, email and{v0}{v1}. Just for you.", { v0: " ", v1: <a href={SERVICES_URL} target="_blank" rel="noreferrer" className="link link-primary">
+                {translateText("100+ other apps")}</a> })}</p>
           </div>
           {enabled && (
             <button type="button" className="btn btn-primary btn-sm" onClick={() => setAdding(true)}>
               <span className="icon-[tabler--plus] size-4" />
-              Add
-            </button>
+              {translateText("Add")}</button>
           )}
         </div>
 
         {channels.isPending && <span className="loading loading-spinner text-primary" />}
         {channels.isError && <div className="alert alert-soft alert-error">{channels.error.message}</div>}
         {channels.data && !enabled && (
-          <p className="text-sm text-base-content/70">Not set up on this server yet (it needs the Apprise container and APPRISE_URL).</p>
+          <p className="text-sm text-base-content/70">{translateText("Not set up on this server yet (it needs the Apprise container and APPRISE_URL).")}</p>
         )}
         {channels.data && enabled && channels.data.data.length === 0 && (
           <div className="rounded-box border border-dashed border-base-content/20 p-6 text-center text-sm text-base-content/70">
-            Nothing yet. Add your ntfy topic, Pushover or anything else Apprise can send to.
-          </div>
+            {translateText("Nothing yet. Add your ntfy topic, Pushover or anything else Apprise can send to.")}</div>
         )}
         {channels.data && channels.data.data.length > 0 && (
           <ul className="space-y-2">
@@ -116,34 +111,31 @@ function ChannelRow({ channel, enabled, onChanged }: { channel: NotificationChan
         {error ? (
           <p className="text-sm text-error">{error}</p>
         ) : test.isSuccess ? (
-          <p className="text-sm text-success">Sent — check that it arrived.</p>
+          <p className="text-sm text-success">{translateText("Sent — check that it arrived.")}</p>
         ) : (
           <p className="text-sm text-base-content/70">
-            {channel.lastNotifiedOn ? `Last reminder ${formatDay(channel.lastNotifiedOn)}` : "No reminders sent yet"}
+            {channel.lastNotifiedOn ? translateText("Last reminder {v0}", { v0: formatDay(channel.lastNotifiedOn) }) : translateText("No reminders sent yet")}
           </p>
         )}
       </div>
       {confirming ? (
         <div className="flex shrink-0 gap-1 max-sm:w-full max-sm:justify-end">
           <button type="button" className="btn btn-error btn-sm" onClick={() => remove.mutate()} disabled={remove.isPending}>
-            Remove
-          </button>
+            {translateText("Remove")}</button>
           <button type="button" className="btn btn-text btn-sm" onClick={() => setConfirming(false)}>
-            Keep
-          </button>
+            {translateText("Keep")}</button>
         </div>
       ) : (
         <div className="flex shrink-0 items-center gap-1 max-sm:w-full max-sm:justify-end">
           {enabled && (
             <button type="button" className="btn btn-text btn-sm" disabled={test.isPending} onClick={() => test.mutate()}>
               {test.isPending && <span className="loading loading-spinner loading-xs" />}
-              Send a test
-            </button>
+              {translateText("Send a test")}</button>
           )}
           <button
             type="button"
             className="btn btn-text btn-sm btn-square btn-error"
-            aria-label={`Remove ${channel.name}`}
+            aria-label={translateText("Remove {v0}", { v0: channel.name })}
             onClick={() => setConfirming(true)}
           >
             <span className="icon-[tabler--trash] size-5" />
@@ -176,22 +168,20 @@ function AddChannelModal({ onClose, onAdded }: { onClose: () => void; onAdded: (
       <form className="flex flex-col gap-6" onSubmit={onSubmit}>
         <div className="space-y-1 text-center">
           <h3 id="new-notification-title" className="text-2xl font-semibold text-base-content">
-            Add an app
-          </h3>
-          <p className="text-base-content/80">Where should Ferret send your reminders?</p>
+            {translateText("Add an app")}</h3>
+          <p className="text-base-content/80">{translateText("Where should Ferret send your reminders?")}</p>
         </div>
 
         <div className="space-y-4">
           <div>
             <label className="label-text" htmlFor="notification-name">
-              Name
-            </label>
+              {translateText("Name")}</label>
             <div className="input">
               <span className="icon-[tabler--tag] my-auto me-3 size-5 shrink-0 text-base-content/80" />
               <input
                 id="notification-name"
                 className="grow"
-                placeholder="e.g. My phone (ntfy)"
+                placeholder={translateText("e.g. My phone (ntfy)")}
                 maxLength={60}
                 required
                 autoFocus
@@ -202,33 +192,28 @@ function AddChannelModal({ onClose, onAdded }: { onClose: () => void; onAdded: (
           </div>
           <div>
             <label className="label-text" htmlFor="notification-url">
-              Apprise URL
-            </label>
+              {translateText("Apprise URL")}</label>
             <div className="input">
               <span className="icon-[tabler--link] my-auto me-3 size-5 shrink-0 text-base-content/80" />
               <input
                 id="notification-url"
                 className="grow font-mono text-sm"
-                placeholder="ntfys://ntfy.sh/your-topic"
+                placeholder={"ntfys://ntfy.sh/your-topic"}
                 autoCapitalize="off"
                 autoCorrect="off"
                 spellCheck={false}
                 pattern="[a-zA-Z][a-zA-Z0-9+.\-]*://\S+"
-                title="An Apprise URL, like ntfys://ntfy.sh/your-topic"
+                title={translateText("An Apprise URL, like ntfys://ntfy.sh/your-topic")}
                 required
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
               />
             </div>
-            <p className="mt-1 text-xs text-base-content/70">
-              It holds your token, so Ferret keeps it encrypted and won't show it again.{" "}
-              <a href={SERVICES_URL} target="_blank" rel="noreferrer" className="link link-primary">
-                Every service's format
-              </a>
-            </p>
+            <p className="mt-1 text-xs text-base-content/70">{tr("It holds your token, so Ferret keeps it encrypted and won't show it again.{v0}{v1}", { v0: " ", v1: <a href={SERVICES_URL} target="_blank" rel="noreferrer" className="link link-primary">
+                {translateText("Every service's format")}</a> })}</p>
           </div>
           <div className="space-y-2">
-            <p className="text-sm text-base-content/70">Start from one of these:</p>
+            <p className="text-sm text-base-content/70">{translateText("Start from one of these:")}</p>
             <div className="flex flex-wrap gap-2">
               {EXAMPLES.map((ex) => (
                 <button
@@ -251,12 +236,10 @@ function AddChannelModal({ onClose, onAdded }: { onClose: () => void; onAdded: (
 
         <div className="flex flex-wrap items-center justify-end gap-4">
           <button type="button" className="btn btn-secondary btn-soft" onClick={onClose}>
-            Cancel
-          </button>
+            {translateText("Cancel")}</button>
           <button type="submit" className="btn btn-primary" disabled={add.isPending}>
             {add.isPending && <span className="loading loading-spinner loading-sm" />}
-            Add and send a test
-          </button>
+            {translateText("Add and send a test")}</button>
         </div>
       </form>
     </Modal>
@@ -264,4 +247,4 @@ function AddChannelModal({ onClose, onAdded }: { onClose: () => void; onAdded: (
 }
 
 const formatDay = (day: string) =>
-  new Date(`${day}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  new Date(`${day}T12:00:00`).toLocaleDateString(locale(), { month: "short", day: "numeric", year: "numeric" });

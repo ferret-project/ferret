@@ -1,3 +1,6 @@
+import { locale } from "./i18n";
+import { t as translateText } from "./i18n";
+import { tr } from "./i18n";
 /**
  * "Let AI fill in" (server: lib/ai-fill.ts): the household's switches (Settings → Household), the server's defaults
  * (Settings → Server), an item's card of what the AI filled in (Looks right / Undo), and the household-wide list
@@ -14,19 +17,19 @@ import { itemHref } from "./lib/route";
 import { BarSearch } from "./Nav";
 
 const LABELS: Record<string, string> = {
-  name: "Name",
-  brand: "Brand",
-  model: "Model",
-  serialNumber: "Serial number",
-  barcode: "Barcode",
-  purchaseDate: "Purchase date",
-  purchasePriceCents: "Price paid",
-  returnBy: "Return by",
-  warranty: "Warranty until",
+  get name() { return translateText("Name"); },
+  get brand() { return translateText("Brand"); },
+  get model() { return translateText("Model"); },
+  get serialNumber() { return translateText("Serial number"); },
+  get barcode() { return translateText("Barcode"); },
+  get purchaseDate() { return translateText("Purchase date"); },
+  get purchasePriceCents() { return translateText("Price paid"); },
+  get returnBy() { return translateText("Return by"); },
+  get warranty() { return translateText("Warranty until"); },
 };
 
 const show = (field: string, value: string | number) =>
-  field === "purchasePriceCents" ? money(Number(value), true) : /^\d{4}-\d{2}-\d{2}$/.test(String(value)) ? new Date(`${value}T00:00:00`).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : String(value);
+  field === "purchasePriceCents" ? money(Number(value), true) : /^\d{4}-\d{2}-\d{2}$/.test(String(value)) ? new Date(`${value}T00:00:00`).toLocaleDateString(locale(), { year: "numeric", month: "short", day: "numeric" }) : String(value);
 
 /** Settings → Household: which kinds fill in by themselves (owners and admins change them). */
 export function AiFillCard({ householdId, canManage }: { householdId: string; canManage: boolean }) {
@@ -43,13 +46,10 @@ export function AiFillCard({ householdId, canManage }: { householdId: string; ca
       <div className="card-body gap-3">
         <h2 id="ai-fill-title" className="card-title flex items-center gap-2">
           <span className="icon-[tabler--sparkles] size-5 text-primary" />
-          Let AI fill in
-          <HelpLink page="guide/ai.html#let-ai-fill-in" label="Let AI fill in" />
+          {translateText("Let AI fill in")}<HelpLink page="guide/ai.html#let-ai-fill-in" label={translateText("Let AI fill in")} />
         </h2>
         <p className="text-sm text-base-content/70">
-          Normally what the AI reads from photos and receipts waits as a suggestion for you to apply. Switch a kind on and it fills
-          in by itself — only empty fields, only what it read plainly, each marked until someone checks it, and each can be undone.
-        </p>
+          {translateText("Normally what the AI reads from photos and receipts waits as a suggestion for you to apply. Switch a kind on and it fills in by itself — only empty fields, only what it read plainly, each marked until someone checks it, and each can be undone.")}</p>
         <ul className="flex flex-col gap-3">
           {aiFillKinds.map((k) => {
             const chosen = s.aiFillChosen.includes(k);
@@ -70,17 +70,14 @@ export function AiFillCard({ householdId, canManage }: { householdId: string; ca
                 </label>
                 {chosen && s.aiFill[k] !== s.aiFillDefaults[k] && canManage && (
                   <button type="button" className="tap link link-hover ms-14 self-start text-xs text-base-content/70" onClick={() => save.mutate({ [k]: null })}>
-                    Use the server's default ({s.aiFillDefaults[k] ? "on" : "off"})
+                    {translateText("Use the server's default (")}{s.aiFillDefaults[k] ? translateText("on") : translateText("off")})
                   </button>
                 )}
               </li>
             );
           })}
         </ul>
-        <p className="text-sm text-base-content/70">
-          Never by itself: merging duplicates, values or replacement costs, renaming what you named, marking things gone, or
-          maintenance schedules — those always wait for you. <a className="tap link link-primary" href="#/ai-filled">See what it filled in</a>
-        </p>
+        <p className="text-sm text-base-content/70">{tr("Never by itself: merging duplicates, values or replacement costs, renaming what you named, marking things gone, or maintenance schedules — those always wait for you. {v0}", { v0: <a className="tap link link-primary" href="#/ai-filled">{translateText("See what it filled in")}</a> })}</p>
         {save.isError && <div className="alert alert-soft alert-error text-sm">{save.error.message}</div>}
       </div>
     </section>
@@ -104,12 +101,10 @@ export function ServerAiFillCard() {
       <div className="card-body gap-3">
         <h2 id="server-ai-fill-title" className="card-title flex items-center gap-2">
           <span className="icon-[tabler--sparkles] size-5 text-primary" />
-          Let AI fill in, by default
-          <HelpLink page="guide/ai.html#let-ai-fill-in" label="Let AI fill in" />
+          {translateText("Let AI fill in, by default")}<HelpLink page="guide/ai.html#let-ai-fill-in" label={translateText("Let AI fill in")} />
         </h2>
         <p className="text-sm text-base-content/70">
-          For households on this server that haven't chosen for themselves (Settings → Household). Off unless you switch a kind on.
-        </p>
+          {translateText("For households on this server that haven't chosen for themselves (Settings → Household). Off unless you switch a kind on.")}</p>
         {aiFillKinds.map((k) => (
           <label key={k} className="flex cursor-pointer items-start gap-3">
             <input type="checkbox" className="switch switch-primary mt-0.5" checked={defaults.data[k]} disabled={save.isPending} onChange={(e) => save.mutate({ [k]: e.target.checked })} />
@@ -146,11 +141,9 @@ export function AiFilledCard({ item, householdId }: { item: ItemListing; househo
   const fills = Object.entries(item.aiFilled ?? {}) as [string, AiFill][];
   if (!fills.length) return null;
   return (
-    <section className="card border border-primary/20" aria-label="Filled in by AI">
+    <section className="card border border-primary/20" aria-label={translateText("Filled in by AI")}>
       <div className="card-body gap-2 p-4">
-        <h2 className="flex items-center gap-2 font-semibold">
-          <span className="badge badge-soft badge-primary badge-sm">AI</span>
-          Filled in by AI — check {fills.length === 1 ? "it" : "these"}
+        <h2 className="flex items-center gap-2 font-semibold">{tr("{v0}Filled in by AI — check ", { v0: <span className="badge badge-soft badge-primary badge-sm">{translateText("AI")}</span> })}{fills.length === 1 ? translateText("it") : translateText("these")}
         </h2>
         <ul className="divide-base-content/10 flex flex-col divide-y">
           {fills.map(([field, f]) => (
@@ -158,16 +151,14 @@ export function AiFilledCard({ item, householdId }: { item: ItemListing; househo
               <span className="w-28 shrink-0 text-sm text-base-content/70">{LABELS[field] ?? field}</span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-medium">{show(field, f.value)}</span>
-                {f.from && <span className="block truncate text-xs text-base-content/70">from {f.from}</span>}
+                {f.from && <span className="block truncate text-xs text-base-content/70">{tr("from {v0}", { v0: f.from })}</span>}
               </span>
               {canEdit && (
                 <span className="flex gap-1">
-                  <button type="button" className="btn btn-text btn-primary btn-sm" disabled={busy} onClick={() => confirm.mutate({ itemId: item.id, field })} aria-label={`${LABELS[field] ?? field} looks right`}>
-                    Looks right
-                  </button>
-                  <button type="button" className="btn btn-text btn-sm" disabled={busy} onClick={() => undo.mutate({ itemId: item.id, field })} aria-label={`Undo ${LABELS[field] ?? field}`}>
-                    Undo
-                  </button>
+                  <button type="button" className="btn btn-text btn-primary btn-sm" disabled={busy} onClick={() => confirm.mutate({ itemId: item.id, field })} aria-label={translateText("{v0} looks right", { v0: LABELS[field] ?? field })}>
+                    {translateText("Looks right")}</button>
+                  <button type="button" className="btn btn-text btn-sm" disabled={busy} onClick={() => undo.mutate({ itemId: item.id, field })} aria-label={translateText("Undo {v0}", { v0: LABELS[field] ?? field })}>
+                    {translateText("Undo")}</button>
                 </span>
               )}
             </li>
@@ -191,11 +182,11 @@ export function AiFilled({ householdId }: { householdId: string }) {
     <div className="min-h-dvh bg-base-200">
       <nav className="navbar sticky top-0 z-10 border-b border-base-300 bg-base-100/85 px-4 backdrop-blur-md">
         <div className="navbar-start w-full min-w-0 items-center gap-2">
-          <a href="#/" className="btn btn-text btn-sm btn-square" aria-label="Back">
+          <a href="#/" className="btn btn-text btn-sm btn-square" aria-label={translateText("Back")}>
             <span className="icon-[tabler--arrow-left] size-5" />
           </a>
-          <h1 className="truncate text-lg font-semibold">Filled in by AI</h1>
-          <HelpLink page="guide/ai.html#let-ai-fill-in" label="Let AI fill in" />
+          <h1 className="truncate text-lg font-semibold">{translateText("Filled in by AI")}</h1>
+          <HelpLink page="guide/ai.html#let-ai-fill-in" label={translateText("Let AI fill in")} />
         </div>
         <BarSearch />
       </nav>
@@ -207,13 +198,11 @@ export function AiFilled({ householdId }: { householdId: string }) {
           <div className="card">
             <div className="card-body items-center gap-3 text-center">
               <span className="icon-[tabler--sparkles] size-10 text-primary" />
-              <h2 className="text-lg font-semibold">Nothing to check</h2>
+              <h2 className="text-lg font-semibold">{translateText("Nothing to check")}</h2>
               <p className="max-w-sm text-sm text-base-content/70">
-                When the household lets AI fill in (Settings → Household), what it fills in waits here until someone says it looks right.
-              </p>
+                {translateText("When the household lets AI fill in (Settings → Household), what it fills in waits here until someone says it looks right.")}</p>
               <a href="#/settings" className="btn btn-soft btn-primary btn-sm">
-                Settings
-              </a>
+                {translateText("Settings")}</a>
             </div>
           </div>
         )}
@@ -230,18 +219,16 @@ export function AiFilled({ householdId }: { householdId: string }) {
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-medium">{show(e.field, e.value)}</span>
                       <span className="block truncate text-xs text-base-content/70">
-                        {e.from ? `from ${e.from} · ` : ""}
-                        {new Date(e.at).toLocaleDateString()}
+                        {e.from ? translateText("from {v0} · ", { v0: e.from }) : ""}
+                        {new Date(e.at).toLocaleDateString(locale())}
                       </span>
                     </span>
                     {canEdit && (
                       <span className="flex gap-1">
                         <button type="button" className="btn btn-text btn-primary btn-sm" disabled={busy} onClick={() => confirm.mutate(e)}>
-                          Looks right
-                        </button>
+                          {translateText("Looks right")}</button>
                         <button type="button" className="btn btn-text btn-sm" disabled={busy} onClick={() => undo.mutate(e)}>
-                          Undo
-                        </button>
+                          {translateText("Undo")}</button>
                       </span>
                     )}
                   </li>

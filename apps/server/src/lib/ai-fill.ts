@@ -1,3 +1,5 @@
+import { t as translateText } from "./i18n";
+import { translate, languages } from "@ferret/shared/i18n";
 /**
  * "Let AI fill in" (Settings → Household, per kind; a self-hosted server's admin can make kinds the default for its
  * households — Settings → Server). Off unless switched on. When on, the analysis job writes what the model read
@@ -34,20 +36,20 @@ const PLACEHOLDER = "New item";
 
 /** Fields "details" may fill, with the words the history uses for them (describeChanges) and the model's own name. */
 const DETAIL_FIELDS = [
-  { field: "brand", label: "Brand", history: "brand", sure: "brand" },
-  { field: "model", label: "Model", history: "model", sure: "model" },
-  { field: "serialNumber", label: "Serial number", history: "serial number", sure: "serialNumber" },
-  { field: "barcode", label: "Barcode", history: "barcode", sure: "barcode" },
-  { field: "purchaseDate", label: "Purchase date", history: "bought on", sure: "purchaseDate" },
-  { field: "purchasePriceCents", label: "Price paid", history: "price paid", sure: "purchasePrice" },
+  { field: "brand", get label() { return translateText("Brand"); }, history: "brand", sure: "brand" },
+  { field: "model", get label() { return translateText("Model"); }, history: "model", sure: "model" },
+  { field: "serialNumber", get label() { return translateText("Serial number"); }, history: "serial number", sure: "serialNumber" },
+  { field: "barcode", get label() { return translateText("Barcode"); }, history: "barcode", sure: "barcode" },
+  { field: "purchaseDate", get label() { return translateText("Purchase date"); }, history: "bought on", sure: "purchaseDate" },
+  { field: "purchasePriceCents", get label() { return translateText("Price paid"); }, history: "price paid", sure: "purchasePrice" },
 ] as const;
 
-export const AI_FIELD_LABELS: Record<string, string> = {
-  name: "Name",
+export const AI_FIELD_LABELS = (): Record<string, string> => ({
+  get name() { return translateText("Name"); },
   ...Object.fromEntries(DETAIL_FIELDS.map((f) => [f.field, f.label])),
-  returnBy: "Return by",
-  warranty: "Warranty",
-};
+  get returnBy() { return translateText("Return by"); },
+  get warranty() { return translateText("Warranty"); },
+});
 
 const off = (): Record<AiFillKind, boolean> => Object.fromEntries(aiFillKinds.map((k) => [k, false])) as Record<AiFillKind, boolean>;
 const clean = (raw: unknown): AiFillSwitches => {
@@ -122,7 +124,7 @@ export async function autoFill(
 
   // What a person cleared since the file came: never filled again ("brand removed" in the item's history).
   const edits = await db
-    .select({ summary: activity.summary })
+    .select({ summary: activity.summary, clearedFields: activity.clearedFields })
     .from(activity)
     .where(
       and(
@@ -133,7 +135,10 @@ export async function autoFill(
         gte(activity.createdAt, file.createdAt), // timestamps are to the second
       ),
     );
-  const cleared = (history: string) => edits.some((e) => e.summary?.includes(`${history} removed`));
+  // New activity carries machine-readable field IDs. Read both legacy display languages only for old rows.
+  const cleared = (field: string, history: string) => edits.some((edit) => edit.clearedFields != null
+    ? edit.clearedFields.includes(field)
+    : languages.some((language) => edit.summary?.includes(translate(language, "{v0} removed", { v0: translate(language, history) }))));
 
   const patch: ItemPatch = {};
   const fills: Record<string, AiFill> = {};
@@ -146,31 +151,31 @@ export async function autoFill(
   if (on.details) {
     for (const f of DETAIL_FIELDS) {
       const value = s[f.field];
-      if (value == null || current[f.field] != null || !sure.has(f.sure) || cleared(f.history)) continue;
+      if (value == null || current[f.field] != null || !sure.has(f.sure) || cleared(f.field, f.history)) continue;
       (patch as Record<string, unknown>)[f.field] = value;
       mark(f.field, value);
-      words.push(`${f.history} ${f.field === "purchasePriceCents" ? moneyText(v, value as number, { exact: true }) : value}`);
+      words.push(`${translateText(f.history)} ${f.field === "purchasePriceCents" ? moneyText(v, value as number, { exact: true }) : value}`);
     }
     // An unnamed "New item" gets its name too — never a name a person gave.
     if (s.name && current.name === PLACEHOLDER && sure.has("name")) {
       patch.name = s.name;
       mark("name", s.name);
-      words.push(`named ${s.name}`);
+      words.push(translateText("named {v0}", { v0: s.name }));
     }
   }
   const boughtOn = patch.purchaseDate ?? current.purchaseDate;
-  if (on.returnBy && current.returnBy == null && !cleared("return by")) {
+  if (on.returnBy && current.returnBy == null && !cleared("returnBy", "return by")) {
     const printed = s.returnBy && sure.has("returnBy") ? s.returnBy : undefined;
     const fromDays = s.returnDays && sure.has("returnDays") && boughtOn ? addDays(boughtOn, s.returnDays) : undefined;
     const returnBy = printed ?? fromDays;
     if (returnBy && returnBy >= today(undefined, v.timeZone)) {
       patch.returnBy = returnBy;
       mark("returnBy", returnBy);
-      words.push(`return by ${returnBy}`);
+      words.push(translateText("return by {v0}", { v0: returnBy }));
     }
   }
   if (Object.keys(patch).length) {
-    await updateItem(v, current.id, patch, () => `Filled in by AI from ${file.filename}: ${words.join("; ")}`, { aiFills: fills });
+    await updateItem(v, current.id, patch, () => translateText("Filled in by AI from {v0}: {v1}", { v0: file.filename, v1: words.join("; ") }), { aiFills: fills });
   }
 
   if (on.warranty && s.warrantyMonths && sure.has("warrantyMonths") && boughtOn) {
@@ -219,7 +224,7 @@ export async function aiFillEntries(v: Caller): Promise<AiFillEntry[]> {
         itemId: r.id,
         itemName: r.name,
         field,
-        label: AI_FIELD_LABELS[field] ?? field,
+        label: AI_FIELD_LABELS()[field] ?? field,
         value: f.value,
         from: f.from,
         at: f.at,
@@ -230,9 +235,9 @@ export async function aiFillEntries(v: Caller): Promise<AiFillEntry[]> {
 
 async function markOf(v: Caller, itemId: string, field: string) {
   const [row] = await v.db.select().from(item).where(and(eq(item.id, itemId), itemScope(v, { gone: "include" })));
-  if (!row) throw notFound("Item");
+  if (!row) throw notFound(translateText("Item"));
   const mark = row.aiFilled?.[field];
-  if (!mark) throw new HTTPException(404, { message: "Nothing the AI filled in there" });
+  if (!mark) throw new HTTPException(404, { message: translateText("Nothing the AI filled in there") });
   return { row, mark };
 }
 
@@ -250,7 +255,7 @@ export async function undoAiFill(v: Caller, itemId: string, field: string) {
     if (mark.warrantyId) await deleteWarranty(v, mark.warrantyId).catch(() => {});
   } else if ((row as Record<string, unknown>)[field] === mark.value) {
     // A name can't be empty: back to the placeholder it had.
-    await updateItem(v, itemId, { [field]: field === "name" ? PLACEHOLDER : null } as ItemPatch, (name) => `Undid what AI filled in on ${name}: ${(AI_FIELD_LABELS[field] ?? field).toLowerCase()}`);
+    await updateItem(v, itemId, { [field]: field === "name" ? PLACEHOLDER : null } as ItemPatch, (name) => translateText("Undid what AI filled in on {v0}: {v1}", { v0: name, v1: (AI_FIELD_LABELS()[field] ?? field).toLowerCase() }));
   }
   await setMarks(v, itemId, (marks) => (delete marks[field], marks));
   return getItem(v, itemId);

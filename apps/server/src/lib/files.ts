@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * Encrypted file storage for photos and documents.
  *
@@ -49,7 +50,7 @@ export class FileStore {
     const blob = await this.blobs.get(blobKey);
     if (!blob) return null;
     const bytes = new Uint8Array(await new Response(blob.body).arrayBuffer());
-    if (bytes[0] !== FORMAT_V1) throw new Error(`Unknown file format ${bytes[0]} for ${blobKey}`);
+    if (bytes[0] !== FORMAT_V1) throw new Error(translateText("Unknown file format {v0} for {v1}", { v0: bytes[0], v1: blobKey }));
     const key = await this.householdKey(householdId);
     const plain = await crypto.subtle.decrypt(
       { name: "AES-GCM", iv: bytes.subarray(1, 1 + IV_BYTES), additionalData: utf8.encode(blobKey) },
@@ -79,7 +80,7 @@ export class FileStore {
   /** Opens what `seal` made; throws if it was tampered with or moved. */
   async open(householdId: string, label: string, sealed: string) {
     const bytes = Uint8Array.from(atob(sealed), (c) => c.charCodeAt(0));
-    if (bytes[0] !== FORMAT_V1) throw new Error(`Unknown sealed format ${bytes[0]}`);
+    if (bytes[0] !== FORMAT_V1) throw new Error(translateText("Unknown sealed format {v0}", { v0: bytes[0] }));
     const key = await this.householdKey(householdId);
     const plain = await crypto.subtle.decrypt(
       { name: "AES-GCM", iv: bytes.subarray(1, 1 + IV_BYTES), additionalData: utf8.encode(label) },
@@ -115,9 +116,9 @@ export class FileStore {
         .onConflictDoNothing();
       [row] = await this.db.select().from(householdKey).where(eq(householdKey.householdId, householdId));
     }
-    if (!row) throw new Error(`Could not create a file key for household ${householdId}`);
+    if (!row) throw new Error(translateText("Could not create a file key for household {v0}", { v0: householdId }));
     if (row.kekId !== kek.id) {
-      throw new Error(`Household ${householdId} files were sealed with master key ${row.kekId}, but FILES_KEY is ${kek.id}`);
+      throw new Error(translateText("Household {v0} files were sealed with master key {v1}, but FILES_KEY is {v2}", { v0: householdId, v1: row.kekId, v2: kek.id }));
     }
     const sealed = fromBase64(row.wrappedKey);
     const raw = new Uint8Array(

@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * Smart-home pairing codes on items — HomeKit (X-HM://…, 123-45-678) and Matter (MT:…, 3497-011-2332), decoded by
  * @ferret/shared's parsePairing. The code is what lets someone pair with a reset accessory, so it's sealed with the
@@ -32,7 +33,7 @@ const summary = (r: typeof pairingCode.$inferSelect): PairingCodeSummary => ({
 
 async function itemOf(v: Caller, itemId: string) {
   const [row] = await v.db.select({ id: item.id, name: item.name }).from(item).where(and(eq(item.id, itemId), itemScope(v, { gone: "include" })));
-  if (!row) throw notFound("Item");
+  if (!row) throw notFound(translateText("Item"));
   return row;
 }
 
@@ -57,12 +58,12 @@ export async function listPairing(v: Caller, itemId: string): Promise<PairingCod
 export async function addPairing(v: Caller, files: FileStore, itemId: string, input: PairingInput): Promise<PairingCodeSummary> {
   const target = await itemOf(v, itemId);
   const info = parsePairing(input.code);
-  if (!info) throw new HTTPException(422, { message: "That isn't a HomeKit or Matter code — scan its QR code, or type the code as printed" });
+  if (!info) throw new HTTPException(422, { message: translateText("That isn't a HomeKit or Matter code — scan its QR code, or type the code as printed") });
   for (const { row, secret } of await openAll(v, files)) {
     if (!sameCode(secret, info)) continue;
-    if (row.itemId === itemId) throw new HTTPException(409, { message: "That code is already saved here" });
+    if (row.itemId === itemId) throw new HTTPException(409, { message: translateText("That code is already saved here") });
     const [other] = await v.db.select({ name: item.name }).from(item).where(eq(item.id, row.itemId));
-    throw new HTTPException(409, { message: `That code is already saved on ${other?.name ?? "another item"}` });
+    throw new HTTPException(409, { message: translateText("That code is already saved on {v0}", { v0: other?.name ?? translateText("another item") }) });
   }
   const id = crypto.randomUUID();
   const sealed = await files.seal(v.householdId, sealLabel(id), JSON.stringify({ code: info.code, payload: info.payload, details: info.details } satisfies Sealed));
@@ -70,7 +71,7 @@ export async function addPairing(v: Caller, files: FileStore, itemId: string, in
     .insert(pairingCode)
     .values({ id, householdId: v.householdId, itemId, kind: info.kind, label: input.label || null, category: info.category, hasQr: info.payload !== null, sealed, createdBy: v.userId })
     .returning();
-  await logActivity(v, "item.pairing", itemId, `Saved a ${KIND_NAME[info.kind]} code for ${target.name}`);
+  await logActivity(v, "item.pairing", itemId, translateText("Saved a {v0} code for {v1}", { v0: KIND_NAME[info.kind], v1: target.name }));
   return summary(row!);
 }
 
@@ -81,9 +82,9 @@ export async function revealPairing(v: Caller, files: FileStore, itemId: string,
     .select()
     .from(pairingCode)
     .where(and(eq(pairingCode.id, pairingId), eq(pairingCode.itemId, itemId), eq(pairingCode.householdId, v.householdId)));
-  if (!row) throw notFound("Pairing code");
+  if (!row) throw notFound(translateText("Pairing code"));
   const secret = JSON.parse(await files.open(v.householdId, sealLabel(row.id), row.sealed)) as Sealed;
-  await logActivity(v, "item.pairing", itemId, `Showed the ${KIND_NAME[row.kind]} code for ${target.name}`);
+  await logActivity(v, "item.pairing", itemId, translateText("Showed the {v0} code for {v1}", { v0: KIND_NAME[row.kind], v1: target.name }));
   return secret;
 }
 
@@ -93,8 +94,8 @@ export async function deletePairing(v: Caller, itemId: string, pairingId: string
     .delete(pairingCode)
     .where(and(eq(pairingCode.id, pairingId), eq(pairingCode.itemId, itemId), eq(pairingCode.householdId, v.householdId)))
     .returning({ kind: pairingCode.kind });
-  if (!gone.length) throw notFound("Pairing code");
-  await logActivity(v, "item.pairing", itemId, `Removed a ${KIND_NAME[gone[0]!.kind]} code from ${target.name}`);
+  if (!gone.length) throw notFound(translateText("Pairing code"));
+  await logActivity(v, "item.pairing", itemId, translateText("Removed a {v0} code from {v1}", { v0: KIND_NAME[gone[0]!.kind], v1: target.name }));
 }
 
 /** A scanned pairing QR: the item it's saved on (if it still exists), and what it is. Null if it isn't a pairing code. */

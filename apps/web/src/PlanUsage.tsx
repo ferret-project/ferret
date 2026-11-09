@@ -1,3 +1,7 @@
+import { tn } from "./i18n";
+import { locale } from "./i18n";
+import { t as translateText } from "./i18n";
+import { tr } from "./i18n";
 /**
  * Settings → Plan & usage (server: lib/plan.ts, GET /api/v1/plan): this period's AI actions, barcode lookups, things,
  * files and people — by person — and, when the server sells plans, the household's plan with its limits and the
@@ -26,28 +30,24 @@ export function NotInPlan({ feature, planName }: { feature: PlanFeature; planNam
   return (
     <div className="alert alert-soft alert-warning flex flex-wrap items-center gap-3" role="status">
       <span className="icon-[tabler--lock] size-5 shrink-0" />
-      <span className="min-w-0 grow basis-60">
-        {PLAN_FEATURE_NAMES[feature]} aren't part of the {planName} plan. Anything you made before is kept — paused — and works
-        again on a plan that has them.
-      </span>
+      <span className="min-w-0 grow basis-60">{tr("{v0} aren't part of the {v1} plan. Anything you made before is kept — paused — and works again on a plan that has them.", { v0: PLAN_FEATURE_NAMES[feature], v1: planName })}</span>
       <a href={settingsHref("plan")} className="btn btn-sm btn-primary">
-        See plans
-      </a>
+        {translateText("See plans")}</a>
     </div>
   );
 }
 
-const number = (n: number) => n.toLocaleString();
+const number = (n: number) => n.toLocaleString(locale());
 const bytes = (n: number) =>
-  n >= 1e9 ? `${(n / 1e9).toFixed(1)} GB` : n >= 1e6 ? `${(n / 1e6).toFixed(0)} MB` : n >= 1e3 ? `${(n / 1e3).toFixed(0)} KB` : `${n} bytes`;
+  n >= 1e9 ? `${(n / 1e9).toFixed(1)} GB` : n >= 1e6 ? `${(n / 1e6).toFixed(0)} MB` : n >= 1e3 ? `${(n / 1e3).toFixed(0)} KB` : translateText("{v0} bytes", { v0: n });
 
 /** "Oct 3 – Nov 3", or "October 2026" for a calendar month. */
 function periodLabel(period: PlanReport["period"]) {
   if (!period.end) {
     const [y, m] = period.start.split("-").map(Number);
-    return new Date(Date.UTC(y!, m! - 1, 1)).toLocaleDateString(undefined, { month: "long", year: "numeric", timeZone: "UTC" });
+    return new Date(Date.UTC(y!, m! - 1, 1)).toLocaleDateString(locale(), { month: "long", year: "numeric", timeZone: "UTC" });
   }
-  const day = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
+  const day = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString(locale(), { month: "short", day: "numeric", timeZone: "UTC" });
   return `${day(period.start)} – ${day(period.end)}`;
 }
 
@@ -63,11 +63,11 @@ function Meter({ label, icon, meter, format = number }: { label: string; icon: s
           {label}
         </span>
         <span className="text-sm text-base-content/70">
-          {limit === null ? format(used) : limit === 0 ? "Not in this plan" : `${format(used)} of ${format(limit)}`}
+          {limit === null ? format(used) : limit === 0 ? translateText("Not in this plan") : translateText("{v0} of {v1}", { v0: format(used), v1: format(limit) })}
         </span>
       </div>
       {limit !== null && limit > 0 && (
-        <progress className={`progress ${tone}`} value={Math.round(share * 100)} max={100} aria-label={`${label}: ${format(used)} of ${format(limit)}`} />
+        <progress className={`progress ${tone}`} value={Math.round(share * 100)} max={100} aria-label={translateText("{v0}: {v1} of {v2}", { v0: label, v1: format(used), v2: format(limit) })} />
       )}
     </div>
   );
@@ -82,19 +82,17 @@ export function PlanUsage({ householdId, isOwner }: { householdId: string; isOwn
         <section className="card" aria-labelledby="plan-title">
           <div className="card-body gap-3">
             <h2 id="plan-title" className="card-title flex items-center gap-2">
-              <span className="icon-[tabler--rosette-discount-check] size-5 text-primary" />
-              {r.plan.name} plan
-            </h2>
+              <span className="icon-[tabler--rosette-discount-check] size-5 text-primary" />{tr("{v0} plan", { v0: r.plan.name })}</h2>
             <p className="text-sm text-base-content/70">
-              {r.plan.limits.ai ? "Includes AI: photo suggestions, Ask Ferret, documents read and search by meaning." : "Search by words; no AI."}
-              {r.period.end && ` This month's AI actions and lookups start again on ${new Date(`${r.period.end}T00:00:00Z`).toLocaleDateString(undefined, { month: "long", day: "numeric", timeZone: "UTC" })}.`}
+              {r.plan.limits.ai ? translateText("Includes AI: photo suggestions, Ask Ferret, documents read and search by meaning.") : translateText("Search by words; no AI.")}
+              {r.period.end && translateText(" This month's AI actions and lookups start again on {v0}.", { v0: new Date(`${r.period.end}T00:00:00Z`).toLocaleDateString(locale(), { month: "long", day: "numeric", timeZone: "UTC" }) })}
             </p>
             <ul className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
               {(Object.keys(PLAN_FEATURE_NAMES) as PlanFeature[]).map((f) => (
                 <li key={f} className={`flex items-center gap-1.5 ${r.plan!.limits[f] ? "" : "text-base-content/70"}`}>
                   <span className={`${r.plan!.limits[f] ? "icon-[tabler--check] text-success" : "icon-[tabler--x]"} size-4 shrink-0`} aria-hidden />
                   {PLAN_FEATURE_NAMES[f]}
-                  {!r.plan!.limits[f] && <span className="sr-only">(not in this plan)</span>}
+                  {!r.plan!.limits[f] && <span className="sr-only">{translateText("(not in this plan)")}</span>}
                 </li>
               ))}
             </ul>
@@ -109,14 +107,12 @@ export function PlanUsage({ householdId, isOwner }: { householdId: string; isOwn
                 {r.plan.upgradeUrl && (
                   <a href={r.plan.upgradeUrl} className="btn btn-primary btn-wrap">
                     <span className="icon-[tabler--arrow-up-circle] size-5" />
-                    Upgrade
-                  </a>
+                    {translateText("Upgrade")}</a>
                 )}
                 {r.plan.manageUrl && (
                   <a href={r.plan.manageUrl} className="btn btn-soft btn-primary btn-wrap">
                     <span className="icon-[tabler--credit-card] size-5" />
-                    Manage billing
-                  </a>
+                    {translateText("Manage billing")}</a>
                 )}
                 {r.plan.links.map((l) => (
                   <a key={l.url} href={l.url} className="btn btn-soft btn-primary btn-wrap">
@@ -126,7 +122,7 @@ export function PlanUsage({ householdId, isOwner }: { householdId: string; isOwn
                 ))}
               </div>
             )}
-            {!isOwner && <p className="text-sm text-base-content/70">The household's owner manages its plan.</p>}
+            {!isOwner && <p className="text-sm text-base-content/70">{translateText("The household's owner manages its plan.")}</p>}
           </div>
         </section>
       )}
@@ -136,25 +132,25 @@ export function PlanUsage({ householdId, isOwner }: { householdId: string; isOwn
           <div className="flex items-center justify-between gap-2">
             <h2 id="usage-title" className="card-title flex items-center gap-2">
               <span className="icon-[tabler--gauge] size-5 text-primary" />
-              Usage{r && <span className="font-normal text-base-content/70"> · {periodLabel(r.period)}</span>}
+              {translateText("Usage")}{r && <span className="font-normal text-base-content/70"> · {periodLabel(r.period)}</span>}
             </h2>
-            <HelpLink page="guide/plan-and-usage" label="Plan & usage" />
+            <HelpLink page="guide/plan-and-usage" label={translateText("Plan & usage")} />
           </div>
           {report.isError && <div className="alert alert-soft alert-error text-sm">{report.error.message}</div>}
-          {report.isPending && <span className="loading loading-spinner loading-sm" aria-label="Loading" />}
+          {report.isPending && <span className="loading loading-spinner loading-sm" aria-label={translateText("Loading")} />}
           {r && (
             <>
-              {!r.plan && <p className="text-sm text-base-content/70">Nothing is limited on this server — these are just this month's numbers.</p>}
+              {!r.plan && <p className="text-sm text-base-content/70">{translateText("Nothing is limited on this server — these are just this month's numbers.")}</p>}
               <div className="@container">
                 <div className="grid gap-4 @lg:grid-cols-2">
-                  <Meter label="AI actions" icon="icon-[tabler--sparkles]" meter={r.aiActions} />
-                  <Meter label="Things" icon="icon-[tabler--box]" meter={r.items} />
-                  <Meter label="Photos and files" icon="icon-[tabler--photo]" meter={r.fileBytes} format={bytes} />
-                  <Meter label="People" icon="icon-[tabler--users]" meter={r.members} />
-                  {r.barcodeLookups && <Meter label="Barcode lookups" icon="icon-[tabler--barcode]" meter={r.barcodeLookups} />}
+                  <Meter label={translateText("AI actions")} icon="icon-[tabler--sparkles]" meter={r.aiActions} />
+                  <Meter label={translateText("Things")} icon="icon-[tabler--box]" meter={r.items} />
+                  <Meter label={translateText("Photos and files")} icon="icon-[tabler--photo]" meter={r.fileBytes} format={bytes} />
+                  <Meter label={translateText("People")} icon="icon-[tabler--users]" meter={r.members} />
+                  {r.barcodeLookups && <Meter label={translateText("Barcode lookups")} icon="icon-[tabler--barcode]" meter={r.barcodeLookups} />}
                 </div>
               </div>
-              <p className="text-xs text-base-content/70">A photo's suggestions count as 2 AI actions; a question to Ask Ferret or a document read, 1.</p>
+              <p className="text-xs text-base-content/70">{translateText("A photo's suggestions count as 2 AI actions; a question to Ask Ferret or a document read, 1.")}</p>
             </>
           )}
         </div>
@@ -165,19 +161,18 @@ export function PlanUsage({ householdId, isOwner }: { householdId: string; isOwn
           <div className="card-body gap-3">
             <h2 id="by-person-title" className="card-title flex items-center gap-2">
               <span className="icon-[tabler--user] size-5 text-primary" />
-              By person
-            </h2>
+              {translateText("By person")}</h2>
             <ul className="divide-y divide-base-300">
               {r.people.map((p) => (
                 <li key={p.userId ?? "background"} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2">
                   <span className="font-medium">{p.name}</span>
                   <span className="text-sm text-base-content/70">
                     {[
-                      `${number(p.aiActions)} AI ${p.aiActions === 1 ? "action" : "actions"}`,
-                      p.photos && `${number(p.photos)} ${p.photos === 1 ? "photo" : "photos"}`,
-                      p.asks && `${number(p.asks)} ${p.asks === 1 ? "question" : "questions"}`,
-                      p.documents && `${number(p.documents)} ${p.documents === 1 ? "document" : "documents"}`,
-                      p.barcodeLookups && `${number(p.barcodeLookups)} barcode ${p.barcodeLookups === 1 ? "lookup" : "lookups"}`,
+                      tn(p.aiActions, "{v0} AI action", "{v0} AI actions", { v0: number(p.aiActions) }),
+                      p.photos && tn(p.photos, "{v0} photo", "{v0} photos", { v0: number(p.photos) }),
+                      p.asks && tn(p.asks, "{v0} question", "{v0} questions", { v0: number(p.asks) }),
+                      p.documents && tn(p.documents, "{v0} document", "{v0} documents", { v0: number(p.documents) }),
+                      p.barcodeLookups && tn(p.barcodeLookups, "{v0} barcode lookup", "{v0} barcode lookups", { v0: number(p.barcodeLookups) }),
                     ]
                       .filter(Boolean)
                       .join(" · ")}

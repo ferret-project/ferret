@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * "Download everything": one household's data as a ZIP anyone can open without Ferret — Settings → Household,
  * owners and admins. Unlike a backup (the whole server, encrypted, for Ferret to restore), this is for people:
@@ -182,7 +183,7 @@ export async function householdData(v: Caller, root: string, householdName: stri
     ...EXPORT_FORMAT,
     exportedAt: new Date().toISOString(),
     household: { name: householdName, currency: v.currency },
-    notes: `Money is in hundredths of the household's currency, ${v.currency} (12900 = ${formatMoney(12900, v.currency, { exact: true, locale: "en-US" })}); dates are yyyy-mm-dd; \`file\` paths are relative to this folder.`,
+    notes: translateText("Money is in hundredths of the household's currency, {v0} (12900 = {v1}); dates are yyyy-mm-dd; `file` paths are relative to this folder.", { v0: v.currency, v1: formatMoney(12900, v.currency, { exact: true, locale: "en-US" }) }),
     properties: liveProperties.map((p) => ({
       id: p.id,
       name: p.name,
@@ -349,17 +350,7 @@ export async function householdData(v: Caller, root: string, householdName: stri
   return { data, files: files.filter((f) => filePaths.has(f.id)).map((f) => ({ ...f, path: filePaths.get(f.id)! })) };
 }
 
-const README = (household: string, currency: string, counts: { items: number; files: number }) => `Ferret export — ${household}
-Made ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC: ${counts.items} items, ${counts.files} photos and documents.
-
-ferret.json   Everything: properties and places, items (with their warranties and claims, files, tags,
-              custom fields and links), maintenance and its history, service providers, categories.
-              Money is in hundredths of ${currency} (12900 = ${formatMoney(12900, currency, { exact: true, locale: "en-US" })}); dates are yyyy-mm-dd.
-items.csv     The insurance list (one row per item, as in Ferret's report) — opens in any spreadsheet.
-files/        Every photo and document, in a folder per item, as they were uploaded.
-
-These files are not encrypted: keep this somewhere safe.
-`;
+const README = (household: string, currency: string, counts: { items: number; files: number }) => translateText("Ferret export — {v0}\nMade {v1} UTC: {v2} items, {v3} photos and documents.\n\nferret.json   Everything: properties and places, items (with their warranties and claims, files, tags,\n              custom fields and links), maintenance and its history, service providers, categories.\n              Money is in hundredths of {v4} (12900 = {v5}); dates are yyyy-mm-dd.\nitems.csv     The insurance list (one row per item, as in Ferret's report) — opens in any spreadsheet.\nfiles/        Every photo and document, in a folder per item, as they were uploaded.\n\nThese files are not encrypted: keep this somewhere safe.\n", { v0: household, v1: new Date().toISOString().slice(0, 16).replace("T", " "), v2: counts.items, v3: counts.files, v4: currency, v5: formatMoney(12900, currency, { exact: true, locale: "en-US" }) });
 
 /** The ZIP download: its file name, and the stream that makes it. */
 export async function householdExport(v: Caller, files: FileStore) {

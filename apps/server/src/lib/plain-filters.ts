@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * Plain words → Everything's filters (AI-2): "tools bought last year over $100", "electronics in the garage without a
  * receipt", "not scanned in a year". The text model only translates into the filters Everything already has
@@ -89,19 +90,19 @@ Reply with JSON only.`;
   const place = answer.place ? placeByPath.get(answer.place.toLowerCase()) : undefined;
   if (place) (filters.locationId = place.id), chips.push({ key: "locationId", label: place.path.replace(/^[^›]+› /, "") });
   const tag = answer.tag ? tagByName.get(answer.tag.toLowerCase()) : undefined;
-  if (tag) (filters.tag = tag), chips.push({ key: "tag", label: `Tagged ${tag}` });
+  if (tag) (filters.tag = tag), chips.push({ key: "tag", label: translateText("Tagged {v0}", { v0: tag }) });
   if (answer.missing) (filters.missing = answer.missing), chips.push({ key: "missing", label: MISSING_WORDS[answer.missing] });
-  if (answer.origin) (filters.origin = answer.origin), chips.push({ key: "origin", label: `Added: ${answer.origin}` });
+  if (answer.origin) (filters.origin = answer.origin), chips.push({ key: "origin", label: translateText("Added: {v0}", { v0: answer.origin }) });
   const cents = (n: number) => Math.round(n * 100);
-  if (answer.minWorth != null) (filters.minWorth = String(cents(answer.minWorth))), chips.push({ key: "minWorth", label: `Worth over ${moneyText(v, cents(answer.minWorth), { whole: true })}` });
-  if (answer.maxWorth != null) (filters.maxWorth = String(cents(answer.maxWorth))), chips.push({ key: "maxWorth", label: `Worth under ${moneyText(v, cents(answer.maxWorth), { whole: true })}` });
-  if (answer.boughtFrom) (filters.boughtFrom = answer.boughtFrom), chips.push({ key: "boughtFrom", label: `Bought from ${answer.boughtFrom}` });
-  if (answer.boughtTo) (filters.boughtTo = answer.boughtTo), chips.push({ key: "boughtTo", label: `Bought until ${answer.boughtTo}` });
+  if (answer.minWorth != null) (filters.minWorth = String(cents(answer.minWorth))), chips.push({ key: "minWorth", label: translateText("Worth over {v0}", { v0: moneyText(v, cents(answer.minWorth), { whole: true }) }) });
+  if (answer.maxWorth != null) (filters.maxWorth = String(cents(answer.maxWorth))), chips.push({ key: "maxWorth", label: translateText("Worth under {v0}", { v0: moneyText(v, cents(answer.maxWorth), { whole: true }) }) });
+  if (answer.boughtFrom) (filters.boughtFrom = answer.boughtFrom), chips.push({ key: "boughtFrom", label: translateText("Bought from {v0}", { v0: answer.boughtFrom }) });
+  if (answer.boughtTo) (filters.boughtTo = answer.boughtTo), chips.push({ key: "boughtTo", label: translateText("Bought until {v0}", { v0: answer.boughtTo }) });
   if (answer.notScannedMonths) {
     // Everything's choices: the nearest one at or above.
     const months = UNSCANNED.find((m) => m >= answer.notScannedMonths!) ?? 12;
     filters.unscanned = String(months);
-    chips.push({ key: "unscanned", label: months === 1 ? "Not scanned in a month" : months === 12 ? "Not scanned in a year" : `Not scanned in ${months} months` });
+    chips.push({ key: "unscanned", label: months === 1 ? translateText("Not scanned in a month") : months === 12 ? translateText("Not scanned in a year") : translateText("Not scanned in {v0} months", { v0: months }) });
   }
   return { filters, chips, query: answer.words || null };
 }

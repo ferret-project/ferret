@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * "Forgot password?" — Better Auth's password reset, behind a front that can't
  * be used to find out who has an account:
@@ -26,7 +27,7 @@ import type { Db, Deps, JobHandler } from "../ports";
 
 export const RESET_JOB = "auth.password-reset";
 /** The one answer every reset request gets. */
-export const RESET_ANSWER = { status: true, message: "If an account uses that email, a link to choose a new password is on its way." };
+export const RESET_ANSWER = { status: true, get message() { return translateText("If an account uses that email, a link to choose a new password is on its way."); } };
 /** Better Auth's paths for it, switched off when Ferret can't send email. */
 export const RESET_PATHS = ["/request-password-reset", "/reset-password", "/reset-password/:token"];
 /** How long a reset link works. */

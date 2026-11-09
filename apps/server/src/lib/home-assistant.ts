@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * Home Assistant's device registry, tidied for an import (lib/imports.ts does the importing). HA lists far more than
  * things you own — services, apps, weather — and often the same thing twice (a Sonos through its own integration and
@@ -107,7 +108,7 @@ export function tidyRegistry(reg: HaRegistry, known: HaKnown = NOTHING_KNOWN): H
     const ids = ds.map((d) => d.id);
     const device = {
       id: lead.id,
-      name: (lead.name_by_user || lead.name || lead.model || "Device").trim(),
+      name: (lead.name_by_user || lead.name || lead.model || translateText("Device")).trim(),
       manufacturer: (pick("manufacturer") as string | null)?.trim() || null,
       model: ((pick("model") as string | null) || (pick("model_id") as string | null))?.trim() || null,
       serialNumber: (pick("serial_number") as string | null)?.trim() || null,
@@ -164,7 +165,7 @@ export function tidyRegistry(reg: HaRegistry, known: HaKnown = NOTHING_KNOWN): H
 
 /** Read the household's Home Assistant (its address and token come with the request; neither is kept). */
 export async function homeAssistantDevices(v: Caller, url: string, token: string): Promise<HaRegistryView> {
-  if (!v.deps.homeAssistant) throw new Error("Home Assistant import isn't available on this server");
+  if (!v.deps.homeAssistant) throw new Error(translateText("Home Assistant import isn't available on this server"));
   const reg = await v.deps.homeAssistant.registry(url, token);
   const [rows, places, paths] = await Promise.all([
     v.db

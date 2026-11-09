@@ -1,3 +1,5 @@
+import { t as translateText } from "./i18n";
+import { tr } from "./i18n";
 /**
  * Settings → Notifications → Reminders: a private calendar link for maintenance
  * (Apple/Google Calendar, with an alert on the day) and a daily push
@@ -36,12 +38,10 @@ export function Reminders({ householdId }: { householdId: string }) {
         <div className="space-y-1">
           <h2 id="reminders-title" className="card-title flex items-center gap-2">
             <span className="icon-[tabler--bell] size-5 text-primary" />
-            Reminders
-            <HelpLink page="guide/reminders.html" label="Reminders" />
+            {translateText("Reminders")}<HelpLink page="guide/reminders.html" label={translateText("Reminders")} />
           </h2>
           <p className="text-sm text-base-content/70">
-            Hear about filters, servicing and warranties about to end, when it matters. Just for you.
-          </p>
+            {translateText("Hear about filters, servicing and warranties about to end, when it matters. Just for you.")}</p>
         </div>
         <CalendarFeed householdId={householdId} />
         <hr className="border-base-content/10" />
@@ -63,7 +63,7 @@ function CalendarFeed({ householdId }: { householdId: string }) {
   const feature = usePlanFeature(householdId, "calendarFeeds");
 
   function reset() {
-    if (window.confirm("Make a new link? Calendars subscribed to the current one stop updating until you subscribe again.")) create.mutate();
+    if (window.confirm(translateText("Make a new link? Calendars subscribed to the current one stop updating until you subscribe again."))) create.mutate();
   }
 
   return (
@@ -75,20 +75,19 @@ function CalendarFeed({ householdId }: { householdId: string }) {
           </div>
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="font-medium text-base-content">Calendar (maintenance)</h3>
+          <h3 className="font-medium text-base-content">{translateText("Calendar (maintenance)")}</h3>
           <p className="text-sm text-base-content/70">
             {feed?.active && !feature.on
-              ? "Paused: nothing new comes through to your calendar until your plan has calendar feeds again."
+              ? translateText("Paused: nothing new comes through to your calendar until your plan has calendar feeds again.")
               : feed?.active
-              ? "On: due maintenance shows up in your calendar, with an alert at 9:00 on the day. Add it on each device you want it on."
-              : "Due maintenance in your calendar app, kept up to date, with an alert at 9:00 on the day."}
+              ? translateText("On: due maintenance shows up in your calendar, with an alert at 9:00 on the day. Add it on each device you want it on.")
+              : translateText("Due maintenance in your calendar app, kept up to date, with an alert at 9:00 on the day.")}
           </p>
         </div>
         {!feed?.active && feature.on && (
           <button type="button" className="btn btn-primary btn-sm" disabled={busy || status.isPending} onClick={() => create.mutate()}>
             {create.isPending && <span className="loading loading-spinner loading-xs" />}
-            Turn on
-          </button>
+            {translateText("Turn on")}</button>
         )}
       </div>
 
@@ -97,8 +96,7 @@ function CalendarFeed({ householdId }: { householdId: string }) {
       {feature.on && feed?.active && feed.url && feed.webcal && <AddToCalendar url={feed.url} webcal={feed.webcal} />}
       {feature.on && feed?.active && !feed.url && (
         <p className="ps-13 text-sm text-base-content/70 max-sm:ps-0">
-          This link was made before Ferret kept links, so it can't be shown. Reset it to get one you can see here (subscribe again with it).
-        </p>
+          {translateText("This link was made before Ferret kept links, so it can't be shown. Reset it to get one you can see here (subscribe again with it).")}</p>
       )}
 
       {feed?.active && (
@@ -106,13 +104,11 @@ function CalendarFeed({ householdId }: { householdId: string }) {
           {feature.on && (
             <button type="button" className="btn btn-text btn-sm" disabled={busy} onClick={reset}>
               {create.isPending ? <span className="loading loading-spinner loading-xs" /> : <span className="icon-[tabler--refresh] size-4" />}
-              Reset link
-            </button>
+              {translateText("Reset link")}</button>
           )}
           <button type="button" className="btn btn-text btn-sm" disabled={busy} onClick={() => remove.mutate()}>
             <span className="icon-[tabler--calendar-off] size-4" />
-            Turn off
-          </button>
+            {translateText("Turn off")}</button>
         </div>
       )}
       {(create.isError || remove.isError) && <p className="text-sm text-error">{create.error?.message ?? remove.error?.message}</p>}
@@ -154,7 +150,7 @@ function PushReminders({ householdId }: { householdId: string }) {
         return;
       }
       if ((await Notification.requestPermission()) !== "granted") {
-        throw new Error("Notifications are blocked for Ferret — allow them in your browser or iPhone Settings");
+        throw new Error(translateText("Notifications are blocked for Ferret — allow them in your browser or iPhone Settings"));
       }
       const registration = await navigator.serviceWorker.ready;
       const subscription =
@@ -168,8 +164,8 @@ function PushReminders({ householdId }: { householdId: string }) {
   let note: string;
   if (!supported) {
     note = isIos()
-      ? "On iPhone: tap Share → Add to Home Screen, open Ferret from your Home Screen, then turn this on there."
-      : "This browser can't receive push notifications.";
+      ? translateText("On iPhone: tap Share → Add to Home Screen, open Ferret from your Home Screen, then turn this on there.")
+      : translateText("This browser can't receive push notifications.");
   } else if (status.data && !status.data.enabled) {
     note = "Not set up on this server yet (it needs VAPID keys).";
   } else if (status.data?.subscribed) {
@@ -186,22 +182,21 @@ function PushReminders({ householdId }: { householdId: string }) {
         </div>
       </div>
       <div className="min-w-0 flex-1">
-        <h3 className="font-medium text-base-content">Push on this device</h3>
+        <h3 className="font-medium text-base-content">{translateText("Push on this device")}</h3>
         <p className="text-sm text-base-content/70">{note}</p>
         {(toggle.isError || test.isError) && <p className="mt-1 text-sm text-error">{toggle.error?.message ?? test.error?.message}</p>}
-        {test.data && <p className="mt-1 text-sm text-success">Sent to {test.data.sent} {test.data.sent === 1 ? "device" : "devices"}.</p>}
+        {test.data && <p className="mt-1 text-sm text-success">{tr("Sent to {v0} ", { v0: test.data.sent })}{test.data.sent === 1 ? translateText("device") : translateText("devices")}.</p>}
       </div>
       {supported && status.data?.enabled && (
         <div className="flex items-center gap-2 max-sm:w-full max-sm:justify-end">
           {status.data.subscribed && (
             <button type="button" className="btn btn-text btn-sm" disabled={test.isPending} onClick={() => test.mutate()}>
-              Send a test
-            </button>
+              {translateText("Send a test")}</button>
           )}
           <input
             type="checkbox"
             className="switch switch-primary"
-            aria-label="Push notifications on this device"
+            aria-label={translateText("Push notifications on this device")}
             checked={status.data.subscribed}
             disabled={toggle.isPending}
             onChange={(e) => toggle.mutate(e.target.checked)}
@@ -217,20 +212,16 @@ function AddToCalendar({ url, webcal }: { url: string; webcal: string }) {
   const way = calendarWay();
   const byHand = (
     <ol className="list-decimal space-y-0.5 ps-5 text-sm text-base-content/80">
-      <li>Copy the calendar link below.</li>
-      <li>
-        In the <strong>Calendar</strong> app, choose <strong>File → New Calendar Subscription…</strong> (⌥⌘S).
-      </li>
-      <li>
-        Paste it, then <strong>Subscribe</strong> and <strong>OK</strong>.
-      </li>
+      <li>{translateText("Copy the calendar link below.")}</li>
+      <li>{tr("In the {v0} app, choose {v1} (⌥⌘S).", { v0: <strong>{translateText("Calendar")}</strong>, v1: <strong>{translateText("File → New Calendar Subscription…")}</strong> })}</li>
+      <li>{tr("Paste it, then {v0} and {v1}.", { v0: <strong>{translateText("Subscribe")}</strong>, v1: <strong>{translateText("OK")}</strong> })}</li>
     </ol>
   );
   return (
     <div className="flex flex-col gap-3 ps-13 max-sm:ps-0">
       {way === "mac-other" ? (
         <div className="flex flex-col gap-1.5">
-          <p className="text-sm font-medium text-base-content">Add it to Apple Calendar on this Mac:</p>
+          <p className="text-sm font-medium text-base-content">{translateText("Add it to Apple Calendar on this Mac:")}</p>
           {byHand}
         </div>
       ) : (
@@ -238,46 +229,32 @@ function AddToCalendar({ url, webcal }: { url: string; webcal: string }) {
           <div className="flex flex-col gap-1.5">
             <a href={webcal} className="btn btn-primary btn-sm self-start">
               <span className="icon-[tabler--calendar-plus] size-4" />
-              Add to Calendar
-            </a>
-            <p className="text-xs text-base-content/70">Opens your Calendar app, which asks to subscribe — say yes.</p>
+              {translateText("Add to Calendar")}</a>
+            <p className="text-xs text-base-content/70">{translateText("Opens your Calendar app, which asks to subscribe — say yes.")}</p>
             {way === "mac-safari" && (
               <details className="text-sm">
-                <summary className="tap cursor-pointer text-base-content/80">It opened another app, or asked to open Chrome?</summary>
+                <summary className="tap cursor-pointer text-base-content/80">{translateText("It opened another app, or asked to open Chrome?")}</summary>
                 <div className="mt-1.5">{byHand}</div>
               </details>
             )}
           </div>
         )
       )}
-      <CopyField label="Calendar link" value={url} icon="icon-[tabler--link]" />
+      <CopyField label={translateText("Calendar link")} value={url} icon="icon-[tabler--link]" />
       <details className="text-sm" open={way === "other"}>
-        <summary className="tap cursor-pointer text-base-content/80">Google Calendar, Outlook or another calendar</summary>
+        <summary className="tap cursor-pointer text-base-content/80">{translateText("Google Calendar, Outlook or another calendar")}</summary>
         <ul className="mt-1.5 list-disc space-y-1 ps-5 text-base-content/80">
           {atHome() ? (
-            <li>
-              <strong>Google Calendar</strong> can't use it: Google fetches calendars from its own servers, and they can't reach a Ferret at home
-              ({window.location.hostname}). Use Apple Calendar or Outlook on your own devices instead.
-            </li>
+            <li>{tr("{v0} can't use it: Google fetches calendars from its own servers, and they can't reach a Ferret at home ({v1}). Use Apple Calendar or Outlook on your own devices instead.", { v0: <strong>{translateText("Google Calendar")}</strong>, v1: window.location.hostname })}</li>
           ) : (
-            <li>
-              <strong>Google Calendar</strong> (on a computer): <strong>Other calendars → + → From URL</strong>, paste the link, <strong>Add calendar</strong>.
-            </li>
+            <li>{tr("{v0} (on a computer): {v1}, paste the link, {v2}.", { v0: <strong>{translateText("Google Calendar")}</strong>, v1: <strong>{translateText("Other calendars → + → From URL")}</strong>, v2: <strong>{translateText("Add calendar")}</strong> })}</li>
           )}
-          <li>
-            <strong>Outlook</strong>: <strong>Add calendar → Subscribe from web</strong>, and paste the link.
-          </li>
-          <li>
-            <strong>An iPhone or iPad</strong>: open these settings there and press <strong>Add to Calendar</strong>.
-          </li>
+          <li>{tr("{v0}: {v1}, and paste the link.", { v0: <strong>{translateText("Outlook")}</strong>, v1: <strong>{translateText("Add calendar → Subscribe from web")}</strong> })}</li>
+          <li>{tr("{v0}: open these settings there and press {v1}.", { v0: <strong>{translateText("An iPhone or iPad")}</strong>, v1: <strong>{translateText("Add to Calendar")}</strong> })}</li>
         </ul>
       </details>
-      <p className="text-xs text-base-content/70">
-        Keep it private: anyone with the link can see your maintenance tasks.{" "}
-        <a href="/docs/guide/reminders.html#if-add-to-calendar-doesn-t-work" className="link tap">
-          Trouble adding it?
-        </a>
-      </p>
+      <p className="text-xs text-base-content/70">{tr("Keep it private: anyone with the link can see your maintenance tasks.{v0}{v1}", { v0: " ", v1: <a href="/docs/guide/reminders.html#if-add-to-calendar-doesn-t-work" className="link tap">
+          {translateText("Trouble adding it?")}</a> })}</p>
     </div>
   );
 }

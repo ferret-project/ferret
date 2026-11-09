@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * The coverage check: insurance limits — the whole contents cover ("Coverage C"), or a policy's special limits on
  * jewelry, firearms, silverware… by category or tag, optionally for one property — next to what the inventory says
@@ -16,11 +17,11 @@ type Row = typeof coverageLimit.$inferSelect;
 async function checkTargets(v: Caller, input: CoverageInput) {
   if (input.propertyId) {
     const [p] = await v.db.select({ id: property.id }).from(property).where(and(eq(property.id, input.propertyId), eq(property.householdId, v.householdId), isNull(property.deletedAt)));
-    if (!p) throw notFound("Property");
+    if (!p) throw notFound(translateText("Property"));
   }
   if (input.scope === "category") {
     const [c] = await v.db.select({ id: category.id }).from(category).where(and(eq(category.id, input.categoryId!), eq(category.householdId, v.householdId), isNull(category.deletedAt)));
-    if (!c) throw notFound("Category");
+    if (!c) throw notFound(translateText("Category"));
   }
 }
 
@@ -99,7 +100,7 @@ const fields = (input: CoverageInput) => ({
 export async function addCoverage(v: Caller, input: CoverageInput) {
   await checkTargets(v, input);
   const [row] = await v.db.insert(coverageLimit).values({ householdId: v.householdId, ...fields(input) }).returning();
-  await logActivity(v, "coverage.create", row!.id, `Added coverage: ${row!.label} (${moneyText(v, row!.limitCents, { whole: true })})`);
+  await logActivity(v, "coverage.create", row!.id, translateText("Added coverage: {v0} ({v1})", { v0: row!.label, v1: moneyText(v, row!.limitCents, { whole: true }) }));
   return (await coverageChecks(v)).find((c) => c.id === row!.id)!;
 }
 
@@ -110,12 +111,12 @@ export async function updateCoverage(v: Caller, id: string, input: CoverageInput
     .set(fields(input))
     .where(and(eq(coverageLimit.id, id), eq(coverageLimit.householdId, v.householdId)))
     .returning();
-  if (!row) throw notFound("Coverage");
+  if (!row) throw notFound(translateText("Coverage"));
   return (await coverageChecks(v)).find((c) => c.id === id)!;
 }
 
 export async function deleteCoverage(v: Caller, id: string) {
   const [row] = await v.db.delete(coverageLimit).where(and(eq(coverageLimit.id, id), eq(coverageLimit.householdId, v.householdId))).returning();
-  if (!row) throw notFound("Coverage");
-  await logActivity(v, "coverage.delete", id, `Removed coverage: ${row.label}`);
+  if (!row) throw notFound(translateText("Coverage"));
+  await logActivity(v, "coverage.delete", id, translateText("Removed coverage: {v0}", { v0: row.label }));
 }

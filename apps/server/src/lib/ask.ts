@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * Ask Ferret: answers a question from the household's own inventory. The
  * caller's search finds the relevant items; their facts, locations and best
@@ -74,7 +75,7 @@ export async function askInventory(
       const status = warrantyStatus(w.endsOn, on);
       add({
         item: { id: w.itemId, name: itemName },
-        text: `Warranty on file for ${itemName}${w.provider ? `, from ${w.provider}` : ""}: ${w.startsOn ? `${w.startsOn} to ` : "until "}${w.endsOn} — ${status === "expired" ? "expired" : status === "expiring" ? "still active, ends soon" : "active"}.${w.coverage ? ` Covers: ${w.coverage}` : ""}`,
+        text: translateText("Warranty on file for {v0}{v1}: {v2}{v3} — {v4}.{v5}", { v0: itemName, v1: w.provider ? translateText(", from {v0}", { v0: w.provider }) : "", v2: w.startsOn ? translateText("{v0} to ", { v0: w.startsOn }) : translateText("until "), v3: w.endsOn, v4: status === "expired" ? translateText("expired") : status === "expiring" ? translateText("still active, ends soon") : translateText("active"), v5: w.coverage ? translateText(" Covers: {v0}", { v0: w.coverage }) : "" }),
       });
     }
   }
@@ -97,7 +98,7 @@ export async function askInventory(
     }
   }
   if (sources.length === 0) {
-    return { answer: "I couldn't find anything in your inventory about that.", found: false, citations: [] };
+    return { answer: translateText("I couldn't find anything in your inventory about that."), found: false, citations: [] };
   }
 
   const context = sources

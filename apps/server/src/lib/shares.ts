@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * Share links: a read-only view of the insurance report (the whole household or one property), or of a tag's or a
  * category's things, for someone without an account — an insurer, an executor. Made by owners and admins (a real
@@ -39,11 +40,11 @@ type Row = typeof shareLink.$inferSelect;
 
 /** "Insurance report — Highland House", "Tag: Jewelry", "Category: Electronics › TV". */
 async function titleOf(v: Caller, r: Pick<Row, "kind" | "propertyId" | "tag" | "categoryId">) {
-  if (r.kind === "tag") return `Things tagged ${r.tag}`;
-  if (r.kind === "category") return `${r.categoryId ? ((await categoryInfo(v)).get(r.categoryId)?.path ?? "A category") : "A category"}`;
-  if (!r.propertyId) return "Insurance report";
+  if (r.kind === "tag") return translateText("Things tagged {v0}", { v0: r.tag });
+  if (r.kind === "category") return `${r.categoryId ? ((await categoryInfo(v)).get(r.categoryId)?.path ?? translateText("A category")) : translateText("A category")}`;
+  if (!r.propertyId) return translateText("Insurance report");
   const [p] = await v.db.select({ name: property.name }).from(property).where(eq(property.id, r.propertyId));
-  return `Insurance report — ${p?.name ?? "a property"}`;
+  return translateText("Insurance report — {v0}", { v0: p?.name ?? translateText("a property") });
 }
 
 const isActive = (r: Row, now = Date.now()) => !r.revokedAt && r.expiresAt.getTime() > now;
@@ -73,15 +74,15 @@ export async function createShare(v: Caller, files: FileStore, appUrl: string, i
       .select({ id: property.id })
       .from(property)
       .where(and(eq(property.id, input.propertyId), eq(property.householdId, v.householdId), isNull(property.deletedAt)));
-    if (!p) throw notFound("Property");
+    if (!p) throw notFound(translateText("Property"));
   }
-  if (input.kind === "tag" && !(await findTag(v, input.tag!))) throw notFound("Tag");
+  if (input.kind === "tag" && !(await findTag(v, input.tag!))) throw notFound(translateText("Tag"));
   if (input.kind === "category") {
     const [c] = await v.db
       .select({ id: category.id })
       .from(category)
       .where(and(eq(category.id, input.categoryId!), eq(category.householdId, v.householdId), isNull(category.deletedAt)));
-    if (!c) throw notFound("Category");
+    if (!c) throw notFound(translateText("Category"));
   }
   const id = crypto.randomUUID();
   const token = newToken();
@@ -103,7 +104,7 @@ export async function createShare(v: Caller, files: FileStore, appUrl: string, i
     })
     .returning();
   const made = await summary(v, files, appUrl, row!);
-  await logActivity(v, "share.create", id, `Shared ${made.title}${made.label ? ` (${made.label})` : ""} for ${input.days} days`);
+  await logActivity(v, "share.create", id, translateText("Shared {v0}{v1} for {v2} days", { v0: made.title, v1: made.label ? ` (${made.label})` : "", v2: input.days }));
   return made;
 }
 
@@ -124,13 +125,13 @@ export async function revokeShare(v: Caller, id: string) {
     .set({ revokedAt: new Date() })
     .where(and(eq(shareLink.id, id), eq(shareLink.householdId, v.householdId), isNull(shareLink.revokedAt)))
     .returning();
-  if (!row) throw notFound("Share link");
-  await logActivity(v, "share.revoke", id, `Turned off a share link (${await titleOf(v, row)})`);
+  if (!row) throw notFound(translateText("Share link"));
+  await logActivity(v, "share.revoke", id, translateText("Turned off a share link ({v0})", { v0: await titleOf(v, row) }));
 }
 
 export async function shareViews(v: Caller, id: string): Promise<ShareViewEntry[]> {
   const [row] = await v.db.select({ id: shareLink.id }).from(shareLink).where(and(eq(shareLink.id, id), eq(shareLink.householdId, v.householdId)));
-  if (!row) throw notFound("Share link");
+  if (!row) throw notFound(translateText("Share link"));
   const rows = await v.db.select().from(shareView).where(eq(shareView.linkId, id)).orderBy(desc(shareView.at)).limit(200);
   return rows.map((r) => ({ at: r.at.toISOString(), ipAddress: r.ipAddress, userAgent: r.userAgent }));
 }
@@ -139,15 +140,15 @@ export async function shareViews(v: Caller, id: string): Promise<ShareViewEntry[
 
 /** The link for a token, acting as its maker in its household — or why it doesn't open. */
 export async function openShare(deps: Caller["deps"], token: string) {
-  if (!/^[\w-]{20,100}$/.test(token)) throw new HTTPException(404, { message: "This link doesn't work" });
+  if (!/^[\w-]{20,100}$/.test(token)) throw new HTTPException(404, { message: translateText("This link doesn't work") });
   const [row] = await deps.db.select().from(shareLink).where(eq(shareLink.tokenHash, await hashToken(token)));
-  if (!row) throw new HTTPException(404, { message: "This link doesn't work" });
-  if (row.revokedAt) throw new HTTPException(410, { message: "This link was turned off by whoever shared it" });
-  if (row.expiresAt.getTime() <= Date.now()) throw new HTTPException(410, { message: "This link has expired — ask for a new one" });
+  if (!row) throw new HTTPException(404, { message: translateText("This link doesn't work") });
+  if (row.revokedAt) throw new HTTPException(410, { message: translateText("This link was turned off by whoever shared it") });
+  if (row.expiresAt.getTime() <= Date.now()) throw new HTTPException(410, { message: translateText("This link has expired — ask for a new one") });
   // Its household's plan no longer has share links: paused, not gone (it works again if the plan does). The person
   // opening it has no account here, so it doesn't say why.
   if (!(await featureOn({ deps, householdId: row.householdId }, "shareLinks"))) {
-    throw new HTTPException(403, { message: "This link is paused — ask whoever shared it" });
+    throw new HTTPException(403, { message: translateText("This link is paused — ask whoever shared it") });
   }
   const v: Caller = { deps, db: deps.db, householdId: row.householdId, userId: row.createdBy ?? "", ...(await householdLocale(deps.db, row.householdId)), via: "web" };
   return { link: row, v };
@@ -187,7 +188,7 @@ export async function sharedView(v: Caller, r: Row, seen: { ipAddress: string | 
   await v.db.insert(shareView).values({ householdId: v.householdId, linkId: r.id, ipAddress: seen.ipAddress, userAgent: seen.userAgent?.slice(0, 300) ?? null });
   await v.db.update(shareLink).set({ views: sql`${shareLink.views} + 1`, lastViewedAt: new Date() }).where(eq(shareLink.id, r.id));
   return {
-    household: household?.name ?? "A household",
+    household: household?.name ?? translateText("A household"),
     currency: v.currency,
     title: await titleOf(v, r),
     label: r.label,
@@ -210,13 +211,13 @@ export async function sharedView(v: Caller, r: Row, seen: { ipAddress: string | 
 
 /** A file the link may show: one of a shown item's photos or documents, and only when files are shared. */
 export async function sharedFile(v: Caller, r: Row, attachmentId: string) {
-  if (!r.includeFiles) throw new HTTPException(404, { message: "Not shared" });
+  if (!r.includeFiles) throw new HTTPException(404, { message: translateText("Not shared") });
   const [file] = await v.db
     .select()
     .from(attachment)
     .where(and(eq(attachment.id, attachmentId), eq(attachment.householdId, v.householdId), isNull(attachment.deletedAt)));
-  if (!file) throw new HTTPException(404, { message: "Not shared" });
-  if (!(await sharedItemIds(v, r)).has(file.itemId)) throw new HTTPException(404, { message: "Not shared" });
+  if (!file) throw new HTTPException(404, { message: translateText("Not shared") });
+  if (!(await sharedItemIds(v, r)).has(file.itemId)) throw new HTTPException(404, { message: translateText("Not shared") });
   return file;
 }
 

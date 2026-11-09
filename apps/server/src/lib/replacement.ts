@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * Replacement cost estimates (AI-3): from what an item is (name, brand, model, category, age, what was paid), the text
  * model estimates what a new equivalent costs today, with its reasoning. Always an estimate, kept on the item as a
@@ -18,9 +19,9 @@ import { askInJob, textModelOf } from "./text-ai";
 export const REPLACEMENT_JOB = "ai.replacement";
 
 export async function askReplacementEstimate(v: Caller, itemId: string) {
-  if (!textModelOf(v.deps) || !v.deps.jobs) throw new HTTPException(503, { message: "Estimates need an AI model, and none is set up on this server" });
+  if (!textModelOf(v.deps) || !v.deps.jobs) throw new HTTPException(503, { message: translateText("Estimates need an AI model, and none is set up on this server") });
   const [row] = await v.db.select({ id: item.id }).from(item).where(and(eq(item.id, itemId), itemScope(v, { gone: "include" })));
-  if (!row) throw notFound("Item");
+  if (!row) throw notFound(translateText("Item"));
   await requireAllowed(v, "ai.ask");
   await v.deps.jobs.enqueue(REPLACEMENT_JOB, { householdId: v.householdId, itemId, userId: v.userId });
   return { queued: true as const };
@@ -44,7 +45,7 @@ export function replacementJob(deps: Deps): JobHandler {
     if (!it) return;
     const category = it.categoryId ? (await categoryInfo(v)).get(it.categoryId)?.path : undefined;
     const facts = [
-      `Name: ${it.name}`,
+      translateText("Name: {v0}", { v0: it.name }),
       it.brand && `Brand: ${it.brand}`,
       it.model && `Model: ${it.model}`,
       category && `Category: ${category}`,
@@ -64,7 +65,7 @@ Reply with JSON only:
     await deps.db
       .update(item)
       .set({
-        replacementEstimate: answer.amount ? { cents: Math.round(answer.amount * 100), reasoning: answer.reasoning, at: new Date().toISOString() } : { cents: 0, reasoning: answer.reasoning || "Not enough detail to estimate — add the brand and model.", at: new Date().toISOString() },
+        replacementEstimate: answer.amount ? { cents: Math.round(answer.amount * 100), reasoning: answer.reasoning, at: new Date().toISOString() } : { cents: 0, reasoning: answer.reasoning || translateText("Not enough detail to estimate — add the brand and model."), at: new Date().toISOString() },
         updatedAt: it.updatedAt, // a suggestion isn't an edit
       })
       .where(and(eq(item.id, itemId), eq(item.householdId, householdId)));

@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * Key files: the server's secrets — FILES_KEY, and AUTH_SECRET and the push keys with it — sealed with a passphrase, so
  * they can be kept beside the backups (or anywhere) and brought back with `cli.js key recover` on a new server. Web-standard crypto only: PBKDF2-SHA256 → AES-256-GCM, the key's
@@ -31,7 +32,7 @@ const utf8 = new TextEncoder();
 /** Why a passphrase won't do, or undefined. Length is what makes a stolen key file slow to guess. */
 export function passphraseProblem(passphrase: string): string | undefined {
   if ([...passphrase.normalize("NFC")].length < MIN_PASSPHRASE) {
-    return `Use at least ${MIN_PASSPHRASE} characters — a few unrelated words is easiest. Anyone with the key file can guess offline.`;
+    return translateText("Use at least {v0} characters — a few unrelated words is easiest. Anyone with the key file can guess offline.", { v0: MIN_PASSPHRASE });
   }
   return undefined;
 }
@@ -69,28 +70,28 @@ export async function openKeyFile(file: unknown, passphrase: string): Promise<Ke
       await crypto.subtle.decrypt({ name: "AES-GCM", iv: fromBase64(f.cipher.iv), additionalData: aad(f.keyId) }, key, fromBase64(f.sealed)),
     );
   } catch {
-    throw new Error("Wrong passphrase (or the key file was changed).");
+    throw new Error(translateText("Wrong passphrase (or the key file was changed)."));
   }
   let held: Record<string, unknown>;
   try {
     held = JSON.parse(new TextDecoder().decode(raw)) as Record<string, unknown>;
   } catch {
-    throw new Error("The key file is damaged: what it holds isn't readable.");
+    throw new Error(translateText("The key file is damaged: what it holds isn't readable."));
   } finally {
     raw.fill(0);
   }
   const out: Partial<KeyFileSecrets> = {};
   for (const n of NAMES) if (typeof held[n] === "string" && held[n]) out[n] = held[n] as string;
   if (!out.FILES_KEY || (await masterKeyId(out.FILES_KEY)) !== f.keyId) {
-    throw new Error("The key file is damaged: what it holds isn't the key it names.");
+    throw new Error(translateText("The key file is damaged: what it holds isn't the key it names."));
   }
   return out as KeyFileSecrets;
 }
 
 function asKeyFile(file: unknown): KeyFile {
   const f = file as Partial<KeyFile> | null;
-  if (!f || typeof f !== "object" || f.format !== KEY_FILE_FORMAT) throw new Error("That isn't a Ferret key file.");
-  if (f.version !== 1) throw new Error(`This key file is version ${String(f.version)}; this Ferret reads version 1. Use a newer Ferret.`);
+  if (!f || typeof f !== "object" || f.format !== KEY_FILE_FORMAT) throw new Error(translateText("That isn't a Ferret key file."));
+  if (f.version !== 1) throw new Error(translateText("This key file is version {v0}; this Ferret reads version 1. Use a newer Ferret.", { v0: String(f.version) }));
   const ok =
     typeof f.keyId === "string" &&
     f.kdf?.name === "PBKDF2" &&
@@ -102,7 +103,7 @@ function asKeyFile(file: unknown): KeyFile {
     f.cipher?.name === "AES-GCM" &&
     typeof f.cipher.iv === "string" &&
     typeof f.sealed === "string";
-  if (!ok) throw new Error("The key file is damaged (a part of it is missing or not what Ferret wrote).");
+  if (!ok) throw new Error(translateText("The key file is damaged (a part of it is missing or not what Ferret wrote)."));
   return f as KeyFile;
 }
 

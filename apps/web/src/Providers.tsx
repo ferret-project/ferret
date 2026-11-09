@@ -1,3 +1,6 @@
+import { tn } from "./i18n";
+import { locale } from "./i18n";
+import { t as translateText } from "./i18n";
 /**
  * Service providers: the plumber, the HVAC company, the appliance repair shop.
  * A list with one-tap call/email, each provider's page with the tasks they do
@@ -24,7 +27,7 @@ export function useProviders(householdId: string) {
 
 const TRADES = ["Plumber", "Electrician", "HVAC", "Appliance repair", "Handyman", "Roofer", "Landscaper", "Pest control", "Cleaner", "Locksmith", "Pool & spa", "Insurance agent"];
 
-const formatDate = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+const formatDate = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString(locale(), { month: "short", day: "numeric", year: "numeric" });
 /** "example.com" → a link that works. */
 const websiteUrl = (site: string) => (/^https?:\/\//i.test(site) ? site : `https://${site}`);
 
@@ -39,22 +42,19 @@ function ContactButtons({ p, size = "btn-sm" }: { p: Provider; size?: string }) 
         </a>
       )}
       {p.email && (
-        <a href={`mailto:${p.email}`} className={`btn btn-soft btn-primary ${size}`} aria-label={`Email ${p.name}`}>
+        <a href={`mailto:${p.email}`} className={`btn btn-soft btn-primary ${size}`} aria-label={translateText("Email {v0}", { v0: p.name })}>
           <span className="icon-[tabler--mail] size-4" />
-          Email
-        </a>
+          {translateText("Email")}</a>
       )}
       {p.website && (
-        <a href={websiteUrl(p.website)} target="_blank" rel="noreferrer" className={`btn btn-soft btn-primary ${size}`} aria-label={`${p.name}'s website`}>
+        <a href={websiteUrl(p.website)} target="_blank" rel="noreferrer" className={`btn btn-soft btn-primary ${size}`} aria-label={translateText("{v0}'s website", { v0: p.name })}>
           <span className="icon-[tabler--world] size-4" />
-          Website
-        </a>
+          {translateText("Website")}</a>
       )}
       {p.address && (
         <a href={`https://maps.apple.com/?q=${encodeURIComponent(p.address)}`} target="_blank" rel="noreferrer" className={`btn btn-soft btn-primary ${size}`}>
           <span className="icon-[tabler--map-pin] size-4" />
-          Map
-        </a>
+          {translateText("Map")}</a>
       )}
     </div>
   );
@@ -65,7 +65,7 @@ function Shell({ title, back, action, children }: { title: string; back: string;
     <div className="min-h-dvh bg-base-200">
       <nav className="navbar sticky top-0 z-10 border-b border-base-300 bg-base-100/85 backdrop-blur-md px-4">
         <div className="navbar-start min-w-0 items-center gap-2">
-          <a href={back} className="btn btn-text btn-sm btn-square" aria-label="Back">
+          <a href={back} className="btn btn-text btn-sm btn-square" aria-label={translateText("Back")}>
             <span className="icon-[tabler--arrow-left] size-5" />
           </a>
           <h1 className="truncate text-lg font-semibold">{title}</h1>
@@ -85,14 +85,13 @@ export function Providers({ householdId }: { householdId: string }) {
   const [adding, setAdding] = useState(false);
   return (
     <Shell
-      title="Providers"
+      title={translateText("Providers")}
       back="#/"
       action={
         canEdit && (
           <button type="button" className="btn btn-primary btn-sm" onClick={() => setAdding(true)}>
             <span className="icon-[tabler--plus] size-4" />
-            Provider
-          </button>
+            {translateText("Provider")}</button>
         )
       }
     >
@@ -102,15 +101,13 @@ export function Providers({ householdId }: { householdId: string }) {
         <div className="card">
           <div className="card-body items-center gap-3 text-center">
             <span className="icon-[tabler--address-book] size-10 text-primary" />
-            <h2 className="text-lg font-semibold">Who works on your home?</h2>
+            <h2 className="text-lg font-semibold">{translateText("Who works on your home?")}</h2>
             <p className="max-w-sm text-sm text-base-content/70">
-              Keep your plumber, electrician and HVAC company here — one tap to call, and a record of every job and what it cost.
-            </p>
+              {translateText("Keep your plumber, electrician and HVAC company here — one tap to call, and a record of every job and what it cost.")}</p>
             {canEdit && (
               <button type="button" className="btn btn-primary" onClick={() => setAdding(true)}>
                 <span className="icon-[tabler--plus] size-5" />
-                Add a provider
-              </button>
+                {translateText("Add a provider")}</button>
             )}
           </div>
         </div>
@@ -128,12 +125,12 @@ export function Providers({ householdId }: { householdId: string }) {
                 <div className="min-w-0 flex-1">
                   <h2 className="truncate font-semibold text-base-content">{p.name}</h2>
                   <p className="truncate text-sm text-base-content/70">
-                    {[p.trade, p.contactName].filter(Boolean).join(" · ") || "Service provider"}
+                    {[p.trade, p.contactName].filter(Boolean).join(" · ") || translateText("Service provider")}
                   </p>
                   <p className="text-xs text-base-content/70">
                     {p.visits
-                      ? `${p.visits} ${p.visits === 1 ? "job" : "jobs"} · last ${formatDate(p.lastVisit!)}${p.spentCents ? ` · ${money(p.spentCents)}` : ""}`
-                      : "No jobs recorded yet"}
+                      ? tn(p.visits, "{count} job · last {v2}{v3}", "{count} jobs · last {v2}{v3}", { v2: formatDate(p.lastVisit!), v3: p.spentCents ? ` · ${money(p.spentCents)}` : "" })
+                      : translateText("No jobs recorded yet")}
                   </p>
                 </div>
                 <span className="icon-[tabler--chevron-right] size-5 text-base-content/40" />
@@ -173,8 +170,7 @@ export function ProviderPage({ id, householdId }: { id: string; householdId: str
         p && (
           <button type="button" className="btn btn-soft btn-primary btn-sm" onClick={() => setEditing(true)}>
             <span className="icon-[tabler--pencil] size-4" />
-            Edit
-          </button>
+            {translateText("Edit")}</button>
         )
       }
     >
@@ -191,7 +187,7 @@ export function ProviderPage({ id, householdId }: { id: string; householdId: str
               {p.address && <p className="text-sm text-base-content/70">{p.address}</p>}
               {p.notes && <p className="whitespace-pre-line text-sm text-base-content/80">{p.notes}</p>}
               <p className="text-sm text-base-content/70">
-                {p.visits ? `${p.visits} ${p.visits === 1 ? "job" : "jobs"}, ${money(p.spentCents)} in all` : "No jobs recorded yet"}
+                {p.visits ? tn(p.visits, "{count} job, {v2} in all", "{count} jobs, {v2} in all", { v2: money(p.spentCents) }) : translateText("No jobs recorded yet")}
               </p>
             </div>
           </section>
@@ -199,8 +195,7 @@ export function ProviderPage({ id, householdId }: { id: string; householdId: str
           <section className="flex flex-col gap-2">
             <h2 className="flex items-center gap-2 font-semibold text-base-content">
               <span className="icon-[tabler--tool] size-5 text-primary" />
-              Usually does
-            </h2>
+              {translateText("Usually does")}</h2>
             {tasks.data?.data.length ? (
               <ul className="card divide-y divide-base-content/10 px-4">
                 {tasks.data.data.map((t) => (
@@ -209,21 +204,20 @@ export function ProviderPage({ id, householdId }: { id: string; householdId: str
                       {t.title}
                     </a>
                     <span className="block text-sm text-base-content/70">
-                      {[t.itemName, t.dueOn && `next ${formatDate(t.dueOn)}`].filter(Boolean).join(" · ")}
+                      {[t.itemName, t.dueOn && translateText("next {v0}", { v0: formatDate(t.dueOn) })].filter(Boolean).join(" · ")}
                     </span>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-base-content/70">No maintenance tasks name them yet — choose them under "Who does it" on a task.</p>
+              <p className="text-sm text-base-content/70">{translateText("No maintenance tasks name them yet — choose them under \"Who does it\" on a task.")}</p>
             )}
           </section>
 
           <section className="flex flex-col gap-2">
             <h2 className="flex items-center gap-2 font-semibold text-base-content">
               <span className="icon-[tabler--history] size-5 text-primary" />
-              Jobs
-            </h2>
+              {translateText("Jobs")}</h2>
             {visits.data?.data.length ? (
               <ul className="card divide-y divide-base-content/10 px-4">
                 {visits.data.data.map((v) => (
@@ -246,7 +240,7 @@ export function ProviderPage({ id, householdId }: { id: string; householdId: str
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-base-content/70">Mark a task done and choose them as who did it, and the job shows up here.</p>
+              <p className="text-sm text-base-content/70">{translateText("Mark a task done and choose them as who did it, and the job shows up here.")}</p>
             )}
           </section>
 
@@ -255,11 +249,10 @@ export function ProviderPage({ id, householdId }: { id: string; householdId: str
               type="button"
               className="btn btn-text btn-error btn-sm self-start"
               disabled={remove.isPending}
-              onClick={() => window.confirm(`Remove ${p.name}? Their past jobs stay on the tasks.`) && remove.mutate()}
+              onClick={() => window.confirm(translateText("Remove {v0}? Their past jobs stay on the tasks.", { v0: p.name })) && remove.mutate()}
             >
               <span className="icon-[tabler--trash] size-4" />
-              Remove provider
-            </button>
+              {translateText("Remove provider")}</button>
           )}
           {editing && <ProviderDialog householdId={householdId} provider={p} onClose={() => setEditing(false)} />}
         </>
@@ -304,47 +297,44 @@ export function ProviderDialog(props: { householdId: string; provider?: Provider
     </div>
   );
   return (
-    <Modal id="provider-dialog" title={p ? `Edit ${p.name}` : "New service provider"} onClose={props.onClose}>
+    <Modal id="provider-dialog" title={p ? translateText("Edit {v0}", { v0: p.name }) : translateText("New service provider")} onClose={props.onClose}>
       <form className="flex flex-col gap-6" onSubmit={onSubmit}>
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {input("name", "Name", { required: true, maxLength: 120, autoFocus: true, placeholder: "e.g. Cool Air Co", defaultValue: p?.name ?? props.initialName ?? "" })}
+            {input("name", translateText("Name"), { required: true, maxLength: 120, autoFocus: true, placeholder: translateText("e.g. Cool Air Co"), defaultValue: p?.name ?? props.initialName ?? "" })}
             <div>
               <label className="label-text" htmlFor="provider-trade">
-                Trade
-              </label>
-              <input id="provider-trade" name="trade" className="input" list="provider-trades" defaultValue={p?.trade ?? ""} maxLength={60} placeholder="e.g. HVAC" />
+                {translateText("Trade")}</label>
+              <input id="provider-trade" name="trade" className="input" list="provider-trades" defaultValue={p?.trade ?? ""} maxLength={60} placeholder={translateText("e.g. HVAC")} />
               <datalist id="provider-trades">
-                {TRADES.map((t) => (
-                  <option key={t} value={t} />
+                {TRADES.map((source) => translateText(source)).map((trade) => (
+                  <option key={trade} value={trade} />
                 ))}
               </datalist>
             </div>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {input("phone", "Phone", { type: "tel", autoComplete: "tel", maxLength: 40 })}
-            {input("email", "Email", { type: "email", autoComplete: "email", maxLength: 200 })}
+            {input("phone", translateText("Phone"), { type: "tel", autoComplete: "tel", maxLength: 40 })}
+            {input("email", translateText("Email"), { type: "email", autoComplete: "email", maxLength: 200 })}
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {input("contactName", "Contact person", { maxLength: 120, placeholder: "Who you deal with" })}
-            {input("website", "Website", { inputMode: "url", maxLength: 300, placeholder: "coolair.example" })}
+            {input("contactName", translateText("Contact person"), { maxLength: 120, placeholder: translateText("Who you deal with") })}
+            {input("website", translateText("Website"), { inputMode: "url", maxLength: 300, placeholder: translateText("coolair.example") })}
           </div>
-          {input("address", "Address", { autoComplete: "street-address", maxLength: 300 })}
+          {input("address", translateText("Address"), { autoComplete: "street-address", maxLength: 300 })}
           <div>
             <label className="label-text" htmlFor="provider-notes">
-              Notes
-            </label>
-            <textarea id="provider-notes" name="notes" className="textarea" rows={3} defaultValue={p?.notes ?? ""} maxLength={5000} placeholder="Account number, hours, who to ask for…" />
+              {translateText("Notes")}</label>
+            <textarea id="provider-notes" name="notes" className="textarea" rows={3} defaultValue={p?.notes ?? ""} maxLength={5000} placeholder={translateText("Account number, hours, who to ask for…")} />
           </div>
         </div>
         {save.isError && <div className="alert alert-soft alert-error">{save.error.message}</div>}
         <DialogActions>
           <button type="button" className="btn btn-secondary btn-soft" onClick={props.onClose}>
-            Cancel
-          </button>
+            {translateText("Cancel")}</button>
           <button type="submit" className="btn btn-primary" disabled={save.isPending}>
             {save.isPending && <span className="loading loading-spinner loading-sm" />}
-            {p ? "Save" : "Add provider"}
+            {p ? translateText("Save") : translateText("Add provider")}
           </button>
         </DialogActions>
       </form>

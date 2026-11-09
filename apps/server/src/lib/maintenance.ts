@@ -1,3 +1,5 @@
+import { currentLanguage } from "./i18n";
+import { t as translateText } from "./i18n";
 /**
  * Maintenance: recurring (or one-off) jobs on items, places or the whole
  * household. Shared by the REST API, the MCP tools, the calendar feed and the
@@ -135,7 +137,7 @@ export async function listMaintenance(v: Caller, filter: MaintenanceFilter = {})
 
 export async function getTask(v: Caller, id: string) {
   const [found] = (await listMaintenance(v, { status: "all" })).filter((t) => t.id === id);
-  if (!found) throw notFound("Maintenance task");
+  if (!found) throw notFound(translateText("Maintenance task"));
   return found;
 }
 
@@ -147,31 +149,31 @@ async function checkLinks(
   await checkProvider(v, input.providerId);
   if (input.partItemId) {
     const [found] = await v.db.select({ id: item.id }).from(item).where(and(eq(item.id, input.partItemId), itemScope(v)));
-    if (!found) throw notFound("Part");
+    if (!found) throw notFound(translateText("Part"));
   }
   if (input.itemId) {
     const [found] = await v.db.select({ id: item.id }).from(item).where(and(eq(item.id, input.itemId), itemScope(v)));
-    if (!found) throw notFound("Item");
+    if (!found) throw notFound(translateText("Item"));
   }
   if (input.locationId) {
     const [place] = await v.db.select({ id: location.id }).from(location).where(locationIn(v, input.locationId));
-    if (!place) throw notFound("Location");
+    if (!place) throw notFound(translateText("Location"));
   }
   if (input.attachmentId) {
     const [doc] = await v.db
       .select({ id: attachment.id })
       .from(attachment)
       .where(and(eq(attachment.id, input.attachmentId), eq(attachment.householdId, v.householdId), isNull(attachment.deletedAt)));
-    if (!doc) throw notFound("Attachment");
+    if (!doc) throw notFound(translateText("Attachment"));
   }
 }
 
 /** A task by use needs its item to count something, and a reading to count from: the reading it's next due at. */
 async function usageStart(v: Caller, itemId: string, every: number) {
   const [it] = await v.db.select({ name: item.name, unit: item.usageUnit }).from(item).where(and(eq(item.id, itemId), itemScope(v)));
-  if (!it?.unit) throw new HTTPException(422, { message: `Say what ${it?.name ?? "it"} counts first (miles, hours…)` });
+  if (!it?.unit) throw new HTTPException(422, { message: translateText("Say what {v0} counts first (miles, hours…)", { v0: it?.name ?? translateText("it") }) });
   const now = await currentReading(v, itemId);
-  if (now == null) throw new HTTPException(422, { message: `Add a reading for ${it.name} first — what does it say now?` });
+  if (now == null) throw new HTTPException(422, { message: translateText("Add a reading for {v0} first — what does it say now?", { v0: it.name }) });
   return now + every;
 }
 
@@ -204,7 +206,7 @@ export async function createTask(v: Caller, input: MaintenanceInput) {
       createdBy: v.userId,
     })
     .returning();
-  await logActivity(v, "maintenance.create", row!.id, `Added maintenance: ${row!.title} (${await describeSchedule(v, row!)})`, row!.itemId);
+  await logActivity(v, "maintenance.create", row!.id, translateText("Added maintenance: {v0} ({v1})", { v0: row!.title, v1: await describeSchedule(v, row!) }), row!.itemId);
   if (input.suggestionId) await markSuggestionAdded(v, input.suggestionId);
   return getTask(v, row!.id);
 }
@@ -212,7 +214,7 @@ export async function createTask(v: Caller, input: MaintenanceInput) {
 export async function updateTask(v: Caller, id: string, input: MaintenancePatch) {
   await checkLinks(v, input);
   const [before] = await v.db.select().from(maintenanceTask).where(taskIn(v, id));
-  if (!before) throw notFound("Maintenance task");
+  if (!before) throw notFound(translateText("Maintenance task"));
   const changes: Partial<typeof maintenanceTask.$inferInsert> = { ...input };
   // Clearing one half of the interval clears both: it's a one-off now.
   if (input.intervalCount === null || input.intervalUnit === null) Object.assign(changes, { intervalCount: null, intervalUnit: null });
@@ -224,15 +226,15 @@ export async function updateTask(v: Caller, id: string, input: MaintenancePatch)
   const itemId = input.itemId !== undefined ? input.itemId : before.itemId;
   const every = input.usageEvery !== undefined ? input.usageEvery : before.usageEvery;
   if (!every) changes.usageDueAt = null;
-  else if (!itemId) throw new HTTPException(422, { message: "Maintenance by use needs the thing it's on" });
+  else if (!itemId) throw new HTTPException(422, { message: translateText("Maintenance by use needs the thing it's on") });
   else if (itemId !== before.itemId || before.usageDueAt == null) changes.usageDueAt = await usageStart(v, itemId, every);
   else if (before.usageEvery && every !== before.usageEvery) changes.usageDueAt = before.usageDueAt - before.usageEvery + every;
   const [updated] = await v.db.update(maintenanceTask).set(changes).where(taskIn(v, id)).returning();
-  if (!updated) throw notFound("Maintenance task");
+  if (!updated) throw notFound(translateText("Maintenance task"));
   const { dueOn } = effectiveDue(updated, updated.itemId && updated.usageDueAt != null ? await readingsOf(v, updated.itemId) : []);
   const [row] = await v.db.update(maintenanceTask).set({ dueOn }).where(taskIn(v, id)).returning();
-  if (!row) throw notFound("Maintenance task");
-  await logActivity(v, "maintenance.update", row.id, `Updated maintenance: ${row.title}`, row.itemId);
+  if (!row) throw notFound(translateText("Maintenance task"));
+  await logActivity(v, "maintenance.update", row.id, translateText("Updated maintenance: {v0}", { v0: row.title }), row.itemId);
   return getTask(v, row.id);
 }
 
@@ -242,20 +244,20 @@ export async function deleteTask(v: Caller, id: string) {
     .set({ deletedAt: new Date() })
     .where(taskIn(v, id))
     .returning({ id: maintenanceTask.id, title: maintenanceTask.title, itemId: maintenanceTask.itemId });
-  if (!row) throw notFound("Maintenance task");
-  await logActivity(v, "maintenance.delete", row.id, `Removed maintenance: ${row.title}`, row.itemId);
+  if (!row) throw notFound(translateText("Maintenance task"));
+  await logActivity(v, "maintenance.delete", row.id, translateText("Removed maintenance: {v0}", { v0: row.title }), row.itemId);
   return row;
 }
 
 /** Done: log it, and move the next due date on from the day it was done (a one-off is finished). */
 export async function markDone(v: Caller, id: string, input: MaintenanceDone) {
   const [task] = await v.db.select().from(maintenanceTask).where(taskIn(v, id));
-  if (!task) throw notFound("Maintenance task");
+  if (!task) throw notFound(translateText("Maintenance task"));
   const doneOn = input.doneOn ?? todayFor(v);
   // Who did it: as given (null = we did), else the task's usual provider.
   const providerId = input.providerId !== undefined ? input.providerId : task.providerId;
   await checkProvider(v, providerId);
-  if (doneOn > todayFor(v)) throw new HTTPException(422, { message: "That's in the future — mark it done once it's done" });
+  if (doneOn > todayFor(v)) throw new HTTPException(422, { message: translateText("That's in the future — mark it done once it's done") });
   await v.db.insert(maintenanceLog).values({
     householdId: v.householdId,
     taskId: id,
@@ -274,19 +276,19 @@ export async function markDone(v: Caller, id: string, input: MaintenanceDone) {
   let at: number | null = null;
   if (task.usageEvery && task.itemId && owner?.unit) {
     if (input.reading != null) {
-      await v.db.insert(usageReading).values({ householdId: v.householdId, itemId: task.itemId, value: input.reading, readOn: doneOn, note: `Done: ${task.title}`, userId: v.userId });
+      await v.db.insert(usageReading).values({ householdId: v.householdId, itemId: task.itemId, value: input.reading, readOn: doneOn, note: translateText("Done: {v0}", { v0: task.title }), userId: v.userId });
     }
     at = input.reading ?? (await currentReading(v, task.itemId));
     if (at != null) usageDueAt = at + task.usageEvery;
   }
   const { dueOn } = effectiveDue({ timeDueOn, usageDueAt }, task.itemId && usageDueAt != null ? await readingsOf(v, task.itemId) : []);
   await v.db.update(maintenanceTask).set({ lastDoneOn, timeDueOn, usageDueAt, dueOn }).where(taskIn(v, id));
-  const atText = at != null && owner?.unit ? ` at ${describeUsage(at, owner.unit)}` : "";
-  await logActivity(v, "maintenance.done", id, `Done: ${task.title}${owner ? ` (${owner.name})` : ""}${atText}`, task.itemId);
+  const atText = at != null && owner?.unit ? translateText(" at {v0}", { v0: describeUsage(at, owner.unit, currentLanguage()) }) : "";
+  await logActivity(v, "maintenance.done", id, translateText("Done: {v0}{v1}{v2}", { v0: task.title, v1: owner ? ` (${owner.name})` : "", v2: atText }), task.itemId);
   // The part it uses comes out of stock (never below 0) — unless they say they didn't use one this time.
   if (task.partItemId && input.usePart !== false) {
     const [stillThere] = await v.db.select({ id: item.id }).from(item).where(and(eq(item.id, task.partItemId), itemScope(v)));
-    if (stillThere) await adjustStock(v, task.partItemId, -task.partQuantity, "maintenance", `For ${task.title}`);
+    if (stillThere) await adjustStock(v, task.partItemId, -task.partQuantity, "maintenance", translateText("For {v0}", { v0: task.title }));
   }
   return getTask(v, id);
 }
@@ -312,10 +314,12 @@ export async function taskHistory(v: Caller, id: string): Promise<MaintenanceLog
 
 /** "every 3 months", "every 5,000 miles", "every 5,000 miles or 6 months". */
 async function describeSchedule(v: Caller, t: { intervalCount: number | null; intervalUnit: MaintenanceTask["intervalUnit"]; usageEvery: number | null; itemId: string | null }) {
-  const byTime = describeInterval(t.intervalCount, t.intervalUnit);
+  const byTime = describeInterval(t.intervalCount, t.intervalUnit, currentLanguage());
   if (!t.usageEvery || !t.itemId) return byTime;
   const [it] = await v.db.select({ unit: item.usageUnit }).from(item).where(eq(item.id, t.itemId));
   if (!it?.unit) return byTime;
-  const byUse = `every ${describeUsage(t.usageEvery, it.unit)}`;
-  return t.intervalCount ? `${byUse} or ${t.intervalCount === 1 ? `a ${t.intervalUnit}` : byTime.replace(/^every /, "")}` : byUse;
+  const byUse = translateText("every {v0}", { v0: describeUsage(t.usageEvery, it.unit, currentLanguage()) });
+  if (!t.intervalCount) return byUse;
+  const time = currentLanguage() === "hu" ? byTime : t.intervalCount === 1 ? `a ${t.intervalUnit}` : byTime.replace(/^every /, "");
+  return translateText("{v0} or {v1}", { v0: byUse, v1: time });
 }

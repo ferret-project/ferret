@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * Recently deleted: a deleted item is kept (soft delete) for TRASH_DAYS, listed
  * in "Recently deleted" where it can be restored or deleted for good, and then
@@ -80,7 +81,7 @@ export async function listDeleted(v: Caller): Promise<DeletedItem[]> {
  */
 export async function restoreItem(v: Caller, id: string) {
   const [row] = await v.db.select().from(item).where(and(eq(item.id, id), deletedItems(v)));
-  if (!row) throw notFound("Deleted item");
+  if (!row) throw notFound(translateText("Deleted item"));
   await requireRoom(v, { items: 1 }); // back among the things a plan counts (lib/plan.ts)
   const [place] = row.locationId
     ? await v.db.select({ id: location.id }).from(location).where(and(eq(location.id, row.locationId), isNull(location.deletedAt)))
@@ -94,16 +95,16 @@ export async function restoreItem(v: Caller, id: string) {
     .where(eq(item.id, id));
   await itemChanged(v, id);
   if (box) await itemChanged(v, box.id);
-  await logActivity(v, "item.restore", id, `Restored ${row.name}`);
+  await logActivity(v, "item.restore", id, translateText("Restored {v0}", { v0: row.name }));
   return { id, name: row.name };
 }
 
 /** Deletes a deleted item for good, now rather than when its 30 days are up. */
 export async function deleteItemForGood(v: Caller, files: FileStore, id: string) {
   const [row] = await v.db.select({ id: item.id, name: item.name }).from(item).where(and(eq(item.id, id), deletedItems(v)));
-  if (!row) throw notFound("Deleted item");
+  if (!row) throw notFound(translateText("Deleted item"));
   await purgeItems({ db: v.db, deps: v.deps, files }, [id]);
-  await logActivity(v, "item.purge", id, `Deleted ${row.name} for good`);
+  await logActivity(v, "item.purge", id, translateText("Deleted {v0} for good", { v0: row.name }));
 }
 
 type Purger = { db: Db; deps: Pick<Deps, "vectors">; files: FileStore };

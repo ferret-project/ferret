@@ -1,3 +1,4 @@
+import { t as translateText, currentLanguage } from "./../i18n";
 import type {
   ServerCertificates,
   AccountDeletionInfo,
@@ -149,7 +150,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`/api/v1${path}`, {
     credentials: "include",
     ...init,
-    headers: { "Content-Type": "application/json", ...init.headers },
+    headers: { "Content-Type": "application/json", "Accept-Language": currentLanguage(), ...init.headers },
   });
   if (res.status === 204) return undefined as T;
   const json = (await res.json()) as T | ApiError;
@@ -177,9 +178,9 @@ async function upload(itemId: string, file: File, kind: AttachmentKind, onProgre
     xhr.onload = () => {
       if (xhr.status === 201) return resolve(xhr.response as Attachment);
       const message = (xhr.response as ApiError | null)?.error?.message;
-      reject(Object.assign(new Error(message ?? `Upload failed (${xhr.status})`), { status: xhr.status }));
+      reject(Object.assign(new Error(message ?? translateText("Upload failed ({v0})", { v0: xhr.status })), { status: xhr.status }));
     };
-    xhr.onerror = () => reject(new Error("Network error — check your connection and try again"));
+    xhr.onerror = () => reject(new Error(translateText("Network error — check your connection and try again")));
     const form = new FormData();
     form.set("file", file);
     form.set("kind", kind);

@@ -1,3 +1,5 @@
+import { locale } from "./i18n";
+import { t as translateText } from "./i18n";
 /**
  * An item's smart-home pairing codes — HomeKit and Matter (server: lib/pairing.ts). Listed without the code; **Show**
  * asks the server for it (logged) and draws its QR again, so the Home app can scan it off this screen when an
@@ -12,7 +14,7 @@ import { QrCode } from "./Labels";
 import { api } from "./lib/api";
 import { Scanner } from "./Scanner";
 
-const KIND = { homekit: "HomeKit", matter: "Matter" } as const;
+const KIND = { homekit: "HomeKit", get matter() { return translateText("Matter"); } } as const;
 
 export function PairingCard({ itemId, householdId, canEdit }: { itemId: string; householdId: string; canEdit: boolean }) {
   const key = ["pairing", householdId, itemId];
@@ -25,8 +27,7 @@ export function PairingCard({ itemId, householdId, canEdit }: { itemId: string; 
       <div>
         <button type="button" className="btn btn-soft btn-secondary btn-sm" onClick={() => setAdding(true)}>
           <span className="icon-[tabler--home-link] size-4" />
-          HomeKit / Matter code
-        </button>
+          {translateText("HomeKit / Matter code")}</button>
       </div>
     ) : null;
   }
@@ -36,14 +37,12 @@ export function PairingCard({ itemId, householdId, canEdit }: { itemId: string; 
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 id={`pairing-${itemId}`} className="card-title flex items-center gap-2">
             <span className="icon-[tabler--home-link] size-5 text-primary" />
-            Pairing codes
-            <HelpLink page="guide/pairing-codes.html" label="Pairing codes" />
+            {translateText("Pairing codes")}<HelpLink page="guide/pairing-codes.html" label={translateText("Pairing codes")} />
           </h2>
           {canEdit && !adding && (
             <button type="button" className="btn btn-text btn-sm" onClick={() => setAdding(true)}>
               <span className="icon-[tabler--plus] size-4" />
-              Add
-            </button>
+              {translateText("Add")}</button>
           )}
         </div>
         {codes.length > 0 && (
@@ -66,8 +65,8 @@ function CodeRow({ itemId, code, canEdit, queryKey }: { itemId: string; code: Pa
   const [copied, setCopied] = useState(false);
   const reveal = useMutation({ mutationFn: () => api.revealPairing(itemId, code.id), onSuccess: setShown });
   const remove = useMutation({ mutationFn: () => api.deletePairing(itemId, code.id), onSuccess: () => qc.invalidateQueries({ queryKey }) });
-  const title = code.label || code.category || `${KIND[code.kind]} code`;
-  const sub = [KIND[code.kind], code.label ? code.category : null, `added ${new Date(code.addedAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`]
+  const title = code.label || code.category || translateText("{v0} code", { v0: KIND[code.kind] });
+  const sub = [KIND[code.kind], code.label ? code.category : null, translateText("added {v0}", { v0: new Date(code.addedAt).toLocaleDateString(locale(), { month: "short", day: "numeric", year: "numeric" }) })]
     .filter(Boolean)
     .join(" · ");
 
@@ -91,25 +90,21 @@ function CodeRow({ itemId, code, canEdit, queryKey }: { itemId: string; code: Pa
             {shown ? (
               <button type="button" className="btn btn-soft btn-sm" onClick={() => setShown(null)}>
                 <span className="icon-[tabler--eye-off] size-4" />
-                Hide
-              </button>
+                {translateText("Hide")}</button>
             ) : (
               <button type="button" className="btn btn-soft btn-primary btn-sm" disabled={reveal.isPending} onClick={() => reveal.mutate()}>
                 <span className="icon-[tabler--eye] size-4" />
-                Show
-              </button>
+                {translateText("Show")}</button>
             )}
             {confirming ? (
               <>
                 <button type="button" className="btn btn-error btn-sm" disabled={remove.isPending} onClick={() => remove.mutate()}>
-                  Remove
-                </button>
+                  {translateText("Remove")}</button>
                 <button type="button" className="btn btn-text btn-sm" onClick={() => setConfirming(false)}>
-                  Keep
-                </button>
+                  {translateText("Keep")}</button>
               </>
             ) : (
-              <button type="button" className="btn btn-text btn-sm btn-square btn-error" aria-label={`Remove the ${KIND[code.kind]} code for ${title}`} onClick={() => setConfirming(true)}>
+              <button type="button" className="btn btn-text btn-sm btn-square btn-error" aria-label={translateText("Remove the {v0} code for {v1}", { v0: KIND[code.kind], v1: title })} onClick={() => setConfirming(true)}>
                 <span className="icon-[tabler--trash] size-5" />
               </button>
             )}
@@ -125,15 +120,15 @@ function CodeRow({ itemId, code, canEdit, queryKey }: { itemId: string; code: Pa
             </div>
           )}
           <div className="min-w-0 space-y-2">
-            <p className="font-mono text-2xl font-semibold tracking-wider tabular-nums" aria-label={`Setup code ${shown.code.split("").join(" ")}`}>
+            <p className="font-mono text-2xl font-semibold tracking-wider tabular-nums" aria-label={translateText("Setup code {v0}", { v0: shown.code.split("").join(" ") })}>
               {shown.code}
             </p>
             <button type="button" className="btn btn-soft btn-sm" onClick={() => void copy()}>
               <span className={`${copied ? "icon-[tabler--check]" : "icon-[tabler--copy]"} size-4`} />
-              {copied ? "Copied" : "Copy code"}
+              {copied ? translateText("Copied") : translateText("Copy code")}
             </button>
             <p className="text-sm text-base-content/70">
-              {shown.payload ? "In the Home app: Add Accessory, then point the camera at this QR code — or type the code." : "In the Home app: Add Accessory → More options, and type the code."}
+              {shown.payload ? translateText("In the Home app: Add Accessory, then point the camera at this QR code — or type the code.") : translateText("In the Home app: Add Accessory → More options, and type the code.")}
             </p>
           </div>
         </div>
@@ -163,46 +158,42 @@ function AddCode({ itemId, queryKey, onDone }: { itemId: string; queryKey: unkno
     <form className="space-y-3 rounded-box bg-base-200 p-3" onSubmit={onSubmit}>
       <div>
         <label className="label-text" htmlFor={`pair-code-${itemId}`}>
-          Its QR code, or the code as printed
-        </label>
+          {translateText("Its QR code, or the code as printed")}</label>
         <div className="input">
           <input
             id={`pair-code-${itemId}`}
             className="grow font-mono"
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            placeholder="X-HM://…, MT:…, 123-45-678"
+            placeholder={"X-HM://…, MT:…, 123-45-678"}
             autoComplete="off"
             autoCapitalize="characters"
             spellCheck={false}
             autoFocus
           />
-          <button type="button" className="btn btn-text btn-sm btn-square my-auto" aria-label="Scan its QR code" onClick={() => setScanning(true)}>
+          <button type="button" className="btn btn-text btn-sm btn-square my-auto" aria-label={translateText("Scan its QR code")} onClick={() => setScanning(true)}>
             <span className="icon-[tabler--qrcode] size-5" />
           </button>
         </div>
         <p className="mt-1 text-sm text-base-content/70" aria-live="polite">
           {!code.trim()
-            ? "Scan the QR sticker on the device, its box or its manual — or type the 8-digit (HomeKit) or 11-digit (Matter) code."
+            ? translateText("Scan the QR sticker on the device, its box or its manual — or type the 8-digit (HomeKit) or 11-digit (Matter) code.")
             : info
-              ? `${KIND[info.kind]}${info.category ? ` · ${info.category}` : ""} · ${info.code}${info.payload ? " · with its QR code" : ""}`
-              : "That doesn't look like a HomeKit or Matter code yet."}
+              ? `${KIND[info.kind]}${info.category ? ` · ${info.category}` : ""} · ${info.code}${info.payload ? translateText(" · with its QR code") : ""}`
+              : translateText("That doesn't look like a HomeKit or Matter code yet.")}
         </p>
       </div>
       <div>
         <label className="label-text" htmlFor={`pair-label-${itemId}`}>
-          Note (optional)
-        </label>
-        <input id={`pair-label-${itemId}`} className="input" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. the bridge, back door" maxLength={80} />
+          {translateText("Note (optional)")}</label>
+        <input id={`pair-label-${itemId}`} className="input" value={label} onChange={(e) => setLabel(e.target.value)} placeholder={translateText("e.g. the bridge, back door")} maxLength={80} />
       </div>
       {add.isError && <div className="alert alert-soft alert-error">{add.error.message}</div>}
       <div className="flex flex-wrap justify-end gap-2">
         <button type="button" className="btn btn-text" onClick={onDone}>
-          Cancel
-        </button>
+          {translateText("Cancel")}</button>
         <button type="submit" className="btn btn-primary" disabled={!info || add.isPending}>
-          Save code
-        </button>
+          {translateText("Save code")}</button>
       </div>
       {scanning && (
         <Scanner

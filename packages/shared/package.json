@@ -5,11 +5,12 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./utils": "./src/utils.ts"
+    "./utils": "./src/utils.ts",
+    "./i18n": "./src/i18n.ts"
   },
   "scripts": {
     "typecheck": "tsc -p .",
-    "test": "echo 'no tests'"
+    "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
     "zod": "^4.6.7"

@@ -1,3 +1,4 @@
+import { t as translateText } from "./../lib/i18n";
 /**
  * /api/v1/room-scans — photograph a room, review what the vision model found, add what's ticked (lib/room-scans.ts).
  */
@@ -17,7 +18,7 @@ roomScans.use("/", requireUser, requireHousehold);
 const photosLimit = createMiddleware<AppEnv>((c, next) =>
   bodyLimit({
     maxSize: svc.MAX_ROOM_PHOTOS * c.var.config.MAX_UPLOAD_MB * 1024 * 1024,
-    onError: (c) => c.json({ error: { code: "http_413", message: `Photos can be up to ${c.var.config.MAX_UPLOAD_MB} MB each` } }, 413),
+    onError: (c) => c.json({ error: { code: "http_413", message: translateText("Photos can be up to {v0} MB each", { v0: c.var.config.MAX_UPLOAD_MB }) } }, 413),
   })(c, next),
 );
 
@@ -27,7 +28,7 @@ roomScans.get("/", async (c) => c.json({ data: await svc.openRoomScans(callerOf(
 /** multipart/form-data: `photo` (1–5 of them), and `locationId` or `containerItemId`. 202: being looked at. */
 roomScans.post("/", requireWriter, photosLimit, async (c) => {
   const form = await c.req.parseBody({ all: true }).catch(() => {
-    throw new HTTPException(400, { message: "Body must be multipart/form-data" });
+    throw new HTTPException(400, { message: translateText("Body must be multipart/form-data") });
   });
   const parts = ([] as unknown[]).concat(form.photo ?? []);
   const photos = await Promise.all(parts.filter((p): p is File => p instanceof File).map(async (f) => new Uint8Array(await f.arrayBuffer())));

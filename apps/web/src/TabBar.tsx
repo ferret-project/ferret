@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * The tab bar along the bottom on phones (where a thumb reaches): the main places, always one tap away.
  * Wider screens use the icons in each screen's top bar instead. The active tab has a filled icon where
@@ -9,14 +10,14 @@ import { type Route, HOME_HREF, ITEMS_HREF, MAINTENANCE_HREF, MORE_HREF, PLACES_
 type Tab = { href: string; label: string; icon: string; active: string; routes: Route["name"][] };
 
 const TABS: Tab[] = [
-  { href: HOME_HREF, label: "Home", icon: "icon-[tabler--home]", active: "icon-[tabler--home-filled]", routes: ["home", "category", "tag", "label"] },
-  { href: ITEMS_HREF, label: "Everything", icon: "icon-[tabler--layout-grid]", active: "icon-[tabler--layout-grid-filled]", routes: ["items", "item"] },
-  { href: PLACES_HREF, label: "Places", icon: "icon-[tabler--map-pin]", active: "icon-[tabler--map-pin-filled]", routes: ["places", "property", "place", "walkthrough"] },
-  { href: MAINTENANCE_HREF, label: "Maintenance", icon: "icon-[tabler--tool]", active: "icon-[tabler--tool]", routes: ["maintenance", "providers", "provider"] },
+  { href: HOME_HREF, get label() { return translateText("Home"); }, icon: "icon-[tabler--home]", active: "icon-[tabler--home-filled]", routes: ["home", "category", "tag", "label"] },
+  { href: ITEMS_HREF, get label() { return translateText("Everything"); }, icon: "icon-[tabler--layout-grid]", active: "icon-[tabler--layout-grid-filled]", routes: ["items", "item"] },
+  { href: PLACES_HREF, get label() { return translateText("Places"); }, icon: "icon-[tabler--map-pin]", active: "icon-[tabler--map-pin-filled]", routes: ["places", "property", "place", "walkthrough"] },
+  { href: MAINTENANCE_HREF, get label() { return translateText("Maintenance"); }, icon: "icon-[tabler--tool]", active: "icon-[tabler--tool]", routes: ["maintenance", "providers", "provider"] },
   // Everything else, grouped (Nav.tsx MorePage) — settings included.
   {
     href: MORE_HREF,
-    label: "More",
+    get label() { return translateText("More"); },
     icon: "icon-[tabler--dots-circle-horizontal]",
     active: "icon-[tabler--dots-circle-horizontal]",
     routes: ["more", "settings", "categories", "deleted", "shopping", "past", "loans", "coverage", "warranties", "ai-filled", "duplicates", "report", "labels", "import"],
@@ -27,7 +28,7 @@ export function TabBar({ route }: { route: Route["name"] }) {
   return (
     <nav
       id="tab-bar"
-      aria-label="Main"
+      aria-label={translateText("Main")}
       className="fixed inset-x-0 bottom-0 z-20 border-t border-base-300 bg-base-100/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-md sm:hidden print:hidden"
     >
       <ul className="grid h-[56px] grid-cols-5">

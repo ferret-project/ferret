@@ -1,3 +1,4 @@
+import { t as translateText } from "./../i18n";
 /**
  * Offline capture: photos and scans taken with no signal (a basement, a storage unit) wait on this device — in
  * IndexedDB — and go up by themselves once Ferret can be reached again.
@@ -173,7 +174,7 @@ export async function syncCaptures(householdId: string): Promise<number> {
         done++;
       } catch (err) {
         if (isOffline(err)) break;
-        await saveCapture({ ...c, error: err instanceof Error ? err.message : "Couldn't upload it" });
+        await saveCapture({ ...c, error: err instanceof Error ? err.message : translateText("Couldn't upload it") });
       }
     }
     return done;

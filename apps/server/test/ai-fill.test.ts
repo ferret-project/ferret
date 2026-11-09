@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { and, eq } from "drizzle-orm";
+import { activity } from "../src/db/schema";
 import { FakeAi, FakeDocuments, pdf, photo, setup } from "./helpers";
 
 const receipt = (over: Record<string, unknown> = {}) => ({
@@ -86,6 +88,31 @@ describe("let AI fill in", () => {
     await pat.as(`/api/v1/items/${id}`, { method: "PATCH", body: JSON.stringify({ brand: null }) });
     await jobs.drain();
     expect(await item(pat, id)).toMatchObject({ brand: null, model: "DCD771C2" });
+  });
+
+  it.each([["en", "structured"], ["hu", "structured"], ["en", "legacy"], ["hu", "legacy"]])("respects intentional clearing in %s (%s) even when the analysis job uses another language", async (language, history) => {
+    const { pat, jobs, settings, db } = await household();
+    await settings({ details: true, returnBy: true });
+    const { id } = await pat.addItem({ name: "Drill", brand: "Old", model: "Old model", returnBy: "2099-01-01", purchasePriceCents: 100 });
+    await pat.upload(id, pdf(), "receipt.pdf", "document");
+    await pat.as("/api/v1/language", { method: "PUT", body: JSON.stringify({ language }) });
+    await pat.as(`/api/v1/items/${id}`, { method: "PATCH", body: JSON.stringify({ brand: null, model: null, returnBy: null, purchasePriceCents: null }) });
+    const [edit] = await db.select().from(activity).where(and(eq(activity.itemId, id), eq(activity.action, "item.update")));
+    expect(edit?.clearedFields?.sort()).toEqual(["brand", "model", "purchasePriceCents", "returnBy"]);
+    await db.update(activity).set(history === "legacy" ? { clearedFields: null } : { summary: null }).where(eq(activity.id, edit!.id));
+    await pat.as("/api/v1/language", { method: "PUT", body: JSON.stringify({ language: language === "hu" ? "en" : "hu" }) });
+    await jobs.drain();
+    expect(await item(pat, id)).toMatchObject({ brand: null, model: null, returnBy: null, purchasePriceCents: null });
+  });
+
+  it("does not interpret a user's name as a cleared-field instruction in structured history", async () => {
+    const { pat, jobs, settings } = await household();
+    await settings({ details: true });
+    const { id } = await pat.addItem({ name: "brand removed", notes: "Old" });
+    await pat.upload(id, pdf(), "receipt.pdf", "document");
+    await pat.as(`/api/v1/items/${id}`, { method: "PATCH", body: JSON.stringify({ notes: "New" }) });
+    await jobs.drain();
+    expect(await item(pat, id)).toMatchObject({ brand: "DEWALT", name: "brand removed", notes: "New" });
   });
 
   it("names an unnamed New item, never a named one", async () => {

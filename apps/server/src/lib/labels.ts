@@ -1,3 +1,5 @@
+import { tn } from "./i18n";
+import { t as translateText } from "./i18n";
 /**
  * QR labels: a short code that opens a box, an item or a place. Codes use
  * Crockford's base32 alphabet (no I, L, O or U — nothing to misread on a box
@@ -35,24 +37,24 @@ async function insertLabel(v: Caller, target: { itemId?: string; locationId?: st
       .returning();
     if (row) return row;
   }
-  throw new Error("Couldn't make a unique label code");
+  throw new Error(translateText("Couldn't make a unique label code"));
 }
 
 /** Blank labels to print ahead (e.g. a sheet before packing). */
 export async function createBlankLabels(v: Caller, count: number) {
   const codes: string[] = [];
   for (let i = 0; i < count; i++) codes.push((await insertLabel(v)).code);
-  await logActivity(v, "label.create", v.householdId, `Made ${count} blank ${count === 1 ? "label" : "labels"}`);
+  await logActivity(v, "label.create", v.householdId, tn(count, "Made {count} blank label", "Made {count} blank labels"));
   return codes;
 }
 
 async function checkTarget(v: Caller, target: LabelTarget) {
   if (target.itemId) {
     const [found] = await v.db.select({ id: item.id }).from(item).where(and(eq(item.id, target.itemId), itemScope(v)));
-    if (!found) throw notFound("Item");
+    if (!found) throw notFound(translateText("Item"));
   } else {
     const [found] = await v.db.select({ id: location.id }).from(location).where(locationIn(v, target.locationId!));
-    if (!found) throw notFound("Location");
+    if (!found) throw notFound(translateText("Location"));
   }
 }
 
@@ -72,10 +74,10 @@ export async function labelFor(v: Caller, target: LabelTarget) {
 export async function assignLabel(v: Caller, code: string, target: LabelTarget) {
   await checkTarget(v, target);
   const [row] = await v.db.select().from(label).where(and(eq(label.code, normalizeCode(code)), eq(label.householdId, v.householdId)));
-  if (!row) throw notFound("Label");
-  if (row.itemId || row.locationId) throw new HTTPException(409, { message: `Label ${row.code} is already on something` });
+  if (!row) throw notFound(translateText("Label"));
+  if (row.itemId || row.locationId) throw new HTTPException(409, { message: translateText("Label {v0} is already on something", { v0: row.code }) });
   const [already] = await v.db.select({ code: label.code }).from(label).where(targetWhere(v, target));
-  if (already) throw new HTTPException(409, { message: `That already has label ${already.code}` });
+  if (already) throw new HTTPException(409, { message: translateText("That already has label {v0}", { v0: already.code }) });
   const [updated] = await v.db
     .update(label)
     .set({ itemId: target.itemId ?? null, locationId: target.locationId ?? null })
@@ -92,7 +94,7 @@ export async function clearLabel(v: Caller, code: string) {
     .set({ itemId: null, locationId: null })
     .where(and(eq(label.code, normalizeCode(code)), eq(label.householdId, v.householdId)))
     .returning();
-  if (!row) throw notFound("Label");
+  if (!row) throw notFound(translateText("Label"));
 }
 
 export async function listLabels(v: Caller, opts: { blank?: boolean } = {}) {
@@ -122,7 +124,7 @@ async function describe(v: Caller, row: typeof label.$inferSelect): Promise<Labe
 export async function resolveLabel(v: Omit<Caller, "householdId" | "timeZone" | "currency">, code: string, onlyHousehold?: string) {
   const [row] = await v.db.select().from(label).where(eq(label.code, normalizeCode(code)));
   if (!row || (onlyHousehold !== undefined && row.householdId !== onlyHousehold) || !(await membership(v.db, row.householdId, v.userId))) {
-    throw notFound("Label");
+    throw notFound(translateText("Label"));
   }
   const found = await describe({ ...v, householdId: row.householdId, ...(await householdLocale(v.db, row.householdId)) }, row);
   // A label scanned to its thing: when it was last seen (lib/sightings.ts).

@@ -1,3 +1,5 @@
+import { locale } from "./i18n";
+import { t as translateText } from "./i18n";
 /**
  * "Suggestions from your photos": item fields and warranty terms the model read off photos, receipts and warranty
  * cards. Nothing changes until someone taps Apply or Add (unless the household lets AI fill in — AiFill.tsx).
@@ -10,13 +12,13 @@ import { money } from "./lib/money";
 type Field = "name" | "brand" | "model" | "serialNumber" | "barcode" | "purchaseDate" | "purchasePriceCents" | "returnBy";
 
 const fields: { key: Field; label: string; format?: (v: string | number) => string }[] = [
-  { key: "name", label: "Name" },
-  { key: "brand", label: "Brand" },
-  { key: "model", label: "Model" },
-  { key: "serialNumber", label: "Serial" },
-  { key: "barcode", label: "Barcode" },
-  { key: "purchaseDate", label: "Purchased" },
-  { key: "purchasePriceCents", label: "Price paid", format: (v) => money(Number(v), true) },
+  { key: "name", get label() { return translateText("Name"); } },
+  { key: "brand", get label() { return translateText("Brand"); } },
+  { key: "model", get label() { return translateText("Model"); } },
+  { key: "serialNumber", get label() { return translateText("Serial"); } },
+  { key: "barcode", get label() { return translateText("Barcode"); } },
+  { key: "purchaseDate", get label() { return translateText("Purchased"); } },
+  { key: "purchasePriceCents", get label() { return translateText("Price paid"); }, format: (v) => money(Number(v), true) },
 ];
 
 const same = (a: unknown, b: unknown) =>
@@ -41,7 +43,7 @@ export function pendingSuggestions(item: Item, attachments: Attachment[], warran
   const boughtOn = item.purchaseDate ?? sources.find((a) => a.analysis!.suggestions.purchaseDate)?.analysis!.suggestions.purchaseDate;
   const returnBy = printed ?? (window && boughtOn ? addDays(boughtOn, window.analysis!.suggestions.returnDays!) : undefined);
   if (returnBy && returnBy >= today() && returnBy !== item.returnBy) {
-    rows.push({ key: "returnBy", label: "Return by", value: returnBy, display: new Date(`${returnBy}T00:00:00`).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) });
+    rows.push({ key: "returnBy", label: translateText("Return by"), value: returnBy, display: new Date(`${returnBy}T00:00:00`).toLocaleDateString(locale(), { year: "numeric", month: "short", day: "numeric" }) });
   }
 
   // Warranty terms run from the purchase date: the item's, or one read from a receipt.
@@ -50,14 +52,14 @@ export function pendingSuggestions(item: Item, attachments: Attachment[], warran
   if (terms) {
     const { warrantyMonths: months, warrantyProvider: provider } = terms.analysis!.suggestions;
     const purchased = item.purchaseDate ?? sources.find((a) => a.analysis!.suggestions.purchaseDate)?.analysis!.suggestions.purchaseDate;
-    const length = months! % 12 === 0 ? `${months! / 12} year${months === 12 ? "" : "s"}` : `${months} months`;
+    const length = months! % 12 === 0 ? translateText("{v0} year{v1}", { v0: months! / 12, v1: months === 12 ? "" : translateText("s") }) : translateText("{v0} months", { v0: months });
     if (purchased) {
       const endsOn = addMonths(purchased, months!);
       const already = warranties.some((w) => w.endsOn === endsOn);
       if (!already) {
         warranty = {
           input: { provider, startsOn: purchased, endsOn, attachmentId: terms.id },
-          display: `${length}${provider ? ` (${provider})` : ""} — until ${endsOn}`,
+          display: translateText("{v0}{v1} — until {v2}", { v0: length, v1: provider ? ` (${provider})` : "", v2: endsOn }),
           needsDate: false,
         };
       }
@@ -84,12 +86,11 @@ export function Suggestions(props: {
   const all = Object.fromEntries(rows.map((r) => [r.key, r.value])) as ItemPatch;
 
   return (
-    <section className="card border border-primary/20" aria-label="Suggestions from your files">
+    <section className="card border border-primary/20" aria-label={translateText("Suggestions from your files")}>
       <div className="card-body gap-3 p-4">
         <h2 className="text-base-content flex items-center gap-2 font-semibold">
           <span className="icon-[tabler--sparkles] text-primary size-5" />
-          Suggestions from your files
-        </h2>
+          {translateText("Suggestions from your files")}</h2>
         <ul className="divide-base-content/10 flex flex-col divide-y">
           {rows.map((r) => (
             <li key={r.key} className="flex items-center gap-3 py-2">
@@ -100,19 +101,18 @@ export function Suggestions(props: {
                 className="btn btn-text btn-primary btn-sm"
                 disabled={props.busy}
                 onClick={() => props.onApply({ [r.key]: r.value } as ItemPatch)}
-                aria-label={`Apply ${r.label}: ${r.display}`}
+                aria-label={translateText("Apply {v0}: {v1}", { v0: r.label, v1: r.display })}
               >
-                Apply
-              </button>
+                {translateText("Apply")}</button>
             </li>
           ))}
           {warranty && (
             <li className="flex items-center gap-3 py-2">
-              <span className="text-base-content/70 w-20 shrink-0 text-sm">Warranty</span>
+              <span className="text-base-content/70 w-20 shrink-0 text-sm">{translateText("Warranty")}</span>
               <span className="min-w-0 flex-1">
                 <span className="text-base-content block truncate font-medium">{warranty.display}</span>
                 {warranty.needsDate && (
-                  <span className="text-base-content/70 text-xs">Add the purchase date to work out when it ends.</span>
+                  <span className="text-base-content/70 text-xs">{translateText("Add the purchase date to work out when it ends.")}</span>
                 )}
               </span>
               <button
@@ -120,10 +120,9 @@ export function Suggestions(props: {
                 className="btn btn-text btn-primary btn-sm"
                 disabled={props.busy || !warranty.input}
                 onClick={() => warranty.input && props.onAddWarranty(warranty.input)}
-                aria-label={`Add warranty: ${warranty.display}`}
+                aria-label={translateText("Add warranty: {v0}", { v0: warranty.display })}
               >
-                Add
-              </button>
+                {translateText("Add")}</button>
             </li>
           )}
         </ul>
@@ -134,15 +133,13 @@ export function Suggestions(props: {
             disabled={props.busy}
             onClick={() => props.onDismiss(sources.map((s) => s.id))}
           >
-            Dismiss
-          </button>
+            {translateText("Dismiss")}</button>
           {rows.length > 1 && (
             <button type="button" className="btn btn-primary btn-sm" disabled={props.busy} onClick={() => props.onApply(all)}>
-              Apply all
-            </button>
+              {translateText("Apply all")}</button>
           )}
         </div>
-        <p className="text-base-content/70 text-xs">Read by AI from your photos and documents — check before applying.</p>
+        <p className="text-base-content/70 text-xs">{translateText("Read by AI from your photos and documents — check before applying.")}</p>
       </div>
     </section>
   );

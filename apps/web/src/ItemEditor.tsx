@@ -1,3 +1,6 @@
+import { t as translateText, currentLanguage } from "./i18n";
+import { enumLabel } from "@ferret/shared/utils";
+import { tr } from "./i18n";
 /**
  * Edit an item: every field, and where it's kept. Layout adapted from FlyonUI Pro
  * "Dashboard Modal 10" (update product): header bar, two-column field grid,
@@ -105,40 +108,38 @@ export function ItemEditor({ item, householdId, onClose }: { item: ItemListing; 
 
   const busy = save.isPending || remove.isPending;
   return (
-    <Modal id="edit-item" title={`Edit ${item.name}`} onClose={onClose}>
+    <Modal id="edit-item" title={translateText("Edit {v0}", { v0: item.name })} onClose={onClose}>
       <form className="flex flex-col gap-6" onSubmit={onSubmit}>
         <div className="space-y-4">
-          <Field label="Name" name="name" defaultValue={item.name} required autoFocus maxLength={200} />
+          <Field label={translateText("Name")} name="name" defaultValue={item.name} required autoFocus maxLength={200} />
 
           <ItemPicker
             householdId={householdId}
             id="item-box"
             name="containerItemId"
-            label="In a box"
+            label={translateText("In a box")}
             value={box}
             onChange={setBox}
-            noneLabel="Not in a box"
+            noneLabel={translateText("Not in a box")}
             boxes
             exclude={[item.id]}
           />
           <div>
             {box ? (
-              <p className="text-sm text-base-content/70">It's wherever the box is{item.container?.id === box.id && item.place ? ` (${item.place})` : ""}.</p>
+              <p className="text-sm text-base-content/70">{translateText("It's wherever the box is")}{item.container?.id === box.id && item.place ? ` (${item.place})` : ""}.</p>
             ) : (
               <PlacePicker
                 householdId={householdId}
                 id="item-locationId"
                 name="locationId"
-                label="Kept in"
+                label={translateText("Kept in")}
                 value={keptIn}
                 onChange={setKeptIn}
-                noneLabel="No particular place"
+                noneLabel={translateText("No particular place")}
               />
             )}
             {places.data && places.data.properties.every((p) => p.locations.length === 0) && (
-              <p className="helper-text">
-                No rooms yet — add them under <a className="link link-primary" href="#/places">Places</a>.
-              </p>
+              <p className="helper-text">{tr("No rooms yet — add them under {v0}.", { v0: <a className="link link-primary" href="#/places">{translateText("Places")}</a> })}</p>
             )}
           </div>
 
@@ -158,68 +159,65 @@ export function ItemEditor({ item, householdId, onClose }: { item: ItemListing; 
           <TagInput householdId={householdId} value={tags} onChange={setTags} />
 
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Brand" name="brand" defaultValue={item.brand} maxLength={120} />
-            <Field label="Model" name="model" defaultValue={item.model} maxLength={120} />
-            <Field label="Serial number" name="serialNumber" defaultValue={item.serialNumber} maxLength={120} />
-            <Field label="Barcode" name="barcode" defaultValue={item.barcode} maxLength={64} inputMode="numeric" />
+            <Field label={translateText("Brand")} name="brand" defaultValue={item.brand} maxLength={120} />
+            <Field label={translateText("Model")} name="model" defaultValue={item.model} maxLength={120} />
+            <Field label={translateText("Serial number")} name="serialNumber" defaultValue={item.serialNumber} maxLength={120} />
+            <Field label={translateText("Barcode")} name="barcode" defaultValue={item.barcode} maxLength={64} inputMode="numeric" />
           </div>
 
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <Field label="Bought on" name="purchaseDate" type="date" defaultValue={item.purchaseDate} />
-            <Money label="Paid" name="purchasePrice" cents={item.purchasePriceCents} />
-            <Money label="Worth now" name="value" cents={item.valueCents} />
-            <Field label="Quantity" name="quantity" type="number" min={0} defaultValue={String(item.quantity)} inputMode="numeric" />
-            <Money label="To replace new" name="replacement" cents={item.replacementCents} />
+            <Field label={translateText("Bought on")} name="purchaseDate" type="date" defaultValue={item.purchaseDate} />
+            <Money label={translateText("Paid")} name="purchasePrice" cents={item.purchasePriceCents} />
+            <Money label={translateText("Worth now")} name="value" cents={item.valueCents} />
+            <Field label={translateText("Quantity")} name="quantity" type="number" min={0} defaultValue={String(item.quantity)} inputMode="numeric" />
+            <Money label={translateText("To replace new")} name="replacement" cents={item.replacementCents} />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label-text" htmlFor="item-condition">
-                Condition
-              </label>
+                {translateText("Condition")}</label>
               <select id="item-condition" name="condition" className="select" defaultValue={item.condition ?? ""}>
-                <option value="">Not recorded</option>
+                <option value="">{translateText("Not recorded")}</option>
                 {itemConditions.map((c) => (
                   <option key={c} value={c}>
-                    {c[0]!.toUpperCase() + c.slice(1)}
+                    {enumLabel(c, currentLanguage())}
                   </option>
                 ))}
               </select>
             </div>
-            <Field label="Goes to (heir)" name="heir" defaultValue={item.heir} maxLength={120} placeholder="e.g. Sam" />
+            <Field label={translateText("Goes to (heir)")} name="heir" defaultValue={item.heir} maxLength={120} placeholder={translateText("e.g. Sam")} />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Return by" name="returnBy" type="date" defaultValue={item.returnBy} />
-            <p className="self-end pb-2 text-xs text-base-content/70">The store's last day to take it back — Ferret reminds you the week before.</p>
+            <Field label={translateText("Return by")} name="returnBy" type="date" defaultValue={item.returnBy} />
+            <p className="self-end pb-2 text-xs text-base-content/70">{translateText("The store's last day to take it back — Ferret reminds you the week before.")}</p>
           </div>
 
           <div>
             <label className="label-text" htmlFor="item-description">
-              Description
-            </label>
+              {translateText("Description")}</label>
             <textarea id="item-description" name="description" className="textarea" rows={2} defaultValue={item.description ?? ""} maxLength={5000} />
           </div>
           <div>
             <label className="label-text" htmlFor="item-notes">
-              Notes
-            </label>
+              {translateText("Notes")}</label>
             <textarea id="item-notes" name="notes" className="textarea" rows={3} defaultValue={item.notes ?? ""} maxLength={10000} />
           </div>
           <div>
             <LinksInput value={links} onChange={setLinks} />
-            {linkError && <p className="mt-1 text-sm text-error">Fix or remove the link that isn't a web address.</p>}
+            {linkError && <p className="mt-1 text-sm text-error">{translateText("Fix or remove the link that isn't a web address.")}</p>}
           </div>
 
           <label className="flex min-h-11 items-center gap-3">
             <input type="checkbox" name="favorite" className="switch switch-primary" defaultChecked={item.favorite} />
-            <span className="label-text text-base">Favourite</span>
+            <span className="label-text text-base">{translateText("Favourite")}</span>
           </label>
           <label className="flex min-h-11 items-start gap-3">
             <input type="checkbox" className="switch switch-primary mt-0.5" checked={isBox} onChange={(e) => setIsBox(e.target.checked)} />
             <span>
-              <span className="label-text block text-base">This is a box, bin or case</span>
-              <span className="text-sm text-base-content/70">Other things can go in it, and it can have a QR label.</span>
+              <span className="label-text block text-base">{translateText("This is a box, bin or case")}</span>
+              <span className="text-sm text-base-content/70">{translateText("Other things can go in it, and it can have a QR label.")}</span>
             </span>
           </label>
         </div>
@@ -232,26 +230,22 @@ export function ItemEditor({ item, householdId, onClose }: { item: ItemListing; 
         <div className="flex flex-wrap items-center gap-3 border-t border-base-300 pt-4">
           {confirmDelete ? (
             <>
-              <span className="text-sm text-base-content/80">Remove it? (Kept 30 days in Recently deleted.)</span>
+              <span className="text-sm text-base-content/80">{translateText("Remove it? (Kept 30 days in Recently deleted.)")}</span>
               <button type="button" className="btn btn-error btn-sm" disabled={busy} onClick={() => remove.mutate()}>
-                Remove
-              </button>
+                {translateText("Remove")}</button>
               <button type="button" className="btn btn-text btn-sm" onClick={() => setConfirmDelete(false)}>
-                Keep
-              </button>
+                {translateText("Keep")}</button>
             </>
           ) : (
             <>
               {!item.disposition && (
                 <button type="button" className="btn btn-text" onClick={() => setGoing(true)}>
                   <span className="icon-[tabler--history] size-5" />
-                  No longer have it?
-                </button>
+                  {translateText("No longer have it?")}</button>
               )}
               <button type="button" className="btn btn-text btn-error" onClick={() => setConfirmDelete(true)}>
                 <span className="icon-[tabler--trash] size-5" />
-                Remove item
-              </button>
+                {translateText("Remove item")}</button>
             </>
           )}
         </div>
@@ -259,12 +253,10 @@ export function ItemEditor({ item, householdId, onClose }: { item: ItemListing; 
 
         <DialogActions>
           <button type="button" className="btn btn-secondary btn-soft" onClick={onClose}>
-            Cancel
-          </button>
+            {translateText("Cancel")}</button>
           <button type="submit" className="btn btn-primary" disabled={busy}>
             {save.isPending && <span className="loading loading-spinner loading-sm" />}
-            Save
-          </button>
+            {translateText("Save")}</button>
         </DialogActions>
       </form>
     </Modal>

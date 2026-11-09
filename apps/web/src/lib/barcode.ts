@@ -1,3 +1,4 @@
+import { t as translateText } from "./../i18n";
 /**
  * Barcode decoding: the browser's own BarcodeDetector where it exists (Chrome,
  * Android), otherwise zxing compiled to WASM (iPhone Safari has no

@@ -1,3 +1,5 @@
+import { tn } from "./i18n";
+import { t as translateText } from "./i18n";
 /**
  * Nightly backups of the whole server: a copy of the database and every file, in a folder off this machine
  * (`BACKUP_DIR`, e.g. a share on the NAS), checked by opening it again.
@@ -83,7 +85,7 @@ export async function sealSnapshot(filesKey: string, name: string, plain: Uint8A
 }
 
 export async function openSnapshot(filesKey: string, name: string, bytes: Uint8Array<ArrayBuffer>) {
-  if (bytes[0] !== FORMAT_V1) throw new Error(`Unknown backup format ${bytes[0]}`);
+  if (bytes[0] !== FORMAT_V1) throw new Error(translateText("Unknown backup format {v0}", { v0: bytes[0] }));
   const plain = await crypto.subtle.decrypt(
     { name: "AES-GCM", iv: bytes.subarray(1, 1 + IV_BYTES), additionalData: utf8.encode(name) },
     await backupKey(filesKey),
@@ -116,7 +118,7 @@ export async function listSnapshots(target: BackupTarget) {
 
 export async function readManifest(target: BackupTarget, snapshot: string) {
   const bytes = await target.get(`snapshots/${snapshot}.json`);
-  if (!bytes) throw new Error(`No manifest for ${snapshot}`);
+  if (!bytes) throw new Error(translateText("No manifest for {v0}", { v0: snapshot }));
   return JSON.parse(new TextDecoder().decode(bytes)) as Manifest;
 }
 
@@ -153,24 +155,24 @@ export async function checkSnapshot(b: Pick<Backups, "snapshots" | "target" | "f
   const manifest = await readManifest(b.target, snapshot);
   if (manifest.kekId !== (await masterKeyId(b.filesKey))) {
     throw new Error(
-      `This backup needs another FILES_KEY (${manifest.kekId}) than the one set (${await masterKeyId(b.filesKey)}) — put that key back, or recover it from its key file (cli.js key recover ferret-key-${manifest.kekId}.json)`,
+      translateText("This backup needs another FILES_KEY ({v0}) than the one set ({v1}) — put that key back, or recover it from its key file (cli.js key recover ferret-key-{v2}.json)", { v0: manifest.kekId, v1: await masterKeyId(b.filesKey), v2: manifest.kekId }),
     );
   }
   const sealed = await b.target.get(`snapshots/${snapshot}.db.enc`);
-  if (!sealed) throw new Error(`The database copy ${snapshot}.db.enc is missing`);
+  if (!sealed) throw new Error(translateText("The database copy {v0}.db.enc is missing", { v0: snapshot }));
   const plain = await openSnapshot(b.filesKey, snapshot, sealed);
-  if ((await sha256(plain)) !== manifest.dbSha256) throw new Error("The database copy doesn't match its manifest");
+  if ((await sha256(plain)) !== manifest.dbSha256) throw new Error(translateText("The database copy doesn't match its manifest"));
 
   const copy = await b.snapshots.open(plain);
   try {
     const [integrity] = await copy.db.all<{ integrity_check: string }>(sql`PRAGMA integrity_check`);
-    if (integrity?.integrity_check !== "ok") throw new Error(`SQLite found damage in the copy: ${integrity?.integrity_check ?? "no answer"}`);
+    if (integrity?.integrity_check !== "ok") throw new Error(translateText("SQLite found damage in the copy: {v0}", { v0: integrity?.integrity_check ?? translateText("no answer") }));
     const [counted] = await copy.db.select({ items: sql<number>`count(*)` }).from(item).where(isNull(item.deletedAt));
     const items = Number(counted?.items ?? 0);
 
     const present = new Set(await b.target.list("files/"));
     const missing = manifest.files.filter((f) => !present.has(`files/${f.key}`));
-    if (missing.length) throw new Error(`${missing.length} of ${manifest.files.length} files are missing from the backup (e.g. ${missing[0]!.key})`);
+    if (missing.length) throw new Error(translateText("{v0} of {v1} files are missing from the backup (e.g. {v2})", { v0: missing.length, v1: manifest.files.length, v2: missing[0]!.key }));
 
     // Decrypt a few with the household keys in the copy: proves FILES_KEY + this folder are enough.
     const inManifest = new Set(manifest.files.map((f) => f.key));
@@ -179,12 +181,12 @@ export async function checkSnapshot(b: Pick<Backups, "snapshots" | "target" | "f
     const sample = [...keys.filter((k) => preferred.has(k.key)), ...keys.filter((k) => !preferred.has(k.key)).sort(() => Math.random() - 0.5)].slice(0, SAMPLE);
     const restored = new FileStore(copy.db, backupBlobs(b.target), b.filesKey);
     for (const k of sample) {
-      if (!(await restored.get(k.householdId, k.key))) throw new Error(`File ${k.key} is missing from the backup`);
+      if (!(await restored.get(k.householdId, k.key))) throw new Error(translateText("File {v0} is missing from the backup", { v0: k.key }));
     }
-    const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
+    const plural = (n: number, one: "item" | "file") => one === "item" ? tn(n, "{count} item", "{count} items") : tn(n, "{count} file", "{count} files");
     return {
       manifest,
-      summary: `Opened the copy: ${plural(items, "item")}, ${plural(manifest.files.length, "file")}, all there${sample.length ? `; ${sample.length} decrypted` : ""}`,
+      summary: translateText("Opened the copy: {v0}, {v1}, all there{v2}", { v0: plural(items, "item"), v1: plural(manifest.files.length, "file"), v2: sample.length ? translateText("; {v0} decrypted", { v0: sample.length }) : "" }),
     };
   } finally {
     await copy.close();
@@ -196,7 +198,7 @@ export async function runBackup(b: Backups, now = new Date()) {
   // A run still "running" from before a restart never finished.
   await b.db
     .update(backupRun)
-    .set({ status: "failed", finishedAt: now, error: "Interrupted (the server stopped)" })
+    .set({ status: "failed", finishedAt: now, error: translateText("Interrupted (the server stopped)") })
     .where(and(eq(backupRun.status, "running"), lt(backupRun.startedAt, new Date(now.getTime() - STALE_MS))));
   const name = `ferret-${stamp(now)}`;
   const [run] = await b.db.insert(backupRun).values({ startedAt: now, status: "running", snapshot: name }).returning({ id: backupRun.id });
@@ -254,7 +256,7 @@ export async function runBackup(b: Backups, now = new Date()) {
     await b.target.put(`snapshots/${name}.json`, utf8.encode(JSON.stringify(manifest, null, 1)));
 
     const { summary } = await checkSnapshot(b, name, copied);
-    const checked = gone ? `${summary}. ${gone} ${gone === 1 ? "file was" : "files were"} not on the server to copy` : summary;
+    const checked = gone ? tn(gone, "{v0}. {count} file was not on the server to copy", "{v0}. {count} files were not on the server to copy", { v0: summary }) : summary;
     await prune(b);
     await b.db
       .update(backupRun)

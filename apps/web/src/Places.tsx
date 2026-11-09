@@ -1,3 +1,5 @@
+import { t as translateText } from "./i18n";
+import { tr } from "./i18n";
 /**
  * Places: every property (home, cabin, storage unit…) with its rooms, closets and
  * shelves as a tree. Add, rename, move (inside another location) and remove empty ones;
@@ -25,12 +27,12 @@ type Dialog =
   | { kind: "location"; property: Property; parentId?: string; location?: LocationNode };
 
 export const PROPERTY_TYPES: Record<(typeof propertyTypes)[number], { label: string; icon: string }> = {
-  home: { label: "Home", icon: "icon-[tabler--home]" },
-  vacation: { label: "Vacation home", icon: "icon-[tabler--beach]" },
-  rental: { label: "Rental", icon: "icon-[tabler--building]" },
-  storage: { label: "Storage unit", icon: "icon-[tabler--building-warehouse]" },
-  vehicle: { label: "Vehicle", icon: "icon-[tabler--car]" },
-  other: { label: "Other", icon: "icon-[tabler--map-pin]" },
+  home: { get label() { return translateText("Home"); }, icon: "icon-[tabler--home]" },
+  vacation: { get label() { return translateText("Vacation home"); }, icon: "icon-[tabler--beach]" },
+  rental: { get label() { return translateText("Rental"); }, icon: "icon-[tabler--building]" },
+  storage: { get label() { return translateText("Storage unit"); }, icon: "icon-[tabler--building-warehouse]" },
+  vehicle: { get label() { return translateText("Vehicle"); }, icon: "icon-[tabler--car]" },
+  other: { get label() { return translateText("Other"); }, icon: "icon-[tabler--map-pin]" },
 };
 
 export function Places({ householdName, householdId }: { householdName: string; householdId: string }) {
@@ -47,18 +49,17 @@ export function Places({ householdName, householdId }: { householdName: string; 
     <div className="min-h-dvh bg-base-200">
       <nav className="navbar sticky top-0 z-10 border-b border-base-300 bg-base-100/85 backdrop-blur-md px-4">
         <div className="navbar-start items-center gap-2">
-          <a href="#/" className="btn btn-text btn-sm btn-square" aria-label="Back to your stuff">
+          <a href="#/" className="btn btn-text btn-sm btn-square" aria-label={translateText("Back to your stuff")}>
             <span className="icon-[tabler--arrow-left] size-5" />
           </a>
-          <h1 className="text-lg font-semibold">Places</h1>
+          <h1 className="text-lg font-semibold">{translateText("Places")}</h1>
         </div>
         <BarSearch />
         <div className="navbar-end items-center">
           {canEdit && (
             <button type="button" className="btn btn-primary btn-sm" onClick={() => setDialog({ kind: "property" })}>
               <span className="icon-[tabler--plus] size-4" />
-              Property
-            </button>
+              {translateText("Property")}</button>
           )}
         </div>
       </nav>
@@ -73,7 +74,7 @@ export function Places({ householdName, householdId }: { householdName: string; 
             <button
               type="button"
               className="btn btn-text btn-sm btn-circle"
-              aria-label="Dismiss"
+              aria-label={translateText("Dismiss")}
               onClick={() => {
                 removeLocation.reset();
                 removeProperty.reset();
@@ -88,15 +89,13 @@ export function Places({ householdName, householdId }: { householdName: string; 
           <div className="card">
             <div className="card-body items-center gap-3 text-center">
               <span className="icon-[tabler--home-plus] text-primary size-10" />
-              <h2 className="text-lg font-semibold">Where does {householdName} keep things?</h2>
+              <h2 className="text-lg font-semibold">{tr("Where does {v0} keep things?", { v0: householdName })}</h2>
               <p className="text-base-content/70 max-w-sm text-sm">
-                Add your home first, then its rooms, closets and shelves — so "where's the drill?" has an answer.
-              </p>
+                {translateText("Add your home first, then its rooms, closets and shelves — so \"where's the drill?\" has an answer.")}</p>
               {canEdit && (
                 <button type="button" className="btn btn-primary" onClick={() => setDialog({ kind: "property" })}>
                   <span className="icon-[tabler--plus] size-5" />
-                  Add your home
-                </button>
+                  {translateText("Add your home")}</button>
               )}
             </div>
           </div>
@@ -137,7 +136,7 @@ export function Places({ householdName, householdId }: { householdName: string; 
                   onRemove={(location) => removeLocation.mutate(location.id)}
                 />
               ) : (
-                <p className="text-base-content/70 text-sm">No rooms yet.</p>
+                <p className="text-base-content/70 text-sm">{translateText("No rooms yet.")}</p>
               )}
 
               {canEdit && (
@@ -147,20 +146,15 @@ export function Places({ householdName, householdId }: { householdName: string; 
                   onClick={() => setDialog({ kind: "location", property: p })}
                 >
                   <span className="icon-[tabler--plus] size-4" />
-                  Add a room
-                </button>
+                  {translateText("Add a room")}</button>
               )}
             </div>
           </section>
         ))}
 
         {places.data && places.data.unplacedItems > 0 && (
-          <p className="text-base-content/70 text-center text-sm">
-            <a href={missingHref("place")} className="link tap">
-              {places.data.unplacedItems === 1 ? "1 item isn't" : `${places.data.unplacedItems} items aren't`} in any place yet
-            </a>{" "}
-            — set it from the item's Edit.
-          </p>
+          <p className="text-base-content/70 text-center text-sm">{tr("{v0}{v1}— set it from the item's Edit.", { v0: <a href={missingHref("place")} className="link tap">
+              {places.data.unplacedItems === 1 ? translateText("{count} item isn't in any place yet", { count: places.data.unplacedItems }) : translateText("{count} items aren't in any place yet", { count: places.data.unplacedItems })}</a>, v1: " " })}</p>
         )}
       </main>
 
@@ -193,7 +187,7 @@ function Tree(props: {
               <span className="truncate text-base-content">{n.name}</span>
               {n.totalCount > 0 && (
                 <span className="badge badge-soft badge-primary badge-sm" title={countLabel(n)}>
-                  {n.totalCount === n.itemCount ? n.totalCount : `${n.totalCount} (${n.itemCount} here)`}
+                  {n.totalCount === n.itemCount ? n.totalCount : translateText("{v0} ({v1} here)", { v0: n.totalCount, v1: n.itemCount })}
                 </span>
               )}
             </a>
@@ -202,7 +196,7 @@ function Tree(props: {
                 <button
                   type="button"
                   className="btn btn-text btn-sm btn-circle"
-                  aria-label={`Add a place inside ${n.name}`}
+                  aria-label={translateText("Add a place inside {v0}", { v0: n.name })}
                   onClick={() => props.onAdd(n.id)}
                 >
                   <span className="icon-[tabler--plus] size-4" />
@@ -232,20 +226,18 @@ function RowActions({ name, onEdit, onRemove }: { name: string; onEdit: () => vo
             onRemove();
           }}
         >
-          Remove
-        </button>
+          {translateText("Remove")}</button>
         <button type="button" className="btn btn-text btn-xs" onClick={() => setConfirming(false)}>
-          Keep
-        </button>
+          {translateText("Keep")}</button>
       </span>
     );
   }
   return (
     <>
-      <button type="button" className="btn btn-text btn-sm btn-circle" aria-label={`Rename or move ${name}`} onClick={onEdit}>
+      <button type="button" className="btn btn-text btn-sm btn-circle" aria-label={translateText("Rename or move {v0}", { v0: name })} onClick={onEdit}>
         <span className="icon-[tabler--pencil] size-4" />
       </button>
-      <button type="button" className="btn btn-text btn-sm btn-circle" aria-label={`Remove ${name}`} onClick={() => setConfirming(true)}>
+      <button type="button" className="btn btn-text btn-sm btn-circle" aria-label={translateText("Remove {v0}", { v0: name })} onClick={() => setConfirming(true)}>
         <span className="icon-[tabler--trash] size-4" />
       </button>
     </>
@@ -288,20 +280,18 @@ function PropertyDialog({ property, onClose, onSaved }: { property?: Property; o
     </div>
   );
   return (
-    <Modal id="property-dialog" title={property ? `Edit ${property.name}` : "Add a property"} onClose={onClose}>
+    <Modal id="property-dialog" title={property ? translateText("Edit {v0}", { v0: property.name }) : translateText("Add a property")} onClose={onClose}>
       <form className="flex flex-col gap-6" onSubmit={onSubmit}>
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="label-text" htmlFor="property-name">
-                Name
-              </label>
-              <input id="property-name" name="name" className="input" placeholder="e.g. Highland House" defaultValue={property?.name} maxLength={120} required autoFocus />
+                {translateText("Name")}</label>
+              <input id="property-name" name="name" className="input" placeholder={translateText("e.g. Highland House")} defaultValue={property?.name} maxLength={120} required autoFocus />
             </div>
             <div>
               <label className="label-text" htmlFor="property-type">
-                Kind
-              </label>
+                {translateText("Kind")}</label>
               <select id="property-type" name="type" className="select" defaultValue={property?.type ?? "home"}>
                 {propertyTypes.map((t) => (
                   <option key={t} value={t}>
@@ -311,19 +301,18 @@ function PropertyDialog({ property, onClose, onSaved }: { property?: Property; o
               </select>
             </div>
           </div>
-          {field("street", "Street address", { autoComplete: "street-address", maxLength: 200 })}
+          {field("street", translateText("Street address"), { autoComplete: "street-address", maxLength: 200 })}
           <div className="grid grid-cols-2 gap-4">
-            {field("city", "City", { autoComplete: "address-level2", maxLength: 120 })}
-            {field("region", "State / region", { autoComplete: "address-level1", maxLength: 120 })}
-            {field("postalCode", "ZIP / postal code", { autoComplete: "postal-code", maxLength: 20 })}
-            {field("country", "Country", { autoComplete: "country-name", maxLength: 80 })}
+            {field("city", translateText("City"), { autoComplete: "address-level2", maxLength: 120 })}
+            {field("region", translateText("State / region"), { autoComplete: "address-level1", maxLength: 120 })}
+            {field("postalCode", translateText("ZIP / postal code"), { autoComplete: "postal-code", maxLength: 20 })}
+            {field("country", translateText("Country"), { autoComplete: "country-name", maxLength: 80 })}
           </div>
           <div className="grid grid-cols-2 gap-4">
-            {field("yearBuilt", "Year built", { type: "number", min: 1600, max: 2200, inputMode: "numeric" })}
+            {field("yearBuilt", translateText("Year built"), { type: "number", min: 1600, max: 2200, inputMode: "numeric" })}
             <div>
               <label className="label-text" htmlFor="property-value">
-                Worth
-              </label>
+                {translateText("Worth")}</label>
               <div className="input">
                 <span className="my-auto me-1 text-base-content/70">{currencySymbol()}</span>
                 <input
@@ -332,19 +321,18 @@ function PropertyDialog({ property, onClose, onSaved }: { property?: Property; o
                   className="grow"
                   inputMode="decimal"
                   defaultValue={centsToInput(d?.valueCents, true)}
-                  placeholder="for insurance"
+                  placeholder={translateText("for insurance")}
                 />
               </div>
             </div>
           </div>
           <div>
             <label className="label-text" htmlFor="property-notes">
-              Notes
-            </label>
-            <textarea id="property-notes" name="notes" className="textarea" rows={2} defaultValue={d?.notes ?? ""} maxLength={5000} placeholder="Policy number, gate code, who has keys…" />
+              {translateText("Notes")}</label>
+            <textarea id="property-notes" name="notes" className="textarea" rows={2} defaultValue={d?.notes ?? ""} maxLength={5000} placeholder={translateText("Policy number, gate code, who has keys…")} />
           </div>
         </div>
-        <DialogFooter error={save.error?.message} busy={save.isPending} submit={property ? "Save" : "Add property"} onCancel={onClose} />
+        <DialogFooter error={save.error?.message} busy={save.isPending} submit={property ? translateText("Save") : translateText("Add property")} onCancel={onClose} />
       </form>
     </Modal>
   );
@@ -382,19 +370,18 @@ function LocationDialog(props: {
       <form className="flex flex-col gap-6" onSubmit={onSubmit}>
         <DialogHeading
           id="location-dialog"
-          title={location ? `Edit ${location.name}` : parentName ? `Add a place in ${parentName}` : `Add a room to ${property.name}`}
-          subtitle="Rooms, closets, shelves, boxes — as fine as you like"
+          title={location ? translateText("Edit {v0}", { v0: location.name }) : parentName ? translateText("Add a place in {v0}", { v0: parentName }) : translateText("Add a room to {v0}", { v0: property.name })}
+          subtitle={translateText("Rooms, closets, shelves, boxes — as fine as you like")}
         />
         <div className="space-y-4">
           <div>
             <label className="label-text" htmlFor="location-name">
-              Name
-            </label>
+              {translateText("Name")}</label>
             <input
               id="location-name"
               name="name"
               className="input"
-              placeholder={parent ? "e.g. Top shelf" : "e.g. Garage"}
+              placeholder={parent ? translateText("e.g. Top shelf") : translateText("e.g. Garage")}
               defaultValue={location?.name}
               maxLength={120}
               required
@@ -405,15 +392,15 @@ function LocationDialog(props: {
             householdId={props.householdId}
             id="location-parent"
             name="parentId"
-            label="Inside"
+            label={translateText("Inside")}
             value={parent}
             onChange={setParent}
-            noneLabel={`${property.name} (a room)`}
+            noneLabel={translateText("{v0} (a room)", { v0: property.name })}
             propertyId={property.id}
             skip={location?.id}
           />
         </div>
-        <DialogFooter error={save.error?.message} busy={save.isPending} submit={location ? "Save" : "Add"} onCancel={onClose} />
+        <DialogFooter error={save.error?.message} busy={save.isPending} submit={location ? translateText("Save") : translateText("Add")} onCancel={onClose} />
       </form>
     </Modal>
   );
@@ -444,8 +431,7 @@ function DialogFooter({ error, busy, submit, onCancel }: { error?: string; busy:
       {error && <div className="alert alert-soft alert-error">{error}</div>}
       <DialogActions>
         <button type="button" className="btn btn-secondary btn-soft" onClick={onCancel}>
-          Cancel
-        </button>
+          {translateText("Cancel")}</button>
         <button type="submit" className="btn btn-primary" disabled={busy}>
           {busy && <span className="loading loading-spinner loading-sm" />}
           {submit}

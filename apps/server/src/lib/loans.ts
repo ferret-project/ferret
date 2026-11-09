@@ -1,3 +1,5 @@
+import { locale } from "./i18n";
+import { t as translateText, withLanguage, preferredLanguage } from "./i18n";
 /**
  * Lending: a thing lent to someone, or borrowed from them, until it's back. One open loan per thing.
  *
@@ -41,7 +43,7 @@ const summary = (r: Row, itemName: string, on: string): LoanSummary => ({
   overdue: !r.returnedOn && Boolean(r.dueOn && r.dueOn < on),
 });
 
-const words = (r: Pick<Row, "direction" | "person">, name: string) => (r.direction === "lent" ? `Lent ${name} to ${r.person}` : `Borrowed ${name} from ${r.person}`);
+const words = (r: Pick<Row, "direction" | "person">, name: string) => (r.direction === "lent" ? translateText("Lent {v0} to {v1}", { v0: name, v1: r.person }) : translateText("Borrowed {v0} from {v1}", { v0: name, v1: r.person }));
 
 /** Open loans (and, with `all`, those returned in the last 90 days), newest first. */
 export async function listLoans(v: Caller, opts: { all?: boolean; itemId?: string } = {}) {
@@ -72,7 +74,7 @@ export async function openLoansFor(v: Pick<Caller, "db" | "householdId">, itemId
 
 async function itemOf(v: Caller, itemId: string) {
   const [row] = await v.db.select({ id: item.id, name: item.name }).from(item).where(and(eq(item.id, itemId), itemScope(v)));
-  if (!row) throw notFound("Item");
+  if (!row) throw notFound(translateText("Item"));
   return row;
 }
 
@@ -82,7 +84,7 @@ async function loanIn(v: Caller, id: string) {
     .from(loan)
     .innerJoin(item, eq(item.id, loan.itemId))
     .where(and(eq(loan.id, id), eq(loan.householdId, v.householdId)));
-  if (!row) throw notFound("Loan");
+  if (!row) throw notFound(translateText("Loan"));
   return row;
 }
 
@@ -101,10 +103,10 @@ async function withToken(v: Caller, files: FileStore, r: Row) {
 export async function createLoan(v: Caller, files: FileStore, itemId: string, input: LoanInput) {
   const thing = await itemOf(v, itemId);
   const [open] = await v.db.select({ id: loan.id }).from(loan).where(and(eq(loan.itemId, itemId), isNull(loan.returnedOn)));
-  if (open) throw new HTTPException(409, { message: `${thing.name} is already lent or borrowed — mark it back first` });
+  if (open) throw new HTTPException(409, { message: translateText("{v0} is already lent or borrowed — mark it back first", { v0: thing.name }) });
   const lent = input.direction === "lent";
   const since = input.since ?? todayFor(v);
-  if (input.dueOn && input.dueOn < since) throw new HTTPException(422, { message: "It can't be due back before it went" });
+  if (input.dueOn && input.dueOn < since) throw new HTTPException(422, { message: translateText("It can't be due back before it went") });
   const [row] = await v.db
     .insert(loan)
     .values({
@@ -121,7 +123,7 @@ export async function createLoan(v: Caller, files: FileStore, itemId: string, in
     })
     .returning();
   await withToken(v, files, row!);
-  await logActivity(v, "loan.create", row!.id, `${words(row!, thing.name)}${input.dueOn ? ` (due back ${input.dueOn})` : ""}`, itemId);
+  await logActivity(v, "loan.create", row!.id, `${words(row!, thing.name)}${input.dueOn ? translateText(" (due back {v0})", { v0: input.dueOn }) : ""}`, itemId);
   return summary(row!, thing.name, todayFor(v));
 }
 
@@ -140,7 +142,7 @@ export async function updateLoan(v: Caller, files: FileStore, id: string, patch:
   if (!email) changes.remindEvery = null;
   const since = changes.since ?? l.since;
   const due = changes.dueOn !== undefined ? changes.dueOn : l.dueOn;
-  if (due && due < since) throw new HTTPException(422, { message: "It can't be due back before it went" });
+  if (due && due < since) throw new HTTPException(422, { message: translateText("It can't be due back before it went") });
   const [row] = await v.db.update(loan).set(changes).where(eq(loan.id, id)).returning();
   return summary(await withToken(v, files, row!), name, todayFor(v));
 }
@@ -148,9 +150,9 @@ export async function updateLoan(v: Caller, files: FileStore, id: string, patch:
 /** It's back (or, borrowed, given back): the loan ends; the borrower's link stops working. */
 export async function returnLoan(v: Caller, id: string, on?: string | null) {
   const { l, name } = await loanIn(v, id);
-  if (l.returnedOn) throw new HTTPException(409, { message: "That's already back" });
+  if (l.returnedOn) throw new HTTPException(409, { message: translateText("That's already back") });
   const [row] = await v.db.update(loan).set({ returnedOn: on ?? todayFor(v), tokenHash: null, tokenSealed: null }).where(eq(loan.id, id)).returning();
-  await logActivity(v, "loan.return", id, l.direction === "lent" ? `${name} is back from ${l.person}` : `Gave ${name} back to ${l.person}`, l.itemId);
+  await logActivity(v, "loan.return", id, l.direction === "lent" ? translateText("{v0} is back from {v1}", { v0: name, v1: l.person }) : translateText("Gave {v0} back to {v1}", { v0: name, v1: l.person }), l.itemId);
   return summary(row!, name, todayFor(v));
 }
 
@@ -158,24 +160,24 @@ export async function returnLoan(v: Caller, id: string, on?: string | null) {
 export async function deleteLoan(v: Caller, id: string) {
   const { l, name } = await loanIn(v, id);
   await v.db.delete(loan).where(eq(loan.id, id));
-  await logActivity(v, "loan.delete", id, `Removed the loan of ${name} (${l.person})`, l.itemId);
+  await logActivity(v, "loan.delete", id, translateText("Removed the loan of {v0} ({v1})", { v0: name, v1: l.person }), l.itemId);
 }
 
 // ── The borrower's page (no account) ────────────────────────────────────────
 
 async function byToken(db: Db, token: string) {
-  if (!/^[\w-]{20,100}$/.test(token)) throw new HTTPException(404, { message: "This link doesn't work" });
+  if (!/^[\w-]{20,100}$/.test(token)) throw new HTTPException(404, { message: translateText("This link doesn't work") });
   const [row] = await db
     .select({ l: loan, name: item.name, owner: user.name })
     .from(loan)
     .innerJoin(item, eq(item.id, loan.itemId))
     .leftJoin(user, eq(user.id, loan.createdBy))
     .where(eq(loan.tokenHash, await hashToken(token)));
-  if (!row) throw new HTTPException(404, { message: "This link doesn't work any more — the loan may be over" });
+  if (!row) throw new HTTPException(404, { message: translateText("This link doesn't work any more — the loan may be over") });
   return row;
 }
 
-const firstName = (name: string | null) => name?.trim().split(/\s+/)[0] || "Its owner";
+const firstName = (name: string | null) => name?.trim().split(/\s+/)[0] || translateText("Its owner");
 
 export async function borrowerView(db: Db, token: string): Promise<BorrowerView> {
   const { l, name, owner } = await byToken(db, token);
@@ -204,7 +206,7 @@ export async function borrowerReturned(db: Db, token: string) {
       entityType: "loan",
       entityId: l.id,
       itemId: l.itemId,
-      summary: `${l.person} says ${name} is back`,
+      summary: translateText("{v0} says {v1} is back", { v0: l.person, v1: name }),
     });
   }
   return borrowerView(db, token);
@@ -235,7 +237,7 @@ export function nextReminder(r: Pick<Row, "remindEvery" | "since" | "dueOn" | "l
   return step(r.since > recorded ? r.since : recorded);
 }
 
-const longDate = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+const longDate = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString(locale(), { month: "long", day: "numeric", year: "numeric" });
 
 /** Emails every borrower whose reminder is due today (at most one a day each). Returns how many went. */
 export async function sendLoanReminders(
@@ -284,13 +286,13 @@ export async function sendLoanReminders(
     const who = firstName(owner);
     const link = borrowerUrl(deps.appUrl, await files.open(l.householdId, sealLabel(l.id), l.tokenSealed!));
     try {
-      await notifier.send(mailTo(mailUrl, l.email!), {
-        title: `A reminder from ${who}: ${name}`,
+      await withLanguage(await preferredLanguage(db, null, l.householdId), () => notifier.send(mailTo(mailUrl, l.email!), {
+        title: translateText("A reminder from {v0}: {v1}", { v0: who, v1: name }),
         body:
-          `Hi ${l.person},\n\n${who} lent you ${name} on ${longDate(l.since)}` +
-          `${l.dueOn ? `, to bring back by ${longDate(l.dueOn)}` : ""}. This is a friendly reminder that it's still with you.\n\n` +
-          `Already given it back, or don't want these reminders? Let ${who} know here:\n${link}\n\n— sent by Ferret, ${who}'s home inventory`,
-      });
+          translateText("Hi {v0},\n\n{v1} lent you {v2} on {v3}", { v0: l.person, v1: who, v2: name, v3: longDate(l.since) }) +
+          translateText("{v0}. This is a friendly reminder that it's still with you.\n\n", { v0: l.dueOn ? translateText(", to bring back by {v0}", { v0: longDate(l.dueOn) }) : "" }) +
+          translateText("Already given it back, or don't want these reminders? Let {v0} know here:\n{v1}\n\n— sent by Ferret, {v2}'s home inventory", { v0: who, v1: link, v2: who }),
+      }));
       await db.update(loan).set({ lastRemindedOn: on }).where(eq(loan.id, l.id));
       sent++;
     } catch (err) {

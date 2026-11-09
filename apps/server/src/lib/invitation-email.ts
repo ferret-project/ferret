@@ -1,3 +1,5 @@
+import { locale } from "./i18n";
+import { t as translateText } from "./i18n";
 /**
  * Invitations by email. An invitation is still a link (`#/invite/:id`, bound to the invited address); when Ferret can
  * send email, inviting someone (or Send again — Better Auth's invite-member with `resend`, which keeps the id and
@@ -25,7 +27,7 @@ export async function queueInvitationEmail(db: Db, jobs: NonNullable<Deps["jobs"
     .insert(invitationEmail)
     .values({ invitationId: invite.id, householdId: invite.organizationId, queuedAt })
     .onConflictDoUpdate({ target: invitationEmail.invitationId, set: { queuedAt, error: null } });
-  await jobs.enqueue(INVITE_EMAIL_JOB, { invitationId: invite.id });
+  await jobs.enqueue(INVITE_EMAIL_JOB, { invitationId: invite.id, householdId: invite.organizationId });
 }
 
 /** The job: email the invitation's link, if it's still waiting and the household hasn't sent too many. */
@@ -57,23 +59,23 @@ export function sendInvitationJob(deps: Pick<Deps, "db" | "notifier"> & { appUrl
       .from(invitationEmail)
       .where(and(eq(invitationEmail.householdId, row.householdId), gt(invitationEmail.sentAt, new Date(now - DAY_MS))));
     if ((today?.n ?? 0) >= INVITES_A_DAY) {
-      await failed(db, invitationId, `This household has emailed ${INVITES_A_DAY} invitations today — copy the link and send it yourself, or try tomorrow`);
+      await failed(db, invitationId, translateText("This household has emailed {v0} invitations today — copy the link and send it yourself, or try tomorrow", { v0: INVITES_A_DAY }));
       return;
     }
     const link = `${deps.appUrl}/#/invite/${encodeURIComponent(invitationId)}`;
     // The day it stops working where the household is (as Settings → Household shows it), not in UTC.
     const timeZone = await householdTimeZone(db, row.householdId);
-    const until = row.expiresAt.toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone });
+    const until = row.expiresAt.toLocaleDateString(locale(), { month: "long", day: "numeric", timeZone });
     try {
       await notifier.send(mailTo(mailUrl, row.email), {
-        title: `${row.inviterName} invited you to ${row.householdName} on Ferret`,
+        title: translateText("{v0} invited you to {v1} on Ferret", { v0: row.inviterName, v1: row.householdName }),
         body:
-          `${row.inviterName} invited you to join "${row.householdName}" on Ferret, where they keep track of the things ` +
-          `in their home. Open this link to join — it works until ${until}, and only for ${row.email}:\n\n${link}\n\n` +
-          "New to Ferret? You'll make an account with this email address first. If you weren't expecting this, ignore it.",
+          translateText("{v0} invited you to join \"{v1}\" on Ferret, where they keep track of the things ", { v0: row.inviterName, v1: row.householdName }) +
+          translateText("in their home. Open this link to join — it works until {v0}, and only for {v1}:\n\n{v2}\n\n", { v0: until, v1: row.email, v2: link }) +
+          translateText("New to Ferret? You'll make an account with this email address first. If you weren't expecting this, ignore it."),
       });
     } catch (err) {
-      await failed(db, invitationId, "The email couldn't be sent — copy the link and send it yourself, or try Send again later");
+      await failed(db, invitationId, translateText("The email couldn't be sent — copy the link and send it yourself, or try Send again later"));
       throw err;
     }
     await db.update(invitationEmail).set({ sentAt: new Date(now), error: null }).where(eq(invitationEmail.invitationId, invitationId));

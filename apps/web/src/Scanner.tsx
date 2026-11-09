@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * Full-screen barcode scanner: the back camera, a few frames a second through
  * the decoder, and a "take a photo instead" fallback for browsers that won't
@@ -83,7 +84,7 @@ export function Scanner({
             last.current.at = now; // still in view: keep ignoring it
           }
         } catch (err) {
-          setError(`Couldn't read barcodes here: ${(err as Error).message}`);
+          setError(translateText("Couldn't read barcodes here: {v0}", { v0: (err as Error).message }));
           return;
         }
       }
@@ -101,8 +102,8 @@ export function Scanner({
         }
         void scan();
       })
-      .catch(() => setError("Camera not available — take a photo of the barcode instead."));
-    if (!navigator.mediaDevices) setError("Camera not available — take a photo of the barcode instead.");
+      .catch(() => setError(translateText("Camera not available — take a photo of the barcode instead.")));
+    if (!navigator.mediaDevices) setError(translateText("Camera not available — take a photo of the barcode instead."));
 
     return () => {
       document.removeEventListener("visibilitychange", onHidden);
@@ -116,22 +117,22 @@ export function Scanner({
       const code = await readBarcode(await createImageBitmap(file));
       if (code) {
         if (!(await onResultRef.current(code))) stopCamera.current();
-      } else setError("No barcode found in that photo. Try again, closer and in good light.");
+      } else setError(translateText("No barcode found in that photo. Try again, closer and in good light."));
     } catch (err) {
-      setError(`Couldn't read that photo: ${(err as Error).message}`);
+      setError(translateText("Couldn't read that photo: {v0}", { v0: (err as Error).message }));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-black" role="dialog" aria-modal="true" aria-label="Scan a barcode">
+    <div className="fixed inset-0 z-50 flex flex-col bg-black" role="dialog" aria-modal="true" aria-label={translateText("Scan a barcode")}>
       <div className="flex items-center justify-between p-3 pt-[max(0.75rem,env(safe-area-inset-top))] text-white">
-        <span className="font-semibold">Scan a barcode</span>
+        <span className="font-semibold">{translateText("Scan a barcode")}</span>
         <button
           type="button"
           className="btn btn-circle btn-text text-white"
-          aria-label="Close scanner"
+          aria-label={translateText("Close scanner")}
           onClick={() => {
             stopCamera.current();
             onClose();
@@ -154,12 +155,11 @@ export function Scanner({
         {error ? (
           <p className="text-center text-sm text-white/90">{error}</p>
         ) : (
-          <p className="text-center text-sm text-white/70">Point the camera at the barcode.</p>
+          <p className="text-center text-sm text-white/70">{translateText("Point the camera at the barcode.")}</p>
         )}
         <button type="button" className="btn btn-soft btn-primary" disabled={busy} onClick={() => photo.current?.click()}>
           {busy ? <span className="loading loading-spinner loading-sm" /> : <span className="icon-[tabler--camera] size-5" />}
-          Take a photo instead
-        </button>
+          {translateText("Take a photo instead")}</button>
         <input
           ref={photo}
           type="file"

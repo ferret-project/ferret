@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * Crop a photo down to the thing (one item on a busy shelf, a label): drag the box or its corners — or, from the
  * keyboard, arrows move it and Shift+arrows resize it — optionally kept square, as photos show in lists. The crop is
@@ -115,11 +116,10 @@ export function PhotoCrop(props: { photo: Attachment; itemId: string; isMain: bo
     ["se", "end-0 bottom-0 translate-x-1/2 translate-y-1/2 cursor-nwse-resize"],
   ];
   return (
-    <Modal id="photo-crop" title="Crop photo" onClose={props.onClose}>
+    <Modal id="photo-crop" title={translateText("Crop photo")} onClose={props.onClose}>
       <div className="flex flex-col gap-4">
         <p className="text-sm text-base-content/70">
-          Drag the box onto the thing, and its corners to fit. The crop is saved as a new photo — the original stays.
-        </p>
+          {translateText("Drag the box onto the thing, and its corners to fit. The crop is saved as a new photo — the original stays.")}</p>
         <div className="flex justify-center rounded-box bg-base-300 p-3 select-none" onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
           <div ref={frame} className="relative inline-block touch-none overflow-hidden" dir="ltr">
             <img
@@ -135,7 +135,7 @@ export function PhotoCrop(props: { photo: Attachment; itemId: string; isMain: bo
             <div
               role="slider"
               tabIndex={0}
-              aria-label="Crop area — arrows move it, Shift and arrows resize it"
+              aria-label={translateText("Crop area — arrows move it, Shift and arrows resize it")}
               aria-valuetext={`${Math.round(box.w * 100)}% wide, ${Math.round(box.h * 100)}% high`}
               className="absolute cursor-move border-2 border-white shadow-[0_0_0_9999px_rgb(0_0_0/0.55)] outline-offset-2 focus-visible:outline-2 focus-visible:outline-primary"
               style={{ left: `${box.x * 100}%`, top: `${box.y * 100}%`, width: `${box.w * 100}%`, height: `${box.h * 100}%` }}
@@ -168,30 +168,25 @@ export function PhotoCrop(props: { photo: Attachment; itemId: string; isMain: bo
                 if (e.target.checked) setBox((b) => squared(b));
               }}
             />
-            Square (as photos show in lists)
-          </label>
+            {translateText("Square (as photos show in lists)")}</label>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" className="checkbox checkbox-primary checkbox-sm" checked={main} onChange={(e) => setMain(e.target.checked)} />
-            Make it the main photo
-          </label>
+            {translateText("Make it the main photo")}</label>
         </div>
         {(save.isError || makeMain.isError) && (
-          <p className="text-sm text-error">{(save.error ?? makeMain.error)?.message ?? "Couldn't save the crop — try again."}</p>
+          <p className="text-sm text-error">{(save.error ?? makeMain.error)?.message ?? translateText("Couldn't save the crop — try again.")}</p>
         )}
         <DialogActions>
           {!props.isMain && (
             <button type="button" className="btn btn-text me-auto" disabled={busy} onClick={() => makeMain.mutate()}>
               {makeMain.isPending ? <span className="loading loading-spinner loading-xs" /> : <span className="icon-[tabler--star] size-4" />}
-              Use as main photo, uncropped
-            </button>
+              {translateText("Use as main photo, uncropped")}</button>
           )}
           <button type="button" className="btn btn-soft btn-secondary" onClick={props.onClose}>
-            Cancel
-          </button>
+            {translateText("Cancel")}</button>
           <button type="button" className="btn btn-primary" disabled={busy} onClick={() => save.mutate()}>
             {save.isPending ? <span className="loading loading-spinner loading-xs" /> : <span className="icon-[tabler--crop] size-4" />}
-            Save crop
-          </button>
+            {translateText("Save crop")}</button>
         </DialogActions>
       </div>
     </Modal>
@@ -201,7 +196,7 @@ export function PhotoCrop(props: { photo: Attachment; itemId: string; isMain: bo
 /** Cuts the box out of the full photo (upright, as shown) as a JPEG, at most MAX_PX along its longest side. */
 async function cut(url: string, box: Box): Promise<Blob> {
   const res = await fetch(url, { credentials: "include" });
-  if (!res.ok) throw new Error("Couldn't load the photo — try again");
+  if (!res.ok) throw new Error(translateText("Couldn't load the photo — try again"));
   const bitmap = await createImageBitmap(await res.blob());
   try {
     const sx = Math.round(box.x * bitmap.width);
@@ -211,11 +206,11 @@ async function cut(url: string, box: Box): Promise<Blob> {
     const scale = Math.min(1, MAX_PX / Math.max(sw, sh));
     const canvas = Object.assign(document.createElement("canvas"), { width: Math.round(sw * scale), height: Math.round(sh * scale) });
     const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("This browser can't crop photos");
+    if (!ctx) throw new Error(translateText("This browser can't crop photos"));
     ctx.imageSmoothingQuality = "high";
     ctx.drawImage(bitmap, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9));
-    if (!blob) throw new Error("Couldn't make the crop");
+    if (!blob) throw new Error(translateText("Couldn't make the crop"));
     return blob;
   } finally {
     bitmap.close();

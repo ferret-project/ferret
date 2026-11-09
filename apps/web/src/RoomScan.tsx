@@ -1,3 +1,6 @@
+import { tn } from "./i18n";
+import { t as translateText } from "./i18n";
+import { tr } from "./i18n";
 /**
  * Room scans (server: lib/room-scans.ts): photograph a room — or the inside of a box — once (up to five photos for a
  * big room), and the vision model lists what's in it. Review the list: everything starts ticked; untick what you
@@ -43,15 +46,15 @@ export function RoomScanScreen({ householdId, id, locationId, boxId }: { househo
     <div className="min-h-dvh bg-base-200">
       <nav className="navbar sticky top-0 z-10 border-b border-base-300 bg-base-100/85 px-4 backdrop-blur-md">
         <div className="navbar-start w-full min-w-0 items-center gap-2">
-          <a href={back} className="btn btn-text btn-sm btn-square" aria-label="Back">
+          <a href={back} className="btn btn-text btn-sm btn-square" aria-label={translateText("Back")}>
             <span className="icon-[tabler--arrow-left] size-5" />
           </a>
-          <h1 className="truncate text-lg font-semibold">{scan.data?.placeName ? `Scan of ${scan.data.placeName.split(" › ").at(-1)}` : "Scan a room"}</h1>
-          <HelpLink page="guide/room-scan.html" label="Room scans" />
+          <h1 className="truncate text-lg font-semibold">{scan.data?.placeName ? translateText("Scan of {v0}", { v0: scan.data.placeName.split(" › ").at(-1) }) : translateText("Scan a room")}</h1>
+          <HelpLink page="guide/room-scan.html" label={translateText("Room scans")} />
         </div>
       </nav>
       <main className="mx-auto flex max-w-3xl flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-        {!canEdit && <div className="alert alert-soft alert-info">You can look around, but not add things, in this household.</div>}
+        {!canEdit && <div className="alert alert-soft alert-info">{translateText("You can look around, but not add things, in this household.")}</div>}
         {canEdit && id === "new" && <Start householdId={householdId} locationId={locationId} boxId={boxId} />}
         {scan.isPending && id !== "new" && <span className="loading loading-spinner mx-auto my-12 text-primary" />}
         {scan.isError && <div className="alert alert-soft alert-error">{scan.error.message}</div>}
@@ -82,30 +85,28 @@ function Start({ householdId, locationId, boxId }: { householdId: string; locati
   const roomName = room ? findLocation(places.data, room)?.node.name : null;
 
   if (me.data && !me.data.features.roomScan) {
-    return <div className="alert alert-soft alert-info">Room scans need the vision model, which isn't set up on this server.</div>;
+    return <div className="alert alert-soft alert-info">{translateText("Room scans need the vision model, which isn't set up on this server.")}</div>;
   }
   if (plan.data?.plan && !plan.data.plan.limits.ai) {
-    return <div className="alert alert-soft alert-info">Room scans use AI, which isn't part of the {plan.data.plan.name} plan.</div>;
+    return <div className="alert alert-soft alert-info">{tr("Room scans use AI, which isn't part of the {v0} plan.", { v0: plan.data.plan.name })}</div>;
   }
   return (
     <section className="card">
       <div className="card-body gap-4">
         <p className="text-base-content/80">
-          Photograph {boxId ? "what's in the box" : roomName ? <>{roomName}</> : "a room"} — one wide photo, or up to {MAX_PHOTOS} for a big room. Ferret
-          lists what it sees for you to check; nothing is added until you say.
-        </p>
+          {translateText("Photograph ")}{boxId ? translateText("what's in the box") : roomName ? <>{roomName}</> : translateText("a room")}{tr(" — one wide photo, or up to {v0} for a big room. Ferret lists what it sees for you to check; nothing is added until you say.", { v0: MAX_PHOTOS })}</p>
         {!boxId && (
-          <PlacePicker householdId={householdId} id="scan-room" name="room" label="Which room?" value={room} onChange={setRoom} noneLabel="Choose a room" />
+          <PlacePicker householdId={householdId} id="scan-room" name="room" label={translateText("Which room?")} value={room} onChange={setRoom} noneLabel={translateText("Choose a room")} />
         )}
         {photos.length > 0 && (
           <ul className="grid grid-cols-3 gap-2 sm:grid-cols-5">
             {urls.map((url, i) => (
               <li key={url} className="relative">
-                <img src={url} alt={`Photo ${i + 1}`} className="aspect-square w-full rounded-field object-cover" />
+                <img src={url} alt={translateText("Photo {v0}", { v0: i + 1 })} className="aspect-square w-full rounded-field object-cover" />
                 <button
                   type="button"
                   className="btn btn-circle btn-xs absolute end-1 top-1"
-                  aria-label={`Remove photo ${i + 1}`}
+                  aria-label={translateText("Remove photo {v0}", { v0: i + 1 })}
                   onClick={() => setPhotos((p) => p.filter((_, j) => j !== i))}
                 >
                   <span className="icon-[tabler--x] size-3.5" />
@@ -119,12 +120,11 @@ function Start({ householdId, locationId, boxId }: { householdId: string; locati
             <>
               <button type="button" className="btn btn-soft btn-primary" onClick={() => camera.current?.click()}>
                 <span className="icon-[tabler--camera] size-5" />
-                {photos.length ? "Take another" : "Take a photo"}
+                {photos.length ? translateText("Take another") : translateText("Take a photo")}
               </button>
               <button type="button" className="btn btn-soft" onClick={() => library.current?.click()}>
                 <span className="icon-[tabler--photo] size-5" />
-                Choose photos
-              </button>
+                {translateText("Choose photos")}</button>
             </>
           )}
           <input ref={camera} type="file" accept="image/*" capture="environment" hidden onChange={(e) => (add(e.target.files), (e.target.value = ""))} />
@@ -138,8 +138,7 @@ function Start({ householdId, locationId, boxId }: { householdId: string; locati
           onClick={() => start.mutate()}
         >
           {start.isPending ? <span className="loading loading-spinner loading-sm" /> : <span className="icon-[tabler--sparkles] size-5" />}
-          Find things
-        </button>
+          {translateText("Find things")}</button>
       </div>
     </section>
   );
@@ -170,8 +169,8 @@ function ScanView({ householdId, scan, back }: { householdId: string; scan: Room
       <div className="card">
         <div className="card-body items-center gap-3 py-12 text-center" role="status">
           <span className="loading loading-dots loading-lg text-primary" />
-          <p className="font-medium">Looking at {scan.photos === 1 ? "the photo" : `the ${scan.photos} photos`}…</p>
-          <p className="max-w-sm text-sm text-base-content/70">This can take a few minutes. You can leave — the bell says when it's ready to review.</p>
+          <p className="font-medium">{translateText("Looking at ")}{scan.photos === 1 ? translateText("the photo") : translateText("the {v0} photos", { v0: scan.photos })}…</p>
+          <p className="max-w-sm text-sm text-base-content/70">{translateText("This can take a few minutes. You can leave — the bell says when it's ready to review.")}</p>
         </div>
       </div>
     );
@@ -179,13 +178,11 @@ function ScanView({ householdId, scan, back }: { householdId: string; scan: Room
   if (scan.status === "failed") {
     return (
       <div className="alert alert-soft alert-error flex flex-wrap items-center gap-3" role="alert">
-        <span className="grow">{scan.error ?? "Couldn't look at the photos."}</span>
+        <span className="grow">{scan.error ?? translateText("Couldn't look at the photos.")}</span>
         <a href={scanRoomHref({ locationId: scan.locationId, containerItemId: scan.containerItemId })} className="btn btn-sm btn-soft">
-          Try again
-        </a>
+          {translateText("Try again")}</a>
         <button type="button" className="btn btn-sm btn-text" disabled={dismiss.isPending} onClick={() => dismiss.mutate()}>
-          Dismiss
-        </button>
+          {translateText("Dismiss")}</button>
       </div>
     );
   }
@@ -193,9 +190,7 @@ function ScanView({ householdId, scan, back }: { householdId: string; scan: Room
     return (
       <section className="card">
         <div className="card-body gap-3">
-          <h2 className="font-semibold">
-            Added {scan.items.length} {scan.items.length === 1 ? "thing" : "things"} from this scan
-          </h2>
+          <h2 className="font-semibold">{tr("Added {v0} ", { v0: scan.items.length })}{scan.items.length === 1 ? translateText("thing") : translateText("things")} {translateText("from this scan")}</h2>
           <ul className="flex flex-wrap gap-2">
             {scan.items.map((i) => (
               <li key={i.id}>
@@ -226,7 +221,7 @@ function Photos({ scan, rows, active, onPick, onAdd }: { scan: RoomScan; rows: R
         <div key={n} className="relative overflow-hidden rounded-box bg-base-300">
           <img
             src={api.roomScanPhotoUrl(scan.id, n)}
-            alt={`Photo ${n + 1} of the room`}
+            alt={translateText("Photo {v0} of the room", { v0: n + 1 })}
             className={`block w-full ${onAdd ? "cursor-crosshair" : ""}`}
             onClick={(e) => {
               if (!onAdd) return;
@@ -239,7 +234,7 @@ function Photos({ scan, rows, active, onPick, onAdd }: { scan: RoomScan; rows: R
               <button
                 key={row.key}
                 type="button"
-                aria-label={`${i + 1}: ${row.name || "new thing"}`}
+                aria-label={translateText("{v0}: {v1}", { v0: i + 1, v1: row.name || translateText("new thing") })}
                 className={`absolute rounded-sm border-2 ${row.checked ? (active === row.key ? "border-warning" : "border-primary") : "border-dashed border-white/70"}`}
                 style={{ left: `${row.box[0] * 100}%`, top: `${row.box[1] * 100}%`, width: `${row.box[2] * 100}%`, height: `${row.box[3] * 100}%` }}
                 onClick={() => onPick?.(row.key)}
@@ -267,7 +262,7 @@ function Review({ householdId, scan, back, onDismiss }: { householdId: string; s
 
   const save = useMutation({
     mutationFn: async () => {
-      setProgress("Adding them…");
+      setProgress(translateText("Adding them…"));
       const { items } = await api.addFromRoomScan(scan.id, {
         items: ticked.map((r) => ({ name: r.name.trim(), quantity: Math.max(1, r.quantity || 1), categoryId: r.categoryId })),
       });
@@ -275,7 +270,7 @@ function Review({ householdId, scan, back, onDismiss }: { householdId: string; s
       const withBox = ticked.map((r, i) => ({ row: r, id: items[i]!.id })).filter((x) => x.row.box);
       const bitmaps = new Map<number, ImageBitmap | null>();
       for (const [done, { row, id }] of withBox.entries()) {
-        setProgress(`Adding photos (${done + 1} of ${withBox.length})…`);
+        setProgress(translateText("Adding photos ({v0} of {v1})…", { v0: done + 1, v1: withBox.length }));
         try {
           if (!bitmaps.has(row.photo)) bitmaps.set(row.photo, await loadPhoto(scan.id, row.photo));
           const crop = await cut(bitmaps.get(row.photo) ?? null, row.box!);
@@ -311,8 +306,8 @@ function Review({ householdId, scan, back, onDismiss }: { householdId: string; s
     <form className="flex flex-col gap-4" onSubmit={onSubmit}>
       <p className="text-sm text-base-content/70">
         {rows.length
-          ? "Untick what you don't want and fix anything that's off. Missed something? Tap it on the photo."
-          : "Ferret didn't spot anything it was sure of. Tap things on the photo to add them."}
+          ? translateText("Untick what you don't want and fix anything that's off. Missed something? Tap it on the photo.")
+          : translateText("Ferret didn't spot anything it was sure of. Tap things on the photo to add them.")}
       </p>
       <div className="grid gap-4 lg:grid-cols-2">
         <Photos scan={scan} rows={rows} active={active} onPick={setActive} onAdd={addAt} />
@@ -327,7 +322,7 @@ function Review({ householdId, scan, back, onDismiss }: { householdId: string; s
                 type="checkbox"
                 className="checkbox checkbox-primary"
                 checked={r.checked}
-                aria-label={`Add ${r.name || "this"}`}
+                aria-label={translateText("Add {v0}", { v0: r.name || translateText("this") })}
                 onChange={(e) => set(r.key, { checked: e.target.checked })}
               />
               <span className="badge badge-soft badge-sm w-7 justify-center">{i + 1}</span>
@@ -335,12 +330,12 @@ function Review({ householdId, scan, back, onDismiss }: { householdId: string; s
                 id={`scan-name-${r.key}`}
                 className="input input-sm min-w-0 grow basis-32"
                 value={r.name}
-                placeholder="What is it?"
-                aria-label={`Name of thing ${i + 1}`}
+                placeholder={translateText("What is it?")}
+                aria-label={translateText("Name of thing {v0}", { v0: i + 1 })}
                 maxLength={200}
                 onChange={(e) => set(r.key, { name: e.target.value })}
               />
-              <label className="input input-sm w-20 gap-1" title="How many">
+              <label className="input input-sm w-20 gap-1" title={translateText("How many")}>
                 <span className="text-base-content/70">×</span>
                 <input
                   type="number"
@@ -348,7 +343,7 @@ function Review({ householdId, scan, back, onDismiss }: { householdId: string; s
                   max={10000}
                   className="grow"
                   value={r.quantity}
-                  aria-label={`How many of thing ${i + 1}`}
+                  aria-label={translateText("How many of thing {v0}", { v0: i + 1 })}
                   onChange={(e) => set(r.key, { quantity: Number(e.target.value) || 1 })}
                 />
               </label>
@@ -356,10 +351,10 @@ function Review({ householdId, scan, back, onDismiss }: { householdId: string; s
                 <select
                   className="select select-sm min-w-0 basis-40 grow"
                   value={r.categoryId ?? ""}
-                  aria-label={`Category of thing ${i + 1}`}
+                  aria-label={translateText("Category of thing {v0}", { v0: i + 1 })}
                   onChange={(e) => set(r.key, { categoryId: e.target.value || null })}
                 >
-                  <option value="">No category</option>
+                  <option value="">{translateText("No category")}</option>
                   {categories.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.path}
@@ -375,21 +370,17 @@ function Review({ householdId, scan, back, onDismiss }: { householdId: string; s
       <div className="sticky bottom-[var(--tabbar,0px)] -mx-4 flex flex-wrap items-center gap-2 border-t border-base-300 bg-base-200/95 px-4 py-3 backdrop-blur-md">
         <button type="submit" className="btn btn-primary btn-wrap" disabled={!ticked.length || save.isPending}>
           {save.isPending && <span className="loading loading-spinner loading-sm" />}
-          {progress ?? `Add ${ticked.length} ${ticked.length === 1 ? "thing" : "things"}`}
+          {progress ?? tn(ticked.length, "Add {count} thing", "Add {count} things")}
         </button>
         {!confirmDiscard ? (
           <button type="button" className="btn btn-text" disabled={save.isPending} onClick={() => setConfirmDiscard(true)}>
-            Discard scan
-          </button>
+            {translateText("Discard scan")}</button>
         ) : (
           <span className="flex flex-wrap items-center gap-2 text-sm">
-            Discard it and add nothing?
-            <button type="button" className="btn btn-error btn-sm" onClick={onDismiss}>
-              Discard
-            </button>
+            {translateText("Discard it and add nothing?")}<button type="button" className="btn btn-error btn-sm" onClick={onDismiss}>
+              {translateText("Discard")}</button>
             <button type="button" className="btn btn-text btn-sm" onClick={() => setConfirmDiscard(false)}>
-              Keep
-            </button>
+              {translateText("Keep")}</button>
           </span>
         )}
       </div>

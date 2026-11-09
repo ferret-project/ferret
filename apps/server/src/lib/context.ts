@@ -1,9 +1,10 @@
+import { t as translateText, preferredLanguage, withLanguage, currentLanguage } from "./i18n";
 import { and, eq } from "drizzle-orm";
 import { DEFAULT_CURRENCY } from "@ferret/shared";
 import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
 import { HTTPException } from "hono/http-exception";
-import type { z } from "zod";
+import { z } from "zod";
 import type { Extensions } from "../app";
 import type { Auth } from "../auth";
 import type { Config } from "../config";
@@ -47,7 +48,7 @@ export const requireUser = createMiddleware<AppEnv>(async (c, next) => {
   const key = keyFromHeaders(c.req.raw.headers);
   if (key) {
     const holder = await verifyKey(c.var.auth, c.var.db, key);
-    if (!holder) throw new HTTPException(401, { message: "Invalid or expired API key" });
+    if (!holder) throw new HTTPException(401, { message: translateText("Invalid or expired API key") });
     // A plan without API keys pauses them (kept, not deleted — they work again once it has them).
     await requireFeature({ deps: c.var.deps, householdId: holder.key.householdId }, "apiKeys");
     c.set("user", holder.user);
@@ -55,16 +56,16 @@ export const requireUser = createMiddleware<AppEnv>(async (c, next) => {
     c.set("session", undefined);
   } else {
     const result = await c.var.auth.api.getSession({ headers: c.req.raw.headers });
-    if (!result) throw new HTTPException(401, { message: "Sign in required" });
+    if (!result) throw new HTTPException(401, { message: translateText("Sign in required") });
     c.set("user", result.user);
     c.set("session", result.session);
   }
-  await next();
+  await withLanguage(await preferredLanguage(c.var.db, c.var.user.id, c.var.session?.activeOrganizationId), next);
 });
 
 /** For account settings (like managing API keys): a real sign-in, not a key. */
 export const requireSession = createMiddleware<AppEnv>(async (c, next) => {
-  if (c.var.apiKey) throw new HTTPException(403, { message: "API keys can't manage account settings" });
+  if (c.var.apiKey) throw new HTTPException(403, { message: translateText("API keys can't manage account settings") });
   await next();
 });
 
@@ -78,14 +79,14 @@ export const requireHousehold = createMiddleware<AppEnv>(async (c, next) => {
   const requested = c.req.header("x-household-id");
   const keyHousehold = c.var.apiKey?.householdId;
   if (keyHousehold && requested && requested !== keyHousehold) {
-    throw new HTTPException(403, { message: "This API key is for a different household" });
+    throw new HTTPException(403, { message: translateText("This API key is for a different household") });
   }
   const householdId = keyHousehold ?? requested ?? c.var.session?.activeOrganizationId ?? undefined;
   if (!householdId) {
-    throw new HTTPException(400, { message: "No household selected. Create or pick a household first." });
+    throw new HTTPException(400, { message: translateText("No household selected. Create or pick a household first.") });
   }
   const role = await membership(c.var.db, householdId, c.var.user.id);
-  if (!role) throw new HTTPException(403, { message: "Not a member of this household" });
+  if (!role) throw new HTTPException(403, { message: translateText("Not a member of this household") });
   c.set("householdId", householdId);
   c.set("role", role);
   // Its time zone, and the last day it was used (lib/plan.ts) — one read, and a write at most once a day.
@@ -96,7 +97,7 @@ export const requireHousehold = createMiddleware<AppEnv>(async (c, next) => {
   c.set("timeZone", setting?.timeZone ?? serverTimeZone());
   c.set("currency", setting?.currency ?? DEFAULT_CURRENCY);
   await markActive(c.var.db, householdId, setting?.lastActiveOn);
-  await next();
+  await withLanguage(await preferredLanguage(c.var.db, c.var.user.id, householdId), next);
 });
 
 /** The user's role in a household, or undefined if they're not in it. */
@@ -111,15 +112,15 @@ export async function membership(db: Db, householdId: string, userId: string) {
 
 /** For the server's own settings (Settings → Server): the server admin, signed in (not with an API key). */
 export const requireServerAdmin = createMiddleware<AppEnv>(async (c, next) => {
-  if (c.var.apiKey) throw new HTTPException(403, { message: "API keys can't manage the server" });
-  if (!(await isServerAdmin(c.var.db, c.var.user.id))) throw new HTTPException(403, { message: "Only the server admin can do this" });
+  if (c.var.apiKey) throw new HTTPException(403, { message: translateText("API keys can't manage the server") });
+  if (!(await isServerAdmin(c.var.db, c.var.user.id))) throw new HTTPException(403, { message: translateText("Only the server admin can do this") });
   await next();
 });
 
 /** Blocks read-only roles and read-only API keys from writes. Better Auth roles: owner, admin, member — plus our own "viewer". */
 export const requireWriter = createMiddleware<AppEnv>(async (c, next) => {
-  if (c.var.role === "viewer") throw new HTTPException(403, { message: "Read-only access" });
-  if (c.var.apiKey?.readOnly) throw new HTTPException(403, { message: "This API key is read-only" });
+  if (c.var.role === "viewer") throw new HTTPException(403, { message: translateText("Read-only access") });
+  if (c.var.apiKey?.readOnly) throw new HTTPException(403, { message: translateText("This API key is read-only") });
   await next();
 });
 
@@ -138,11 +139,11 @@ export const callerOf = (c: Context<AppEnv>): Caller => ({
 /** Parses and validates a JSON body: 400 if it isn't JSON, 422 (with the issues) if it doesn't fit. */
 export async function body<T extends z.ZodType>(req: Request, schema: T): Promise<z.infer<T>> {
   const json = await req.json().catch(() => {
-    throw new HTTPException(400, { message: "Body must be JSON" });
+    throw new HTTPException(400, { message: translateText("Body must be JSON") });
   });
-  const parsed = schema.safeParse(json);
+  const parsed = schema.safeParse(json, { error: currentLanguage() === "hu" ? z.locales.hu().localeError : undefined });
   if (!parsed.success) {
-    throw new HTTPException(422, { message: "Invalid input", cause: parsed.error.issues });
+    throw new HTTPException(422, { message: translateText("Invalid input"), cause: parsed.error.issues.map((issue) => ({ ...issue, message: translateText(issue.message) })) });
   }
   return parsed.data;
 }

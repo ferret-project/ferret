@@ -1,3 +1,4 @@
+import { t as translateText, locale } from "./i18n";
 /**
  * A household's time zone (Settings → Household): what "today" is for it — due, overdue, ending soon — and the hour its
  * reminders go out. The server keeps every moment in UTC; only these calendar questions need a zone. Not set: the
@@ -25,7 +26,7 @@ export async function householdTimeZone(db: Db, householdId: string) {
 
 /** Sets (or, with null, clears) the household's zone. */
 export async function setHouseholdTimeZone(db: Db, householdId: string, timeZone: string | null) {
-  if (timeZone && !isTimeZone(timeZone)) throw new HTTPException(422, { message: `${timeZone} isn't a time zone` });
+  if (timeZone && !isTimeZone(timeZone)) throw new HTTPException(422, { message: translateText("{v0} isn't a time zone", { v0: timeZone }) });
   await db
     .insert(householdSetting)
     .values({ householdId, timeZone })
@@ -40,7 +41,7 @@ export async function householdCurrency(db: Db, householdId: string) {
 
 /** Sets the household's currency. */
 export async function setHouseholdCurrency(db: Db, householdId: string, currency: string) {
-  if (!isCurrency(currency)) throw new HTTPException(422, { message: `${currency} isn't a currency` });
+  if (!isCurrency(currency)) throw new HTTPException(422, { message: translateText("{v0} isn't a currency", { v0: currency }) });
   await db
     .insert(householdSetting)
     .values({ householdId, currency })
@@ -60,7 +61,7 @@ export async function householdLocale(db: Db, householdId: string) {
  * An amount in what the server writes (history, the bell, emails): the household's currency, written the English way
  * like the words around it ("value €80.00 → €95.00").
  */
-export const moneyText = (v: { currency: string }, cents: number, opts: Omit<MoneyOptions, "locale"> = {}) => formatMoney(cents, v.currency, { ...opts, locale: "en-US" });
+export const moneyText = (v: { currency: string }, cents: number, opts: Omit<MoneyOptions, "locale"> = {}) => formatMoney(cents, v.currency, { ...opts, locale: locale() });
 
 /** Today (or `d`'s day) where the caller's household is. */
 export const todayFor = (v: { timeZone: string }, d?: Date) => today(d, v.timeZone);

@@ -1,3 +1,4 @@
+import { t as translateText } from "./../lib/i18n";
 /**
  * /api/v1 — the public REST API. Thin: the work happens in lib/inventory.ts,
  * which the MCP tools call too, so the app and Claude always agree.
@@ -232,7 +233,7 @@ const uploadLimit = createMiddleware<AppEnv>((c, next) =>
   bodyLimit({
     maxSize: c.var.config.MAX_UPLOAD_MB * 1024 * 1024,
     onError: (c) =>
-      c.json({ error: { code: "http_413", message: `Files can be up to ${c.var.config.MAX_UPLOAD_MB} MB` } }, 413),
+      c.json({ error: { code: "http_413", message: translateText("Files can be up to {v0} MB", { v0: c.var.config.MAX_UPLOAD_MB }) } }, 413),
   })(c, next),
 );
 
@@ -257,12 +258,12 @@ inventory.get("/items/:id/attachments", async (c) => {
  */
 inventory.post("/items/:id/attachments", requireWriter, uploadLimit, async (c) => {
   const form = await c.req.parseBody().catch(() => {
-    throw new HTTPException(400, { message: "Body must be multipart/form-data" });
+    throw new HTTPException(400, { message: translateText("Body must be multipart/form-data") });
   });
   const file = form.file;
-  if (!(file instanceof File)) throw new HTTPException(400, { message: 'Send the upload in a "file" field' });
+  if (!(file instanceof File)) throw new HTTPException(400, { message: translateText("Send the upload in a \"file\" field") });
   const kind = z.enum(attachmentKinds).default("photo").safeParse(form.kind ?? undefined);
-  if (!kind.success) throw new HTTPException(422, { message: "kind must be photo or document" });
+  if (!kind.success) throw new HTTPException(422, { message: translateText("kind must be photo or document") });
   const bytes = new Uint8Array(await file.arrayBuffer());
   const copy = async (part: unknown) => (part instanceof File ? new Uint8Array(await part.arrayBuffer()) : undefined);
   const made = { thumbnail: await copy(form.thumbnail), preview: await copy(form.preview) };
@@ -288,17 +289,17 @@ async function serveAttachment(c: Context<AppEnv>, variant: "original" | "thumbn
     .where(
       and(eq(attachment.id, c.req.param("id")!), eq(attachment.householdId, c.var.householdId), isNull(attachment.deletedAt)),
     );
-  if (!row) throw new HTTPException(404, { message: "Attachment not found" });
+  if (!row) throw new HTTPException(404, { message: translateText("Attachment not found") });
   // An original removed to free space is answered with its small copy.
   const thumbnail = (variant === "thumbnail" || row.originalRemovedAt) && row.thumbnailKey;
   const bytes = await c.var.files.get(row.householdId, thumbnail ? row.thumbnailKey! : row.blobKey);
-  if (!bytes) throw new HTTPException(404, { message: "Attachment file is missing" });
+  if (!bytes) throw new HTTPException(404, { message: translateText("Attachment file is missing") });
   return c.body(bytes, 200, {
     // A thumbnail is WebP when the server made it; one a browser made may be JPEG (Safari can't write WebP).
     "Content-Type": thumbnail ? (sniffContentType(bytes) ?? "image/webp") : row.contentType,
     ...(row.originalRemovedAt && variant === "original" && { "X-Ferret-Small-Copy": "1" }),
     "Content-Length": String(bytes.length),
-    "Content-Disposition": `inline; filename*=UTF-8''${encodeURIComponent(row.filename)}`,
+    "Content-Disposition": translateText("inline; filename*=UTF-8''{v0}", { v0: encodeURIComponent(row.filename) }),
     // Attachments never change once uploaded, so browsers can keep them a while.
     "Cache-Control": "private, max-age=86400",
   });
@@ -315,10 +316,10 @@ inventory.post("/attachments/:id/analyze", requireWriter, async (c) => {
     .select({ kind: attachment.kind, contentType: attachment.contentType, originalRemovedAt: attachment.originalRemovedAt })
     .from(attachment)
     .where(where);
-  if (!found) throw new HTTPException(404, { message: "Attachment not found" });
-  if (found.originalRemovedAt) throw new HTTPException(409, { message: "Only a small copy of this is kept, so it can't be read again" });
+  if (!found) throw new HTTPException(404, { message: translateText("Attachment not found") });
+  if (found.originalRemovedAt) throw new HTTPException(409, { message: translateText("Only a small copy of this is kept, so it can't be read again") });
   const job = analysisJob(c.var.deps, found.kind as AttachmentKind, found.contentType);
-  if (!job) throw new HTTPException(409, { message: "Analysis for this kind of file isn't set up on this server" });
+  if (!job) throw new HTTPException(409, { message: translateText("Analysis for this kind of file isn't set up on this server") });
   await requireAllowed(callerOf(c), found.kind === "photo" ? "ai.photo" : "ai.document");
   const [row] = await c.var.db
     .update(attachment)
@@ -337,7 +338,7 @@ inventory.post("/attachments/:id/dismiss-suggestions", requireWriter, async (c) 
       and(eq(attachment.id, c.req.param("id")), eq(attachment.householdId, c.var.householdId), isNull(attachment.deletedAt)),
     )
     .returning({ id: attachment.id });
-  if (!row) throw new HTTPException(404, { message: "Attachment not found" });
+  if (!row) throw new HTTPException(404, { message: translateText("Attachment not found") });
   return c.body(null, 204);
 });
 
@@ -350,8 +351,8 @@ inventory.delete("/attachments/:id", requireWriter, async (c) => {
       and(eq(attachment.id, c.req.param("id")), eq(attachment.householdId, c.var.householdId), isNull(attachment.deletedAt)),
     )
     .returning({ id: attachment.id, kind: attachment.kind, itemId: attachment.itemId });
-  if (!row) throw new HTTPException(404, { message: "Attachment not found" });
-  await logActivity(callerOf(c), "attachment.delete", row.id, `Removed a ${row.kind}`, row.itemId);
+  if (!row) throw new HTTPException(404, { message: translateText("Attachment not found") });
+  await logActivity(callerOf(c), "attachment.delete", row.id, translateText("Removed a {v0}", { v0: row.kind }), row.itemId);
   await itemChanged(c.var, row.itemId);
   return c.body(null, 204);
 });

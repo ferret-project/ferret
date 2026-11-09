@@ -1,3 +1,7 @@
+import { currentLanguage } from "./i18n";
+import { locale } from "./i18n";
+import { t as translateText } from "./i18n";
+import { tr } from "./i18n";
 /**
  * The dashboard: what everything is worth, maintenance and warranties to act on,
  * what's missing for an insurance claim, and recent changes (including Claude's).
@@ -16,12 +20,12 @@ import { BY_VALUE_HREF, CATEGORIES_HREF, COLLECTIONS_HREF, categoryHref, collect
 import { useCollections } from "./Collections";
 
 export const MISSING_LABELS: Record<MissingDetail, { label: string; filter: string; icon: string }> = {
-  photo: { label: "Photo", filter: "No photo yet", icon: "icon-[tabler--camera]" },
-  value: { label: "Value or price", filter: "No value or price", icon: "icon-[tabler--cash]" },
-  place: { label: "Where it's kept", filter: "Not in any place", icon: "icon-[tabler--map-pin]" },
-  document: { label: "Receipt or manual", filter: "No receipt or manual", icon: "icon-[tabler--receipt]" },
-  category: { label: "Category", filter: "No category yet", icon: "icon-[tabler--category]" },
-  serial: { label: "Serial number (valuable things)", filter: "Valuable, no serial number", icon: "icon-[tabler--barcode]" },
+  photo: { get label() { return translateText("Photo"); }, get filter() { return translateText("No photo yet"); }, icon: "icon-[tabler--camera]" },
+  value: { get label() { return translateText("Value or price"); }, get filter() { return translateText("No value or price"); }, icon: "icon-[tabler--cash]" },
+  place: { get label() { return translateText("Where it's kept"); }, get filter() { return translateText("Not in any place"); }, icon: "icon-[tabler--map-pin]" },
+  document: { get label() { return translateText("Receipt or manual"); }, get filter() { return translateText("No receipt or manual"); }, icon: "icon-[tabler--receipt]" },
+  category: { get label() { return translateText("Category"); }, get filter() { return translateText("No category yet"); }, icon: "icon-[tabler--category]" },
+  serial: { get label() { return translateText("Serial number (valuable things)"); }, get filter() { return translateText("Valuable, no serial number"); }, icon: "icon-[tabler--barcode]" },
 };
 
 
@@ -43,26 +47,26 @@ export function OverviewSections({ householdId, places }: { householdId: string;
       <div className="@container">
         <div className="grid grid-cols-1 gap-3 @2xs:grid-cols-2 @4xl:grid-cols-4 sm:gap-4">
           <Stat
-            label="Worth"
+            label={translateText("Worth")}
             value={money(o.total.valueCents)}
-            note={o.total.itemsWithoutValue ? `${o.total.itemsWithoutValue} without a value` : "Everything valued"}
+            note={o.total.itemsWithoutValue ? translateText("{v0} without a value", { v0: o.total.itemsWithoutValue }) : translateText("Everything valued")}
             icon="icon-[tabler--coin]"
             tone="primary"
             href={BY_VALUE_HREF}
           />
-          <Stat label="Things" value={o.total.items.toLocaleString()} note="See them all" icon="icon-[tabler--box]" tone="success" href={ITEMS_HREF} />
+          <Stat label={translateText("Things")} value={o.total.items.toLocaleString(locale())} note={translateText("See them all")} icon="icon-[tabler--box]" tone="success" href={ITEMS_HREF} />
           <Stat
-            label="Maintenance"
-            value={(o.maintenance.overdue + o.maintenance.due).toLocaleString()}
-            note={o.maintenance.overdue ? `${o.maintenance.overdue} overdue` : "Due in 2 weeks"}
+            label={translateText("Maintenance")}
+            value={(o.maintenance.overdue + o.maintenance.due).toLocaleString(locale())}
+            note={o.maintenance.overdue ? translateText("{v0} overdue", { v0: o.maintenance.overdue }) : translateText("Due in 2 weeks")}
             icon="icon-[tabler--tool]"
             tone={o.maintenance.overdue ? "warning" : "info"}
             href={MAINTENANCE_HREF}
           />
           <Stat
-            label="Warranties"
-            value={soon.toLocaleString()}
-            note="Ending in 60 days"
+            label={translateText("Warranties")}
+            value={soon.toLocaleString(locale())}
+            note={translateText("Ending in 60 days")}
             icon="icon-[tabler--shield-check]"
             tone={soon ? "warning" : "success"}
             href={WARRANTIES_HREF}
@@ -74,7 +78,7 @@ export function OverviewSections({ householdId, places }: { householdId: string;
       {/* On a wide screen, the sections flow into two columns (each kept whole). */}
       <div className="flex flex-col gap-4 md:block md:columns-2 md:gap-4 md:[&>*]:mb-4 md:[&>*]:break-inside-avoid">
       {o.total.valueCents > 0 && (
-        <Section icon="icon-[tabler--chart-area-line]" title="Worth over time" aside={<span className="text-sm text-base-content/70">by when things came in</span>}>
+        <Section icon="icon-[tabler--chart-area-line]" title={translateText("Worth over time")} aside={<span className="text-sm text-base-content/70">{translateText("by when things came in")}</span>}>
           <WorthOverTime byMonth={o.byMonth} />
         </Section>
       )}
@@ -86,15 +90,15 @@ export function OverviewSections({ householdId, places }: { householdId: string;
       {o.byRoom.length > 0 && (
         <ValueBars
           icon="icon-[tabler--coins]"
-          title="Worth, room by room"
+          title={translateText("Worth, room by room")}
           groups={o.byRoom}
           href={(g) => (g.locationId ? placeHref(g.locationId) : undefined)}
           label={(name) => (o.properties > 1 ? name : name.replace(/^[^›]+› /, ""))}
-          aside={o.properties > 1 && <span className="text-sm text-base-content/70">{o.properties} properties</span>}
+          aside={o.properties > 1 && <span className="text-sm text-base-content/70">{tr("{v0} properties", { v0: o.properties })}</span>}
         />
       )}
       {o.byCategory.some((g) => g.name !== "No category" && g.valueCents > 0) && (
-        <Section icon="icon-[tabler--chart-donut]" title="Worth, by category">
+        <Section icon="icon-[tabler--chart-donut]" title={translateText("Worth, by category")}>
           <CategoryDonut
             groups={o.byCategory}
             href={(name) => {
@@ -112,10 +116,10 @@ export function OverviewSections({ householdId, places }: { householdId: string;
 }
 
 const TONES = {
-  primary: "after:border-primary/60 hover:after:border-primary",
-  success: "after:border-success/60 hover:after:border-success",
-  info: "after:border-info/60 hover:after:border-info",
-  warning: "after:border-warning/60 hover:after:border-warning",
+  get primary() { return "after:border-primary/60 hover:after:border-primary"; },
+  get success() { return "after:border-success/60 hover:after:border-success"; },
+  get info() { return "after:border-info/60 hover:after:border-info"; },
+  get warning() { return "after:border-warning/60 hover:after:border-warning"; },
 } as const;
 const AVATAR_TONES = {
   primary: "bg-primary/10 text-primary",
@@ -140,7 +144,7 @@ function Stat(props: { label: string; value: string; note: string; icon: string;
       </div>
     </div>
   );
-  const className = `card relative shadow-none after:absolute after:-bottom-[0.5px] after:h-6 after:w-full after:rounded-box after:border-b-3 after:transition-colors after:duration-200 ${TONES[props.tone]}`;
+  const className = translateText("card relative shadow-none after:absolute after:-bottom-[0.5px] after:h-6 after:w-full after:rounded-box after:border-b-3 after:transition-colors after:duration-200 {v0}", { v0: TONES[props.tone] });
   return props.href ? (
     <a href={props.href} className={className}>
       {body}
@@ -172,8 +176,8 @@ function Gaps({ o }: { o: OverviewData }) {
   const total = o.total.items;
   if (total === 0) {
     return (
-      <Section icon="icon-[tabler--list-check]" title="Ready for a claim?">
-        <p className="text-sm text-base-content/70">Add a few things and Ferret will show what each one still needs.</p>
+      <Section icon="icon-[tabler--list-check]" title={translateText("Ready for a claim?")}>
+        <p className="text-sm text-base-content/70">{translateText("Add a few things and Ferret will show what each one still needs.")}</p>
       </Section>
     );
   }
@@ -181,18 +185,17 @@ function Gaps({ o }: { o: OverviewData }) {
   return (
     <Section
       icon="icon-[tabler--list-check]"
-      title="Ready for a claim?"
+      title={translateText("Ready for a claim?")}
       aside={
         <span className="flex items-center gap-2">
-          {done && <span className="badge badge-soft badge-success">All set</span>}
+          {done && <span className="badge badge-soft badge-success">{translateText("All set")}</span>}
           <a href={REPORT_HREF} className="tap link link-primary link-hover text-sm">
-            Report
-          </a>
+            {translateText("Report")}</a>
         </span>
       }
     >
       <p className="-mt-2 text-sm text-base-content/70">
-        {done ? "Every item has a photo, a value, a place and a receipt." : "Tap a line to see the items that still need it."}
+        {done ? translateText("Every item has a photo, a value, a place and a receipt.") : translateText("Tap a line to see the items that still need it.")}
       </p>
       <ul className="flex flex-col gap-1">
         {missingDetails.map((d) => {
@@ -204,14 +207,12 @@ function Gaps({ o }: { o: OverviewData }) {
               <span className="min-w-0 flex-1">
                 <span className="flex items-center justify-between gap-2 text-sm">
                   <span className="text-base-content">{MISSING_LABELS[d].label}</span>
-                  <span className="text-base-content/70">
-                    {have} of {total}
-                  </span>
+                  <span className="text-base-content/70">{tr("{v0} of {v1}", { v0: have, v1: total })}</span>
                 </span>
                 <span
                   className="progress mt-1.5 h-1.5"
                   role="progressbar"
-                  aria-label={`${MISSING_LABELS[d].label}: ${have} of ${total}`}
+                  aria-label={translateText("{v0}: {v1} of {v2}", { v0: MISSING_LABELS[d].label, v1: have, v2: total })}
                   aria-valuenow={percent}
                   aria-valuemin={0}
                   aria-valuemax={100}
@@ -246,16 +247,15 @@ function ToBuy({ o }: { o: OverviewData }) {
   return (
     <Section
       icon="icon-[tabler--shopping-cart]"
-      title="To buy"
+      title={translateText("To buy")}
       aside={
         <a href={SHOPPING_HREF} className="tap link link-primary link-hover text-sm">
-          Shopping list
-        </a>
+          {translateText("Shopping list")}</a>
       }
     >
       <div className="-mt-2 flex flex-wrap gap-2">
-        {out > 0 && <span className="badge badge-soft badge-error">{out} run out</span>}
-        {count > out && <span className="badge badge-soft badge-warning">{count - out} running low</span>}
+        {out > 0 && <span className="badge badge-soft badge-error">{tr("{v0} run out", { v0: out })}</span>}
+        {count > out && <span className="badge badge-soft badge-warning">{count - out} {translateText("running low")}</span>}
       </div>
       <ul className="flex flex-col gap-1">
         {next.map((i) => (
@@ -263,7 +263,7 @@ function ToBuy({ o }: { o: OverviewData }) {
             <a href={itemHref(i.id)} className="flex min-h-11 items-center gap-3 rounded-field px-2 py-1.5 hover:bg-base-200">
               <span className={`size-2.5 shrink-0 rounded-full ${i.quantity === 0 ? "bg-error" : "bg-warning"}`} aria-hidden />
               <span className="min-w-0 flex-1 truncate text-base-content">{i.name}</span>
-              <span className="shrink-0 text-sm text-base-content/70">{i.quantity === 0 ? "none left" : `${i.quantity} left`}</span>
+              <span className="shrink-0 text-sm text-base-content/70">{i.quantity === 0 ? translateText("none left") : translateText("{v0} left", { v0: i.quantity })}</span>
             </a>
           </li>
         ))}
@@ -277,21 +277,21 @@ function Upkeep({ o }: { o: OverviewData }) {
   return (
     <Section
       icon="icon-[tabler--tool]"
-      title="Maintenance"
+      title={translateText("Maintenance")}
       aside={
         <a href={MAINTENANCE_HREF} className="tap link link-primary link-hover text-sm">
-          {next.length ? "See all" : "Add tasks"}
+          {next.length ? translateText("See all") : translateText("Add tasks")}
         </a>
       }
     >
       {next.length === 0 ? (
-        <p className="-mt-2 text-sm text-base-content/70">Nothing scheduled — track filters, servicing and the like.</p>
+        <p className="-mt-2 text-sm text-base-content/70">{translateText("Nothing scheduled — track filters, servicing and the like.")}</p>
       ) : (
         <>
           <div className="-mt-2 flex flex-wrap gap-2">
-            {overdue > 0 && <span className="badge badge-soft badge-error">{overdue} overdue</span>}
-            {due > 0 && <span className="badge badge-soft badge-warning">{due} due in 2 weeks</span>}
-            {!overdue && !due && <span className="badge badge-soft badge-success">Nothing due soon</span>}
+            {overdue > 0 && <span className="badge badge-soft badge-error">{tr("{v0} overdue", { v0: overdue })}</span>}
+            {due > 0 && <span className="badge badge-soft badge-warning">{tr("{v0} due in 2 weeks", { v0: due })}</span>}
+            {!overdue && !due && <span className="badge badge-soft badge-success">{translateText("Nothing due soon")}</span>}
           </div>
           <ul className="flex flex-col gap-1">
             {next.map((t) => (
@@ -304,7 +304,7 @@ function Upkeep({ o }: { o: OverviewData }) {
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-base-content">{t.title}</span>
                     <span className="block truncate text-sm text-base-content/70">
-                      {[t.itemName ?? t.place, describeInterval(t.intervalCount, t.intervalUnit)].filter(Boolean).join(" · ")}
+                      {[t.itemName ?? t.place, describeInterval(t.intervalCount, t.intervalUnit, currentLanguage())].filter(Boolean).join(" · ")}
                     </span>
                   </span>
                   <span className="shrink-0 text-sm text-base-content/70">{t.dueOn && formatDate(t.dueOn)}</span>
@@ -322,11 +322,10 @@ function Warranties({ o }: { o: OverviewData }) {
   return (
     <Section
       icon="icon-[tabler--shield-check]"
-      title="Warranties to act on"
+      title={translateText("Warranties to act on")}
       aside={
         <a href={WARRANTIES_HREF} className="tap link link-primary link-hover text-sm">
-          All warranties
-        </a>
+          {translateText("All warranties")}</a>
       }
     >
       <ul className="flex flex-col gap-1">
@@ -337,11 +336,11 @@ function Warranties({ o }: { o: OverviewData }) {
                 <span className="block truncate text-base-content">{w.itemName}</span>
                 <span className="block truncate text-sm text-base-content/70">
                   {w.provider ? `${w.provider} · ` : ""}
-                  {w.status === "expired" ? "ended" : "ends"} {formatDate(w.endsOn)}
+                  {w.status === "expired" ? translateText("ended") : translateText("ends")} {formatDate(w.endsOn)}
                 </span>
               </span>
               <span className={`badge badge-soft ${w.status === "expired" ? "badge-error" : "badge-warning"}`}>
-                {w.status === "expired" ? "Ended" : daysLeft(w.endsOn)}
+                {w.status === "expired" ? translateText("Ended") : daysLeft(w.endsOn)}
               </span>
             </a>
           </li>
@@ -352,9 +351,9 @@ function Warranties({ o }: { o: OverviewData }) {
             <a href={itemHref(c.itemId)} className="flex min-h-11 items-center gap-3 rounded-field px-2 py-1.5 hover:bg-base-200">
               <span className="icon-[tabler--file-alert] size-5 shrink-0 text-base-content/70" />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-base-content">{c.itemName}: claim</span>
+                <span className="block truncate text-base-content">{tr("{v0}: claim", { v0: c.itemName })}</span>
                 <span className="block truncate text-sm text-base-content/70">
-                  {[c.warrantyProvider, c.reference && `#${c.reference}`, `filed ${formatDate(c.filedOn)}`].filter(Boolean).join(" · ")}
+                  {[c.warrantyProvider, c.reference && `#${c.reference}`, translateText("filed {v0}", { v0: formatDate(c.filedOn) })].filter(Boolean).join(" · ")}
                 </span>
               </span>
               <span className={`badge badge-soft ${CLAIM_STATUS[c.status].badge}`}>{CLAIM_STATUS[c.status].label}</span>
@@ -394,7 +393,7 @@ function ValueBars(props: {
                   <span className="progress-bar progress-primary" style={{ width: `${(g.valueCents / max) * 100}%` }} />
                 </span>
                 <span className="w-16 shrink-0 text-end text-xs text-base-content/70">
-                  {g.items} {g.items === 1 ? "item" : "items"}
+                  {g.items} {g.items === 1 ? translateText("item") : translateText("items")}
                 </span>
               </div>
             </>
@@ -425,18 +424,15 @@ function Collections({ householdId }: { householdId: string }) {
   return (
     <Section
       icon="icon-[tabler--stack-2]"
-      title="Collections"
+      title={translateText("Collections")}
       aside={
         <a href={sets.length ? COLLECTIONS_HREF : CATEGORIES_HREF} className="tap link link-primary link-hover text-sm">
-          {sets.length ? "All collections" : "Categories & tags"}
+          {sets.length ? translateText("All collections") : translateText("Categories & tags")}
         </a>
       }
     >
       {top.length === 0 && sets.length === 0 ? (
-        <p className="-mt-2 text-sm text-base-content/70">
-          Start a <a href={COLLECTIONS_HREF} className="link link-primary tap">collection</a> (coins, cards, dolls), or tag things (camping,
-          Christmas, Grandma's china) and each tag gathers them here.
-        </p>
+        <p className="-mt-2 text-sm text-base-content/70">{tr("Start a {v0} (coins, cards, dolls), or tag things (camping, Christmas, Grandma's china) and each tag gathers them here.", { v0: <a href={COLLECTIONS_HREF} className="link link-primary tap">{translateText("collection")}</a> })}</p>
       ) : (
         <div className="flex flex-col gap-3">
           {sets.length > 0 && (
@@ -447,7 +443,7 @@ function Collections({ householdId }: { householdId: string }) {
                     <span className="min-w-0 flex-1 truncate text-base-content">{c.name}</span>
                     <span className="text-sm text-base-content/70">
                       {c.owned}
-                      {c.wanted ? ` of ${c.owned + c.wanted}` : ""}
+                      {c.wanted ? translateText(" of {v0}", { v0: c.owned + c.wanted }) : ""}
                     </span>
                     {c.valueCents > 0 && <span className="font-medium text-base-content">{money(c.valueCents)}</span>}
                   </a>
@@ -476,11 +472,10 @@ function MostValuable({ o }: { o: OverviewData }) {
   return (
     <Section
       icon="icon-[tabler--diamond]"
-      title="Most valuable"
+      title={translateText("Most valuable")}
       aside={
         <a href={BY_VALUE_HREF} className="tap link link-primary link-hover text-sm">
-          See all
-        </a>
+          {translateText("See all")}</a>
       }
     >
       <ol className="flex flex-col gap-1">
@@ -499,14 +494,14 @@ function MostValuable({ o }: { o: OverviewData }) {
 }
 
 export const VIA: Record<string, { label: string; icon: string }> = {
-  web: { label: "app", icon: "icon-[tabler--user]" },
-  api: { label: "script", icon: "icon-[tabler--code]" },
-  mcp: { label: "Claude", icon: "icon-[tabler--sparkles]" },
+  web: { get label() { return translateText("app"); }, icon: "icon-[tabler--user]" },
+  api: { get label() { return translateText("script"); }, icon: "icon-[tabler--code]" },
+  mcp: { get label() { return translateText("Claude"); }, icon: "icon-[tabler--sparkles]" },
 };
 
 function Activity({ o }: { o: OverviewData }) {
   return (
-    <Section icon="icon-[tabler--history]" title="Recent changes">
+    <Section icon="icon-[tabler--history]" title={translateText("Recent changes")}>
       <ul className="flex flex-col gap-3">
         {o.activity.map((a) => {
           const via = VIA[a.via] ?? VIA.web!;
@@ -530,8 +525,8 @@ function Activity({ o }: { o: OverviewData }) {
                   <span className="block text-sm text-base-content">{a.summary}</span>
                 )}
                 <span className="text-xs text-base-content/70">
-                  {a.actorName ?? (a.action === "recall.found" ? "Ferret" : "Someone")}
-                  {a.via !== "web" && ` via ${via.label}`} · {ago(a.createdAt)}
+                  {a.actorName ?? (a.action === "recall.found" ? translateText("Ferret") : translateText("Someone"))}
+                  {a.via !== "web" && translateText(" via {v0}", { v0: via.label })} · {ago(a.createdAt)}
                 </span>
               </span>
             </li>
@@ -543,19 +538,19 @@ function Activity({ o }: { o: OverviewData }) {
 }
 
 const formatDate = (iso: string) =>
-  new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  new Date(`${iso}T00:00:00`).toLocaleDateString(locale(), { month: "short", day: "numeric", year: "numeric" });
 
 export function daysLeft(endsOn: string) {
   const days = Math.ceil((new Date(`${endsOn}T00:00:00`).getTime() - Date.now()) / 86_400_000);
-  return days <= 1 ? "Today" : `${days} days`;
+  return days <= 1 ? translateText("Today") : translateText("{v0} days", { v0: days });
 }
 
 export function ago(iso: string) {
   const minutes = Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes} min ago`;
+  if (minutes < 1) return translateText("just now");
+  if (minutes < 60) return translateText("{v0} min ago", { v0: minutes });
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours} h ago`;
+  if (hours < 24) return translateText("{v0} h ago", { v0: hours });
   const days = Math.round(hours / 24);
-  return days < 30 ? `${days} d ago` : new Date(iso).toLocaleDateString();
+  return days < 30 ? translateText("{v0} d ago", { v0: days }) : new Date(iso).toLocaleDateString(locale());
 }

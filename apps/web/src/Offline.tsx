@@ -1,3 +1,6 @@
+import { tn } from "./i18n";
+import { t as translateText } from "./i18n";
+import { tr } from "./i18n";
 /**
  * Offline capture (lib/offline.ts): the screen Ferret opens when it can't reach the server on a device that was signed
  * in — take photos (each a "New item", in a room if picked) and scan codes (use one, restock, or add / find) — and, once
@@ -42,10 +45,10 @@ export function useCaptures(householdId: string) {
 }
 
 const SCAN_ACTIONS: { value: ScanAction; label: string; icon: string }[] = [
-  { value: "use", label: "Used one", icon: "icon-[tabler--minus]" },
-  { value: "restock", label: "Restock", icon: "icon-[tabler--plus]" },
-  { value: "add", label: "Add", icon: "icon-[tabler--square-plus]" },
-  { value: "lookup", label: "Find", icon: "icon-[tabler--search]" },
+  { value: "use", get label() { return translateText("Used one"); }, icon: "icon-[tabler--minus]" },
+  { value: "restock", get label() { return translateText("Restock"); }, icon: "icon-[tabler--plus]" },
+  { value: "add", get label() { return translateText("Add"); }, icon: "icon-[tabler--square-plus]" },
+  { value: "lookup", get label() { return translateText("Find"); }, icon: "icon-[tabler--search]" },
 ];
 
 /** A short beep (and a buzz where phones allow): the scan is saved. */
@@ -75,7 +78,7 @@ export function OfflineCapture({ home }: { home: OfflineHome }) {
   const [locationId, setLocationId] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
   const [mode, setMode] = useState<ScanAction>("use");
-  const [saved, setSaved] = useState<string | null>(null);
+  const [saved, setSaved] = useState<{ kind: "photo"; count: number } | { kind: "roomscan" } | null>(null);
   const files = useRef<HTMLInputElement>(null);
   const camera = useRef<HTMLInputElement>(null);
   const roomCamera = useRef<HTMLInputElement>(null);
@@ -100,14 +103,14 @@ export function OfflineCapture({ home }: { home: OfflineHome }) {
         note: "",
       });
     }
-    if (list?.length) setSaved(`${list.length} ${list.length === 1 ? "photo" : "photos"} saved`);
+    if (list?.length) setSaved({ kind: "photo", count: list.length });
   }
 
   async function addRoomScan(list: FileList | null) {
     const blobs = Array.from(list ?? []).slice(0, 5);
     if (!blobs.length || !locationId) return;
     await addCapture({ id: crypto.randomUUID(), householdId: home.householdId, createdAt: Date.now(), kind: "roomscan", blobs, locationId });
-    setSaved("Room scan saved");
+    setSaved({ kind: "roomscan" });
   }
 
   const photos = captures.filter((c) => c.kind === "photo");
@@ -120,51 +123,42 @@ export function OfflineCapture({ home }: { home: OfflineHome }) {
         <Logo className="text-lg text-primary" />
         <span className="badge badge-soft badge-warning gap-1">
           <span className="icon-[tabler--wifi-off] size-4" />
-          Offline
-        </span>
+          {translateText("Offline")}</span>
         <button type="button" className="btn btn-soft btn-primary btn-sm ms-auto" onClick={() => window.location.reload()}>
           <span className="icon-[tabler--refresh] size-4" />
-          Try again
-        </button>
+          {translateText("Try again")}</button>
       </nav>
       <main className="mx-auto flex max-w-xl flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <section className="card">
           <div className="card-body gap-4">
             <div>
-              <h1 className="text-xl font-semibold text-base-content">Can't reach Ferret</h1>
-              <p className="text-sm text-base-content/70">
-                Keep going: photos and scans wait on this phone and go up to {home.householdName} by themselves when there's
-                signal again.
-              </p>
+              <h1 className="text-xl font-semibold text-base-content">{translateText("Can't reach Ferret")}</h1>
+              <p className="text-sm text-base-content/70">{tr("Keep going: photos and scans wait on this phone and go up to {v0} by themselves when there's signal again.", { v0: home.householdName })}</p>
             </div>
             <PlacePicker
               householdId={home.householdId}
               id="offline-place"
               name="locationId"
-              label="Where you are (optional)"
-              noneLabel="Not in a room"
+              label={translateText("Where you are (optional)")}
+              noneLabel={translateText("Not in a room")}
               value={locationId}
               onChange={setLocationId}
             />
             <div className="grid grid-cols-1 gap-2 @container sm:grid-cols-3">
               <button type="button" className="btn btn-primary btn-wrap" onClick={() => camera.current?.click()}>
                 <span className="icon-[tabler--camera] size-5" />
-                Take a photo
-              </button>
+                {translateText("Take a photo")}</button>
               <button type="button" className="btn btn-soft btn-primary btn-wrap" onClick={() => files.current?.click()}>
                 <span className="icon-[tabler--photo] size-5" />
-                From photos
-              </button>
+                {translateText("From photos")}</button>
               <button type="button" className="btn btn-soft btn-primary btn-wrap" onClick={() => setScanning(true)}>
                 <span className="icon-[tabler--barcode] size-5" />
-                Scan
-              </button>
+                {translateText("Scan")}</button>
             </div>
             {locationId && (
               <button type="button" className="btn btn-soft btn-primary btn-wrap" onClick={() => roomCamera.current?.click()}>
                 <span className="icon-[tabler--scan-eye] size-5" />
-                Scan this room (up to 5 photos)
-              </button>
+                {translateText("Scan this room (up to 5 photos)")}</button>
             )}
             <input ref={roomCamera} type="file" accept="image/*" multiple className="hidden" onChange={(e) => void addRoomScan(e.target.files).then(() => (e.target.value = ""))} />
             <input ref={camera} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => void addPhotos(e.target.files).then(() => (e.target.value = ""))} />
@@ -172,7 +166,7 @@ export function OfflineCapture({ home }: { home: OfflineHome }) {
             {saved && (
               <div className="alert alert-soft alert-success text-sm" role="status">
                 <span className="icon-[tabler--circle-check] size-5" />
-                {saved === "Room scan saved" ? "Room scan saved — Ferret looks at it once there's signal, and the bell says when it's ready." : `${saved} — each will be a "New item" to name.`}
+                {saved.kind === "roomscan" ? translateText("Room scan saved — Ferret looks at it once there's signal, and the bell says when it's ready.") : translateText("{v0} — each will be a \"New item\" to name.", { v0: tn(saved.count, "{count} photo saved", "{count} photos saved") })}
               </div>
             )}
           </div>
@@ -181,9 +175,9 @@ export function OfflineCapture({ home }: { home: OfflineHome }) {
         <section className="card" aria-labelledby="waiting-title">
           <div className="card-body gap-3">
             <h2 id="waiting-title" className="font-semibold text-base-content">
-              Waiting to upload {captures.length > 0 && <span className="badge badge-soft badge-primary badge-sm">{captures.length}</span>}
+              {translateText("Waiting to upload ")}{captures.length > 0 && <span className="badge badge-soft badge-primary badge-sm">{captures.length}</span>}
             </h2>
-            {captures.length === 0 && <p className="text-sm text-base-content/70">Nothing yet.</p>}
+            {captures.length === 0 && <p className="text-sm text-base-content/70">{translateText("Nothing yet.")}</p>}
             {photos.length > 0 && (
               <ul className="grid grid-cols-4 gap-2">
                 {photos.map((p) => (
@@ -192,8 +186,8 @@ export function OfflineCapture({ home }: { home: OfflineHome }) {
                     <button
                       type="button"
                       className="btn btn-circle btn-xs absolute end-1 top-1 border-0 bg-base-100/85"
-                      aria-label="Don't upload this photo"
-                      onClick={() => window.confirm("Don't upload this photo?") && void removeCapture(p.id)}
+                      aria-label={translateText("Don't upload this photo")}
+                      onClick={() => window.confirm(translateText("Don't upload this photo?")) && void removeCapture(p.id)}
                     >
                       <span className="icon-[tabler--x] size-3.5" />
                     </button>
@@ -207,12 +201,10 @@ export function OfflineCapture({ home }: { home: OfflineHome }) {
                   r.kind === "roomscan" ? (
                     <li key={r.id} className="flex items-center gap-2 py-2">
                       <span className="icon-[tabler--scan-eye] size-4 text-base-content/70" />
-                      <span className="min-w-0 flex-1 truncate">
-                        Room scan · {r.blobs.length} {r.blobs.length === 1 ? "photo" : "photos"}
+                      <span className="min-w-0 flex-1 truncate">{tr("Room scan · {v0} ", { v0: r.blobs.length })}{r.blobs.length === 1 ? translateText("photo") : translateText("photos")}
                       </span>
-                      <button type="button" className="btn btn-text btn-xs" onClick={() => window.confirm("Don't upload this room scan?") && void removeCapture(r.id)}>
-                        Remove
-                      </button>
+                      <button type="button" className="btn btn-text btn-xs" onClick={() => window.confirm(translateText("Don't upload this room scan?")) && void removeCapture(r.id)}>
+                        {translateText("Remove")}</button>
                     </li>
                   ) : null,
                 )}
@@ -244,7 +236,7 @@ export function OfflineCapture({ home }: { home: OfflineHome }) {
             return true; // keep scanning
           }}
           top={
-            <div className="join" role="group" aria-label="What a scan does">
+            <div className="join" role="group" aria-label={translateText("What a scan does")}>
               {SCAN_ACTIONS.map((a) => (
                 <button
                   key={a.value}
@@ -259,9 +251,7 @@ export function OfflineCapture({ home }: { home: OfflineHome }) {
             </div>
           }
           panel={
-            <p className="rounded-box bg-base-100/90 px-3 py-2 text-center text-sm">
-              Offline — {scans.length} {scans.length === 1 ? "scan" : "scans"} saved to send later
-            </p>
+            <p className="rounded-box bg-base-100/90 px-3 py-2 text-center text-sm">{tn(scans.length, "Offline — {count} scan saved to send later", "Offline — {count} scans saved to send later")}</p>
           }
         />
       )}
@@ -321,20 +311,18 @@ export function CapturesCard({ householdId }: { householdId: string }) {
       <div className="card-body gap-3">
         <h2 id="captures-title" className="flex items-center gap-2 font-semibold text-base-content">
           <span className="icon-[tabler--cloud-upload] size-5 text-primary" />
-          Captured offline
-          {waiting.length > 0 && navigator.onLine && <span className="loading loading-spinner loading-xs" aria-label="Uploading" />}
+          {translateText("Captured offline")}{waiting.length > 0 && navigator.onLine && <span className="loading loading-spinner loading-xs" aria-label={translateText("Uploading")} />}
         </h2>
         {waiting.length > 0 && (
-          <p className="text-sm text-base-content/70">
-            {waiting.length} waiting to upload{navigator.onLine ? "" : " — when there's signal"}.
-            {failed.length > 0 && <span className="text-error"> {failed.length} couldn't go up: {failed[0]!.error}</span>}
+          <p className="text-sm text-base-content/70">{tr("{v0} waiting to upload", { v0: waiting.length })}{navigator.onLine ? "" : translateText(" — when there's signal")}.
+            {failed.length > 0 && <span className="text-error">{tr(" {v0} couldn't go up: {v1}", { v0: failed.length, v1: failed[0]!.error })}</span>}
           </p>
         )}
         {failed.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {failed.map((c) => (
-              <button key={c.id} type="button" className="btn btn-text btn-sm btn-error" onClick={() => window.confirm("Throw this one away?") && void removeCapture(c.id)}>
-                Discard {c.kind === "photo" ? "photo" : c.kind === "roomscan" ? "room scan" : c.code}
+              <button key={c.id} type="button" className="btn btn-text btn-sm btn-error" onClick={() => window.confirm(translateText("Throw this one away?")) && void removeCapture(c.id)}>
+                {translateText("Discard ")}{c.kind === "photo" ? translateText("photo") : c.kind === "roomscan" ? translateText("room scan") : c.code}
               </button>
             ))}
           </div>
@@ -364,26 +352,26 @@ function NeedsAnswer({ capture, householdId }: { capture: Extract<Capture, { kin
       await work();
       for (const key of ["items", "overview", "shopping", "stock"]) void qc.invalidateQueries({ queryKey: [key, householdId] });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
+      setError(e instanceof Error ? e.message : translateText("Something went wrong"));
     } finally {
       setBusy(false);
     }
   }
-  const verb = capture.mode === "use" ? "Used one" : capture.mode === "restock" ? "Restock" : capture.mode === "add" ? "Add" : "Find";
+  const verb = capture.mode === "use" ? translateText("Used one") : capture.mode === "restock" ? translateText("Restock") : capture.mode === "add" ? translateText("Add") : translateText("Find");
   return (
     <li className="rounded-box bg-base-200 p-3 text-sm">
       <p className="mb-2">
         <span className="font-mono">{capture.code}</span> · {verb} ·{" "}
         {r.action === "choose"
-          ? "it's on several things — which?"
+          ? translateText("it's on several things — which?")
           : r.action === "ask"
-            ? `${r.item.name}: what did you do?`
+            ? translateText("{v0}: what did you do?", { v0: r.item.name })
             : r.action === "unknown"
-              ? "nothing in Ferret has this code."
+              ? translateText("nothing in Ferret has this code.")
               : r.action === "have"
-                ? "you have this already."
+                ? translateText("you have this already.")
                 : r.action === "pairing"
-                ? "a smart-home setup code — open the scanner online to save it on its item."
+                ? translateText("a smart-home setup code — open the scanner online to save it on its item.")
                 : ""}
       </p>
       <div className="flex flex-wrap gap-2">
@@ -395,21 +383,15 @@ function NeedsAnswer({ capture, householdId }: { capture: Extract<Capture, { kin
           ))}
         {r.action === "ask" && (
           <>
-            <button type="button" className="btn btn-soft btn-primary btn-sm" disabled={busy} onClick={() => void act(() => answerScan(capture, { itemId: r.item.id, mode: "use" }))}>
-              Used {r.step}
-            </button>
-            <button type="button" className="btn btn-soft btn-primary btn-sm" disabled={busy} onClick={() => void act(() => answerScan(capture, { itemId: r.item.id, mode: "restock" }))}>
-              Added {r.step}
-            </button>
+            <button type="button" className="btn btn-soft btn-primary btn-sm" disabled={busy} onClick={() => void act(() => answerScan(capture, { itemId: r.item.id, mode: "use" }))}>{tr("Used {v0}", { v0: r.step })}</button>
+            <button type="button" className="btn btn-soft btn-primary btn-sm" disabled={busy} onClick={() => void act(() => answerScan(capture, { itemId: r.item.id, mode: "restock" }))}>{tr("Added {v0}", { v0: r.step })}</button>
             <a href={itemHref(r.item.id)} className="btn btn-text btn-sm">
-              Open it
-            </a>
+              {translateText("Open it")}</a>
           </>
         )}
         {r.action === "have" &&
           r.items.map((it) => (
-            <button key={it.id} type="button" className="btn btn-soft btn-primary btn-sm btn-wrap" disabled={busy} onClick={() => void act(() => answerScan(capture, { itemId: it.id, mode: "restock" }))}>
-              Add {r.step} to {it.name} (now {it.quantity + r.step})
+            <button key={it.id} type="button" className="btn btn-soft btn-primary btn-sm btn-wrap" disabled={busy} onClick={() => void act(() => answerScan(capture, { itemId: it.id, mode: "restock" }))}>{tr("Add {v0} to {v1} (now ", { v0: r.step, v1: it.name })}{it.quantity + r.step})
             </button>
           ))}
         {(r.action === "unknown" || r.action === "have") && (
@@ -425,12 +407,11 @@ function NeedsAnswer({ capture, householdId }: { capture: Extract<Capture, { kin
               })
             }
           >
-            {r.action === "have" ? "Add as a separate item" : "Add it as a new thing"}
+            {r.action === "have" ? translateText("Add as a separate item") : translateText("Add it as a new thing")}
           </button>
         )}
         <button type="button" className="btn btn-text btn-sm" disabled={busy} onClick={() => void removeCapture(capture.id)}>
-          Dismiss
-        </button>
+          {translateText("Dismiss")}</button>
       </div>
       {error && <p className="mt-2 text-error">{error}</p>}
     </li>

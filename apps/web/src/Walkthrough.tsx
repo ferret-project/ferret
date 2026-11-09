@@ -1,3 +1,6 @@
+import { tn } from "./i18n";
+import { t as translateText } from "./i18n";
+import { tr } from "./i18n";
 /**
  * Room-by-room walkthrough — for cataloguing a house: pick a room, photograph its things one after another (each photo
  * becomes a "New item" there, uploaded in the background while you keep going), then review them one at a time with
@@ -28,23 +31,23 @@ export function Walkthrough({ householdId, locationId, step }: { householdId: st
   const places = usePlaces(householdId);
   const canEdit = useCanEdit(householdId);
   const room = locationId ? findLocation(places.data, locationId) : undefined;
-  const title = !room ? "Walk through a room" : step === "review" ? `Review ${room.node.name}` : room.node.name;
+  const title = !room ? translateText("Walk through a room") : step === "review" ? translateText("Review {v0}", { v0: room.node.name }) : room.node.name;
   return (
     <div className="min-h-dvh bg-base-200">
       <nav className="navbar sticky top-0 z-10 border-b border-base-300 bg-base-100/85 backdrop-blur-md px-4">
         <div className="navbar-start w-full min-w-0 items-center gap-2">
-          <a href={room ? placeHref(room.node.id) : "#/"} className="btn btn-text btn-sm btn-square" aria-label="Back">
+          <a href={room ? placeHref(room.node.id) : "#/"} className="btn btn-text btn-sm btn-square" aria-label={translateText("Back")}>
             <span className="icon-[tabler--arrow-left] size-5" />
           </a>
           <h1 className="truncate text-lg font-semibold">{title}</h1>
-          <HelpLink page="guide/walkthrough.html" label="Walkthrough" />
+          <HelpLink page="guide/walkthrough.html" label={translateText("Walkthrough")} />
         </div>
       </nav>
       <main className="mx-auto flex max-w-xl flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-        {!canEdit && <div className="alert alert-soft alert-info">You can look around, but not add things, in this household.</div>}
+        {!canEdit && <div className="alert alert-soft alert-info">{translateText("You can look around, but not add things, in this household.")}</div>}
         {canEdit && places.data && (
           <Steps
-            label="Walkthrough steps"
+            label={translateText("Walkthrough steps")}
             steps={[
               { label: "Choose a room", href: WALKTHROUGH_HREF },
               { label: "Photograph", href: room ? walkthroughHref(room.node.id) : undefined },
@@ -68,14 +71,11 @@ function PickRoom({ householdId }: { householdId: string }) {
     <section className="card">
       <div className="card-body gap-4">
         <p className="text-base-content/80">
-          Photograph a room's things one after another — each photo becomes an item there. Then go through them: Ferret reads
-          each photo and suggests what it is.
-        </p>
-        <PlacePicker householdId={householdId} id="walk-room" name="room" label="Which room?" value={place} onChange={setPlace} noneLabel="Pick a room" />
+          {translateText("Photograph a room's things one after another — each photo becomes an item there. Then go through them: Ferret reads each photo and suggests what it is.")}</p>
+        <PlacePicker householdId={householdId} id="walk-room" name="room" label={translateText("Which room?")} value={place} onChange={setPlace} noneLabel={translateText("Pick a room")} />
         <a href={place ? walkthroughHref(place) : undefined} aria-disabled={!place} className={`btn btn-primary ${place ? "" : "btn-disabled"}`}>
           <span className="icon-[tabler--camera] size-5" />
-          Start
-        </a>
+          {translateText("Start")}</a>
       </div>
     </section>
   );
@@ -134,33 +134,31 @@ function Photograph({ householdId, locationId, roomName }: { householdId: string
     <>
       <section className="card">
         <div className="card-body items-center gap-4 text-center">
-          <p className="text-base-content/80">One thing per photo. Keep going — they upload while you work.</p>
+          <p className="text-base-content/80">{translateText("One thing per photo. Keep going — they upload while you work.")}</p>
           <button type="button" className="btn btn-primary btn-lg btn-wrap w-full max-w-sm" onClick={() => camera.current?.click()}>
             <span className="icon-[tabler--camera] size-6" />
-            Take a photo
-          </button>
+            {translateText("Take a photo")}</button>
           <button type="button" className="btn btn-text btn-sm" onClick={() => library.current?.click()}>
-            Or pick from your photos
-          </button>
+            {translateText("Or pick from your photos")}</button>
           {/* `capture`: straight to the camera, each time. */}
           <input ref={camera} type="file" hidden accept="image/*" capture="environment" onChange={(e) => (add([...(e.target.files ?? [])]), (e.target.value = ""))} />
           <input ref={library} type="file" hidden multiple accept="image/jpeg,image/png,image/webp,image/gif" onChange={(e) => (add([...(e.target.files ?? [])]), (e.target.value = ""))} />
           <p className="text-sm text-base-content/70" aria-live="polite">
             {shots.length === 0
-              ? `Nothing photographed in ${roomName} yet.`
-              : `${shots.length} photographed${uploading ? ` · uploading ${uploading}…` : ""}`}
+              ? translateText("Nothing photographed in {v0} yet.", { v0: roomName })
+              : translateText("{v0} photographed{v1}", { v0: shots.length, v1: uploading ? translateText(" · uploading {v0}…", { v0: uploading }) : "" })}
           </p>
         </div>
       </section>
 
       {shots.length > 0 && (
-        <ul className="grid grid-cols-4 gap-2" aria-label="Photos so far">
+        <ul className="grid grid-cols-4 gap-2" aria-label={translateText("Photos so far")}>
           {shots.map((s) => (
             <li key={s.key} className="relative aspect-square overflow-hidden rounded-box bg-base-300">
               <img src={s.preview} alt="" className="size-full object-cover" />
               <span
                 className={`absolute end-1 bottom-1 grid size-6 place-items-center rounded-full ${s.status === "failed" ? "bg-error text-error-content" : "bg-base-100/90"}`}
-                title={s.status === "failed" ? s.error : s.status === "uploading" ? "Uploading" : "Added"}
+                title={s.status === "failed" ? s.error : s.status === "uploading" ? translateText("Uploading") : translateText("Added")}
               >
                 {s.status === "uploading" && <span className="loading loading-spinner loading-xs" />}
                 {s.status === "done" && <span className="icon-[tabler--check] size-4 text-success" />}
@@ -173,7 +171,7 @@ function Photograph({ householdId, locationId, roomName }: { householdId: string
 
       <a href={walkthroughHref(locationId, "review")} className={`btn btn-soft btn-primary ${toReview ? "" : "btn-disabled"}`} aria-disabled={!toReview}>
         <span className="icon-[tabler--list-check] size-5" />
-        {toReview ? `Review ${toReview} ${toReview === 1 ? "thing" : "things"}` : "Nothing to review yet"}
+        {toReview ? tn(toReview, "Review {count} thing", "Review {count} things") : translateText("Nothing to review yet")}
       </a>
     </>
   );
@@ -199,20 +197,15 @@ function Review({ householdId, locationId, roomName }: { householdId: string; lo
       <section className="card">
         <div className="card-body items-center gap-3 text-center">
           <span className="icon-[tabler--circle-check] size-10 text-success" />
-          <h2 className="text-lg font-semibold">{saved ? `${saved} ${saved === 1 ? "thing" : "things"} named` : "Nothing left to review"}</h2>
+          <h2 className="text-lg font-semibold">{saved ? tn(saved, "{count} thing named", "{count} things named") : translateText("Nothing left to review")}</h2>
           {skipped.length > 0 && (
-            <p className="text-sm text-base-content/70">
-              {skipped.length} skipped — they wait in the bell as "New item".
-            </p>
+            <p className="text-sm text-base-content/70">{tr("{v0} skipped — they wait in the bell as \"New item\".", { v0: skipped.length })}</p>
           )}
           <div className="flex flex-wrap justify-center gap-2">
             <a href={walkthroughHref(locationId)} className="btn btn-soft btn-primary">
               <span className="icon-[tabler--camera] size-5" />
-              Photograph more
-            </a>
-            <a href={placeHref(locationId)} className="btn btn-primary">
-              See {roomName}
-            </a>
+              {translateText("Photograph more")}</a>
+            <a href={placeHref(locationId)} className="btn btn-primary">{tr("See {v0}", { v0: roomName })}</a>
           </div>
         </div>
       </section>
@@ -220,8 +213,7 @@ function Review({ householdId, locationId, roomName }: { householdId: string; lo
   }
   return (
     <>
-      <p className="text-sm text-base-content/70" aria-live="polite">
-        {queue.length} to go{saved ? ` · ${saved} done` : ""}
+      <p className="text-sm text-base-content/70" aria-live="polite">{tr("{v0} to go", { v0: queue.length })}{saved ? translateText(" · {v0} done", { v0: saved }) : ""}
       </p>
       <ReviewCard
         key={current.id}
@@ -238,7 +230,7 @@ function Review({ householdId, locationId, roomName }: { householdId: string; lo
   );
 }
 
-const FIELD_LABELS: Record<string, string> = { brand: "Brand", model: "Model", serialNumber: "Serial", barcode: "Barcode", purchaseDate: "Purchased", purchasePriceCents: "Price paid" };
+const FIELD_LABELS: Record<string, string> = { get brand() { return translateText("Brand"); }, get model() { return translateText("Model"); }, get serialNumber() { return translateText("Serial"); }, get barcode() { return translateText("Barcode"); }, get purchaseDate() { return translateText("Purchased"); }, get purchasePriceCents() { return translateText("Price paid"); } };
 
 function ReviewCard({
   item,
@@ -305,17 +297,17 @@ function ReviewCard({
   return (
     <form className="card overflow-hidden" onSubmit={onSubmit}>
       {photo && (
-        <button type="button" className="relative block" aria-label="Show the photo full screen" onClick={() => setViewing(true)}>
-          <img src={api.attachmentUrl(photo.id)} alt="The photo to name" className="aspect-[4/3] w-full bg-base-300 object-contain" />
+        <button type="button" className="relative block" aria-label={translateText("Show the photo full screen")} onClick={() => setViewing(true)}>
+          <img src={api.attachmentUrl(photo.id)} alt={translateText("The photo to name")} className="aspect-[4/3] w-full bg-base-300 object-contain" />
           <span className="badge absolute end-2 bottom-2 gap-1 border-0 bg-base-100/85">
             <span className="icon-[tabler--zoom-in] size-4" />
-            {photos.length > 1 ? `${photos.length} photos` : "Zoom"}
+            {photos.length > 1 ? translateText("{v0} photos", { v0: photos.length }) : translateText("Zoom")}
           </span>
         </button>
       )}
       {viewing && (
         <PhotoViewer
-          title={name.trim() || "New item"}
+          title={name.trim() || translateText("New item")}
           photos={photos.map((p) => ({ id: p.id, filename: p.filename, caption: p.analysis?.description }))}
           start={0}
           onClose={() => setViewing(false)}
@@ -326,28 +318,26 @@ function ReviewCard({
           {reading ? (
             <span className="inline-flex items-center gap-2">
               <span className="loading loading-spinner loading-xs" />
-              Reading the photo…
-            </span>
+              {translateText("Reading the photo…")}</span>
           ) : description ? (
             description
           ) : photos.some((a) => a.analysisStatus === "failed") ? (
-            "Couldn't read this photo — name it yourself."
+            translateText("Couldn't read this photo — name it yourself.")
           ) : (
-            "Name it yourself."
+            translateText("Name it yourself.")
           )}
         </p>
         <div>
           <label className="label-text" htmlFor={`walk-name-${item.id}`}>
-            What is it?
-          </label>
+            {translateText("What is it?")}</label>
           <div className="flex items-start gap-2">
-            <input id={`walk-name-${item.id}`} className="input min-w-0 flex-1" value={name} onChange={(e) => setName(e.target.value)} placeholder={reading ? "Wait for a suggestion, or type it" : "e.g. Cordless drill"} maxLength={200} />
-            <SpeakButton label="Say what it is" onText={(t) => setName(t.slice(0, 200))} />
+            <input id={`walk-name-${item.id}`} className="input min-w-0 flex-1" value={name} onChange={(e) => setName(e.target.value)} placeholder={reading ? translateText("Wait for a suggestion, or type it") : translateText("e.g. Cordless drill")} maxLength={200} />
+            <SpeakButton label={translateText("Say what it is")} onText={(t) => setName(t.slice(0, 200))} />
           </div>
         </div>
         {others.length > 0 && (
           <fieldset className="space-y-1">
-            <legend className="label-text mb-1">Also read off the photo</legend>
+            <legend className="label-text mb-1">{translateText("Also read off the photo")}</legend>
             {others.map((r) => (
               <label key={r.key} className="flex min-h-11 items-center gap-3">
                 <input
@@ -366,28 +356,23 @@ function ReviewCard({
         <div className="flex flex-wrap items-center gap-2">
           <button type="submit" className="btn btn-primary grow" disabled={!name.trim() || save.isPending}>
             {save.isPending && <span className="loading loading-spinner loading-sm" />}
-            Save &amp; next
-          </button>
+            {translateText("Save & next")}</button>
           <button type="button" className="btn btn-soft" onClick={onSkip}>
-            Skip
-          </button>
+            {translateText("Skip")}</button>
         </div>
         <div className="flex flex-wrap items-center gap-2 border-t border-base-300 pt-3">
           {confirmDelete ? (
             <>
-              <span className="text-sm text-base-content/80">Delete this one? (Kept 30 days in Recently deleted.)</span>
+              <span className="text-sm text-base-content/80">{translateText("Delete this one? (Kept 30 days in Recently deleted.)")}</span>
               <button type="button" className="btn btn-error btn-sm" disabled={remove.isPending} onClick={() => remove.mutate()}>
-                Delete
-              </button>
+                {translateText("Delete")}</button>
               <button type="button" className="btn btn-text btn-sm" onClick={() => setConfirmDelete(false)}>
-                Keep
-              </button>
+                {translateText("Keep")}</button>
             </>
           ) : (
             <button type="button" className="btn btn-text btn-error btn-sm" onClick={() => setConfirmDelete(true)}>
               <span className="icon-[tabler--trash] size-4" />
-              Not worth keeping
-            </button>
+              {translateText("Not worth keeping")}</button>
           )}
         </div>
       </div>

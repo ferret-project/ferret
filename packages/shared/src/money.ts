@@ -25,7 +25,9 @@ function formatter(currency: string, locale: string | undefined, fraction: "exac
   const key = `${currency}|${locale ?? ""}|${fraction}`;
   let f = formatters.get(key);
   if (!f) {
-    const digits = currencyDigits(currency);
+    // Forints are presented as whole amounts even on browsers with older CLDR
+    // defaults. Leave currencyDigits/moneyNumber and stored amounts unchanged.
+    const digits = currency === "HUF" ? 0 : currencyDigits(currency);
     f = new Intl.NumberFormat(locale, {
       style: "currency",
       currency: isCurrency(currency) ? currency : DEFAULT_CURRENCY,

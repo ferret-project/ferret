@@ -1,3 +1,4 @@
+import { t as translateText } from "./../i18n";
 /**
  * The public demo's counts that only the browser sees (server lib/analytics.ts, POST /api/v1/usage): a visit and its
  * `?ref=`, the app installed, coming back after a day or a week, "Run your own". Off unless the server is the demo

@@ -3,6 +3,8 @@
  * the web bundle can import them without pulling in the schema library.
  */
 
+import { intlLocale, type Language } from "./i18n";
+export { enumLabel, intervalLabel } from "./labels";
 export type WarrantyStatus = "active" | "expiring" | "expired";
 
 // Fixed lists the schemas (index.ts) and the web app's pickers share.
@@ -203,10 +205,10 @@ export const usageUnits = ["miles", "km", "hours", "cycles"] as const;
 export type UsageUnit = (typeof usageUnits)[number];
 
 /** "5,000 miles", "1 hour" */
-export function describeUsage(amount: number, unit: UsageUnit) {
+export function describeUsage(amount: number, unit: UsageUnit, language: Language = "en") {
   const n = Math.round(amount * 10) / 10;
-  const word = n === 1 ? { miles: "mile", km: "km", hours: "hour", cycles: "cycle" }[unit] : unit;
-  return `${n.toLocaleString("en-US")} ${word}`;
+  const word = language === "hu" ? { miles: "mérföld", km: "km", hours: "óra", cycles: "ciklus" }[unit] : n === 1 ? { miles: "mile", km: "km", hours: "hour", cycles: "cycle" }[unit] : unit;
+  return `${n.toLocaleString(intlLocale(language))} ${word}`;
 }
 
 /** How fast an item's count goes up, per day, from its readings over the last year (at least a week apart); null if unknown. */
@@ -252,8 +254,12 @@ export function effectiveDue(
 }
 
 /** "every 3 months", "every year" */
-export function describeInterval(count: number | null | undefined, unit: IntervalUnit | null | undefined) {
-  if (!count || !unit) return "once";
+export function describeInterval(count: number | null | undefined, unit: IntervalUnit | null | undefined, language: Language = "en") {
+  if (!count || !unit) return language === "hu" ? "egyszer" : "once";
+  if (language === "hu") {
+    const units = { day: "naponta", week: "hetente", month: "havonta", year: "évente" };
+    return count === 1 ? units[unit] : `${count} ${ { day: "naponta", week: "hetente", month: "havonta", year: "évente" }[unit]}`;
+  }
   return count === 1 ? `every ${unit}` : `every ${count} ${unit}s`;
 }
 

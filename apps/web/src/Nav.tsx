@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * Getting around, in one place:
  * - NAV_GROUPS: everything that isn't a tab, grouped (Add things / Lists / Organise / Insurance / Household) — the
@@ -57,45 +58,45 @@ type Link = { href: string; label: string; icon: string; external?: boolean };
 
 export const NAV_GROUPS: { title: string; links: Link[] }[] = [
   {
-    title: "Add things",
+    get title() { return translateText("Add things"); },
     links: [
-      { href: WALKTHROUGH_HREF, label: "Walk through a room", icon: "icon-[tabler--walk]" },
-      { href: IMPORT_HREF, label: "Import", icon: "icon-[tabler--file-import]" },
-      { href: LABELS_HREF, label: "QR labels", icon: "icon-[tabler--qrcode]" },
+      { href: WALKTHROUGH_HREF, get label() { return translateText("Walk through a room"); }, icon: "icon-[tabler--walk]" },
+      { href: IMPORT_HREF, get label() { return translateText("Import"); }, icon: "icon-[tabler--file-import]" },
+      { href: LABELS_HREF, get label() { return translateText("QR labels"); }, icon: "icon-[tabler--qrcode]" },
     ],
   },
   {
-    title: "Lists",
+    get title() { return translateText("Lists"); },
     links: [
-      { href: SHOPPING_HREF, label: "Shopping list", icon: "icon-[tabler--shopping-cart]" },
-      { href: LOANS_HREF, label: "Lent & borrowed", icon: "icon-[tabler--arrows-exchange]" },
-      { href: PAST_HREF, label: "Past things", icon: "icon-[tabler--history]" },
-      { href: DELETED_HREF, label: "Recently deleted", icon: "icon-[tabler--trash]" },
+      { href: SHOPPING_HREF, get label() { return translateText("Shopping list"); }, icon: "icon-[tabler--shopping-cart]" },
+      { href: LOANS_HREF, get label() { return translateText("Lent & borrowed"); }, icon: "icon-[tabler--arrows-exchange]" },
+      { href: PAST_HREF, get label() { return translateText("Past things"); }, icon: "icon-[tabler--history]" },
+      { href: DELETED_HREF, get label() { return translateText("Recently deleted"); }, icon: "icon-[tabler--trash]" },
     ],
   },
   {
-    title: "Organise",
+    get title() { return translateText("Organise"); },
     links: [
-      { href: COLLECTIONS_HREF, label: "Collections", icon: "icon-[tabler--stack-2]" },
-      { href: CATEGORIES_HREF, label: "Categories & tags", icon: "icon-[tabler--folders]" },
-      { href: PROVIDERS_HREF, label: "Service providers", icon: "icon-[tabler--address-book]" },
-      { href: DUPLICATES_HREF, label: "Possible duplicates", icon: "icon-[tabler--copy]" },
-      { href: AI_FILLED_HREF, label: "Filled in by AI", icon: "icon-[tabler--sparkles]" },
+      { href: COLLECTIONS_HREF, get label() { return translateText("Collections"); }, icon: "icon-[tabler--stack-2]" },
+      { href: CATEGORIES_HREF, get label() { return translateText("Categories & tags"); }, icon: "icon-[tabler--folders]" },
+      { href: PROVIDERS_HREF, get label() { return translateText("Service providers"); }, icon: "icon-[tabler--address-book]" },
+      { href: DUPLICATES_HREF, get label() { return translateText("Possible duplicates"); }, icon: "icon-[tabler--copy]" },
+      { href: AI_FILLED_HREF, get label() { return translateText("Filled in by AI"); }, icon: "icon-[tabler--sparkles]" },
     ],
   },
   {
-    title: "Insurance",
+    get title() { return translateText("Insurance"); },
     links: [
-      { href: REPORT_HREF, label: "Insurance report", icon: "icon-[tabler--file-description]" },
-      { href: COVERAGE_HREF, label: "Insurance coverage", icon: "icon-[tabler--umbrella]" },
-      { href: WARRANTIES_HREF, label: "Warranties", icon: "icon-[tabler--shield-check]" },
+      { href: REPORT_HREF, get label() { return translateText("Insurance report"); }, icon: "icon-[tabler--file-description]" },
+      { href: COVERAGE_HREF, get label() { return translateText("Insurance coverage"); }, icon: "icon-[tabler--umbrella]" },
+      { href: WARRANTIES_HREF, get label() { return translateText("Warranties"); }, icon: "icon-[tabler--shield-check]" },
     ],
   },
   {
-    title: "Household",
+    get title() { return translateText("Household"); },
     links: [
-      { href: SETTINGS_HREF, label: "Household & settings", icon: "icon-[tabler--settings]" },
-      { href: "/docs/", label: "Help", icon: "icon-[tabler--help-circle]", external: true },
+      { href: SETTINGS_HREF, get label() { return translateText("Household & settings"); }, icon: "icon-[tabler--settings]" },
+      { href: "/docs/", get label() { return translateText("Help"); }, icon: "icon-[tabler--help-circle]", external: true },
     ],
   },
 ];
@@ -133,7 +134,7 @@ export function MorePage({ householdId }: { householdId: string }) {
   return (
     <div className="min-h-dvh bg-base-200">
       <nav className="navbar sticky top-0 z-10 border-b border-base-300 bg-base-100/85 backdrop-blur-md px-4">
-        <h1 className="text-lg font-semibold">More</h1>
+        <h1 className="text-lg font-semibold">{translateText("More")}</h1>
         <BarSearch />
       </nav>
       <main className="mx-auto flex max-w-xl flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
@@ -154,8 +155,7 @@ export function MorePage({ householdId }: { householdId: string }) {
           <section className="card" aria-labelledby="more-households">
             <div className="card-body gap-1 p-2">
               <h2 id="more-households" className="px-3 pt-2 text-sm font-semibold text-base-content/70">
-                Households
-              </h2>
+                {translateText("Households")}</h2>
               {households.map((h) => (
                 <button key={h.id} type="button" className="flex min-h-11 items-center gap-3 rounded-field px-3 text-start hover:bg-base-200" onClick={() => switchHousehold(h.id, householdId)}>
                   <span className={`${h.id === householdId ? "icon-[tabler--circle-check-filled] text-primary" : "icon-[tabler--circle]"} size-5`} />
@@ -164,8 +164,7 @@ export function MorePage({ householdId }: { householdId: string }) {
               ))}
               <button type="button" className="flex min-h-11 items-center gap-3 rounded-field px-3 text-start hover:bg-base-200" onClick={() => setCreating(true)}>
                 <span className="icon-[tabler--plus] size-5 text-primary" />
-                New household…
-              </button>
+                {translateText("New household…")}</button>
             </div>
           </section>
         )}
@@ -187,8 +186,7 @@ export function MorePage({ householdId }: { householdId: string }) {
         <section className="card" aria-labelledby="more-appearance">
           <div className="card-body gap-2 p-4">
             <h2 id="more-appearance" className="text-sm font-semibold text-base-content/70">
-              Appearance
-            </h2>
+              {translateText("Appearance")}</h2>
             <div className="join w-full" role="radiogroup" aria-labelledby="more-appearance">
               {APPEARANCES.map((a) => (
                 <button
@@ -208,8 +206,7 @@ export function MorePage({ householdId }: { householdId: string }) {
         </section>
         <button type="button" className="btn btn-soft btn-error" onClick={() => signOut()}>
           <span className="icon-[tabler--logout] size-5" />
-          Sign out
-        </button>
+          {translateText("Sign out")}</button>
       </main>
     </div>
   );
@@ -258,7 +255,7 @@ export function HouseholdBadge({
           className="btn btn-soft btn-primary btn-square btn-sm"
           aria-haspopup="menu"
           aria-expanded={open}
-          aria-label={`Household: ${householdName}`}
+          aria-label={translateText("Household: {v0}", { v0: householdName })}
           title={householdName}
           onClick={() => setOpen(!open)}
         >
@@ -273,7 +270,7 @@ export function HouseholdBadge({
         </button>
       )}
       {open && (
-        <ul className={`dropdown-menu dropdown-open:opacity-100 absolute top-full w-60 ${align === "end" ? "end-0" : "start-0"}`} role="menu" aria-label="Households">
+        <ul className={`dropdown-menu dropdown-open:opacity-100 absolute top-full w-60 ${align === "end" ? "end-0" : "start-0"}`} role="menu" aria-label={translateText("Households")}>
           {households.map((h) => (
             <li key={h.id}>
               <button type="button" className="dropdown-item" role="menuitemradio" aria-checked={h.id === householdId} onClick={() => switchHousehold(h.id, householdId)}>
@@ -293,8 +290,7 @@ export function HouseholdBadge({
               }}
             >
               <span className="icon-[tabler--plus] size-5" />
-              New household…
-            </button>
+              {translateText("New household…")}</button>
           </li>
         </ul>
       )}
@@ -304,9 +300,9 @@ export function HouseholdBadge({
 }
 
 const MAIN_LINKS: (Link & { routes: Route["name"][] })[] = [
-  { href: ITEMS_HREF, label: "Everything", icon: "icon-[tabler--layout-grid]", routes: ["items"] },
-  { href: PLACES_HREF, label: "Places", icon: "icon-[tabler--map-pin]", routes: ["places", "property", "place"] },
-  { href: MAINTENANCE_HREF, label: "Maintenance", icon: "icon-[tabler--tool]", routes: ["maintenance"] },
+  { href: ITEMS_HREF, get label() { return translateText("Everything"); }, icon: "icon-[tabler--layout-grid]", routes: ["items"] },
+  { href: PLACES_HREF, get label() { return translateText("Places"); }, icon: "icon-[tabler--map-pin]", routes: ["places", "property", "place"] },
+  { href: MAINTENANCE_HREF, get label() { return translateText("Maintenance"); }, icon: "icon-[tabler--tool]", routes: ["maintenance"] },
 ];
 
 /** The main places in the top bar on wide screens: labelled from `lg`, icons with a tooltip below that; from `xl` the sidebar has them. */
@@ -377,7 +373,7 @@ function activeHref(route: Route["name"], hash: string, links: Link[]) {
 export function Sidebar(props: { route: Route["name"]; householdName: string; householdId: string; folded: boolean; onToggle: () => void }) {
   const { route, folded } = props;
   const hash = (window.location.hash || HOME_HREF).replace(/[?&]q=.*$/, "");
-  const main: Link[] = [{ href: HOME_HREF, label: "Home", icon: "icon-[tabler--home]" }, ...MAIN_LINKS];
+  const main: Link[] = [{ href: HOME_HREF, label: translateText("Home"), icon: "icon-[tabler--home]" }, ...MAIN_LINKS];
   const active = activeHref(route, hash, [...main, ...NAV_GROUPS.flatMap((g) => g.links)]);
   const item = (l: Link) => {
     const on = l.href === active;
@@ -405,10 +401,10 @@ export function Sidebar(props: { route: Route["name"]; householdName: string; ho
   return (
     <aside
       className={`fixed inset-y-0 start-0 z-20 flex flex-col border-e border-base-300 bg-base-100 transition-[width] duration-200 motion-reduce:transition-none max-xl:hidden print:hidden ${folded ? "w-16" : "w-64"}`}
-      aria-label="Main menu"
+      aria-label={translateText("Main menu")}
     >
       <div className={`flex h-16 shrink-0 items-center ${folded ? "justify-center" : "px-5"}`}>
-        <a href={HOME_HREF} aria-label="Ferret home" className="text-primary">
+        <a href={HOME_HREF} aria-label={translateText("Ferret home")} className="text-primary">
           {folded ? <PawMark className="size-7" /> : <Logo className="text-lg" />}
         </a>
       </div>
@@ -436,12 +432,12 @@ export function Sidebar(props: { route: Route["name"]; householdName: string; ho
           type="button"
           className={`btn btn-text btn-sm text-base-content/70 ${folded ? "btn-square" : "w-full justify-start"}`}
           aria-expanded={!folded}
-          aria-label={folded ? "Show the menu's names" : "Fold the menu to icons"}
-          title={folded ? "Expand" : undefined}
+          aria-label={folded ? translateText("Show the menu's names") : translateText("Fold the menu to icons")}
+          title={folded ? translateText("Expand") : undefined}
           onClick={props.onToggle}
         >
           <span className={`${folded ? "icon-[tabler--layout-sidebar-left-expand]" : "icon-[tabler--layout-sidebar-left-collapse]"} size-5`} />
-          {!folded && "Collapse"}
+          {!folded && translateText("Collapse")}
         </button>
       </div>
     </aside>
@@ -475,16 +471,16 @@ export function BarSearch() {
         type="button"
         className="input input-sm w-56 cursor-text items-center gap-2 text-base-content/70 max-md:hidden"
         onClick={searchFromAnywhere}
-        aria-label="Search your stuff"
+        aria-label={translateText("Search your stuff")}
       >
         <span className="icon-[tabler--search] size-4 shrink-0" />
-        <span className="grow text-start">Search…</span>
+        <span className="grow text-start">{translateText("Search…")}</span>
         <kbd className="kbd kbd-sm border-base-content/15 bg-base-200 font-sans text-base-content/70 pointer-coarse:hidden">{COMMAND_K}</kbd>
       </button>
-      <button type="button" className="btn btn-text btn-circle md:hidden" onClick={searchFromAnywhere} aria-label="Search your stuff">
+      <button type="button" className="btn btn-text btn-circle md:hidden" onClick={searchFromAnywhere} aria-label={translateText("Search your stuff")}>
         <span className="icon-[tabler--search] size-5" />
       </button>
-      <button type="button" className="btn btn-text btn-circle" onClick={() => requestScan("more")} aria-label="Scan a barcode" title="Scan a barcode">
+      <button type="button" className="btn btn-text btn-circle" onClick={() => requestScan("more")} aria-label={translateText("Scan a barcode")} title={translateText("Scan a barcode")}>
         <span className="icon-[tabler--barcode] size-5" />
       </button>
     </div>
@@ -522,8 +518,7 @@ export function AddButton({ householdId, route, context }: { householdId: string
     <>
       <button type="button" className="btn btn-primary btn-sm max-sm:hidden" onClick={() => setOpen(true)}>
         <span className="icon-[tabler--plus] size-4" />
-        Add
-      </button>
+        {translateText("Add")}</button>
       {open && <AddSheet householdId={householdId} route={route} context={context} onClose={() => setOpen(false)} />}
     </>
   );
@@ -540,7 +535,7 @@ export function AddFab({ householdId, route, context }: { householdId: string; r
         type="button"
         className="btn btn-primary btn-circle btn-lg fixed end-4 z-20 shadow-lg sm:hidden print:hidden"
         style={{ bottom: "calc(56px + env(safe-area-inset-bottom) + 16px)" }}
-        aria-label="Add something"
+        aria-label={translateText("Add something")}
         onClick={() => setOpen(true)}
       >
         <span className="icon-[tabler--plus] size-7" />
@@ -558,7 +553,7 @@ function AddSheet({ householdId, route, context, onClose }: { householdId: strin
   useEffect(() => {
     if (page !== openedOn.current) onClose();
   }, [page, onClose]);
-  const where = context.name ? ` to ${context.name}` : "";
+  const where = context.name ? translateText(" to {v0}", { v0: context.name }) : "";
   const roomScan = useRoomScanOn(householdId);
   const PHOTOS = (
     <AddFromPhotos
@@ -570,29 +565,29 @@ function AddSheet({ householdId, route, context, onClose }: { householdId: strin
               />
   );
   const options: { icon: string; label: string; detail: string; onClick?: () => void; href?: string }[] = [
-    { icon: "icon-[tabler--keyboard]", label: "Type it in", detail: "A name, and whatever else you know", onClick: () => setTyping(true) },
-    { icon: "icon-[tabler--barcode]", label: "Scan a barcode", detail: "Ferret looks it up", onClick: () => (onClose(), requestScan(route, true)) },
+    { icon: "icon-[tabler--keyboard]", label: translateText("Type it in"), detail: translateText("A name, and whatever else you know"), onClick: () => setTyping(true) },
+    { icon: "icon-[tabler--barcode]", label: translateText("Scan a barcode"), detail: translateText("Ferret looks it up"), onClick: () => (onClose(), requestScan(route, true)) },
     ...(roomScan
       ? [
           {
             icon: "icon-[tabler--scan-eye]",
-            label: "Scan a room",
-            detail: "One photo of a room: Ferret lists what's in it",
+            label: translateText("Scan a room"),
+            detail: translateText("One photo of a room: Ferret lists what's in it"),
             href: scanRoomHref({ locationId: context.locationId }),
           },
         ]
       : []),
     {
       icon: "icon-[tabler--walk]",
-      label: "Walk through a room",
-      detail: "Photograph a room's things, then name them",
+      label: translateText("Walk through a room"),
+      detail: translateText("Photograph a room's things, then name them"),
       href: context.locationId ? walkthroughHref(context.locationId) : WALKTHROUGH_HREF,
     },
-    { icon: "icon-[tabler--file-import]", label: "Import", detail: "A spreadsheet, or Home Assistant", href: IMPORT_HREF },
-    { icon: "icon-[tabler--qrcode]", label: "Blank QR labels", detail: "To stick on boxes as you pack", href: LABELS_HREF },
+    { icon: "icon-[tabler--file-import]", label: translateText("Import"), detail: translateText("A spreadsheet, or Home Assistant"), href: IMPORT_HREF },
+    { icon: "icon-[tabler--qrcode]", label: translateText("Blank QR labels"), detail: translateText("To stick on boxes as you pack"), href: LABELS_HREF },
   ];
   return (
-    <Modal id="add-sheet" title={typing ? `Add${where}` : `Add something${where}`} onClose={onClose}>
+    <Modal id="add-sheet" title={typing ? translateText("Add{v0}", { v0: where }) : translateText("Add something{v0}", { v0: where })} onClose={onClose}>
       {typing ? (
         <QuickAdd householdId={householdId} context={context} onDone={onClose} onBack={() => setTyping(false)} />
       ) : (
@@ -658,11 +653,10 @@ function QuickAdd({ householdId, context, onDone, onBack }: { householdId: strin
     <form className="flex flex-col gap-4" onSubmit={onSubmit}>
       <div>
         <label className="label-text" htmlFor="quick-name">
-          What is it?
-        </label>
-        <input id="quick-name" name="name" className="input" required maxLength={200} autoFocus placeholder="e.g. Cordless drill" />
+          {translateText("What is it?")}</label>
+        <input id="quick-name" name="name" className="input" required maxLength={200} autoFocus placeholder={translateText("e.g. Cordless drill")} />
       </div>
-      <PlacePicker householdId={householdId} id="quick-place" name="place" label="Where is it?" value={place} onChange={setPlace} noneLabel="Not in a place yet" />
+      <PlacePicker householdId={householdId} id="quick-place" name="place" label={translateText("Where is it?")} value={place} onChange={setPlace} noneLabel={translateText("Not in a place yet")} />
       {Boolean(templates.data?.length) && (
         <TemplatePicker
           householdId={householdId}
@@ -677,14 +671,12 @@ function QuickAdd({ householdId, context, onDone, onBack }: { householdId: strin
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="label-text" htmlFor="quick-brand">
-            Brand
-          </label>
+            {translateText("Brand")}</label>
           <input id="quick-brand" name="brand" className="input" maxLength={120} />
         </div>
         <div>
           <label className="label-text" htmlFor="quick-value">
-            Worth
-          </label>
+            {translateText("Worth")}</label>
           <div className="input">
             <span className="my-auto me-1 text-base-content/70">{currencySymbol()}</span>
             <input id="quick-value" name="value" className="grow" inputMode="decimal" />
@@ -693,17 +685,14 @@ function QuickAdd({ householdId, context, onDone, onBack }: { householdId: strin
       </div>
       <label className="flex cursor-pointer items-center gap-2">
         <input type="checkbox" name="box" className="checkbox checkbox-primary" />
-        It's a box (other things go in it)
-      </label>
+        {translateText("It's a box (other things go in it)")}</label>
       {create.isError && <div className="alert alert-soft alert-error">{create.error.message}</div>}
       <div className="flex flex-wrap justify-between gap-2">
         <button type="button" className="btn btn-text" onClick={onBack}>
-          Other ways
-        </button>
+          {translateText("Other ways")}</button>
         <button type="submit" className="btn btn-primary" disabled={create.isPending}>
           {create.isPending && <span className="loading loading-spinner loading-sm" />}
-          Add
-        </button>
+          {translateText("Add")}</button>
       </div>
     </form>
   );

@@ -1,3 +1,4 @@
+import { t as translateText } from "./../lib/i18n";
 /** /api/v1/push — this device's Web Push subscription for maintenance reminders (a real sign-in only). */
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
@@ -38,7 +39,7 @@ push.get("/", async (c) => {
 });
 
 push.post("/subscribe", async (c) => {
-  if (!c.var.deps.push) throw new HTTPException(409, { message: "Push reminders aren't set up on this server (VAPID keys)" });
+  if (!c.var.deps.push) throw new HTTPException(409, { message: translateText("Push reminders aren't set up on this server (VAPID keys)") });
   const { endpoint, keys } = await body(c.req.raw, subscription);
   const values = { householdId: c.var.householdId, userId: c.var.user.id, endpoint, ...keys, lastNotifiedOn: null };
   // The same device again (e.g. after switching household) updates its row; another person's device is left alone.
@@ -47,7 +48,7 @@ push.post("/subscribe", async (c) => {
     .values(values)
     .onConflictDoUpdate({ target: pushSubscription.endpoint, set: values, setWhere: eq(pushSubscription.userId, c.var.user.id) })
     .returning({ id: pushSubscription.id });
-  if (!saved.length) throw new HTTPException(409, { message: "This device gets someone else's reminders — they need to turn them off first" });
+  if (!saved.length) throw new HTTPException(409, { message: translateText("This device gets someone else's reminders — they need to turn them off first") });
   return c.body(null, 204);
 });
 
@@ -62,7 +63,7 @@ push.post("/unsubscribe", async (c) => {
 /** Sends a test notification to this person's devices. */
 push.post("/test", async (c) => {
   const service = c.var.deps.push;
-  if (!service) throw new HTTPException(409, { message: "Push reminders aren't set up on this server (VAPID keys)" });
+  if (!service) throw new HTTPException(409, { message: translateText("Push reminders aren't set up on this server (VAPID keys)") });
   const subs = await c.var.db
     .select()
     .from(pushSubscription)
@@ -70,8 +71,8 @@ push.post("/test", async (c) => {
   let sent = 0;
   for (const sub of subs) {
     const result = await service.send(sub, {
-      title: "Ferret reminders are on",
-      body: "You'll hear from Ferret when maintenance is due or a warranty is about to end.",
+      title: translateText("Ferret reminders are on"),
+      body: translateText("You'll hear from Ferret when maintenance is due or a warranty is about to end."),
       url: `${c.var.config.PUBLIC_URL}/#/maintenance`,
     });
     if (result === "gone") await c.var.db.delete(pushSubscription).where(eq(pushSubscription.id, sub.id));

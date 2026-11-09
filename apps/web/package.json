@@ -8,7 +8,7 @@
     "build": "vite build && node ../../scripts/precompress.mjs dist",
     "preview": "vite preview",
     "typecheck": "tsc -p .",
-    "test": "echo 'no tests yet'"
+    "test": "playwright test --config ../../playwright.config.mjs"
   },
   "dependencies": {
     "@better-auth/passkey": "1.7.14",

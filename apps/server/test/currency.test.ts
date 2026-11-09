@@ -1,5 +1,5 @@
-import { currencyForLocale, formatMoney, parseMoney } from "@ferret/shared";
-import { describe, expect, it } from "vitest";
+import { currencyForLocale, currencyDigits, formatMoney, moneyNumber, parseMoney } from "@ferret/shared";
+import { describe, expect, it, vi } from "vitest";
 import { setup } from "./helpers";
 
 type User = Awaited<ReturnType<Awaited<ReturnType<typeof setup>>["user"]>>;
@@ -16,6 +16,31 @@ describe("money", () => {
     expect(currencyForLocale("de-AT")).toBe("EUR");
     expect(currencyForLocale("en-GB")).toBe("GBP");
     expect(currencyForLocale("en")).toBe("USD");
+  });
+
+  it("shows whole forints without changing stored or exported precision", () => {
+    expect(formatMoney(129_00, "HUF", { exact: true, locale: "hu-HU" })).toBe("129 Ft");
+    expect(formatMoney(129_49, "HUF", { locale: "hu-HU" })).toBe("129 Ft");
+    expect(formatMoney(129_50, "HUF", { exact: true, locale: "hu-HU" })).toBe("130 Ft");
+    expect(formatMoney(-129_50, "HUF", { exact: true, locale: "hu-HU" })).toBe("-130 Ft");
+    const nativeDigits = new Intl.NumberFormat("en", { style: "currency", currency: "HUF" }).resolvedOptions().maximumFractionDigits!;
+    expect(currencyDigits("HUF")).toBe(nativeDigits);
+    expect(moneyNumber(129_50, "HUF")).toBe((129_50 / 100).toFixed(nativeDigits));
+    expect(parseMoney("129,50")).toBe(129_50);
+    expect(formatMoney(129_50, "USD", { exact: true, locale: "en-US" })).toBe("$129.50");
+  });
+
+  it("also hides HUF decimals when an older runtime reports two currency digits", () => {
+    const nativeOptions = Intl.NumberFormat.prototype.resolvedOptions;
+    const spy = vi.spyOn(Intl.NumberFormat.prototype, "resolvedOptions").mockImplementation(function (this: Intl.NumberFormat) {
+      const options = nativeOptions.call(this);
+      return options.currency === "HUF" ? { ...options, minimumFractionDigits: 2, maximumFractionDigits: 2 } : options;
+    });
+    try {
+      expect(formatMoney(129_00, "HUF", { exact: true, locale: "hu" })).toBe("129 Ft");
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it("is read from what people and spreadsheets write", () => {

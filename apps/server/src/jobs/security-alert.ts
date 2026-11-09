@@ -1,3 +1,5 @@
+import { locale } from "./../lib/i18n";
+import { t as translateText } from "./../lib/i18n";
 /**
  * Tells someone their password keeps being got wrong (lib/sign-in-guard.ts
  * raises it at 5, 20 and 100 failures): on every device they get push on and
@@ -18,10 +20,10 @@ export function securityAlert(deps: Deps & { files: FileStore; appUrl: string })
     const { userId, failures, ipAddress } = payload as FailureAlert;
     const { db, push, notifier, files } = deps;
     const url = `${deps.appUrl}/#/settings/security`;
-    const title = "Someone is trying your Ferret password";
+    const title = translateText("Someone is trying your Ferret password");
     const body =
-      `${failures} wrong passwords for your account since you last signed in${ipAddress ? `, the latest from ${ipAddress}` : ""}. ` +
-      "If that wasn't you, turn on two-step sign-in in Settings → Security.";
+      translateText("{v0} wrong passwords for your account since you last signed in{v1}. ", { v0: failures, v1: ipAddress ? translateText(", the latest from {v0}", { v0: ipAddress }) : "" }) +
+      translateText("If that wasn't you, turn on two-step sign-in in Settings → Security.");
 
     if (push) {
       for (const sub of await db.select().from(pushSubscription).where(eq(pushSubscription.userId, userId))) {
@@ -46,10 +48,10 @@ export function passwordChanged(deps: Deps & { files: FileStore; appUrl: string;
     const { userId, email } = payload as { userId: string; email: string };
     const { db, push, notifier, files } = deps;
     const url = `${deps.appUrl}/#/settings/security`;
-    const title = "Your Ferret password was changed";
+    const title = translateText("Your Ferret password was changed");
     const body =
-      "Your password was just reset with an emailed link, and every session was signed out. " +
-      "If that wasn't you, reset it again now and turn on two-step sign-in in Settings → Security.";
+      translateText("Your password was just reset with an emailed link, and every session was signed out. ") +
+      translateText("If that wasn't you, reset it again now and turn on two-step sign-in in Settings → Security.");
     if (notifier && deps.mailUrl) await notifier.send(mailTo(deps.mailUrl, email), { title, body: `${body}\n\n${url}` });
     if (push) {
       for (const sub of await db.select().from(pushSubscription).where(eq(pushSubscription.userId, userId))) {
@@ -72,15 +74,15 @@ export function newPlaceAlert(deps: Deps & { files: FileStore; appUrl: string; m
     const { userId, ipAddress, userAgent, at } = payload as { userId: string; ipAddress: string | null; userAgent: string | null; at: string };
     const [who] = await deps.db.select({ email: user.email }).from(user).where(eq(user.id, userId));
     if (!who) return;
-    const when = new Date(at).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
+    const when = new Date(at).toLocaleString(locale(), { dateStyle: "medium", timeStyle: "short" });
     await notifyPerson(
       deps,
       userId,
       {
-        title: "New sign-in to Ferret",
+        title: translateText("New sign-in to Ferret"),
         body:
-          `Your account was just signed in to from somewhere new: ${describeDevice(userAgent)}${ipAddress ? ` at ${ipAddress}` : ""}, ${when}. ` +
-          "If that was you, there's nothing to do. If not, change your password and sign out everywhere else in Settings → Security.",
+          translateText("Your account was just signed in to from somewhere new: {v0}{v1}, {v2}. ", { v0: describeDevice(userAgent), v1: ipAddress ? translateText(" at {v0}", { v0: ipAddress }) : "", v2: when }) +
+          translateText("If that was you, there's nothing to do. If not, change your password and sign out everywhere else in Settings → Security."),
         url: `${deps.appUrl}/#/settings/security`,
         tag: "ferret-security",
       },
@@ -101,10 +103,10 @@ export function passkeyAddedAlert(deps: Deps & { files: FileStore; appUrl: strin
       deps,
       userId,
       {
-        title: "A passkey was added to your Ferret account",
+        title: translateText("A passkey was added to your Ferret account"),
         body:
-          `A passkey was just added from ${describeDevice(userAgent)}. It can sign in to your account without a password. ` +
-          "If that wasn't you, remove it and sign out everywhere else in Settings → Security.",
+          translateText("A passkey was just added from {v0}. It can sign in to your account without a password. ", { v0: describeDevice(userAgent) }) +
+          translateText("If that wasn't you, remove it and sign out everywhere else in Settings → Security."),
         url: `${deps.appUrl}/#/settings/security`,
         tag: "ferret-security",
       },

@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * Deleting for good, when someone asks (Settings → Household → Delete household; Settings → Security → Delete
  * account) — and for the demo's nightly reset. Nothing is left
@@ -119,16 +120,16 @@ export async function accountDeletionInfo(c: { var: AppEnv["Variables"] }): Prom
 /** That it's really them: the password if the account has one, else a sign-in in the last 15 minutes. Throws if not. */
 export async function confirmIdentity(c: Context<AppEnv>, needsPassword: boolean, password: string | undefined) {
   if (needsPassword) {
-    if (!password) throw new HTTPException(403, { message: "Enter your password to delete your account" });
+    if (!password) throw new HTTPException(403, { message: translateText("Enter your password to delete your account") });
     const ok = await c.var.auth.api.verifyPassword({ body: { password }, headers: c.req.raw.headers }).then(
       () => true,
       () => false,
     );
     if (!ok) {
       await new Promise((r) => setTimeout(r, 1000)); // no quick guessing through here
-      throw new HTTPException(403, { message: "That password isn't right" });
+      throw new HTTPException(403, { message: translateText("That password isn't right") });
     }
   } else if (Date.now() - new Date(c.var.session!.createdAt).getTime() > RECENT_SIGN_IN_MS) {
-    throw new HTTPException(403, { message: "For safety, sign out and in again, then delete your account within 15 minutes" });
+    throw new HTTPException(403, { message: translateText("For safety, sign out and in again, then delete your account within 15 minutes") });
   }
 }

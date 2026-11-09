@@ -1,3 +1,5 @@
+import { currentLanguage } from "./i18n";
+import { t as translateText } from "./i18n";
 /**
  * Private calendar feeds of due maintenance (iCalendar / webcal), so reminders
  * show up in Apple Calendar or Google Calendar with an alert on the day. A feed
@@ -102,11 +104,11 @@ export function toICalendar(tasks: MaintenanceTask[], opts: { name: string; appU
     if (!t.dueOn) continue;
     const what = t.itemName ? `${t.title} (${t.itemName})` : t.title;
     const about = [
-      `Repeats ${describeInterval(t.intervalCount, t.intervalUnit)}.`,
-      t.place ? `Where: ${t.place}` : null,
-      t.lastDoneOn ? `Last done ${t.lastDoneOn}.` : null,
+      translateText("Repeats {v0}.", { v0: describeInterval(t.intervalCount, t.intervalUnit, currentLanguage()) }),
+      t.place ? translateText("Where: {v0}", { v0: t.place }) : null,
+      t.lastDoneOn ? translateText("Last done {v0}.", { v0: t.lastDoneOn }) : null,
       t.notes,
-      `Mark it done in Ferret: ${opts.appUrl}/#/maintenance`,
+      translateText("Mark it done in Ferret: {v0}/#/maintenance", { v0: opts.appUrl }),
     ];
     // The real one always, however far off; repeats only within the year.
     const occurrences = taskOccurrences(t, on, t.dueOn > until ? t.dueOn : until, on);
@@ -116,12 +118,12 @@ export function toICalendar(tasks: MaintenanceTask[], opts: { name: string; appU
       if (expected && (o.on > until || ++repeats > FEED_REPEATS)) break;
       const next = addDays(o.on, 1);
       const details = [
-        o.kind === "overdue" ? `Overdue — was due ${t.dueOn}.` : null,
-        expected ? "Expected, if the one before is done on time — it moves when that one's done." : null,
-        t.part?.shortOn && o.on >= t.part.shortOn ? `Not enough ${t.part.name} left by then — buy more.` : null,
+        o.kind === "overdue" ? translateText("Overdue — was due {v0}.", { v0: t.dueOn }) : null,
+        expected ? translateText("Expected, if the one before is done on time — it moves when that one's done.") : null,
+        t.part?.shortOn && o.on >= t.part.shortOn ? translateText("Not enough {v0} left by then — buy more.", { v0: t.part.name }) : null,
         ...about,
       ].filter(Boolean);
-      const summary = o.kind === "overdue" ? `Overdue: ${what}` : expected ? `${what} (expected)` : what;
+      const summary = o.kind === "overdue" ? translateText("Overdue: {v0}", { v0: what }) : expected ? translateText("{v0} (expected)", { v0: what }) : what;
       lines.push(
         "BEGIN:VEVENT",
         // The real one keeps the task's own id, so calendars that already have it update it in place.

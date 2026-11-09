@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * API keys, for Claude (MCP) and scripts. A key belongs to a user and is bound
  * to one household when it's made; it can be read-only. Sent as
@@ -38,7 +39,7 @@ export async function verifyKey(auth: Auth, db: Db, key: string): Promise<KeyHol
     key: null,
     error: { code: (err as { body?: { code?: string } }).body?.code },
   }));
-  if (result.error?.code === "RATE_LIMITED") throw new HTTPException(429, { message: "Too many requests with this key — slow down" });
+  if (result.error?.code === "RATE_LIMITED") throw new HTTPException(429, { message: translateText("Too many requests with this key — slow down") });
   if (!result.valid || !result.key) return null;
   const metadata = keyMetadata.safeParse(parseMetadata(result.key.metadata));
   if (!metadata.success) return null;

@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * "Add from a web address" on an item: paste the address of a photo or a PDF
  * (a manual, a spec sheet) and the server downloads it into the item — public
@@ -54,8 +55,7 @@ export function FromWeb({ itemId, householdId, onArrived }: { itemId: string; ho
       {open ? (
         <form className="flex flex-col gap-2 rounded-box bg-base-100 p-3" onSubmit={onSubmit}>
           <label className="label-text" htmlFor="from-web-url">
-            Address of a photo or PDF
-          </label>
+            {translateText("Address of a photo or PDF")}</label>
           <div className="flex gap-2">
             <input
               id="from-web-url"
@@ -73,28 +73,23 @@ export function FromWeb({ itemId, householdId, onArrived }: { itemId: string; ho
             />
             <button type="submit" className="btn btn-primary" disabled={add.isPending}>
               {add.isPending && <span className="loading loading-spinner loading-xs" />}
-              Add
-            </button>
+              {translateText("Add")}</button>
           </div>
           <p className="text-xs text-base-content/70">
-            Ferret downloads it from the internet — photos and PDFs only, not web pages. Tip: on a product page, copy the link of
-            the image or the manual itself.
-          </p>
-          {badAddress && <p className="text-sm text-error">That doesn't look like a web address.</p>}
+            {translateText("Ferret downloads it from the internet — photos and PDFs only, not web pages. Tip: on a product page, copy the link of the image or the manual itself.")}</p>
+          {badAddress && <p className="text-sm text-error">{translateText("That doesn't look like a web address.")}</p>}
           {add.isError && <p className="text-sm text-error">{add.error.message}</p>}
           <button type="button" className="btn btn-text btn-sm self-start" onClick={() => setOpen(false)}>
-            Cancel
-          </button>
+            {translateText("Cancel")}</button>
         </form>
       ) : (
         <button type="button" className="btn btn-soft btn-secondary btn-sm self-start" onClick={() => setOpen(true)}>
           <span className="icon-[tabler--world-download] size-4" />
-          Add from a web address
-        </button>
+          {translateText("Add from a web address")}</button>
       )}
 
       {downloads.data && downloads.data.data.length > 0 && (
-        <ul className="flex flex-col gap-2" aria-label="Downloads">
+        <ul className="flex flex-col gap-2" aria-label={translateText("Downloads")}>
           {downloads.data.data.map((d) => (
             <li key={d.id} className="flex items-center gap-3 rounded-box bg-base-100 p-3 text-sm">
               {d.status === "pending" ? (
@@ -104,7 +99,7 @@ export function FromWeb({ itemId, householdId, onArrived }: { itemId: string; ho
               )}
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium" title={d.url}>
-                  {d.status === "pending" ? "Downloading from " : "Couldn't add from "}
+                  {d.status === "pending" ? translateText("Downloading from ") : translateText("Couldn't add from ")}
                   {siteOf(d.url)}
                 </p>
                 {d.error && <p className="text-error">{d.error}</p>}
@@ -113,7 +108,7 @@ export function FromWeb({ itemId, householdId, onArrived }: { itemId: string; ho
                 <button
                   type="button"
                   className="btn btn-text btn-sm btn-square"
-                  aria-label="Dismiss"
+                  aria-label={translateText("Dismiss")}
                   disabled={dismiss.isPending}
                   onClick={() => dismiss.mutate(d.id)}
                 >

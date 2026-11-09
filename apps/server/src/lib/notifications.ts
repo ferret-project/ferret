@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * Reminders to other apps (ntfy, Pushover, Telegram, email…): each person adds
  * Apprise URLs in Settings, kept sealed with the household key because they
@@ -40,12 +41,12 @@ export async function listChannels(o: Owner) {
 
 export async function addChannel(o: Owner, input: NotificationChannelInput) {
   if ((await listChannels(o)).length >= MAX_CHANNELS) {
-    throw new HTTPException(409, { message: `You can have up to ${MAX_CHANNELS} — remove one first` });
+    throw new HTTPException(409, { message: translateText("You can have up to {v0} — remove one first", { v0: MAX_CHANNELS }) });
   }
   // The server sends to it from its own network: an address there (a self-hosted ntfy, Home Assistant…) is the server
   // admin's to add, not everyone's.
   if (onLocalNetwork(input.url) && !(await isServerAdmin(o.db, o.userId))) {
-    throw new HTTPException(403, { message: "Only whoever runs this Ferret can add an address on its own network" });
+    throw new HTTPException(403, { message: translateText("Only whoever runs this Ferret can add an address on its own network") });
   }
   const [row] = await o.db
     .insert(notificationChannel)
@@ -65,7 +66,7 @@ export async function removeChannel(o: Owner, id: string) {
     .delete(notificationChannel)
     .where(and(mine(o), eq(notificationChannel.id, id)))
     .returning({ id: notificationChannel.id });
-  if (!gone.length) throw new HTTPException(404, { message: "No such notification" });
+  if (!gone.length) throw new HTTPException(404, { message: translateText("No such notification") });
 }
 
 /**
@@ -87,10 +88,10 @@ export async function deliver(db: Db, files: FileStore, notifier: Notifier, row:
 /** A test message to one of this person's channels; 502 with the reason if it didn't go. */
 export async function testChannel(o: Owner, notifier: Notifier, id: string, appUrl: string) {
   const [row] = await o.db.select().from(notificationChannel).where(and(mine(o), eq(notificationChannel.id, id)));
-  if (!row) throw new HTTPException(404, { message: "No such notification" });
+  if (!row) throw new HTTPException(404, { message: translateText("No such notification") });
   const error = await deliver(o.db, o.files, notifier, row, {
-    title: "Ferret reminders are on",
-    body: `You'll hear from Ferret here when maintenance is due or a warranty is about to end.\n\n${appUrl}/#/`,
+    title: translateText("Ferret reminders are on"),
+    body: translateText("You'll hear from Ferret here when maintenance is due or a warranty is about to end.\n\n{v0}/#/", { v0: appUrl }),
   });
   if (error) throw new HTTPException(502, { message: error });
 }

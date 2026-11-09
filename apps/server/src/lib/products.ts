@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * Ferret's barcode books: what a barcode is.
  *
@@ -208,9 +209,9 @@ export async function useProductPhoto(v: Caller, files: FileStore, itemId: strin
   const barcode = productCode(it.barcode);
   const product = barcode ? (await entry(v.db, barcode))?.external : undefined;
   const url = product?.images[index];
-  if (!url) throw notFound("Product photo");
-  if (!url.startsWith("https://")) throw new HTTPException(422, { message: "That photo isn't on a secure address" });
-  if (!v.deps.downloader) throw new HTTPException(409, { message: "Downloading from the web isn't available on this server" });
+  if (!url) throw notFound(translateText("Product photo"));
+  if (!url.startsWith("https://")) throw new HTTPException(422, { message: translateText("That photo isn't on a secure address") });
+  if (!v.deps.downloader) throw new HTTPException(409, { message: translateText("Downloading from the web isn't available on this server") });
   const got = await v.deps.downloader
     .get(url, {
       maxBytes: 8 * 1024 * 1024,
@@ -218,7 +219,7 @@ export async function useProductPhoto(v: Caller, files: FileStore, itemId: strin
       accepts: (head) => uploadTypes.photo.includes(sniffContentType(head) ?? ""),
     })
     .catch((err: unknown) => {
-      if (err instanceof DownloadError) throw new HTTPException(502, { message: `Couldn't fetch that photo — try another (${err.message})` });
+      if (err instanceof DownloadError) throw new HTTPException(502, { message: translateText("Couldn't fetch that photo — try another ({v0})", { v0: err.message }) });
       throw err;
     });
   return addAttachment(v, files, it.id, { bytes: got.bytes, filename: `${(product?.title ?? "product").slice(0, 60)}.jpg`, kind: "photo" });

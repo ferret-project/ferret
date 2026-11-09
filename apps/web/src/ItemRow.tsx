@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 import type { ItemListing, SearchHit } from "@ferret/shared";
 import { api } from "./lib/api";
 import { itemHref } from "./lib/route";
@@ -29,16 +30,15 @@ export function ItemRow(props: { item: ItemListing; hit?: SearchHit; placeFrom?:
           <span className="flex items-center gap-2 font-medium">
             <span className="truncate">{item.name}</span>
             {hit?.via === "meaning" && (
-              <span className="badge badge-soft badge-primary badge-sm shrink-0 gap-0.5" title="Matched by meaning">
+              <span className="badge badge-soft badge-primary badge-sm shrink-0 gap-0.5" title={translateText("Matched by meaning")}>
                 <span className="icon-[tabler--sparkles] size-3.5" />
-                related
-              </span>
+                {translateText("related")}</span>
             )}
           </span>
           {(where || item.container) && (
             <span className="text-primary flex items-center gap-1 text-sm">
               <span className={`${item.container ? "icon-[tabler--package]" : "icon-[tabler--map-pin]"} size-3.5 shrink-0`} />
-              <span className="truncate">{[item.container && `In ${item.container.name}`, where].filter(Boolean).join(" · ")}</span>
+              <span className="truncate">{[item.container && translateText("In {v0}", { v0: item.container.name }), where].filter(Boolean).join(" · ")}</span>
             </span>
           )}
           {item.loan && (
@@ -49,12 +49,12 @@ export function ItemRow(props: { item: ItemListing; hit?: SearchHit; placeFrom?:
           )}
           <span className="text-base-content/70 block truncate text-sm">
             {[
-              item.isContainer ? `Box · ${item.contents} inside` : null,
+              item.isContainer ? translateText("Box · {v0} inside", { v0: item.contents }) : null,
               item.brand,
               item.valueCents != null ? money(item.valueCents, true) : null,
             ]
               .filter(Boolean)
-              .join(" · ") || (where ? "" : "No details yet")}
+              .join(" · ") || (where ? "" : translateText("No details yet"))}
           </span>
           <HitSnippet hit={hit} />
         </span>

@@ -1,3 +1,4 @@
+import { t as translateText } from "./i18n";
 /**
  * Type-to-filter pickers, for lists that grow too long for a <select>: items
  * (the 10 most recently changed until you type, then a search) and places
@@ -108,7 +109,7 @@ export function Combobox(props: {
         />
         {props.loading && showing && <span className="loading loading-spinner loading-xs my-auto" />}
         {props.value && !text && (
-          <button type="button" className="btn btn-text btn-xs btn-circle my-auto" aria-label={`Clear ${props.label}`} onClick={() => choose(null)}>
+          <button type="button" className="btn btn-text btn-xs btn-circle my-auto" aria-label={translateText("Clear {v0}", { v0: props.label })} onClick={() => choose(null)}>
             <span className="icon-[tabler--x] size-4" />
           </button>
         )}
@@ -147,7 +148,7 @@ export function Combobox(props: {
               {o?.id === props.value?.id && <span className="icon-[tabler--check] size-4 shrink-0 text-primary" />}
             </li>
           ))}
-          {options.length === 0 && !props.loading && <li className="px-3 py-2 text-sm text-base-content/70">{props.empty ?? "No matches"}</li>}
+          {options.length === 0 && !props.loading && <li className="px-3 py-2 text-sm text-base-content/70">{props.empty ?? translateText("No matches")}</li>}
         </ul>
       )}
     </div>
@@ -184,12 +185,12 @@ export function ItemPicker(props: {
   return (
     <Combobox
       {...props}
-      placeholder={props.boxes ? "Type to find a box" : "Type to find an item"}
+      placeholder={props.boxes ? translateText("Type to find a box") : translateText("Type to find an item")}
       choices={choices}
       onQuery={setQuery}
       loading={results.isFetching}
-      heading={q ? undefined : "Recently changed"}
-      empty={q ? `Nothing matches "${q}"` : props.boxes ? "No boxes yet — mark an item as a box" : "No items yet"}
+      heading={q ? undefined : translateText("Recently changed")}
+      empty={q ? translateText("Nothing matches \"{v0}\"", { v0: q }) : props.boxes ? translateText("No boxes yet — mark an item as a box") : translateText("No items yet")}
     />
   );
 }
@@ -235,7 +236,7 @@ export function PlacePicker(props: {
       choices={choices}
       onQuery={setQuery}
       disabled={!places.data}
-      empty={all.length ? "No place matches that" : "No places yet — add them under Places"}
+      empty={all.length ? translateText("No place matches that") : translateText("No places yet — add them under Places")}
     />
   );
 }

@@ -1,3 +1,7 @@
+import { tn } from "./i18n";
+import { locale } from "./i18n";
+import { t as translateText } from "./i18n";
+import { tr } from "./i18n";
 /**
  * Collections (server: lib/collections.ts): coins, Barbies, baseball cards — things kept as a set.
  *
@@ -27,7 +31,7 @@ export function useCollections(householdId: string) {
   return useQuery({ queryKey: collectionsKey(householdId), queryFn: async () => (await api.collections()).data });
 }
 
-const things = (n: number) => `${n.toLocaleString()} ${n === 1 ? "thing" : "things"}`;
+const things = (n: number) => tn(n, "{v0} thing", "{v0} things", { v0: n.toLocaleString(locale()) });
 /** Owned ÷ everything on its list, when there's a want list. */
 const complete = (c: CollectionSummary) => (c.wanted ? Math.round((c.owned / (c.owned + c.wanted)) * 100) : null);
 
@@ -35,11 +39,11 @@ function Bar({ title, back, actions }: { title: string; back: string; actions?: 
   return (
     <nav className="navbar sticky top-0 z-10 border-b border-base-300 bg-base-100/85 px-4 backdrop-blur-md">
       <div className="navbar-start w-full min-w-0 items-center gap-2">
-        <a href={back} className="btn btn-text btn-sm btn-square" aria-label="Back">
+        <a href={back} className="btn btn-text btn-sm btn-square" aria-label={translateText("Back")}>
           <span className="icon-[tabler--arrow-left] size-5" />
         </a>
         <h1 className="truncate text-lg font-semibold">{title}</h1>
-        <HelpLink page="guide/collections.html" label="Collections" />
+        <HelpLink page="guide/collections.html" label={translateText("Collections")} />
       </div>
       <BarSearch />
       {actions && <div className="ms-2 flex shrink-0 items-center gap-2">{actions}</div>}
@@ -56,14 +60,13 @@ export function CollectionsScreen({ householdId }: { householdId: string }) {
   return (
     <div className="min-h-dvh bg-base-200">
       <Bar
-        title="Collections"
+        title={translateText("Collections")}
         back="#/"
         actions={
           canEdit && (
             <button type="button" className="btn btn-primary btn-sm" onClick={() => setAdding(true)}>
               <span className="icon-[tabler--plus] size-4" />
-              Collection
-            </button>
+              {translateText("Collection")}</button>
           )
         }
       />
@@ -73,15 +76,12 @@ export function CollectionsScreen({ householdId }: { householdId: string }) {
           <div className="card">
             <div className="card-body items-center gap-3 text-center">
               <span className="icon-[tabler--stack-2] size-10 text-primary" />
-              <h2 className="text-lg font-semibold">Start a collection</h2>
+              <h2 className="text-lg font-semibold">{translateText("Start a collection")}</h2>
               <p className="max-w-md text-sm text-base-content/70">
-                Coins, dolls, trading cards, records — keep them together, with the details that matter for each kind (year,
-                grade, edition…), what they're worth, and a want list of the ones you're still looking for.
-              </p>
+                {translateText("Coins, dolls, trading cards, records — keep them together, with the details that matter for each kind (year, grade, edition…), what they're worth, and a want list of the ones you're still looking for.")}</p>
               {canEdit && (
                 <button type="button" className="btn btn-primary" onClick={() => setAdding(true)}>
-                  Start a collection
-                </button>
+                  {translateText("Start a collection")}</button>
               )}
             </div>
           </div>
@@ -104,7 +104,7 @@ export function CollectionsScreen({ householdId }: { householdId: string }) {
                     <h2 className="truncate font-semibold text-base-content">{c.name}</h2>
                     <p className="text-sm text-base-content/70">
                       {things(c.owned)}
-                      {c.wanted > 0 && ` · ${c.wanted} wanted`}
+                      {c.wanted > 0 && translateText(" · {v0} wanted", { v0: c.wanted })}
                     </p>
                     {c.valueCents > 0 && <p className="text-sm font-medium text-base-content">{money(c.valueCents)}</p>}
                     {pct !== null && <Completion percent={pct} className="mt-1 h-1.5" />}
@@ -167,15 +167,14 @@ export function CollectionScreen({ householdId, id, show }: { householdId: strin
   return (
     <div className="min-h-dvh bg-base-200">
       <Bar
-        title={c?.name ?? "Collection"}
+        title={c?.name ?? translateText("Collection")}
         back={COLLECTIONS_HREF}
         actions={
           canEdit &&
           c && (
             <button type="button" className="btn btn-primary btn-sm" onClick={() => setAdding(true)}>
               <span className="icon-[tabler--plus] size-4" />
-              Add
-            </button>
+              {translateText("Add")}</button>
           )
         }
       />
@@ -188,22 +187,21 @@ export function CollectionScreen({ householdId, id, show }: { householdId: strin
                 <div className="min-w-0">
                   <p className="flex items-center gap-2 text-sm text-base-content/70">
                     <span className={`${template ? templateIcon(template) : "icon-[tabler--stack-2]"} size-4`} />
-                    {template ? template.name : "Collection"}
+                    {template ? template.name : translateText("Collection")}
                   </p>
                   {c.description && <p className="mt-1 max-w-prose text-base-content/80">{c.description}</p>}
                 </div>
                 {canEdit && (
                   <button type="button" className="btn btn-soft btn-sm" onClick={() => setEditing(true)}>
                     <span className="icon-[tabler--pencil] size-4" />
-                    Edit
-                  </button>
+                    {translateText("Edit")}</button>
                 )}
               </div>
               <dl className="grid grid-cols-2 gap-3 @container sm:grid-cols-4">
-                <Stat label="Have" value={things(c.owned)} detail={c.pieces > c.owned ? `${c.pieces} pieces with duplicates` : undefined} />
-                <Stat label="Worth" value={money(c.valueCents)} detail={c.costCents ? `paid ${money(c.costCents)}` : undefined} />
-                <Stat label="Wanted" value={things(c.wanted)} />
-                {pct !== null && <Stat label="Complete" value={`${pct}%`} />}
+                <Stat label={translateText("Have")} value={things(c.owned)} detail={c.pieces > c.owned ? translateText("{v0} pieces with duplicates", { v0: c.pieces }) : undefined} />
+                <Stat label={translateText("Worth")} value={money(c.valueCents)} detail={c.costCents ? translateText("paid {v0}", { v0: money(c.costCents) }) : undefined} />
+                <Stat label={translateText("Wanted")} value={things(c.wanted)} />
+                {pct !== null && <Stat label={translateText("Complete")} value={`${pct}%`} />}
               </dl>
               {pct !== null && <Completion percent={pct} className="h-2" />}
             </div>
@@ -211,19 +209,19 @@ export function CollectionScreen({ householdId, id, show }: { householdId: strin
         )}
 
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="join" role="tablist" aria-label="Show">
+          <div className="join" role="tablist" aria-label={translateText("Show")}>
             <a href={collectionHref(id)} role="tab" aria-selected={show === "owned"} className={`btn join-item btn-sm ${show === "owned" ? "btn-primary" : "btn-soft"}`}>
-              Have {c ? `(${c.owned})` : ""}
+              {translateText("Have ")}{c ? `(${c.owned})` : ""}
             </a>
             <a href={collectionHref(id, "wanted")} role="tab" aria-selected={show === "wanted"} className={`btn join-item btn-sm ${show === "wanted" ? "btn-primary" : "btn-soft"}`}>
-              Want list {c ? `(${c.wanted})` : ""}
+              {translateText("Want list ")}{c ? `(${c.wanted})` : ""}
             </a>
           </div>
-          <div className="join" role="radiogroup" aria-label="View">
-            <button type="button" role="radio" aria-checked={view === "grid"} className={`btn join-item btn-sm ${view === "grid" ? "btn-primary" : "btn-soft"}`} onClick={() => pickView("grid")} aria-label="Photos">
+          <div className="join" role="radiogroup" aria-label={translateText("View")}>
+            <button type="button" role="radio" aria-checked={view === "grid"} className={`btn join-item btn-sm ${view === "grid" ? "btn-primary" : "btn-soft"}`} onClick={() => pickView("grid")} aria-label={translateText("Photos")}>
               <span className="icon-[tabler--layout-grid] size-4" />
             </button>
-            <button type="button" role="radio" aria-checked={view === "table"} className={`btn join-item btn-sm ${view === "table" ? "btn-primary" : "btn-soft"}`} onClick={() => pickView("table")} aria-label="Table">
+            <button type="button" role="radio" aria-checked={view === "table"} className={`btn join-item btn-sm ${view === "table" ? "btn-primary" : "btn-soft"}`} onClick={() => pickView("table")} aria-label={translateText("Table")}>
               <span className="icon-[tabler--table] size-4" />
             </button>
           </div>
@@ -232,7 +230,7 @@ export function CollectionScreen({ householdId, id, show }: { householdId: strin
         {items.isPending && <span className="loading loading-spinner mx-auto my-8 text-primary" />}
         {items.data?.data.length === 0 && (
           <p className="py-10 text-center text-base-content/70">
-            {show === "wanted" ? "Nothing on the want list — add the ones you're still looking for." : "Nothing in it yet — add the first one."}
+            {show === "wanted" ? translateText("Nothing on the want list — add the ones you're still looking for.") : translateText("Nothing in it yet — add the first one.")}
           </p>
         )}
         {items.data && items.data.data.length > 0 && view === "grid" && (
@@ -266,12 +264,12 @@ export function CollectionScreen({ householdId, id, show }: { householdId: strin
             <table className="table">
               <thead>
                 <tr>
-                  <th>Name</th>
+                  <th>{translateText("Name")}</th>
                   {fields.map((f) => (
                     <th key={f.key}>{f.label}</th>
                   ))}
-                  <th className="text-end">Qty</th>
-                  <th className="text-end">Worth</th>
+                  <th className="text-end">{translateText("Qty")}</th>
+                  <th className="text-end">{translateText("Worth")}</th>
                   {show === "wanted" && canEdit && <th />}
                 </tr>
               </thead>
@@ -294,8 +292,7 @@ export function CollectionScreen({ householdId, id, show }: { householdId: strin
                     {show === "wanted" && canEdit && (
                       <td className="text-end">
                         <button type="button" className="btn btn-soft btn-primary btn-xs" disabled={got.isPending} onClick={() => got.mutate(it.id)}>
-                          Got it
-                        </button>
+                          {translateText("Got it")}</button>
                       </td>
                     )}
                   </tr>
@@ -314,7 +311,7 @@ export function CollectionScreen({ householdId, id, show }: { householdId: strin
 /** How complete a collection is (FlyonUI's progress: a track and its bar). */
 function Completion({ percent, className }: { percent: number; className: string }) {
   return (
-    <span className={`progress flex w-full ${className}`} role="progressbar" aria-label={`${percent}% complete`} aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100}>
+    <span className={`progress flex w-full ${className}`} role="progressbar" aria-label={translateText("{v0}% complete", { v0: percent })} aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100}>
       <span className={`progress-bar ${percent === 100 ? "progress-success" : "progress-primary"}`} style={{ width: `${percent}%` }} />
     </span>
   );
@@ -335,8 +332,7 @@ function GotIt({ onClick, busy }: { onClick: () => void; busy: boolean }) {
     <div className="px-3 pb-3">
       <button type="button" className="btn btn-soft btn-primary btn-sm w-full" disabled={busy} onClick={onClick}>
         <span className="icon-[tabler--check] size-4" />
-        Got it
-      </button>
+        {translateText("Got it")}</button>
     </div>
   );
 }
@@ -372,21 +368,19 @@ function CollectionDialog(props: { householdId: string; collection?: CollectionS
     });
   }
   return (
-    <Modal id="collection-dialog" title={collection ? `Edit ${collection.name}` : "Start a collection"} onClose={onClose}>
+    <Modal id="collection-dialog" title={collection ? translateText("Edit {v0}", { v0: collection.name }) : translateText("Start a collection")} onClose={onClose}>
       <form className="flex flex-col gap-6" onSubmit={onSubmit}>
         <div className="space-y-4">
           <div>
             <label className="label-text" htmlFor="collection-name">
-              Name
-            </label>
-            <input id="collection-name" name="name" className="input" defaultValue={collection?.name} placeholder="e.g. Morgan silver dollars" maxLength={80} required autoFocus />
+              {translateText("Name")}</label>
+            <input id="collection-name" name="name" className="input" defaultValue={collection?.name} placeholder={translateText("e.g. Morgan silver dollars")} maxLength={80} required autoFocus />
           </div>
           <div>
             <label className="label-text" htmlFor="collection-template">
-              What it's of
-            </label>
+              {translateText("What it's of")}</label>
             <select id="collection-template" name="templateId" className="select" defaultValue={collection?.templateId ?? ""}>
-              <option value="">Anything (no template)</option>
+              <option value="">{translateText("Anything (no template)")}</option>
               {templates.data?.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}
@@ -394,14 +388,11 @@ function CollectionDialog(props: { householdId: string; collection?: CollectionS
               ))}
             </select>
             <p className="helper-text">
-              The template's details (a coin's year, mint mark, grade…) are the collection's columns, and what you add starts from it.
-              {!templates.data?.length && " Add templates under Categories & tags."}
+              {translateText("The template's details (a coin's year, mint mark, grade…) are the collection's columns, and what you add starts from it.")}{!templates.data?.length && translateText(" Add templates under Categories & tags.")}
             </p>
           </div>
           <div>
-            <label className="label-text" htmlFor="collection-description">
-              About it <span className="text-base-content/70">(optional)</span>
-            </label>
+            <label className="label-text" htmlFor="collection-description">{tr("About it {v0}", { v0: <span className="text-base-content/70">{translateText("(optional)")}</span> })}</label>
             <textarea id="collection-description" name="description" className="textarea" rows={2} maxLength={2000} defaultValue={collection?.description ?? ""} />
           </div>
         </div>
@@ -409,19 +400,15 @@ function CollectionDialog(props: { householdId: string; collection?: CollectionS
           <div className="rounded-box bg-base-200 p-3 text-sm">
             {!confirmRemove ? (
               <button type="button" className="btn btn-text btn-error btn-sm" onClick={() => setConfirmRemove(true)}>
-                Remove this collection
-              </button>
+                {translateText("Remove this collection")}</button>
             ) : (
               <div className="flex flex-wrap items-center gap-2">
-                <span>
-                  Remove it? The {collection.owned} you have stay in Ferret{collection.wanted ? `; the ${collection.wanted} on the want list go to Recently deleted` : ""}.
+                <span>{tr("Remove it? The {v0} you have stay in Ferret", { v0: collection.owned })}{collection.wanted ? translateText("; the {v0} on the want list go to Recently deleted", { v0: collection.wanted }) : ""}.
                 </span>
                 <button type="button" className="btn btn-error btn-sm" disabled={remove.isPending} onClick={() => remove.mutate()}>
-                  Remove
-                </button>
+                  {translateText("Remove")}</button>
                 <button type="button" className="btn btn-text btn-sm" onClick={() => setConfirmRemove(false)}>
-                  Keep
-                </button>
+                  {translateText("Keep")}</button>
               </div>
             )}
           </div>
@@ -429,11 +416,10 @@ function CollectionDialog(props: { householdId: string; collection?: CollectionS
         {(save.isError || remove.isError) && <div className="alert alert-soft alert-error">{(save.error ?? remove.error)!.message}</div>}
         <DialogActions>
           <button type="button" className="btn btn-secondary btn-soft" onClick={onClose}>
-            Cancel
-          </button>
+            {translateText("Cancel")}</button>
           <button type="submit" className="btn btn-primary" disabled={save.isPending}>
             {save.isPending && <span className="loading loading-spinner loading-sm" />}
-            {collection ? "Save" : "Start it"}
+            {collection ? translateText("Save") : translateText("Start it")}
           </button>
         </DialogActions>
       </form>
@@ -478,33 +464,29 @@ function AddToCollection(props: { householdId: string; collection: CollectionSum
     );
   }
   return (
-    <Modal id="add-to-collection" title={`Add to ${collection.name}`} onClose={props.onClose}>
+    <Modal id="add-to-collection" title={translateText("Add to {v0}", { v0: collection.name })} onClose={props.onClose}>
       <form className="flex flex-col gap-5" onSubmit={onSubmit}>
-        <div className="join w-full" role="radiogroup" aria-label="Have it or want it">
+        <div className="join w-full" role="radiogroup" aria-label={translateText("Have it or want it")}>
           <button type="button" role="radio" aria-checked={!wanted} className={`btn join-item grow ${!wanted ? "btn-primary" : "btn-soft"}`} onClick={() => setWanted(false)}>
-            I have it
-          </button>
+            {translateText("I have it")}</button>
           <button type="button" role="radio" aria-checked={wanted} className={`btn join-item grow ${wanted ? "btn-primary" : "btn-soft"}`} onClick={() => setWanted(true)}>
-            I'm looking for it
-          </button>
+            {translateText("I'm looking for it")}</button>
         </div>
         <div>
           <label className="label-text" htmlFor="collect-name">
-            What is it?
-          </label>
-          <input id="collect-name" name="name" className="input" required maxLength={200} autoFocus placeholder={template?.name === "Coin" ? "e.g. 1881-S Morgan dollar" : "Its name"} />
+            {translateText("What is it?")}</label>
+          <input id="collect-name" name="name" className="input" required maxLength={200} autoFocus placeholder={template?.name === "Coin" ? translateText("e.g. 1881-S Morgan dollar") : translateText("Its name")} />
         </div>
         {template && <CustomFieldInputs fields={template.fields} values={custom} onChange={setCustom} />}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="label-text" htmlFor="collect-quantity">
-              How many
-            </label>
+              {translateText("How many")}</label>
             <input id="collect-quantity" name="quantity" type="number" min={1} defaultValue={1} className="input" />
           </div>
           <div>
             <label className="label-text" htmlFor="collect-value">
-              {wanted ? "Usually goes for" : "Worth (each)"}
+              {wanted ? translateText("Usually goes for") : translateText("Worth (each)")}
             </label>
             <div className="input">
               <span className="my-auto me-1 text-base-content/70">{currencySymbol()}</span>
@@ -514,21 +496,18 @@ function AddToCollection(props: { householdId: string; collection: CollectionSum
         </div>
         <label className="flex cursor-pointer items-center gap-2 text-sm">
           <input type="checkbox" className="checkbox checkbox-primary checkbox-sm" checked={another} onChange={(e) => setAnother(e.target.checked)} />
-          Add another after this one
-        </label>
+          {translateText("Add another after this one")}</label>
         {added && (
-          <div className="alert alert-soft alert-success text-sm" role="status">
-            Added {added}.
-          </div>
+          <div className="alert alert-soft alert-success text-sm" role="status">{tr("Added {v0}.", { v0: added })}</div>
         )}
         {add.isError && <div className="alert alert-soft alert-error">{add.error.message}</div>}
         <DialogActions>
           <button type="button" className="btn btn-secondary btn-soft" onClick={props.onClose}>
-            {added ? "Done" : "Cancel"}
+            {added ? translateText("Done") : translateText("Cancel")}
           </button>
           <button type="submit" className="btn btn-primary" disabled={add.isPending}>
             {add.isPending && <span className="loading loading-spinner loading-sm" />}
-            {wanted ? "Add to the want list" : "Add it"}
+            {wanted ? translateText("Add to the want list") : translateText("Add it")}
           </button>
         </DialogActions>
       </form>
@@ -549,15 +528,14 @@ export function CollectionFields(props: {
     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:items-end">
       <div>
         <label className="label-text" htmlFor="item-collection">
-          Collection
-        </label>
+          {translateText("Collection")}</label>
         <select
           id="item-collection"
           className="select"
           value={props.collectionId ?? ""}
           onChange={(e) => props.onChange({ collectionId: e.target.value || null, wanted: e.target.value ? props.wanted : false })}
         >
-          <option value="">None</option>
+          <option value="">{translateText("None")}</option>
           {collections.data?.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
@@ -568,8 +546,7 @@ export function CollectionFields(props: {
       {props.collectionId && (
         <label className="flex h-11 cursor-pointer items-center gap-2 text-sm">
           <input type="checkbox" className="checkbox checkbox-primary checkbox-sm" checked={props.wanted} onChange={(e) => props.onChange({ collectionId: props.collectionId, wanted: e.target.checked })} />
-          On the want list (don't have it yet)
-        </label>
+          {translateText("On the want list (don't have it yet)")}</label>
       )}
     </div>
   );
@@ -590,21 +567,18 @@ export function CollectionBanner({ householdId, item }: { householdId: string; i
     return (
       <a href={collectionHref(item.collectionId)} className="tap badge badge-soft badge-primary gap-1 self-start">
         <span className="icon-[tabler--stack-2] size-4" />
-        {c?.name ?? "Collection"}
+        {c?.name ?? translateText("Collection")}
       </a>
     );
   }
   return (
     <div className="alert alert-soft alert-info flex flex-wrap items-center gap-3" role="status">
       <span className="icon-[tabler--heart] size-5 shrink-0" />
-      <span className="grow">
-        On the want list for <a href={collectionHref(item.collectionId, "wanted")} className="link">{c?.name ?? "its collection"}</a> — not one of your things yet.
-      </span>
+      <span className="grow">{tr("On the want list for {v0} — not one of your things yet.", { v0: <a href={collectionHref(item.collectionId, "wanted")} className="link">{c?.name ?? translateText("its collection")}</a> })}</span>
       {canEdit && (
         <button type="button" className="btn btn-primary btn-sm" disabled={got.isPending} onClick={() => got.mutate()}>
           <span className="icon-[tabler--check] size-4" />
-          Got it
-        </button>
+          {translateText("Got it")}</button>
       )}
     </div>
   );

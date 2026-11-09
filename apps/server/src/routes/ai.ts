@@ -1,3 +1,4 @@
+import { t as translateText } from "./../lib/i18n";
 /**
  * The AI's helpers (thin; see each lib): what it filled in by itself (lib/ai-fill.ts) — the "Filled in by AI" list,
  * confirming and undoing each; possible duplicates and merging (lib/duplicates.ts).
@@ -54,19 +55,19 @@ const AUDIO_TYPES = /^audio\/(webm|ogg|mp4|mpeg|wav|x-wav|x-m4a|aac)(;.*)?$/;
 ai.post(
   "/transcribe",
   requireWriter,
-  bodyLimit({ maxSize: MAX_AUDIO + 64 * 1024, onError: (c) => c.json({ error: { code: "http_413", message: "That recording is too long" } }, 413) }),
+  bodyLimit({ maxSize: MAX_AUDIO + 64 * 1024, onError: (c) => c.json({ error: { code: "http_413", message: translateText("That recording is too long") } }, 413) }),
   async (c) => {
     const v = callerOf(c);
-    if (!v.deps.speech) throw new HTTPException(503, { message: "Speech to text isn't set up on this server" });
+    if (!v.deps.speech) throw new HTTPException(503, { message: translateText("Speech to text isn't set up on this server") });
     const form = await c.req.formData().catch(() => null);
     const audio = form?.get("audio");
-    if (!(audio instanceof File) || audio.size === 0) throw new HTTPException(422, { message: "Send the recording as `audio`" });
-    if (audio.size > MAX_AUDIO) throw new HTTPException(413, { message: "That recording is too long" });
+    if (!(audio instanceof File) || audio.size === 0) throw new HTTPException(422, { message: translateText("Send the recording as `audio`") });
+    if (audio.size > MAX_AUDIO) throw new HTTPException(413, { message: translateText("That recording is too long") });
     const type = audio.type || "audio/webm";
-    if (!AUDIO_TYPES.test(type)) throw new HTTPException(415, { message: "That isn't a recording Ferret can read" });
+    if (!AUDIO_TYPES.test(type)) throw new HTTPException(415, { message: translateText("That isn't a recording Ferret can read") });
     const plan = await requireAllowed(v, "ai.ask");
     const text = await v.deps.speech.transcribe(new Uint8Array(await audio.arrayBuffer()), type).catch(() => {
-      throw new HTTPException(502, { message: "Couldn't turn that into words — try again" });
+      throw new HTTPException(502, { message: translateText("Couldn't turn that into words — try again") });
     });
     await recordUsage(v, "ai.ask", 1, plan);
     return c.json({ text: text.trim().slice(0, 500) });

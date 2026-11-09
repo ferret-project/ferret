@@ -1643,6 +1643,8 @@ export interface ItemsBulkResult {
 // ── Household settings ──────────────────────────────────────────────────────
 /** A household's settings (Settings → Household). */
 export interface HouseholdSettings {
+  /** Default language for shared messages and external borrowers; personal preferences take priority. */
+  language?: "en" | "hu";
   /** Where the household is (IANA, e.g. America/Denver): what "today" is, and when reminders go out. Null: not chosen. */
   timeZone: string | null;
   /** What "today" follows while it isn't chosen: the server's own zone. */
@@ -1751,6 +1753,7 @@ export interface PlanReport {
 
 /** Settings → Household: only what's sent changes. */
 export const householdSettingsInput = z.object({
+  language: z.enum(["en", "hu"]).optional(),
   timeZone: z.string().trim().min(1).max(64).refine(isTimeZone, "That isn't a time zone").nullable().optional(),
   currency: z.string().trim().toUpperCase().length(3).refine(isCurrency, "That isn't a currency").optional(),
   /** Per kind: on, off, or null to follow the server's default. */
