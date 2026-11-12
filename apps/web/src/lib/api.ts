@@ -302,6 +302,8 @@ export const api = {
   exportItems: (propertyId?: string) =>
     request<{ data: ExportRow[] }>(`/export/items.json${propertyId ? `?propertyId=${encodeURIComponent(propertyId)}` : ""}`),
   /** Same-origin, so the download carries the session cookie. */
+  draftListing: (itemId: string) =>
+    request<{ title: string; description: string; priceCents: number | null; priceReasoning: string }>(`/items/${encodeURIComponent(itemId)}/listing`, { method: "POST" }),
   donations: (year?: number) => request<{ years: DonationYear[]; data: DonationRow[] }>(`/export/donations.json${year ? `?year=${year}` : ""}`),
   donationsCsvUrl: (year: number) => `/api/v1/export/donations.csv?year=${year}`,
   exportCsvUrl: (propertyId?: string) => `/api/v1/export/items.csv${propertyId ? `?propertyId=${encodeURIComponent(propertyId)}` : ""}`,

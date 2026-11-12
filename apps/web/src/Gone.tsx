@@ -17,6 +17,7 @@ import { authClient } from "./lib/auth";
 import { DialogActions, Modal } from "./Modal";
 import { money, currencySymbol, toCents } from "./lib/money";
 import { conditionWord } from "./lib/words";
+import { ListingButton } from "./Listing";
 import { t, ph, plural, msg } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
@@ -109,6 +110,7 @@ export function GoneDialog({ item, householdId, onClose, onDone }: { item: ItemL
             </div>
           )}
         </div>
+        {what === "sold" && <ListingButton item={item} householdId={householdId} className="btn btn-text btn-sm self-start" />}
         {what === "donated" && (
           <>
             <div>

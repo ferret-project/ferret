@@ -3,6 +3,7 @@
  * Uploader styling is adapted from FlyonUI Pro "Dashboard Modal 8" and the
  * photo grid from "Gallery 1"; behaviour is plain React (no FlyonUI JS plugins).
  */
+import { ListingButton } from "./Listing";
 import { today } from "@ferret/shared/utils";
 import { lastScannedText } from "./lib/last-scanned";
 import { UsageCard } from "./Usage";
@@ -301,6 +302,7 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
       {/* What the AI filled in by itself: until someone checks it. */}
       <AiFilledCard item={item.data} householdId={householdId} />
       <ReplacementCard item={item.data} householdId={householdId} />
+      {!item.data.disposition && <ListingButton item={item.data} householdId={householdId} className="btn btn-text btn-sm self-start" />}
       {/* A recall that matches it: before anything else. */}
       <RecallCard itemId={itemId} householdId={householdId} />
       <JumpLinks

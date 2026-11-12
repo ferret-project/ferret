@@ -12,13 +12,14 @@ import { body } from "../lib/context";
 import { getAiRun } from "../lib/ai-runs";
 import { askReplacementEstimate } from "../lib/replacement";
 import { filtersFromText } from "../lib/plain-filters";
+import { draftListing } from "../lib/listing";
 import { filtersFromTextInput } from "@ferret/shared";
 import { HTTPException } from "hono/http-exception";
 import { bodyLimit } from "hono/body-limit";
 import { recordUsage, requireAllowed } from "../lib/plan";
 
 export const ai = new Hono<AppEnv>();
-for (const path of ["/ai-fills", "/items/:id/ai-fills/*", "/duplicates", "/duplicates/*", "/items/:id/merge", "/ai-runs/*", "/items/:id/replacement-estimate", "/items/filters-from-text", "/transcribe"]) ai.use(path, requireUser, requireHousehold);
+for (const path of ["/ai-fills", "/items/:id/ai-fills/*", "/duplicates", "/duplicates/*", "/items/:id/merge", "/ai-runs/*", "/items/:id/replacement-estimate", "/items/filters-from-text", "/items/:id/listing", "/transcribe"]) ai.use(path, requireUser, requireHousehold);
 
 /** "Filled in by AI": every field the AI filled in that nobody has looked at yet. */
 ai.get("/ai-fills", async (c) => c.json({ data: await aiFillEntries(callerOf(c)) }));
@@ -45,6 +46,9 @@ ai.post("/items/filters-from-text", async (c) => {
   const { text } = await body(c.req.raw, filtersFromTextInput);
   return c.json(await filtersFromText(callerOf(c), text));
 });
+
+/** Listing text for selling: a draft ad (title, description, suggested price) to copy; nothing is saved. Viewers can't. */
+ai.post("/items/:id/listing", requireWriter, async (c) => c.json(await draftListing(callerOf(c), c.req.param("id"))));
 
 /** A recording's longest: a few seconds of naming something is far under this. */
 const MAX_AUDIO = 4 * 1024 * 1024;

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Speech } from "../src/ports";
+import { member } from "../src/db/schema";
 import { FakeAi, setup } from "./helpers";
 
 type J = Record<string, unknown>;
@@ -128,5 +129,37 @@ describe("speech to text", () => {
     const { user } = await setup();
     const pat = await user("pat");
     expect((await pat.as("/api/v1/transcribe", { method: "POST", body: recording() })).status).toBe(503);
+  });
+});
+
+describe("listing text for selling", () => {
+  it("drafts a title, description and price from the item, never its notes or serial — and saves nothing", async () => {
+    const chat = new FakeAi([{ title: "DeWalt 20V drill DCD771", description: "Cordless drill in good condition.", price: 45.5, priceReasoning: "About half what it cost — a suggestion." }]);
+    const { user, db } = await setup({ chat });
+    const pat = await user("pat");
+    const val = await user("val");
+    const drill = await pat.addItem({ name: "Drill", brand: "DeWalt", model: "DCD771", condition: "good", purchasePriceCents: 9900, notes: "SECRETNOTE spare key under the mat", serialNumber: "SN-SECRET-1" });
+    const before = await json<{ updatedAt: string }>(pat.as(`/api/v1/items/${drill.id}`));
+
+    const draft = await json(pat.as(`/api/v1/items/${drill.id}/listing`, { method: "POST" }));
+    expect(draft).toEqual({ title: "DeWalt 20V drill DCD771", description: "Cordless drill in good condition.", priceCents: 4550, priceReasoning: "About half what it cost — a suggestion." });
+    const prompt = chat.calls[0]!.prompt;
+    expect(prompt).toContain("Brand: DeWalt");
+    expect(prompt).toContain("Paid new: 99.00 USD");
+    expect(prompt).not.toContain("SECRETNOTE");
+    expect(prompt).not.toContain("SN-SECRET-1");
+    expect(await json<{ updatedAt: string }>(pat.as(`/api/v1/items/${drill.id}`))).toMatchObject({ updatedAt: before.updatedAt });
+
+    // Viewers can't ask.
+    const valId = (await db.query.user.findFirst({ where: (u, { eq }) => eq(u.name, "val") }))!.id;
+    await db.insert(member).values({ id: crypto.randomUUID(), organizationId: pat.householdId, userId: valId, role: "viewer", createdAt: new Date() });
+    expect((await val.as(`/api/v1/items/${drill.id}/listing`, { method: "POST", headers: { "X-Household-Id": pat.householdId } })).status).toBe(403);
+  });
+
+  it("answers 503 when the server has no text model", async () => {
+    const { user } = await setup();
+    const pat = await user("pat");
+    const lamp = await pat.addItem({ name: "Lamp" });
+    expect((await pat.as(`/api/v1/items/${lamp.id}/listing`, { method: "POST" })).status).toBe(503);
   });
 });

@@ -62,6 +62,16 @@ reasoning. It's always an **estimate**: check a current price. **Use** puts it i
 your own in **Edit → To replace new**). The [insurance report](./insurance-report) and its spreadsheet show it beside
 the value.
 
+## Listing text for selling
+
+Selling something? On its page, **Write a listing to sell it** (also under **Sold it** when you mark it sold) drafts
+a short ad from what Ferret knows about it — name, brand, model, condition, your description, what its photos show,
+what you paid and what it's worth: a **title**, a **description** and a suggested **asking price**, with what the
+price is based on. Change anything, then copy each part (or **Copy it all**) into the marketplace you use.
+
+It's a draft: check it against the thing itself. Nothing is saved or posted anywhere, and your notes and its serial
+number are never sent to the AI. Each draft counts as one question on your plan.
+
 ## Possible duplicates
 
 **Possible duplicates** (in the menu, and the bell when there are some) lists things that may be the same thing twice:
