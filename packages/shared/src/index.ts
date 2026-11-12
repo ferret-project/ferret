@@ -540,9 +540,57 @@ export type AttachmentSuggestions = Partial<
   warrantyProvider?: string;
   /** From manuals: upkeep to repeat, e.g. "Clean the filter" every 3 months. */
   maintenance?: { title: string; intervalCount: number; intervalUnit: (typeof intervalUnits)[number] }[];
+  /** From manuals: replacement parts and supplies with their part numbers — suggested under the item's Parts & supplies. */
+  parts?: SuggestedPartReading[];
   /** The fields the model said it read plainly off the file (not inferred) — the only ones the AI may fill in by itself. */
   sure?: string[];
 };
+
+/** One of a thing's parts or supplies (Parts & supplies on its page): an item of the household's. */
+export interface ItemPart {
+  id: string;
+  name: string;
+  brand: string | null;
+  /** Its part number. */
+  model: string | null;
+  quantity: number;
+  minQuantity: number | null;
+  /** At or below what's kept: it's on the shopping list. */
+  low: boolean;
+  photoId: string | null;
+  place: string | null;
+  /** Where to buy it: its first link that isn't an Amazon product. */
+  link: { url: string; label?: string | null } | null;
+  /** Its Amazon product: one in the cart. */
+  amazonCart: string | null;
+  /** Without one: a search on the household's Amazon for its part number. */
+  amazonSearch: string | null;
+  /** The maintenance task on this thing that uses it, if that's how it's linked. */
+  task: string | null;
+}
+
+/** A part one of the thing's manuals lists that it doesn't have yet — tap to add it. */
+export interface SuggestedPart extends SuggestedPartReading {
+  attachmentId: string;
+  filename: string;
+}
+
+export interface ItemParts {
+  parts: ItemPart[];
+  suggested: SuggestedPart[];
+}
+
+export const dismissPartInput = z.object({
+  attachmentId: z.string().min(1).describe("The document that suggested it"),
+  partNumber: z.string().trim().min(1).max(60).describe("Its part number, as suggested"),
+});
+
+/** A part a manual lists: "Drum collection bag", 717531, 5 to a package. */
+export interface SuggestedPartReading {
+  name: string;
+  partNumber: string;
+  packSize?: number;
+}
 
 /** null = not analysed (not configured, or not an image). */
 export type AnalysisStatus = "pending" | "done" | "failed" | null;

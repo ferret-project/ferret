@@ -188,6 +188,7 @@ export async function notDuplicate(v: Caller, x: string, y: string) {
 const MERGE_FIELDS = [
   "description", "brand", "model", "serialNumber", "barcode", "condition", "purchaseDate", "returnBy", "purchasePriceCents",
   "valueCents", "replacementCents", "notes", "heir", "categoryId", "locationId", "containerItemId", "usageUnit", "minQuantity",
+  "partOfItemId",
 ] as const;
 
 /** Every column in the schema that points at an item's id (the item table's own box column included). */
@@ -242,6 +243,9 @@ export async function mergeItems(v: Caller, intoId: string, input: MergeInput) {
   }
   // A box into itself can't be: the one kept stays where it is if the other was inside it.
   if (patch.containerItemId === into.id) delete patch.containerItemId;
+  // Nor a part of itself: a part of the other one stops being a part when merged into it.
+  if (patch.partOfItemId === into.id) delete patch.partOfItemId;
+  if (into.partOfItemId === from.id) patch.partOfItemId = null;
   if (input.take.includes("name")) patch.name = from.name;
   if (input.take.includes("quantity")) patch.quantity = from.quantity;
   const tags = [...new Set([...into.tags, ...from.tags])];
@@ -256,6 +260,11 @@ export async function mergeItems(v: Caller, intoId: string, input: MergeInput) {
     if (target.table === item && target.column === item.containerItemId) {
       // Its contents: into the kept one (now a box, if it wasn't).
       await v.db.update(item).set({ containerItemId: into.id }).where(and(eq(item.householdId, v.householdId), eq(item.containerItemId, from.id), sql`${item.id} <> ${into.id}`));
+      continue;
+    }
+    if (target.table === item && target.column === item.partOfItemId) {
+      // Its parts: the kept one's (but not the kept one itself, if it was one of them).
+      await v.db.update(item).set({ partOfItemId: into.id }).where(and(eq(item.householdId, v.householdId), eq(item.partOfItemId, from.id), sql`${item.id} <> ${into.id}`));
       continue;
     }
     if (target.table === itemTag) continue; // tags are merged above

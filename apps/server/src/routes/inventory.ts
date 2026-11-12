@@ -8,6 +8,7 @@ import { PHOTO_ORDER } from "../lib/photo-order";
 import * as usage from "../lib/usage";
 import { usageReadingInput, itemsBulk,
   askInput,
+  dismissPartInput,
   itemFindQuery,
   type AttachmentKind,
   attachmentKinds,
@@ -29,6 +30,7 @@ import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import { attachment, item, user, warranty } from "../db/schema";
 import { analysisJob } from "../jobs/analyze";
+import { dismissSuggestedPart, itemParts } from "../lib/parts";
 import { countEvent } from "../lib/analytics";
 import { type AppEnv, body, callerOf, requireHousehold, requireUser, requireWriter } from "../lib/context";
 import * as svc from "../lib/inventory";
@@ -172,6 +174,15 @@ inventory.post("/items/:id/usage", requireWriter, async (c) =>
 );
 inventory.delete("/usage/:id", requireWriter, async (c) => {
   await usage.deleteReading(callerOf(c), c.req.param("id"));
+  return c.body(null, 204);
+});
+
+/** A thing's parts and supplies, and the ones its manuals list that it doesn't have yet. */
+inventory.get("/items/:id/parts", async (c) => c.json(await itemParts(callerOf(c), c.req.param("id"))));
+
+/** A part a manual suggested isn't wanted. */
+inventory.post("/items/:id/parts/dismiss", requireWriter, async (c) => {
+  await dismissSuggestedPart(callerOf(c), c.req.param("id"), await body(c.req.raw, dismissPartInput));
   return c.body(null, 204);
 });
 

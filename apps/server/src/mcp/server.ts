@@ -53,6 +53,7 @@ import * as catalog from "../lib/catalog";
 import * as templates from "../lib/templates";
 import * as collections from "../lib/collections";
 import * as claims from "../lib/claims";
+import { itemParts } from "../lib/parts";
 import type { FileStore } from "../lib/files";
 import * as upkeep from "../lib/maintenance";
 import * as products from "../lib/products";
@@ -147,7 +148,7 @@ function buildServer(v: McpCaller) {
     {
       title: "Get an item",
       description:
-        "Everything about one item: all its fields, where it's kept (and which box), warranties and claims, its photos and documents with what the vision model read in them, and any suggested fields waiting for the person to confirm (item fields go through update_item, a warranty through save_warranty, a schedule through save_maintenance). Use it after search_inventory or list_items has found the item, when you need the details; for what happened to it over time use item_history, and for a quick look at many items list_items is enough.",
+        "Everything about one item: all its fields, where it's kept (and which box), its parts and supplies (bags, filters — items of their own with partOfItemId set to it; add one with create_item and partOfItemId, the part number in model; its manuals' suggested parts are in attachments' suggestions.parts), warranties and claims, its photos and documents with what the vision model read in them, and any suggested fields waiting for the person to confirm (item fields go through update_item, a warranty through save_warranty, a schedule through save_maintenance). Use it after search_inventory or list_items has found the item, when you need the details; for what happened to it over time use item_history, and for a quick look at many items list_items is enough.",
       inputSchema: z.object({ id: z.string().min(1).describe("The item's id, from search_inventory or list_items") }),
       annotations: read,
     },
@@ -167,8 +168,13 @@ function buildServer(v: McpCaller) {
         ]);
         const [listed] = await svc.asListing(v, [it]);
         const itemClaims = await claims.listClaims(v, { itemId: id });
+        const { parts } = await itemParts(v, id);
         return {
           ...itemView(it, paths),
+          // Its parts and supplies (items of their own, partOfItemId = this): stock and where to buy.
+          parts: parts.length
+            ? parts.map((p) => compact({ id: p.id, name: p.name, partNumber: p.model ?? undefined, quantity: p.quantity, onShoppingList: p.low || undefined, buyAt: p.link?.url, amazonCart: p.amazonCart ?? undefined, amazonSearch: p.amazonSearch ?? undefined, usedBy: p.task ?? undefined }))
+            : undefined,
           box: listed?.container?.name,
           contents: listed?.contents || undefined,
           label: listed?.labelCode ?? undefined,

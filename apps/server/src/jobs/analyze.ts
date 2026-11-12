@@ -40,6 +40,8 @@ const DOCUMENT_REPLY_TOKENS = 4000;
 /** What's left of docling's Markdown once its placeholders (`<!-- image -->`), markup and spaces are gone. */
 const readableLength = (markdown: string) => markdown.replace(/<!--[\s\S]*?-->/g, "").replace(/[\s#*_|>`-]/g, "").length;
 const PROMPT_TEXT = 12_000;
+/** Parts read from a manual, at most. */
+const MAX_PARTS = 8;
 
 /** Which analysis job an upload gets, given what's configured — or null for none. */
 export function analysisJob(deps: Deps, kind: AttachmentKind, contentType: string): string | null {
@@ -85,12 +87,21 @@ const replySchema = {
       },
       maxItems: 8,
     },
+    parts: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: { name: { type: "string" }, partNumber: { type: "string" }, packSize: { type: ["integer", "null"] } },
+        required: ["name", "partNumber", "packSize"],
+      },
+      maxItems: MAX_PARTS,
+    },
     // Bounded: unbounded, gpt-oss can repeat one name until it times out (a receipt took 5 minutes, 2026-11-12).
     sure: { type: "array", items: { type: "string", enum: [...SURE_FIELDS] }, uniqueItems: true, maxItems: SURE_FIELDS.length },
   },
   required: [
     "description", "text", "name", "brand", "model", "serialNumber", "barcode",
-    "purchaseDate", "purchasePrice", "returnDays", "returnBy", "warrantyMonths", "warrantyProvider", "maintenance", "sure",
+    "purchaseDate", "purchasePrice", "returnDays", "returnBy", "warrantyMonths", "warrantyProvider", "maintenance", "parts", "sure",
   ],
 };
 
@@ -105,6 +116,7 @@ const fieldRules = (currency: string) => `- name: a short, generic name for the 
 - warrantyMonths: how long the warranty lasts, in months ("one year" = 12, "90 days" = 3), only when stated; otherwise null. If several parts have different terms, use the main one.
 - warrantyProvider: who provides the warranty (the manufacturer, or e.g. "Geek Squad" for an extended plan), only when stated; otherwise null.
 - maintenance: upkeep the owner should repeat on a schedule, only when a manual or care guide states how often — e.g. "clean the filter every 3 months" → {"task": "Clean the filter", "every": 3, "unit": "month"}. task is a short instruction starting with a verb. unit is day, week, month or year ("annually" = 1 year). At most 8, the most important first; [] if none.
+- parts: replacement parts and supplies the owner will buy again, only where the document prints their part numbers (a parts list, optional accessories, maintenance): consumables and wear parts like bags, filters, belts, blades, bulbs, batteries, brushes, cartridges — e.g. {"name": "Drum collection bag", "partNumber": "717531", "packSize": 5}. name is short and generic; partNumber is the part or stock number exactly as printed (like "717531" or "JCDC3-63") — never a drawing's index or item number; packSize how many come in one package only when a package is printed ("pkg. of 5", "package of 5"), else null — never a parts list's quantity column. Not screws, bolts, hardware, motors, switches or structural parts. At most ${MAX_PARTS}, most often bought first; [] if none.
 - sure: the names of the fields above that you read plainly and in full, printed on the label or document itself — not inferred, guessed or partly legible. For name: only when the item is unmistakable. [] if none.
 Never guess: use null when unsure.`;
 
@@ -129,8 +141,34 @@ Reply with JSON only:
 ${fieldRules(currency)}
 
 <document>
-${markdown.slice(0, PROMPT_TEXT)}
+${markdown.slice(0, PROMPT_TEXT)}${partsExcerpt(markdown)}
 </document>`;
+}
+
+/** Sections that list parts — a manual's parts list and accessories, usually at the back. */
+const PARTS_SECTION = /\b(parts?\s+list|replacement\s+parts|accessor(y|ies)|consumables?|part\s+no|pkg\.?\s+of|packa?g?e?\s+of\s+\d)/i;
+/** Lines in them about what's bought again (not the screws). */
+const SUPPLY_LINE = /\b(bags?|filters?|belts?|blades?|bulbs?|lamps?|batter(y|ies)|brushes?|cartridges?|pads?|discs?|sheets?|hoses?|tape|gaskets?|wicks?|pkg\.?|pack(age)?\s+of)\b/i;
+const PARTS_EXCERPT = 6000;
+
+/**
+ * The parts-list lines past what the model reads of a long manual: from sections about parts, only the lines about
+ * supplies (a parts list is every screw), so "717531 Drum collection bag (pkg. of 5)" reaches it.
+ */
+export function partsExcerpt(markdown: string) {
+  if (markdown.length <= PROMPT_TEXT) return "";
+  const lines: string[] = [];
+  for (const section of markdown.slice(PROMPT_TEXT).split(/\n(?=#{1,6}\s)/)) {
+    if (!PARTS_SECTION.test(section)) continue;
+    const heading = /^#{1,6}\s+(.+)/.exec(section)?.[1];
+    const supplies = section.split("\n").filter((l) => SUPPLY_LINE.test(l) && /\d/.test(l) && !/^#/.test(l));
+    // A parts list's first column is the drawing's index number ("63 … JCDC3-63 … Canister Filter"): left out, so it
+    // isn't taken for the part number.
+    const cleaned = supplies.map((l) => l.trim().replace(/^\d{1,3}(-\d{1,3})?\s*(…|\.{2,}|\s)\s*(?=\S*\d)/, "").slice(0, 300));
+    if (supplies.length) lines.push(...(heading ? [`## ${heading}`] : []), ...cleaned);
+  }
+  const text = lines.join("\n").slice(0, PARTS_EXCERPT);
+  return text ? `\n\n[…]\n\n${text}` : "";
 }
 
 const text = (max: number) =>
@@ -143,6 +181,13 @@ const schedule = z.object({
   task: z.string().trim().min(3).max(200),
   every: z.number().int().min(1).max(1000),
   unit: z.enum(intervalUnits),
+});
+
+const part = z.object({
+  name: z.string().trim().min(2).max(120),
+  // A drawing's index number ("63") isn't one.
+  partNumber: z.string().trim().min(2).max(60).refine((n) => !/^\d{1,3}$/.test(n)),
+  packSize: z.number().int().min(2).max(10_000).nullish().catch(undefined),
 });
 
 const reply = z.object({
@@ -175,6 +220,19 @@ const reply = z.object({
         return ok.success ? [ok.data] : [];
       }).slice(0, 8),
     ),
+  parts: z
+    .array(z.unknown())
+    .nullish()
+    .catch(undefined)
+    .transform((list) => {
+      const seen = new Set<string>();
+      return (list ?? []).flatMap((entry) => {
+        const ok = part.safeParse(entry);
+        if (!ok.success || seen.has(ok.data.partNumber.toLowerCase())) return [];
+        seen.add(ok.data.partNumber.toLowerCase());
+        return [ok.data];
+      }).slice(0, MAX_PARTS);
+    }),
   sure: z
     .array(z.unknown())
     .nullish()
@@ -200,6 +258,7 @@ export function toAnalysis(raw: unknown): AttachmentAnalysis {
     maintenance: r.maintenance.length
       ? r.maintenance.map((m) => ({ title: m.task, intervalCount: m.every, intervalUnit: m.unit }))
       : undefined,
+    parts: r.parts.length ? r.parts.map((p) => ({ name: p.name, partNumber: p.partNumber, ...(p.packSize ? { packSize: p.packSize } : {}) })) : undefined,
     // Only fields it actually gave a value for.
     sure: r.sure.filter((f) => (f === "purchasePrice" ? r.purchasePrice != null : r[f as keyof typeof r] != null)),
   };

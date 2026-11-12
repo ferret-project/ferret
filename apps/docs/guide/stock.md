@@ -69,6 +69,23 @@ Only those words go to Amazon, when you open it.
 
 When something has run out, the bell says so and it's in the [daily reminder](./reminders).
 
+## Parts and supplies
+
+A thing's bags, filters, belts or blades can be listed on its page under **Parts & supplies**. Each part is a thing of
+its own, so it has its own count, **keep at least**, links and place, and turns up on the shopping list like anything
+else. The card shows how many are left, where to buy each (its link, **Add to Amazon cart**, or **Search Amazon** for
+its part number) and which maintenance task uses it.
+
+- **Add a part**: a name, its part number, how many you have and where to buy it. Or pick something already in Ferret.
+  **Put it on the shopping list when none are left** sets keep at least 0, which means "tell me when it's out".
+- **From the manual**: when a thing has its manual, the parts the manual lists (from its parts list or accessories)
+  are offered under the card, with their part numbers and pack sizes. **Add** makes the part, with none on hand, so
+  it's on the shopping list until you buy some. **Not needed** is remembered.
+- A part's own page says what it's **a part for**. The unlink button on the card stops it being a part; the part
+  itself stays.
+
+A task's part (see [Maintenance](./maintenance)) shows on the card too, with the task's name.
+
 ## History
 
 The **History** on the Stock card lists every change — scanned, by hand, by editing the item's quantity, or undone — with

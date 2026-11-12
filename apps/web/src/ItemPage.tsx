@@ -43,6 +43,7 @@ import { ProductSuggestions } from "./Product";
 import { Suggestions } from "./Suggestions";
 import { Warranties } from "./Warranties";
 import { ItemLinks } from "./Links";
+import { PartOfLine, PartsCard } from "./Parts";
 import { FromWeb } from "./FromWeb";
 import { useFeatures } from "./lib/features";
 import { StockCard } from "./Stock";
@@ -298,6 +299,7 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
           )}
           {purchase && <p className="text-base-content/80 text-sm">{purchase}</p>}
           <ReturnLine returnBy={item.data.returnBy} gone={Boolean(item.data.disposition)} />
+          {item.data.partOfItemId && <PartOfLine partOfItemId={item.data.partOfItemId} householdId={householdId} />}
           {item.data.heir && <p className="text-base-content/80 text-sm"><Trans>Goes to {ph({ heir: item.data.heir })}</Trans></p>}
           <Classification
             item={item.data}
@@ -471,6 +473,8 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
           that's in use is a full-width card. */}
       <div className="flex flex-wrap gap-2 [&>section]:w-full">
       <StockCard item={item.data} householdId={householdId} canEdit={canEdit && !item.data.disposition} />
+      {/* Its bags, filters…: things of their own, with stock and where to buy them; and the ones its manual lists. */}
+      <PartsCard item={item.data} householdId={householdId} canEdit={canEdit && !item.data.disposition} />
       <UsageCard item={item.data} householdId={householdId} canEdit={canEdit && !item.data.disposition} />
       {/* HomeKit / Matter setup codes: shown on request, with their QR for the Home app. */}
       <PairingCard itemId={itemId} householdId={householdId} canEdit={canEdit} />

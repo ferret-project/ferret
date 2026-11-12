@@ -1,4 +1,5 @@
 import type {
+  ItemParts,
   ServerCertificates,
   AccountDeletionInfo,
   HouseholdDeletionInfo,
@@ -338,6 +339,10 @@ export const api = {
   invitation: (id: string) => request<InvitationPreview>(`/invitations/${encodeURIComponent(id)}`),
   ask: (question: string) => request<AskAnswer>("/ask", { method: "POST", body: JSON.stringify({ question }) }),
   /** Search inside one item: passages of its documents, photos' text, warranties and notes. */
+  /** A thing's parts and supplies, and the ones its manuals list that it doesn't have yet. */
+  itemParts: (itemId: string) => request<ItemParts>(`/items/${itemId}/parts`),
+  dismissPart: (itemId: string, attachmentId: string, partNumber: string) =>
+    request<void>(`/items/${itemId}/parts/dismiss`, { method: "POST", body: JSON.stringify({ attachmentId, partNumber }) }),
   findInItem: (itemId: string, q: string) => request<ItemFindResult>(`/items/${itemId}/find?q=${encodeURIComponent(q)}`),
   askItem: (itemId: string, question: string) => request<AskAnswer>(`/items/${itemId}/ask`, { method: "POST", body: JSON.stringify({ question }) }),
   listItems: (

@@ -41,6 +41,12 @@ thing's page. **Add** opens the task filled in, so you can adjust it first. **No
 heater's flush, a dryer's vent. Most things need none. These say *typical for things like it*: check the manual. Each
 thing is only asked about once; a thing's page has **Suggest typical upkeep** too. See [Maintenance](./maintenance).
 
+## Suggested parts
+
+A manual's parts list and accessories are read too: the parts you'll buy again (bags, filters, belts, blades…) are
+offered on the thing's page under **Parts & supplies**, with their part numbers. **Add** makes each a thing of its own;
+nothing is added by itself. See [Parts and supplies](./stock#parts-and-supplies).
+
 ## Sorting an import
 
 When you [import a spreadsheet](./importing#a-spreadsheet-csv), an Amazon order history especially, **Sort with AI**
