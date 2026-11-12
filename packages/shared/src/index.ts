@@ -1018,6 +1018,8 @@ export interface ShoppingItem {
   unitCents: number | null;
   /** Its Amazon product, from its links (an imported order's "On Amazon") — to put it in the cart again. */
   amazon: { site: string; asin: string } | null;
+  /** Without an Amazon product: a search on Amazon for its part/model number (else barcode, else name) — amazonSearchUrl. */
+  amazonSearch: string | null;
 }
 
 export interface ShoppingList {

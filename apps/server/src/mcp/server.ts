@@ -254,17 +254,18 @@ function buildServer(v: McpCaller) {
     {
       title: "Shopping list",
       description:
-        "What to buy, run-out first: tracked consumables that have run out or are at or below their minimum (minQuantity, \"keep at least\"), with how many are left and a suggested amount to buy (and, for things bought on Amazon, amazonCart: an address that puts that many in the person's Amazon cart). Use it for \"what do we need?\" or before a shop; after buying, adjust_stock with a positive delta takes things off the list. Read-only.",
+        "What to buy, run-out first: tracked consumables that have run out or are at or below their minimum (minQuantity, \"keep at least\"), with how many are left and a suggested amount to buy (and, for things bought on Amazon, amazonCart: an address that puts that many in the person's Amazon cart; for the rest, amazonSearch: a search on Amazon for its part/model number). Use it for \"what do we need?\" or before a shop; after buying, adjust_stock with a positive delta takes things off the list. Read-only.",
       inputSchema: z.object({}),
       annotations: read,
     },
-    async () => run(async () => ({ toBuy: (await stock.shoppingList(v)).items.map(({ photoId: _photo, amazon, ...i }) =>
+    async () => run(async () => ({ toBuy: (await stock.shoppingList(v)).items.map(({ photoId: _photo, amazon, amazonSearch, ...i }) =>
           compact({
             ...i,
             place: i.place ?? undefined,
             minQuantity: i.minQuantity ?? undefined,
             unitCents: i.unitCents ?? undefined,
             amazonCart: amazon ? amazonCartUrl(amazon.site, [{ asin: amazon.asin, quantity: i.buy }]) : undefined,
+            amazonSearch: amazonSearch ?? undefined,
           }),
         ),
       })),

@@ -4,7 +4,7 @@
  * photo grid from "Gallery 1"; behaviour is plain React (no FlyonUI JS plugins).
  */
 import { ListingButton } from "./Listing";
-import { today } from "@ferret/shared/utils";
+import { amazonSearchUrl, today } from "@ferret/shared/utils";
 import { lastScannedText } from "./lib/last-scanned";
 import { UsageCard } from "./Usage";
 import { BarSearch } from "./Nav";
@@ -33,7 +33,7 @@ import { ORIGIN_HOW } from "./lib/origin";
 import { BoxContents, LabelBadge } from "./Boxes";
 import { flattenCategories, useCategories } from "./Catalog";
 import { mergeFields, useTemplates } from "./Templates";
-import { money } from "./lib/money";
+import { currentCurrency, money } from "./lib/money";
 import { CollectionBanner } from "./Collections";
 import { ItemMaintenance, maintenanceKey } from "./Maintenance";
 import { AiFilledCard } from "./AiFill";
@@ -306,7 +306,11 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
             )}
           />
           {item.data.notes && <p className="text-base-content/80 mt-2 whitespace-pre-line">{item.data.notes}</p>}
-          {item.data.links && item.data.links.length > 0 && <ItemLinks links={item.data.links} />}
+          {(() => {
+            // Something kept stocked ("keep at least") can be looked for on Amazon until it has a product link.
+            const search = item.data.minQuantity != null && !item.data.disposition ? amazonSearchUrl(item.data, currentCurrency()) : null;
+            return (item.data.links?.length || search) ? <ItemLinks links={item.data.links ?? []} search={search} /> : null;
+          })()}
           <AddedLine item={item.data} />
           <div className="mt-2 flex flex-col gap-2">
             <CollectionBanner householdId={householdId} item={item.data} />

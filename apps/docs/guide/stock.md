@@ -60,6 +60,12 @@ you added) get a cart button: each row's puts that many in your Amazon cart, and
 puts all of them in at once, in the numbers shown. Amazon asks you to sign in if you aren't; nothing is bought until you
 check out there.
 
+Things without one get **Amazon** instead (also on the item's page, beside its links, once it has a "keep at least"):
+a search on Amazon for its part or model number with the brand — "JET 717531" — or its barcode, or its name when it has
+neither. Put the part number in the item's **Model** field. Found the right one? Add its address to the item's links,
+and the search becomes the cart button. Which Amazon follows the household's currency (pounds → amazon.co.uk, euros →
+amazon.de, otherwise amazon.com); only those words go to Amazon, when you open it.
+
 When something has run out, the bell says so and it's in the [daily reminder](./reminders).
 
 ## History

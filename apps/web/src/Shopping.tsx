@@ -241,6 +241,20 @@ function Row(props: { item: ShoppingItem; canEdit: boolean; count: number; onCou
             <span className="icon-[tabler--shopping-cart-plus] size-5" />
           </a>
         )}
+        {!item.amazon && item.amazonSearch && (
+          // No Amazon product link yet: look for it there (its part number). Adding the product's link makes this "Add to cart".
+          <a
+            href={item.amazonSearch}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-soft btn-secondary btn-sm"
+            aria-label={t`Search Amazon for ${ph({ name: item.name })}`}
+            title={t`Search Amazon for it — add the product's link to the item for an Add to cart button`}
+          >
+            <span className="icon-[tabler--search] size-4" />
+            <Trans>Amazon</Trans>
+          </a>
+        )}
       </div>
     </li>
   );

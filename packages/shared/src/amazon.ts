@@ -23,3 +23,38 @@ export function amazonCartUrl(site: string, lines: { asin: string; quantity: num
 /** The first Amazon product among an item's links. */
 export const amazonProductOf = (links: { url: string }[] | null | undefined) =>
   (links ?? []).map((l) => amazonProduct(l.url)).find((p) => p !== null) ?? null;
+
+/** Which Amazon a household most likely buys from, by its currency (amazon.com when it's none of these; euros → .de). */
+const SITE_BY_CURRENCY: Record<string, string> = {
+  USD: "www.amazon.com",
+  CAD: "www.amazon.ca",
+  MXN: "www.amazon.com.mx",
+  BRL: "www.amazon.com.br",
+  GBP: "www.amazon.co.uk",
+  EUR: "www.amazon.de",
+  SEK: "www.amazon.se",
+  PLN: "www.amazon.pl",
+  TRY: "www.amazon.com.tr",
+  AED: "www.amazon.ae",
+  SAR: "www.amazon.sa",
+  INR: "www.amazon.in",
+  JPY: "www.amazon.co.jp",
+  SGD: "www.amazon.sg",
+  AUD: "www.amazon.com.au",
+};
+
+/**
+ * Until a thing has an Amazon product link (then it's "Add to cart"): a search on Amazon for it — its part or model
+ * number with the brand ("JET 717531"), else its barcode, else its name. Only those words go to Amazon, when the person
+ * opens it.
+ */
+export function amazonSearchUrl(
+  thing: { name: string; brand?: string | null; model?: string | null; barcode?: string | null },
+  currency?: string | null,
+) {
+  const model = thing.model?.trim();
+  const brand = thing.brand?.trim();
+  const query = model ? (brand && !model.toLowerCase().includes(brand.toLowerCase()) ? `${brand} ${model}` : model) : thing.barcode?.trim() || thing.name.trim();
+  if (!query) return null;
+  return `https://${SITE_BY_CURRENCY[currency ?? ""] ?? "www.amazon.com"}/s?k=${encodeURIComponent(query)}`;
+}

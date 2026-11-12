@@ -387,9 +387,26 @@ describe("adjust_stock", () => {
     expect(shop.items.map((i) => [i.name, i.amazon])).toEqual([["Salt", null], ["AAA batteries", { site: "www.amazon.com", asin: "B00ABCDEFG" }]]);
     const { call } = await connect(app, (await makeKey(ann)).key);
     expect((await call("shopping_list")).json().toBuy).toEqual([
-      expect.not.objectContaining({ amazonCart: expect.anything() }),
+      expect.objectContaining({ name: "Salt", amazonSearch: "https://www.amazon.com/s?k=Salt" }),
       expect.objectContaining({ name: "AAA batteries", buy: 4, amazonCart: "https://www.amazon.com/gp/aws/cart/add.html?ASIN.1=B00ABCDEFG&Quantity.1=4" }),
     ]);
+    expect((await call("shopping_list")).json().toBuy[1]).not.toHaveProperty("amazonSearch");
+  });
+
+  it("offers a search on Amazon by part number until a thing has an Amazon link, on the household's Amazon", async () => {
+    const { user } = await setup();
+    const ann = await user("ann");
+    await ann.addItem({ name: "Drum collection bags (5-pack)", brand: "JET", model: "717531", quantity: 0, minQuantity: 1 });
+    await ann.addItem({ name: "Filter", brand: "Acme", model: "Acme F-20", quantity: 0, minQuantity: 1 });
+    await ann.addItem({ name: "Glue", barcode: "012345678905", quantity: 0, minQuantity: 1 });
+    const searches = async () => ((await (await ann.as("/api/v1/shopping")).json()) as { items: { name: string; amazonSearch: string | null }[] }).items.map((i) => [i.name, i.amazonSearch]);
+    expect(await searches()).toEqual([
+      ["Drum collection bags (5-pack)", "https://www.amazon.com/s?k=JET%20717531"],
+      ["Filter", "https://www.amazon.com/s?k=Acme%20F-20"],
+      ["Glue", "https://www.amazon.com/s?k=012345678905"],
+    ]);
+    expect((await ann.as("/api/v1/household/settings", { method: "PUT", body: JSON.stringify({ currency: "GBP" }) })).status).toBe(200);
+    expect((await searches())[0]![1]).toBe("https://www.amazon.co.uk/s?k=JET%20717531");
   });
 });
 

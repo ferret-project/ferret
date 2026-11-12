@@ -30,8 +30,11 @@ export function asWebAddress(typed: string): string | null {
   }
 }
 
-export function ItemLinks({ links }: { links: ItemLink[] }) {
-  // An Amazon product page also offers to buy it again: one in the cart.
+/**
+ * The item's links. An Amazon product page among them also offers to buy it again (one in the cart); without one, a
+ * thing that's kept stocked (`search`: amazonSearchUrl) gets "Search Amazon" for its part number instead.
+ */
+export function ItemLinks({ links, search }: { links: ItemLink[]; search?: string | null }) {
   const product = amazonProductOf(links);
   const cart = product && amazonCartUrl(product.site, [{ asin: product.asin, quantity: 1 }]);
   return (
@@ -49,6 +52,14 @@ export function ItemLinks({ links }: { links: ItemLink[] }) {
           <a href={cart} target="_blank" rel="noopener noreferrer" className="btn btn-soft btn-secondary btn-sm" title={t`Puts one in your Amazon cart (Amazon asks you to sign in if you aren't)`}>
             <span className="icon-[tabler--shopping-cart-plus] size-4 shrink-0" />
             <Trans>Add to Amazon cart</Trans>
+          </a>
+        </li>
+      )}
+      {!product && search && (
+        <li>
+          <a href={search} target="_blank" rel="noopener noreferrer" className="btn btn-soft btn-secondary btn-sm" title={t`Looks for it on Amazon by its part or model number — add the product's link here for an Add to cart button`}>
+            <span className="icon-[tabler--search] size-4 shrink-0" />
+            <Trans>Search Amazon</Trans>
           </a>
         </li>
       )}
