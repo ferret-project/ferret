@@ -23,6 +23,7 @@ import {
   type Route,
   COVERAGE_HREF,
   WARRANTIES_HREF,
+  HEIRS_HREF,
   AI_FILLED_HREF,
   DUPLICATES_HREF,
   DELETED_HREF,
@@ -93,6 +94,7 @@ export const NAV_GROUPS: { title: MessageDescriptor; links: Link[] }[] = [
       { href: REPORT_HREF, label: msg`Insurance report`, icon: "icon-[tabler--file-description]" },
       { href: COVERAGE_HREF, label: msg`Insurance coverage`, icon: "icon-[tabler--umbrella]" },
       { href: WARRANTIES_HREF, label: msg`Warranties`, icon: "icon-[tabler--shield-check]" },
+      { href: HEIRS_HREF, label: msg`Personal property list`, icon: "icon-[tabler--users]" },
     ],
   },
   {

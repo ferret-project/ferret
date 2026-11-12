@@ -1,6 +1,7 @@
 /** Item lifecycle: sold, given away, thrown out, lost, stolen — out of lists and totals, kept with its history. */
 import { today } from "@ferret/shared";
 import { describe, expect, it } from "vitest";
+import { member } from "../src/db/schema";
 import { setup } from "./helpers";
 
 type User = Awaited<ReturnType<Awaited<ReturnType<typeof setup>>["user"]>>;
@@ -86,5 +87,30 @@ describe("item lifecycle", () => {
     expect((await ann.as("/api/v1/export/donations.json?year=26")).status).toBe(400);
     // Bringing it back clears who it went to.
     expect(await json(send(ann, "PATCH", `/api/v1/items/${coat.id}`, { disposition: null }))).toMatchObject({ disposition: null, disposedTo: null });
+  });
+});
+
+describe("personal property list", () => {
+  it("groups things by heir for owners and admins only, leaving out gone things", async () => {
+    const { user, db } = await setup();
+    const ann = await user("ann");
+    const bob = await user("bob");
+    await ann.addItem({ name: "Watch", heir: "Sam", serialNumber: "W1", valueCents: 50000 });
+    await ann.addItem({ name: "Atlas", heir: " sam ", valueCents: 2000 });
+    await ann.addItem({ name: "Piano", heir: "Alex" });
+    await ann.addItem({ name: "Lamp" });
+    const sold = await ann.addItem({ name: "Ring", heir: "Alex" });
+    await send(ann, "PATCH", `/api/v1/items/${sold.id}`, { disposition: "sold" });
+
+    const list = await json<{ data: { heir: string; valueCents: number; items: { name: string; serialNumber: string | null }[] }[] }>(ann.as("/api/v1/export/heirs.json"));
+    expect(list.data.map((g) => [g.heir, g.items.map((i) => i.name), g.valueCents])).toEqual([
+      ["Alex", ["Piano"], 0],
+      ["Sam", ["Atlas", "Watch"], 52000],
+    ]);
+    expect(list.data[1]!.items[1]!.serialNumber).toBe("W1");
+
+    const bobId = (await db.query.user.findFirst({ where: (u, { eq }) => eq(u.name, "bob") }))!.id;
+    await db.insert(member).values({ id: crypto.randomUUID(), organizationId: ann.householdId, userId: bobId, role: "member", createdAt: new Date() });
+    expect((await bob.as("/api/v1/export/heirs.json", { headers: { "X-Household-Id": ann.householdId } })).status).toBe(403);
   });
 });

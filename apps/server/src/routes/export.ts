@@ -7,6 +7,7 @@ import { HTTPException } from "hono/http-exception";
 import { type AppEnv, callerOf, requireHousehold, requireSession, requireUser } from "../lib/context";
 import { donations, donationsCsv } from "../lib/donations";
 import { exportRows, toCsv } from "../lib/export";
+import { heirsList } from "../lib/heirs";
 import { householdExport } from "../lib/household-export";
 import { todayFor } from "../lib/household-time";
 
@@ -50,6 +51,12 @@ exporter.get("/donations.csv", async (c) => {
     "Content-Disposition": `attachment; filename="ferret-donations-${year}.csv"`,
     "Cache-Control": "no-store",
   });
+});
+
+/** The personal property list (who should have what): it says who gets what, so owners and admins only. */
+exporter.get("/heirs.json", async (c) => {
+  if (c.var.role !== "owner" && c.var.role !== "admin") throw new HTTPException(403, { message: "Only the household's owner and admins can see who gets what" });
+  return c.json(await heirsList(callerOf(c)));
 });
 
 /**

@@ -31,6 +31,7 @@ export type Route =
   | { name: "shopping" }
   | { name: "past" }
   | { name: "donations"; year: string }
+  | { name: "heirs" }
   | { name: "walkthrough"; locationId: string | null; step: "photos" | "review" }
   | { name: "roomscan"; id: string }
   | { name: "collections" }
@@ -103,6 +104,8 @@ export const COVERAGE_HREF = "#/coverage";
 export const LOANS_HREF = "#/loans";
 /** Every warranty in the household, and claims in progress (WarrantyList.tsx). */
 export const WARRANTIES_HREF = "#/warranties";
+/** The personal property list: who should have what (Heirs.tsx). */
+export const HEIRS_HREF = "#/heirs";
 /** What the AI filled in by itself, waiting for someone to check it (AiFill.tsx). */
 export const AI_FILLED_HREF = "#/ai-filled";
 /** Things that may be the same thing twice, to merge (Duplicates.tsx). */

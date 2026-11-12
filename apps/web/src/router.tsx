@@ -31,6 +31,7 @@ import { Maintenance } from "./Maintenance";
 import { MorePage } from "./Nav";
 import { NotFound } from "./NotFound";
 import { Donations, Past } from "./Gone";
+import { Heirs } from "./Heirs";
 import { Places } from "./Places";
 import { ProviderPage, Providers } from "./Providers";
 import { useHousehold } from "./lib/household";
@@ -377,6 +378,7 @@ const routeTree = rootRoute.addChildren([
     screen("shopping", "shopping", ({ householdId }) => <Shopping householdId={householdId} />, Shopping),
     screen("past", "past", ({ householdId }) => <Past householdId={householdId} />),
     screen("loans", "loans", ({ householdId }) => <Loans householdId={householdId} />),
+    screen("heirs", "heirs", Heirs),
     screen("warranties", "warranties", ({ householdId }) => <WarrantyList householdId={householdId} />),
     screen("duplicates", "duplicates", ({ householdId }) => <Duplicates householdId={householdId} />),
     screen("ai-filled", "ai-filled", ({ householdId }) => <AiFilled householdId={householdId} />),

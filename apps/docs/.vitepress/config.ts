@@ -110,6 +110,7 @@ export default defineConfig({
           text: "Your records",
           items: [
             { text: "Insurance report", link: "/guide/insurance-report" },
+            { text: "Personal property list", link: "/guide/personal-property-list" },
             { text: "Insurance coverage", link: "/guide/coverage" },
             { text: "Share links", link: "/guide/sharing" },
             { text: "Download everything", link: "/guide/download-everything" },

@@ -304,6 +304,7 @@ export const api = {
   /** Same-origin, so the download carries the session cookie. */
   draftListing: (itemId: string) =>
     request<{ title: string; description: string; priceCents: number | null; priceReasoning: string }>(`/items/${encodeURIComponent(itemId)}/listing`, { method: "POST" }),
+  heirs: () => request<{ data: HeirGroup[] }>("/export/heirs.json"),
   donations: (year?: number) => request<{ years: DonationYear[]; data: DonationRow[] }>(`/export/donations.json${year ? `?year=${year}` : ""}`),
   donationsCsvUrl: (year: number) => `/api/v1/export/donations.csv?year=${year}`,
   exportCsvUrl: (propertyId?: string) => `/api/v1/export/items.csv${propertyId ? `?propertyId=${encodeURIComponent(propertyId)}` : ""}`,
@@ -620,3 +621,10 @@ export type DonationRow = {
   photoId: string | null;
 };
 export type DonationYear = { year: number; count: number; valueCents: number };
+
+/** The personal property list: things by who should have them (server lib/heirs.ts). */
+export type HeirGroup = {
+  heir: string;
+  valueCents: number;
+  items: { id: string; name: string; brand: string | null; model: string | null; serialNumber: string | null; description: string | null; quantity: number; place: string | null; box: string | null; valueCents: number | null; photoId: string | null }[];
+};
