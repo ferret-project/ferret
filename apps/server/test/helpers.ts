@@ -302,7 +302,7 @@ export async function setup(
     if (vectors) await jobs.enqueue(INDEX_JOB, { itemId });
   };
   const full = { db, blobs, images, jobs, ai, chat, documents, vectors, reranker, products, recalls, entitlements } as Deps;
-  const analyze = analyzeAttachment({ db, files, ai, chat, images, documents, entitlements, onItemChanged, full });
+  const analyze = analyzeAttachment({ db, files, ai, chat, images, documents, pdfPages, entitlements, onItemChanged, full });
   jobs.register({ [PHOTO_JOB]: analyze, [DOCUMENT_JOB]: analyze, [ROOM_SCAN_JOB]: analyzeRoomScan({ db, files, ai, entitlements }) });
   if (chat ?? ai) jobs.register({ [IMPORT_TRIAGE_JOB]: importTriageJob(full), [REPLACEMENT_JOB]: replacementJob(full), [TYPICAL_UPKEEP_JOB]: typicalUpkeepJob(full) });
   if (pdfPages) jobs.register({ [PDF_THUMB_JOB]: pdfThumbnail({ db, files, pdfPages, images }), [PDF_BACKFILL_JOB]: pdfThumbnailBackfill({ db, jobs }) });

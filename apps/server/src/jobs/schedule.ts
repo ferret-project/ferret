@@ -89,6 +89,7 @@ export function jobSchedule({
     chat: deps.chat,
     images: deps.images,
     documents: deps.documents,
+    pdfPages: deps.pdfPages,
     analytics: deps.analytics,
     entitlements: deps.entitlements,
     onItemChanged,

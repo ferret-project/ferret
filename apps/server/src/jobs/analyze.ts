@@ -13,7 +13,7 @@ import type { FileStore } from "../lib/files";
 import { countEvent } from "../lib/analytics";
 import { allow, recordUsage } from "../lib/plan";
 import { sniffContentType } from "../lib/sniff";
-import type { Ai, Analytics, Db, Deps, Documents, Entitlements, Images, JobHandler, TextModel } from "../ports";
+import type { Ai, Analytics, Db, Deps, Documents, Entitlements, Images, JobHandler, PdfPages, TextModel } from "../ports";
 import { householdCurrency } from "../lib/household-time";
 import { suggestTasks } from "../lib/suggested-tasks";
 import { autoFill } from "../lib/ai-fill";
@@ -29,13 +29,17 @@ export const VISION_PX = 1600;
 export const previewKey = (blobKey: string) => `${blobKey}.preview`;
 /** Stored transcription limit (long manuals), and how much of it the model reads for suggestions. */
 const MAX_TEXT = 200_000;
+/** Fewer readable characters than this in docling's Markdown, and a PDF is taken for a scan. */
+const SCANNED_BELOW = 40;
+/** What's left of docling's Markdown once its placeholders (`<!-- image -->`), markup and spaces are gone. */
+const readableLength = (markdown: string) => markdown.replace(/<!--[\s\S]*?-->/g, "").replace(/[\s#*_|>`-]/g, "").length;
 const PROMPT_TEXT = 12_000;
 
 /** Which analysis job an upload gets, given what's configured — or null for none. */
 export function analysisJob(deps: Deps, kind: AttachmentKind, contentType: string): string | null {
   if (!deps.jobs) return null;
   const image = contentType.startsWith("image/");
-  if (kind === "document" && (deps.documents || (image && deps.ai && deps.images))) return DOCUMENT_JOB;
+  if (kind === "document" && (deps.documents || ((image || (contentType === "application/pdf" && deps.pdfPages)) && deps.ai && deps.images))) return DOCUMENT_JOB;
   if (kind === "photo" && image && deps.ai && deps.images) return PHOTO_JOB;
   return null;
 }
@@ -208,6 +212,8 @@ export function analyzeAttachment(deps: {
   chat?: TextModel;
   images?: Images;
   documents?: Documents;
+  /** Draws a PDF's first page, for the vision model to read a scan that has no text in it. */
+  pdfPages?: PdfPages;
   /** Counts each photo analysed (the public demo's usage counts, lib/analytics.ts). */
   analytics?: Analytics;
   /** Households' plans, for the period an analysis is counted in (lib/plan.ts). */
@@ -252,9 +258,18 @@ export function analyzeAttachment(deps: {
           : undefined;
 
       let analysis: AttachmentAnalysis | undefined;
+      // A scanned PDF (a picture of a receipt or a warranty card) has no text for docling to find: the vision model
+      // reads its first page instead.
+      const scanned =
+        row.contentType === "application/pdf" && (markdown === undefined || readableLength(markdown) < SCANNED_BELOW) && deps.pdfPages && deps.ai && deps.images
+          ? await deps.pdfPages.firstPage(bytes, VISION_PX).then((page) => (page ? deps.images!.resize(page, VISION_PX, "jpeg") : null))
+          : null;
       // The browser's vision copy if it sent one (lib/attachments.ts), else made here.
       const preview = row.contentType.startsWith("image/") ? await deps.files.get(row.householdId, previewKey(row.blobKey)).catch(() => null) : null;
-      if (row.contentType.startsWith("image/") && deps.ai && (preview || deps.images)) {
+      if (scanned) {
+        asked = true;
+        analysis = toAnalysis(await deps.ai!.json({ prompt: imagePrompt(kind, await householdCurrency(deps.db, row.householdId)), schema: replySchema, image: { data: scanned, contentType: "image/jpeg" } }));
+      } else if (row.contentType.startsWith("image/") && deps.ai && (preview || deps.images)) {
         const image = preview ?? (await deps.images!.resize(bytes, VISION_PX, "jpeg"));
         if (image) {
           asked = true;
@@ -267,7 +282,7 @@ export function analyzeAttachment(deps: {
       }
       if (!analysis && markdown !== undefined) analysis = { description: "", text: "", suggestions: {} };
       if (!analysis) return void (await save(null)); // couldn't decode it (e.g. HEIC); retrying won't help
-      if (markdown) analysis.text = markdown;
+      if (markdown && !scanned) analysis.text = markdown;
 
       await save(analysis);
       // Schedules read from a manual: into Suggested maintenance, for a person to add.

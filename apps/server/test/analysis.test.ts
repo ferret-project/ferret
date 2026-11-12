@@ -218,6 +218,33 @@ describe("document analysis (docling)", () => {
     expect(a).toMatchObject({ analysis: { text: receiptMarkdown, suggestions: { purchasePriceCents: 12900 } } });
   });
 
+  it("reads a scanned PDF's first page with the vision model when docling finds no text in it", async () => {
+    const ai = new FakeAi([{ ...receiptReply, description: "JET 5-year warranty card.", text: "5 YEAR WARRANTY", warrantyMonths: 60 }]);
+    const documents = new FakeDocuments(["<!-- image -->\n\nScreenshot"]);
+    const page = { firstPage: async () => new Uint8Array(await photo()) };
+    const { jobs, user } = await setup({ ai, documents, pdfPages: page });
+    const pat = await user("pat");
+    const { id: itemId } = await pat.addItem({ name: "Dust collector" });
+    await pat.upload(itemId, pdf(), "warranty.pdf", "document");
+    await jobs.drain();
+
+    expect(ai.calls).toEqual([{ prompt: expect.stringContaining("photographed document"), image: "image/jpeg" }]);
+    const [a] = await pat.attachments(itemId);
+    // Its text is what the vision model read, not docling's placeholder.
+    expect(a).toMatchObject({ analysisStatus: "done", analysis: { description: "JET 5-year warranty card.", text: "5 YEAR WARRANTY", suggestions: { warrantyMonths: 60 } } });
+  });
+
+  it("reads PDFs with the vision model when there's no docling but pages can be drawn", async () => {
+    const ai = new FakeAi([receiptReply]);
+    const { jobs, user } = await setup({ ai, pdfPages: { firstPage: async () => new Uint8Array(await photo()) } });
+    const pat = await user("pat");
+    const { id: itemId } = await pat.addItem({ name: "Drill" });
+    expect((await pat.upload(itemId, pdf(), "receipt.pdf", "document")).analysisStatus).toBe("pending");
+    await jobs.drain();
+    expect(ai.calls).toEqual([{ prompt: expect.stringContaining("photographed document"), image: "image/jpeg" }]);
+    expect((await pat.attachments(itemId))[0]).toMatchObject({ analysis: { suggestions: { purchasePriceCents: 12900 } } });
+  });
+
   it("stores docling's text even without a model, and retries when docling fails", async () => {
     const documents = new FakeDocuments([new Error("docling returned 503"), "# Owner's manual\n\nKeep dry."]);
     const { db, jobs, user } = await setup({ documents });
