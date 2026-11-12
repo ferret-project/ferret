@@ -160,7 +160,7 @@ const CHECK_WORDS: Record<string, MessageDescriptor> = {
   "attachments.item": msg`Photos or documents whose thing is missing or in another household.`,
   "items.household": msg`Things belonging to a household that no longer exists.`,
   "households.members": msg`Households nobody is a member of — nobody can open them.`,
-  "jobs.failed": msg`Background jobs that gave up after their last try (the service error log says why).`,
+  "jobs.failed": msg`Background jobs that gave up after their last try in the last week (the service error log says why).`,
   "jobs.stuck": msg`Background jobs still running whose turn came over an hour ago — a slow model, or a restart mid-job.`,
   "imports.ai": msg`Imports sorted with AI that never finished.`,
   "downloads.stuck": msg`Downloads from a web address still waiting after a day.`,

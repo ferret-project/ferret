@@ -1,7 +1,8 @@
 /** Server check: what's wrong with the live server — missing files, rows pointing at deleted things, backups. */
 import { and, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
-import { attachment, location } from "../src/db/schema";
+import { attachment, job, location } from "../src/db/schema";
+import { purgeFailedJobs } from "../src/jobs/purge";
 import { setup } from "./helpers";
 
 type Check = { files: { total: number; missing: number; unreadable: number }; findings: { kind: string; count: number; examples: string[] }[] };
@@ -35,5 +36,23 @@ describe("server check", () => {
     expect(kinds["items.room"]).toMatchObject({ count: 1, examples: [expect.stringContaining("Mower › Shed (deleted)")] });
 
     expect((await bob.as("/api/v1/server/check", { method: "POST" })).status).toBe(403);
+  });
+});
+
+describe("failed jobs", () => {
+  it("are reported for a week and purged after 30 days", async () => {
+    const { user, db } = await setup();
+    const ann = await user("ann");
+    const day = 24 * 60 * 60 * 1000;
+    const at = (daysAgo: number) => new Date(Date.now() - daysAgo * day);
+    await db.insert(job).values([
+      { type: "maintenance.remind", payload: "{}", status: "failed", attempts: 6, runAt: at(1) },
+      { type: "maintenance.remind", payload: "{}", status: "failed", attempts: 6, runAt: at(8) },
+      { type: "maintenance.remind", payload: "{}", status: "failed", attempts: 6, runAt: at(40) },
+    ]);
+    const res = (await (await ann.as("/api/v1/server/check", { method: "POST" })).json()) as Check;
+    expect(res.findings.find((f) => f.kind === "jobs.failed")).toMatchObject({ examples: ["maintenance.remind: 1"] });
+    expect(await purgeFailedJobs(db)).toBe(1);
+    expect((await db.select().from(job).where(eq(job.status, "failed"))).length).toBe(2);
   });
 });

@@ -6,11 +6,12 @@
  * - rows pointing at something deleted or in another household (a thing in a deleted room or box, a category gone,
  *   a room under a deleted room, a property's rooms in another household);
  * - work that never finished: jobs that failed for good or have been running for over an hour, imports sorted by AI
- *   and web-address downloads stuck for a day, room scans that never ended;
+ *   and web-address downloads stuck for a day, room scans that never ended (failed jobs: the last week only — the
+ *   daily purge removes them after 30 days);
  * - backups: the last run failed, or the last good one is over two days old.
  * Read-only: it changes nothing, and names households and things only to the server admin.
  */
-import { and, count, eq, isNotNull, isNull, lt, ne, or, sql } from "drizzle-orm";
+import { and, count, eq, gte, isNotNull, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { member, organization } from "../db/schema/auth";
 import { aiRun, attachment, backupRun, category, item, job, location, pendingDownload, roomScan } from "../db/schema";
@@ -173,9 +174,9 @@ export async function runServerCheck({ db, blobs, files, now = new Date() }: Dep
   const failedJobs = await db
     .select({ type: job.type, n: count() })
     .from(job)
-    .where(eq(job.status, "failed"))
+    .where(and(eq(job.status, "failed"), gte(job.runAt, new Date(now.getTime() - 7 * DAY))))
     .groupBy(job.type);
-  add({ kind: "jobs.failed", level: "note", rows: failedJobs.map((j) => `${j.type}: ${j.n}`), text: "Background jobs that gave up after their last try (the service error log says why)." });
+  add({ kind: "jobs.failed", level: "note", rows: failedJobs.map((j) => `${j.type}: ${j.n}`), text: "Background jobs that gave up after their last try in the last week (the service error log says why)." });
   const stuckJobs = await db
     .select({ type: job.type, n: count() })
     .from(job)
