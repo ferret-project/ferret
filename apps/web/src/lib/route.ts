@@ -30,6 +30,7 @@ export type Route =
   | { name: "deleted" }
   | { name: "shopping" }
   | { name: "past" }
+  | { name: "donations"; year: string }
   | { name: "walkthrough"; locationId: string | null; step: "photos" | "review" }
   | { name: "roomscan"; id: string }
   | { name: "collections" }
@@ -81,6 +82,8 @@ export const DELETED_HREF = "#/deleted";
 export const SHOPPING_HREF = "#/shopping";
 /** Things you no longer have: sold, given away, thrown out, lost, stolen (Gone.tsx). */
 export const PAST_HREF = "#/past";
+/** One year's donations, to print or download (Gone.tsx). */
+export const donationsHref = (year: number) => `#/donations/${year}`;
 /** Room-by-room walkthrough: photograph a room's things, then review them (Walkthrough.tsx). */
 export const WALKTHROUGH_HREF = "#/walkthrough";
 export const walkthroughHref = (locationId: string, step: "photos" | "review" = "photos") =>

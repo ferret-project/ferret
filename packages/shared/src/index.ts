@@ -176,7 +176,7 @@ export const itemLink = z.object({
 export type ItemLink = z.infer<typeof itemLink>;
 
 /** What happened to something you no longer have. */
-export const itemDispositions = ["sold", "given", "discarded", "lost", "stolen"] as const;
+export const itemDispositions = ["sold", "given", "donated", "discarded", "lost", "stolen"] as const;
 export type ItemDisposition = (typeof itemDispositions)[number];
 
 /** Where a thing came from. The first five are the app's own ways to add one (it says which); the rest are set by the server. */
@@ -220,9 +220,10 @@ const itemFields = z.object({
     .enum(itemDispositions)
     .optional()
     .nullable()
-    .describe("No longer had: sold, given, discarded, lost or stolen (null: still have it). Gone items leave lists and totals"),
+    .describe("No longer had: sold, given (away), donated (to a charity), discarded, lost or stolen (null: still have it). Gone items leave lists and totals"),
   disposedOn: z.iso.date().optional().nullable().describe("When it went, yyyy-mm-dd"),
-  disposalCents: cents.describe("What it sold for, in cents"),
+  disposalCents: cents.describe("What it sold for, what insurance paid, or (donated) what it was worth when given, in cents"),
+  disposedTo: optionalText(200).describe("Who it went to: the charity or organisation for a donation"),
   disposalNote: optionalText(2000).describe("Who it went to, or what happened (for a lost or stolen claim)"),
   replacementCents: cents.describe("What it would cost to replace today, in cents (for the insurance report)"),
 });

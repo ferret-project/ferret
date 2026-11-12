@@ -999,7 +999,7 @@ function buildServer(v: McpCaller) {
     {
       title: "Remove something",
       description: `Removes one thing from the household's records, by kind and id. Confirm with the person first. What each kind does:
-- item: only when it was added by mistake or should be gone from the records — for something sold, given away, thrown out, lost or stolen use update_item with disposition, which keeps it for insurance. It stays in Recently deleted for ${TRASH_DAYS} days (restore_item brings it back), then goes for good with its photos and documents.
+- item: only when it was added by mistake or should be gone from the records — for something sold, given away, donated, thrown out, lost or stolen use update_item with disposition, which keeps it for insurance. It stays in Recently deleted for ${TRASH_DAYS} days (restore_item brings it back), then goes for good with its photos and documents.
 - warranty: one added by mistake or twice (an ended warranty stays on record as expired); its claims go with it. claim: a warranty claim filed by mistake.
 - maintenance: a task no longer needed — not one just done (that's complete_maintenance); its past times done stay in the item's history.
 - property / location: only when empty (no things anywhere in it, empty rooms inside go with it); otherwise refused — move the things first with bulk_update_items.

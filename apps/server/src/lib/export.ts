@@ -123,12 +123,17 @@ const GONE_COLUMNS: typeof COLUMNS = [
  */
 export function toCsv(rows: ExportRow[], opts: { currency: string; gone?: boolean }) {
   const columns = opts.gone ? [...COLUMNS.slice(0, 1), ...GONE_COLUMNS, ...COLUMNS.slice(1)] : COLUMNS;
+  return csvText(columns.map(([title]) => title), rows.map((r) => columns.map(([, get]) => get(r, opts.currency))));
+}
+
+/** A heading row and rows of cells as RFC 4180 CSV, with a byte-order mark so Excel reads the text as UTF-8. */
+export function csvText(headings: string[], rows: (string | number | null | undefined)[][]) {
   const cell = (value: string | number | null | undefined) => {
     const text = value == null ? "" : String(value);
     // Quote when needed; a leading =, +, -, @, tab or carriage return is defused so a spreadsheet can't run it as a formula.
     const safe = /^[=+\-@\t\r]/.test(text) && !/^-?\d+(\.\d+)?$/.test(text) ? `'${text}` : text;
     return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
   };
-  const lines = [columns.map(([title]) => cell(title)).join(","), ...rows.map((r) => columns.map(([, get]) => cell(get(r, opts.currency))).join(","))];
+  const lines = [headings.map(cell).join(","), ...rows.map((r) => r.map(cell).join(","))];
   return `\uFEFF${lines.join("\r\n")}\r\n`;
 }

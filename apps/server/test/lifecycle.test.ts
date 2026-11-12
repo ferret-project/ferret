@@ -59,4 +59,32 @@ describe("item lifecycle", () => {
     await ann.addItem({ name: "Hammer", containerItemId: box.id });
     expect((await send(ann, "PATCH", `/api/v1/items/${box.id}`, { disposition: "given" })).status).toBe(409);
   });
+
+  it("lists donations by year, with who they went to and what they were worth, as JSON and CSV", async () => {
+    const { user } = await setup();
+    const ann = await user("ann");
+    const coat = await ann.addItem({ name: "Winter coat", brand: "North", purchasePriceCents: 20000 });
+    const sofa = await ann.addItem({ name: "Sofa" });
+    const desk = await ann.addItem({ name: "=Desk" });
+    await send(ann, "PATCH", `/api/v1/items/${coat.id}`, { disposition: "donated", disposedOn: "2026-03-02", disposedTo: "Goodwill", disposalCents: 4500 });
+    await send(ann, "PATCH", `/api/v1/items/${sofa.id}`, { disposition: "donated", disposedOn: "2026-01-15", disposedTo: "Habitat ReStore", disposalCents: 15000 });
+    await send(ann, "PATCH", `/api/v1/items/${desk.id}`, { disposition: "donated", disposedOn: "2025-12-20", disposedTo: "Church", disposalCents: 5000 });
+    // Given away (to a person) isn't a donation.
+    const toy = await ann.addItem({ name: "Toy" });
+    await send(ann, "PATCH", `/api/v1/items/${toy.id}`, { disposition: "given", disposedOn: "2026-02-01" });
+
+    const all = await json<{ years: { year: number; count: number; valueCents: number }[]; data: unknown[] }>(ann.as("/api/v1/export/donations.json"));
+    expect(all).toEqual({ years: [{ year: 2026, count: 2, valueCents: 19500 }, { year: 2025, count: 1, valueCents: 5000 }], data: [] });
+    const y = await json<{ data: { name: string; charity: string; valueCents: number; donatedOn: string }[] }>(ann.as("/api/v1/export/donations.json?year=2026"));
+    expect(y.data.map((r) => [r.donatedOn, r.name, r.charity, r.valueCents])).toEqual([
+      ["2026-01-15", "Sofa", "Habitat ReStore", 15000],
+      ["2026-03-02", "Winter coat", "Goodwill", 4500],
+    ]);
+    const csv = await (await ann.as("/api/v1/export/donations.csv?year=2025")).text();
+    expect(csv.split("\r\n")[0]).toMatch(/^\uFEFF?Date given,Given to,Item,/);
+    expect(csv).toContain("2025-12-20,Church,'=Desk");
+    expect((await ann.as("/api/v1/export/donations.json?year=26")).status).toBe(400);
+    // Bringing it back clears who it went to.
+    expect(await json(send(ann, "PATCH", `/api/v1/items/${coat.id}`, { disposition: null }))).toMatchObject({ disposition: null, disposedTo: null });
+  });
 });

@@ -5,6 +5,7 @@
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { type AppEnv, callerOf, requireHousehold, requireSession, requireUser } from "../lib/context";
+import { donations, donationsCsv } from "../lib/donations";
 import { exportRows, toCsv } from "../lib/export";
 import { householdExport } from "../lib/household-export";
 import { todayFor } from "../lib/household-time";
@@ -27,6 +28,26 @@ exporter.get("/items.csv", async (c) => {
   return c.body(toCsv(rows, { currency: c.var.currency, gone: Boolean(opts.gone) }), 200, {
     "Content-Type": "text/csv; charset=utf-8",
     "Content-Disposition": `attachment; filename="ferret-${opts.gone ? "lost-and-stolen" : "inventory"}-${todayFor(c.var)}.csv"`,
+    "Cache-Control": "no-store",
+  });
+});
+
+/** ?year=2026: that year's donations; without, only the years (with counts and totals). */
+const donationYear = (c: { req: { query: (k: string) => string | undefined } }) => {
+  const raw = c.req.query("year");
+  if (raw == null || raw === "") return undefined;
+  if (!/^\d{4}$/.test(raw)) throw new HTTPException(400, { message: "year must be like 2026" });
+  return Number(raw);
+};
+
+exporter.get("/donations.json", async (c) => c.json(await donations(callerOf(c), donationYear(c))));
+
+exporter.get("/donations.csv", async (c) => {
+  const year = donationYear(c) ?? Number(todayFor(c.var).slice(0, 4));
+  const { data } = await donations(callerOf(c), year);
+  return c.body(donationsCsv(data, c.var.currency), 200, {
+    "Content-Type": "text/csv; charset=utf-8",
+    "Content-Disposition": `attachment; filename="ferret-donations-${year}.csv"`,
     "Cache-Control": "no-store",
   });
 });

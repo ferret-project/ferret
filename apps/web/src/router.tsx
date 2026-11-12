@@ -30,7 +30,7 @@ import { LabelLanding, PrintLabels } from "./Labels";
 import { Maintenance } from "./Maintenance";
 import { MorePage } from "./Nav";
 import { NotFound } from "./NotFound";
-import { Past } from "./Gone";
+import { Donations, Past } from "./Gone";
 import { Places } from "./Places";
 import { ProviderPage, Providers } from "./Providers";
 import { useHousehold } from "./lib/household";
@@ -222,6 +222,16 @@ const providerRoute = createRoute({
     return <ProviderPage id={providerRoute.useParams().id} householdId={useHousehold().householdId} />;
   },
 });
+const donationsRoute = createRoute({
+  getParentRoute: () => screensRoute,
+  path: "donations/$year",
+  staticData: { name: "donations" },
+  loader: ({ params }) => check(/^\d{4}$/.test(params.year)),
+  component: function DonationsYear() {
+    const { householdId, householdName } = useHousehold();
+    return <Donations year={Number(donationsRoute.useParams().year)} householdId={householdId} householdName={householdName} />;
+  },
+});
 const labelRoute = createRoute({
   getParentRoute: () => screensRoute,
   path: "l/$code",
@@ -349,6 +359,7 @@ const routeTree = rootRoute.addChildren([
     settingsSectionRoute,
     providerRoute,
     labelRoute,
+    donationsRoute,
     labelsRoute,
     walkthroughRoute,
     roomScanRoute,

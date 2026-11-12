@@ -145,13 +145,15 @@ export const item = sqliteTable(
     /** What it counts, for maintenance by use (lib/usage.ts): miles, km, hours (engine, furnace), cycles. */
     usageUnit: text("usage_unit").$type<"miles" | "km" | "hours" | "cycles">(),
     /**
-     * What happened to it, once it's gone: sold, given (away), discarded, lost, stolen — null while you still have it.
+     * What happened to it, once it's gone: sold, given (away), donated, discarded, lost, stolen — null while you still have it.
      * Gone things leave lists, totals, search and reminders (itemScope), but keep their page and history.
      */
-    disposition: text("disposition").$type<"sold" | "given" | "discarded" | "lost" | "stolen">(),
+    disposition: text("disposition").$type<"sold" | "given" | "donated" | "discarded" | "lost" | "stolen">(),
     disposedOn: text("disposed_on"), // ISO yyyy-mm-dd
-    /** What it sold for, or what insurance paid out, in cents. */
+    /** What it sold for, what insurance paid out, or (donated) what it was worth when given, in cents. */
     disposalCents: integer("disposal_cents"),
+    /** Who it went to — the charity for a donation (the yearly donations list, lib/donations.ts). */
+    disposedTo: text("disposed_to"),
     disposalNote: text("disposal_note"),
     condition: text("condition"),
     purchaseDate: text("purchase_date"), // ISO yyyy-mm-dd

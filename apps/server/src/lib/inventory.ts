@@ -709,7 +709,7 @@ export async function createItem(v: Caller, given: ItemInput, found?: { roomScan
 }
 
 /** Words for what happened to something ("Sold Kayak"), for its history. */
-const DISPOSAL_WORDS: Record<ItemDisposition, string> = { sold: "Sold", given: "Gave away", discarded: "Threw out", lost: "Lost", stolen: "Stolen:" };
+const DISPOSAL_WORDS: Record<ItemDisposition, string> = { sold: "Sold", given: "Gave away", donated: "Donated", discarded: "Threw out", lost: "Lost", stolen: "Stolen:" };
 
 /**
  * Marking something gone (or bringing it back): the date defaults to today; bringing it back clears what happened.
@@ -719,7 +719,7 @@ function disposalChange(current: typeof item.$inferSelect, input: ItemPatch, on:
   if (input.disposition === undefined) return { fields: {}, gone: false, summary: undefined };
   if (input.disposition === null) {
     return {
-      fields: { disposition: null, disposedOn: null, disposalCents: null, disposalNote: null },
+      fields: { disposition: null, disposedOn: null, disposalCents: null, disposalNote: null, disposedTo: null },
       gone: false,
       summary: current.disposition ? (name: string) => `Brought back ${name}` : undefined,
     };

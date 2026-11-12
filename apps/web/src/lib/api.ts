@@ -302,6 +302,8 @@ export const api = {
   exportItems: (propertyId?: string) =>
     request<{ data: ExportRow[] }>(`/export/items.json${propertyId ? `?propertyId=${encodeURIComponent(propertyId)}` : ""}`),
   /** Same-origin, so the download carries the session cookie. */
+  donations: (year?: number) => request<{ years: DonationYear[]; data: DonationRow[] }>(`/export/donations.json${year ? `?year=${year}` : ""}`),
+  donationsCsvUrl: (year: number) => `/api/v1/export/donations.csv?year=${year}`,
   exportCsvUrl: (propertyId?: string) => `/api/v1/export/items.csv${propertyId ? `?propertyId=${encodeURIComponent(propertyId)}` : ""}`,
   label: (code: string) => request<Label>(`/labels/${encodeURIComponent(code)}`),
   labels: (blank?: boolean) => request<{ data: Label[] }>(`/labels${blank ? "?blank=true" : ""}`),
@@ -596,3 +598,23 @@ export const api = {
     return json as { text: string };
   },
 };
+
+/** One donated thing, for the yearly donations list (server lib/donations.ts). */
+export type DonationRow = {
+  id: string;
+  name: string;
+  brand: string | null;
+  model: string | null;
+  condition: string | null;
+  quantity: number;
+  category: string | null;
+  donatedOn: string | null;
+  charity: string | null;
+  valueCents: number | null;
+  purchasePriceCents: number | null;
+  purchaseDate: string | null;
+  note: string | null;
+  documents: number;
+  photoId: string | null;
+};
+export type DonationYear = { year: number; count: number; valueCents: number };

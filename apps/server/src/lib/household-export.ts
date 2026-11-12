@@ -237,7 +237,7 @@ export async function householdData(v: Caller, root: string, householdName: stri
       favorite: i.favorite,
       heir: i.heir,
       /** Null while you still have it. */
-      gone: i.disposition ? { what: i.disposition, on: i.disposedOn, amountCents: i.disposalCents, note: i.disposalNote } : null,
+      gone: i.disposition ? { what: i.disposition, on: i.disposedOn, amountCents: i.disposalCents, to: i.disposedTo, note: i.disposalNote } : null,
       categoryId: categoryById.has(i.categoryId ?? "") ? i.categoryId : null,
       category: categoryPath(i.categoryId),
       placeId: placeById.has(i.locationId ?? "") ? i.locationId : null,

@@ -464,6 +464,8 @@ export const OPERATIONS: Operation[] = [
   // ── Export ─────────────────────────────────────────────────────────────────
   { method: "get", path: "/export/items.json", tag: "Export", summary: "Every item for the insurance report", description: "`gone=lost`: what was lost or stolen instead, for a claim.", query: z.object({ propertyId: z.string().optional(), gone: z.enum(["lost"]).optional() }), returns: "{ data: ExportRow[] }" },
   { method: "get", path: "/export/items.csv", tag: "Export", summary: "Every item as a spreadsheet", description: "`gone=lost`: what was lost or stolen, with what happened and when.", query: z.object({ propertyId: z.string().optional(), gone: z.enum(["lost"]).optional() }), produces: "text/csv" },
+  { method: "get", path: "/export/donations.json", tag: "Export", summary: "Donations: the years anything was donated in (with counts and totals), and one year's donations", description: "`year=2026`: that year's donations, with who they went to, when and what they were worth when given. Ferret records what was given; it says nothing about what's deductible.", query: z.object({ year: z.string().optional() }), returns: "{ years: DonationYear[], data: DonationRow[] }" },
+  { method: "get", path: "/export/donations.csv", tag: "Export", summary: "One year's donations as a spreadsheet (this year without `year`)", query: z.object({ year: z.string().optional() }), produces: "text/csv" },
   { method: "get", path: "/export/everything.zip", tag: "Export", summary: "Everything — data and files, decrypted — as a ZIP (owners and admins, signed in)", produces: "application/zip" },
 
   // ── Reminders (signed-in session only) ─────────────────────────────────────
