@@ -714,31 +714,68 @@ function Shell({ title, action, wide, onSearch, children }: { title: string; act
 /** Wide screens: the photos big beside the details — one large, the others as thumbnails to switch to; a click shows it full screen. */
 function PhotoHero({ photos, name, onOpen }: { photos: Attachment[]; name: string; onOpen: (index: number) => void }) {
   const [shown, setShown] = useState(0);
-  const photo = photos[Math.min(shown, photos.length - 1)]!;
+  const index = Math.min(shown, photos.length - 1);
+  const photo = photos[index]!;
+  const strip = useRef<HTMLDivElement>(null);
+  const many = photos.length > 1;
+  const go = (step: number) => setShown((index + step + photos.length) % photos.length);
+  // The thumbnail of the photo shown stays in view as the arrows move through a long strip.
+  useEffect(() => {
+    strip.current?.querySelector<HTMLElement>(`[data-index="${index}"]`)?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+  }, [index]);
+  const arrow = "btn btn-circle btn-sm absolute top-1/2 -translate-y-1/2 border-0 bg-base-100/85 text-base-content opacity-0 shadow-sm transition-opacity group-hover:opacity-100 focus-visible:opacity-100";
   return (
-    <section className="flex flex-col gap-3 max-lg:hidden" aria-label={t`Photos`}>
-      <button
-        type="button"
-        className="group relative overflow-hidden rounded-box bg-base-300 focus-visible:outline-2 focus-visible:outline-primary"
-        aria-label={t`Show ${ph({ filename: photo.filename })} full screen`}
-        onClick={() => onOpen(photos.indexOf(photo))}
-      >
-        <img src={api.attachmentUrl(photo.id)} alt={photo.analysis?.description || name} className="aspect-4/3 w-full object-contain" />
-        <span className="badge absolute end-3 bottom-3 gap-1 border-0 bg-base-100/85 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
-          <span className="icon-[tabler--zoom-in] size-4" />
-          <Trans>Full screen</Trans>
-        </span>
-      </button>
-      {photos.length > 1 && (
-        <div className="grid grid-cols-5 gap-2">
-          {photos.slice(0, 10).map((p, i) => (
+    <section
+      className="flex min-w-0 flex-col gap-3 max-lg:hidden"
+      aria-label={t`Photos`}
+      // ← / → move through the photos while one of them has the keyboard.
+      onKeyDown={(e) => {
+        if (!many || (e.key !== "ArrowLeft" && e.key !== "ArrowRight")) return;
+        e.preventDefault();
+        go(e.key === "ArrowLeft" ? -1 : 1);
+      }}
+    >
+      <div className="group relative">
+        <button
+          type="button"
+          className="relative block w-full overflow-hidden rounded-box bg-base-300 focus-visible:outline-2 focus-visible:outline-primary"
+          aria-label={t`Show ${ph({ filename: photo.filename })} full screen`}
+          onClick={() => onOpen(index)}
+        >
+          <img src={api.attachmentUrl(photo.id)} alt={photo.analysis?.description || name} className="aspect-4/3 w-full object-contain" />
+          <span className="badge absolute end-3 bottom-3 gap-1 border-0 bg-base-100/85 text-base-content opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+            <span className="icon-[tabler--zoom-in] size-4" />
+            <Trans>Full screen</Trans>
+          </span>
+          {many && (
+            <span className="badge absolute end-3 top-3 border-0 bg-base-100/85 text-base-content tabular-nums">
+              {index + 1} / {photos.length}
+            </span>
+          )}
+        </button>
+        {many && (
+          <>
+            <button type="button" className={`${arrow} start-3`} aria-label={t`Previous photo`} onClick={() => go(-1)}>
+              <span className="icon-[tabler--chevron-left] size-5 rtl:rotate-180" />
+            </button>
+            <button type="button" className={`${arrow} end-3`} aria-label={t`Next photo`} onClick={() => go(1)}>
+              <span className="icon-[tabler--chevron-right] size-5 rtl:rotate-180" />
+            </button>
+          </>
+        )}
+      </div>
+      {many && (
+        // A strip of every photo, scrolling sideways when there are more than fit.
+        <div ref={strip} className="flex snap-x gap-2 overflow-x-auto pb-1">
+          {photos.map((p, i) => (
             <button
               key={p.id}
               type="button"
+              data-index={i}
               aria-label={t`Show photo ${ph({ number: i + 1 })}`}
-              aria-pressed={p.id === photo.id}
+              aria-pressed={i === index}
               onClick={() => setShown(i)}
-              className={`overflow-hidden rounded-field border-2 ${p.id === photo.id ? "border-primary" : "border-transparent opacity-80 hover:opacity-100"}`}
+              className={`w-20 shrink-0 snap-start overflow-hidden rounded-field border-2 ${i === index ? "border-primary" : "border-transparent opacity-80 hover:opacity-100"}`}
             >
               <img src={api.thumbnailUrl(p.id)} alt="" loading="lazy" className="aspect-square w-full object-cover" />
             </button>
