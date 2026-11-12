@@ -87,6 +87,7 @@ import type {
   MaintenanceInput,
   MaintenanceLogEntry,
   MaintenancePatch,
+  ItemFindResult,
   MaintenanceTask,
   MissingDetail,
   Overview,
@@ -336,6 +337,9 @@ export const api = {
     }>("/auth-options"),
   invitation: (id: string) => request<InvitationPreview>(`/invitations/${encodeURIComponent(id)}`),
   ask: (question: string) => request<AskAnswer>("/ask", { method: "POST", body: JSON.stringify({ question }) }),
+  /** Search inside one item: passages of its documents, photos' text, warranties and notes. */
+  findInItem: (itemId: string, q: string) => request<ItemFindResult>(`/items/${itemId}/find?q=${encodeURIComponent(q)}`),
+  askItem: (itemId: string, question: string) => request<AskAnswer>(`/items/${itemId}/ask`, { method: "POST", body: JSON.stringify({ question }) }),
   listItems: (
     q?: string,
     filter: {

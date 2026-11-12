@@ -3,7 +3,7 @@ import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/cli
 import { describe, expect, it } from "vitest";
 import { checkHousehold } from "../src/lib/recalls";
 import type { RawRecall, Recalls } from "../src/ports";
-import { photo, setup } from "./helpers";
+import { FakeAi, photo, setup } from "./helpers";
 
 type App = Awaited<ReturnType<typeof setup>>["app"];
 type User = Awaited<ReturnType<Awaited<ReturnType<typeof setup>>["user"]>>;
@@ -60,6 +60,19 @@ describe("MCP: warranties", () => {
     expect((await call("remove", { kind: "warranty", id: added.id })).json()).toEqual({ removed: "warranty", id: added.id });
     expect((await call("get_item", { id: tv.id })).json().warranties).toEqual([]);
     expect((await call("remove", { kind: "warranty", id: added.id })).text).toBe("Warranty not found");
+  });
+});
+
+describe("MCP: asking about one item", () => {
+  it("answers from that item only when given its id", async () => {
+    const chat = new FakeAi([{ answer: "Clean the canister filter by turning its handle.", found: true, sources: [1] }]);
+    const { ann, call } = await start({ chat });
+    const collector = await ann.addItem({ name: "Dust collector", notes: "Turn the handle to clean the filter." });
+    await ann.addItem({ name: "Furnace", notes: "Filter: 16x25x1" });
+    const answer = (await call("ask_inventory", { question: "How do I clean the filter?", itemId: collector.id })).json();
+    expect(answer).toMatchObject({ found: true, citations: [expect.objectContaining({ itemId: collector.id })] });
+    expect(chat.calls.at(-1)!.prompt).toContain("Turn the handle");
+    expect(chat.calls.at(-1)!.prompt).not.toContain("16x25x1"); // the furnace isn't asked about
   });
 });
 

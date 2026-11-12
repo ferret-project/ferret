@@ -8,6 +8,7 @@ import { PHOTO_ORDER } from "../lib/photo-order";
 import * as usage from "../lib/usage";
 import { usageReadingInput, itemsBulk,
   askInput,
+  itemFindQuery,
   type AttachmentKind,
   attachmentKinds,
   itemInput,
@@ -172,6 +173,18 @@ inventory.post("/items/:id/usage", requireWriter, async (c) =>
 inventory.delete("/usage/:id", requireWriter, async (c) => {
   await usage.deleteReading(callerOf(c), c.req.param("id"));
   return c.body(null, 204);
+});
+
+/** Search inside one item: the passages of its documents, photos' text, warranties and notes that have the words. */
+inventory.get("/items/:id/find", async (c) => {
+  const { q } = itemFindQuery.parse(c.req.query());
+  return c.json(await svc.findInOneItem(callerOf(c), c.req.param("id"), q));
+});
+
+/** Ask about one item: answered from its own documents and details, with citations. */
+inventory.post("/items/:id/ask", async (c) => {
+  const { question } = await body(c.req.raw, askInput);
+  return c.json(await svc.askItem(callerOf(c), c.req.param("id"), question));
 });
 
 inventory.get("/items/:id/history", async (c) => {

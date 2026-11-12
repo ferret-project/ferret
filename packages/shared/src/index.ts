@@ -619,6 +619,34 @@ export interface AskAnswer {
   citations: AskCitation[];
 }
 
+// ── Searching inside one item ───────────────────────────────────────────────
+/** Words to find in one item's own text: its documents, what its photos say, its warranties and notes. */
+export const itemFindQuery = z.object({ q: z.string().trim().min(1).max(200) });
+
+/** A passage of one item's text that has the words searched for. */
+export interface ItemPassage {
+  /** Where it's from: a document, a photo's text, a warranty, or the item's own description and notes. */
+  source: "document" | "photo" | "warranty" | "item";
+  /** The file's name, the warranty's provider, or "Description" / "Notes". */
+  label: string;
+  /** The document's section it's in ("8.2 Cleaning and bag inspection"), when it has headings. */
+  heading?: string;
+  attachmentId?: string;
+  warrantyId?: string;
+  /** A short window around the first match ("…" where it's cut). */
+  snippet: string;
+  /** Where the matched words are in the snippet: [start, end) character offsets. */
+  marks: [number, number][];
+  /** The whole passage, to show when it's opened. */
+  text: string;
+}
+
+export interface ItemFindResult {
+  passages: ItemPassage[];
+  /** How many passages matched (more than listed when there are many). */
+  total: number;
+}
+
 /** An item as lists show it: plus a photo to recognise it by and where it's kept. */
 export interface ItemListing extends Item {
   /** The box it's in, if any. */

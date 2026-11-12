@@ -2,6 +2,7 @@ import type { ItemListing, ItemOrigin, MissingDetail, SearchHit } from "@ferret/
 import { LanguageChoice } from "./Language";
 import { DeleteAccountDialog } from "./DeleteForGood";
 import { usePlan } from "./PlanUsage";
+import { AskFerret } from "./Ask";
 import { CapturesCard, OfflineCapture, useCaptureSync } from "./Offline";
 import { rememberHome, rememberedHome } from "./lib/offline";
 import { AuthLayout, Logo } from "./AuthLayout";
@@ -813,7 +814,7 @@ function Screens({ householdName, householdId }: { householdName: string; househ
   useEffect(() => rememberHome({ householdId, householdName, places: places.data }), [householdId, householdName, places.data]);
   useCaptureSync(householdId);
   const [folded, toggleSidebar] = useSidebarFolded();
-  useSearchHotkeys(["home", "property", "place", "items", "category", "tag"].includes(route));
+  useSearchHotkeys(["home", "property", "place", "items", "category", "tag"].includes(route), route === "item");
   // Amounts in the household's currency: what this device last saw until its settings come (a head start offline).
   const settings = useQuery({ queryKey: ["household-settings", householdId], queryFn: api.householdSettings, staleTime: 5 * 60_000 });
   const currency = settings.data?.currency ?? rememberedCurrency(householdId);
@@ -1367,64 +1368,6 @@ function useDebounced<T>(value: T, ms: number) {
     return () => clearTimeout(timer);
   }, [value, ms]);
   return debounced;
-}
-
-/** For questions: a button that asks Ferret, and the answer with its sources. */
-function AskFerret({ question }: { question: string }) {
-  const ask = useMutation({ mutationFn: () => api.ask(question) });
-  if (ask.isIdle) {
-    return (
-      <button type="button" className="btn btn-soft btn-primary self-start" onClick={() => ask.mutate()}>
-        <span className="icon-[tabler--sparkles] size-5" />
-        <Trans>Ask Ferret</Trans>
-      </button>
-    );
-  }
-  return (
-    <section className="card border border-primary/20" aria-live="polite" aria-label={t`Ferret's answer`}>
-      <div className="card-body gap-2 p-4">
-        <h2 className="text-base-content/70 flex items-center gap-2 text-sm font-medium">
-          <span className="icon-[tabler--sparkles] text-primary size-4" />
-          <Trans>Ferret</Trans>
-        </h2>
-        {ask.isPending && (
-          <p className="text-base-content/70 flex items-center gap-2">
-            <span className="loading loading-dots loading-sm" /> <Trans>Looking through your things…</Trans>
-          </p>
-        )}
-        {ask.isError && (
-          <div className="flex items-center gap-2">
-            <p className="text-error flex-1 text-sm">{ask.error.message}</p>
-            <button type="button" className="btn btn-text btn-sm" onClick={() => ask.mutate()}>
-              <Trans>Try again</Trans>
-            </button>
-          </div>
-        )}
-        {ask.data && (
-          <>
-            <p className={ask.data.found ? "text-base-content" : "text-base-content/70"}>{ask.data.answer}</p>
-            {ask.data.citations.length > 0 && (
-              <ul className="flex flex-wrap gap-2">
-                {ask.data.citations.map((c) => (
-                  <li key={`${c.itemId}:${c.attachmentId ?? ""}`}>
-                    <a
-                      href={c.attachmentId ? api.attachmentUrl(c.attachmentId) : itemHref(c.itemId)}
-                      {...(c.attachmentId ? { target: "_blank", rel: "noreferrer" } : {})}
-                      className="badge badge-soft badge-primary gap-1"
-                    >
-                      <span className={`${c.attachmentId ? "icon-[tabler--file-text]" : "icon-[tabler--box]"} size-3.5`} />
-                      {c.attachmentId ? c.filename : c.itemName}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <p className="text-base-content/70 text-xs"><Trans>Answered by AI from your inventory — check the sources.</Trans></p>
-          </>
-        )}
-      </div>
-    </section>
-  );
 }
 
 /**

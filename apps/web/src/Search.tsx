@@ -40,6 +40,9 @@ export const COMMAND_K = /mac|iphone|ipad/i.test(
   ? "⌘K"
   : "Ctrl K";
 
+/** An item's page searches inside that item (ItemSearch.tsx): the top bar's search and the hotkeys say so with this. */
+export const ITEM_SEARCH_EVENT = "ferret:search-item";
+
 let focusOnMount = false;
 const FOCUS_EVENT = "ferret:focus-search";
 
@@ -50,7 +53,8 @@ export function searchFromAnywhere() {
   navigateTo("#/");
 }
 
-export function useSearchHotkeys(onHomeScreen: boolean) {
+/** `inItem`: an item's page is open — `/` and ⌘K search inside it (ItemSearch.tsx) rather than going home. */
+export function useSearchHotkeys(onHomeScreen: boolean, inItem = false) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const value = e.target as HTMLElement | null;
@@ -61,11 +65,12 @@ export function useSearchHotkeys(onHomeScreen: boolean) {
       if (document.querySelector("dialog[open], [role=dialog]")) return; // a dialog has the keyboard
       e.preventDefault();
       if (onHomeScreen) window.dispatchEvent(new Event(FOCUS_EVENT));
+      else if (inItem) window.dispatchEvent(new Event(ITEM_SEARCH_EVENT));
       else searchFromAnywhere();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onHomeScreen]);
+  }, [onHomeScreen, inItem]);
 }
 
 function readRecent(householdId: string): string[] {

@@ -8,6 +8,8 @@ import { today } from "@ferret/shared/utils";
 import { lastScannedText } from "./lib/last-scanned";
 import { UsageCard } from "./Usage";
 import { BarSearch } from "./Nav";
+import { ItemSearch } from "./ItemSearch";
+import { ITEM_SEARCH_EVENT } from "./Search";
 import { NotFound } from "./NotFound";
 import { PhotoViewer } from "./PhotoViewer";
 import type {
@@ -22,7 +24,7 @@ import type {
   WarrantyInput,
 } from "@ferret/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type ChangeEvent, type DragEvent, useRef, useState } from "react";
+import { type ChangeEvent, type DragEvent, useEffect, useRef, useState } from "react";
 import { ItemEditor } from "./ItemEditor";
 import { api } from "./lib/api";
 import { useCanEdit } from "./lib/auth";
@@ -115,6 +117,17 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
   });
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [editing, setEditing] = useState(false);
+  // Search inside this item (ItemSearch.tsx): from the top bar's search, `/` or ⌘K; closed when another item opens.
+  const [searching, setSearching] = useState(false);
+  useEffect(() => {
+    setSearching(false);
+    const open = () => {
+      setSearching(true);
+      window.scrollTo({ top: 0 });
+    };
+    window.addEventListener(ITEM_SEARCH_EVENT, open);
+    return () => window.removeEventListener(ITEM_SEARCH_EVENT, open);
+  }, [itemId]);
   const [addingFiles, setAddingFiles] = useState(false);
   const canEdit = useCanEdit(householdId);
   const features = useFeatures();
@@ -228,6 +241,7 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
     <Shell
       title={item.data.name}
       wide
+      onSearch={() => window.dispatchEvent(new Event(ITEM_SEARCH_EVENT))}
       action={
         canEdit && (
           <button type="button" className="btn btn-soft btn-primary btn-sm shrink-0" aria-label={t`Edit`} onClick={() => setEditing(true)}>
@@ -239,6 +253,8 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
       }
     >
       {editing && <ItemEditor item={item.data} householdId={householdId} onClose={() => setEditing(false)} />}
+      {/* Search inside this item: its documents, photos' text, warranties, notes — and asking about it. */}
+      {searching && <ItemSearch itemId={itemId} itemName={item.data.name} householdId={householdId} onClose={() => setSearching(false)} />}
       {/* ① Details */}
       {/* Sold, given away, lost…: what happened, and "Bring it back". */}
       <GoneBanner item={item.data} householdId={householdId} />
@@ -665,7 +681,7 @@ function Classification({ item, fields }: { item: ItemListing; fields: CategoryF
   );
 }
 
-function Shell({ title, action, wide, children }: { title: string; action?: React.ReactNode; wide?: boolean; children: React.ReactNode }) {
+function Shell({ title, action, wide, onSearch, children }: { title: string; action?: React.ReactNode; wide?: boolean; onSearch?: () => void; children: React.ReactNode }) {
   return (
     <div className="min-h-dvh bg-base-200">
       <nav className="navbar @container sticky top-0 z-10 gap-2 border-b border-base-300 bg-base-100/85 backdrop-blur-md px-2">
@@ -684,7 +700,7 @@ function Shell({ title, action, wide, children }: { title: string; action?: Reac
           <span className="icon-[tabler--arrow-left] size-5" />
         </a>
         <span className="text-base-content min-w-0 flex-1 truncate font-semibold">{title}</span>
-        <BarSearch />
+        <BarSearch onSearch={onSearch} />
         {action}
       </nav>
       {/* An item's own page uses a wide screen (photos beside the details); the not-found and loading states don't. */}

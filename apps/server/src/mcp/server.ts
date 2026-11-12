@@ -132,11 +132,14 @@ function buildServer(v: McpCaller) {
     {
       title: "Ask Ferret",
       description:
-        "Answers a question in words from the household's own items and documents (receipts, manuals, warranty cards), citing the items it used — for \"when does the dishwasher warranty end?\" or \"what filter does the furnace take?\". Use search_inventory instead when the person wants to find a thing rather than learn a fact. Needs the server's AI to be switched on, counts as one AI action, and can take several seconds.",
-      inputSchema: z.object({ question: z.string().trim().min(3).max(500).describe("The question, as the person asked it") }),
+        "Answers a question in words from the household's own items and documents (receipts, manuals, warranty cards), citing the items it used — for \"when does the dishwasher warranty end?\" or \"what filter does the furnace take?\". Use search_inventory instead when the person wants to find a thing rather than learn a fact. Needs the server's AI to be switched on, counts as one AI action, and can take several seconds. With itemId, it answers about that one thing only, from its own manual, receipts, warranties and notes (\"how do I reset it?\").",
+      inputSchema: z.object({
+        question: z.string().trim().min(3).max(500).describe("The question, as the person asked it"),
+        itemId: z.string().min(1).optional().describe("Ask about this one item only: an item id from search_inventory or get_item"),
+      }),
       annotations: read,
     },
-    async ({ question }) => run(() => svc.ask(v, question)),
+    async ({ question, itemId }) => run(() => (itemId ? svc.askItem(v, itemId, question) : svc.ask(v, question))),
   );
 
   server.registerTool(

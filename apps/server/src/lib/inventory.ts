@@ -35,7 +35,9 @@ import { activity, attachment, category, collection, item, itemSighting, itemTag
 import { INDEX_JOB } from "../jobs/index-item";
 import type { Db, Deps } from "../ports";
 import { countEvent } from "./analytics";
-import { ASK_ITEMS, askInventory } from "./ask";
+import { ASK_ITEMS, askAboutItem, askInventory } from "./ask";
+import { findInItem } from "./item-search";
+import { loadSearchDoc } from "./search-text";
 import { categoryInfo, setItemTags, tagsOf } from "./catalog";
 import { listClaims } from "./claims";
 import { queueProductLookup, rememberBarcode } from "./products";
@@ -578,6 +580,36 @@ export async function ask(v: Caller, question: string) {
     console.warn(`Ask Ferret failed: ${String(err)}`);
     throw new HTTPException(503, { message: "Ferret couldn't answer right now — try again in a moment" });
   }
+}
+
+/** One item's own text — its documents, photos' text, warranties, notes — searched for words (lib/item-search.ts). */
+export async function findInOneItem(v: Caller, itemId: string, query: string) {
+  return findInItem(await itemDoc(v, itemId), query);
+}
+
+/** Ask about one item, answered from its own documents and details only (lib/ask.ts). */
+export async function askItem(v: Caller, itemId: string, question: string) {
+  const doc = await itemDoc(v, itemId);
+  const model = v.deps.chat ?? v.deps.ai;
+  if (!model) throw new HTTPException(409, { message: "Asking needs an AI model (CHAT_URL or OLLAMA_URL)" });
+  const plan = await requireAllowed(v, "ai.ask");
+  countEvent(v.deps, "ask");
+  const vectors = searchEnabled(v.deps) && (await meaningSearchAllowed(v)) ? v.deps.vectors : undefined;
+  try {
+    const onModel = () => recordUsage(v, "ai.ask", 1, plan);
+    return await askAboutItem({ db: v.db, model, timeZone: v.timeZone, onModel, ai: v.deps.ai, vectors }, v.householdId, doc, question);
+  } catch (err) {
+    console.warn(`Asking about an item failed: ${String(err)}`);
+    throw new HTTPException(503, { message: "Ferret couldn't answer right now — try again in a moment" });
+  }
+}
+
+/** The item (gone ones too: their page still works) with everything its search reads, or 404. */
+async function itemDoc(v: Caller, itemId: string) {
+  await getItem(v, itemId); // in this household, or not found
+  const doc = await loadSearchDoc(v.db, itemId);
+  if (!doc) throw notFound("Item");
+  return doc;
 }
 
 /** Semantic search needs an embedding model, a vector store, and jobs to keep the index fresh. */

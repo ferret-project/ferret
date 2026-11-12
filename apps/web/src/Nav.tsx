@@ -475,20 +475,23 @@ export function requestScan(route: Route["name"], adding = false) {
  * Search and scan in the top bar of the screens that don't have the search box (an item, maintenance, shopping…):
  * a field-shaped button (an icon on a phone) that goes home with the cursor in the search, and the scanner.
  */
-export function BarSearch() {
+/** `onSearch`: the screen searches in itself (an item's page: inside that item) instead of going home. */
+export function BarSearch({ onSearch }: { onSearch?: () => void } = {}) {
+  const search = onSearch ?? searchFromAnywhere;
+  const label = onSearch ? t`Search this item` : t`Search your stuff`;
   return (
     <div className="ms-auto flex shrink-0 items-center gap-1 print:hidden">
       <button
         type="button"
         className="input input-sm w-56 cursor-text items-center gap-2 text-base-content/70 max-md:hidden"
-        onClick={searchFromAnywhere}
-        aria-label={t`Search your stuff`}
+        onClick={search}
+        aria-label={label}
       >
         <span className="icon-[tabler--search] size-4 shrink-0" />
-        <Trans><span className="grow text-start">Search…</span></Trans>
+        <span className="grow text-start">{onSearch ? t`Search this item…` : t`Search…`}</span>
         <kbd className="kbd kbd-sm border-base-content/15 bg-base-200 font-sans text-base-content/70 pointer-coarse:hidden">{COMMAND_K}</kbd>
       </button>
-      <button type="button" className="btn btn-text btn-circle md:hidden" onClick={searchFromAnywhere} aria-label={t`Search your stuff`}>
+      <button type="button" className="btn btn-text btn-circle md:hidden" onClick={search} aria-label={label}>
         <span className="icon-[tabler--search] size-5" />
       </button>
       <button type="button" className="btn btn-text btn-circle" onClick={() => requestScan("more")} aria-label={t`Scan a barcode`} title={t`Scan a barcode`}>

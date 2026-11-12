@@ -8,8 +8,9 @@ import { type AskAnswer, type SearchHit, today, warrantyStatus } from "@ferret/s
 import { and, eq, isNull } from "drizzle-orm";
 import { item, warranty } from "../db/schema";
 import { z } from "zod";
-import type { Db, TextModel } from "../ports";
-import { itemSummary, loadSearchDoc } from "./search-text";
+import type { Ai, Db, TextModel, Vectors } from "../ports";
+import { findInItem } from "./item-search";
+import { itemSummary, loadSearchDoc, type SearchDoc } from "./search-text";
 
 /** How many items' worth of sources the model sees. */
 export const ASK_ITEMS = 6;
@@ -99,7 +100,11 @@ export async function askInventory(
   if (sources.length === 0) {
     return { answer: "I couldn't find anything in your inventory about that.", found: false, citations: [] };
   }
+  return answerFrom(deps, question, sources, on);
+}
 
+/** The model's answer from numbered sources, citing them — or saying they don't say. */
+async function answerFrom(deps: { model: TextModel; onModel?: () => Promise<void> }, question: string, sources: Source[], on: string): Promise<AskAnswer> {
   const context = sources
     .map((s) => `[${s.n}] ${s.filename ? `${s.item.name} — ${s.filename}` : s.item.name}\n${s.text}`)
     .join("\n\n");
@@ -139,4 +144,63 @@ Write the answer in the language of the question (${JSON.stringify(question)}), 
       ...(s.attachmentId ? { attachmentId: s.attachmentId, filename: s.filename } : {}),
     }));
   return { answer: r.answer, found: r.found && citations.length > 0, citations: r.found ? citations : [] };
+}
+
+/** Passages of one item's documents for a question about it. */
+const ITEM_PASSAGES = 8;
+const ITEM_SUMMARY_CHARS = 1500;
+const ITEM_TOTAL_CHARS = 14_000;
+
+/**
+ * Ask about one item ("how do I reset it?", "what does the plan cover?"): answered only from that item — its facts,
+ * warranties, the passages of its documents with the question's words, the passages nearest in meaning (the vector
+ * index, filtered to the item), and the start of each document (a receipt fits whole).
+ */
+export async function askAboutItem(
+  deps: { db: Db; model: TextModel; timeZone: string; onModel?: () => Promise<void>; ai?: Ai; vectors?: Vectors },
+  householdId: string,
+  doc: SearchDoc,
+  question: string,
+): Promise<AskAnswer> {
+  const on = today(undefined, deps.timeZone);
+  const item = { id: doc.item.id, name: doc.item.name };
+  const sources: Source[] = [];
+  const seen = new Set<string>();
+  let budget = ITEM_TOTAL_CHARS;
+  const add = (source: Omit<Source, "n" | "item">) => {
+    const text = source.text.trim().slice(0, budget);
+    const key = text.slice(0, 200);
+    if (budget <= 0 || !text || seen.has(key)) return;
+    seen.add(key);
+    budget -= text.length;
+    sources.push({ ...source, item, text, n: sources.length + 1 });
+  };
+  add({ text: itemSummary(doc).slice(0, ITEM_SUMMARY_CHARS) });
+  for (const w of doc.warranties) {
+    const status = warrantyStatus(w.endsOn, on);
+    add({
+      text: `Warranty${w.provider ? ` from ${w.provider}` : ""}: ${w.startsOn ? `${w.startsOn} to ` : "until "}${w.endsOn} — ${status === "expired" ? "expired" : status === "expiring" ? "still active, ends soon" : "active"}.${w.coverage ? ` Covers: ${w.coverage}` : ""}${w.notes ? `\n${w.notes}` : ""}`,
+    });
+  }
+  const filename = (id?: string) => doc.files.find((f) => f.id === id)?.filename;
+  for (const p of findInItem(doc, question, ITEM_PASSAGES).passages) {
+    if (p.source === "warranty") continue; // already there, whole
+    add({ ...(p.attachmentId ? { attachmentId: p.attachmentId, filename: p.label } : {}), text: p.heading ? `${p.heading}\n${p.text}` : p.text });
+  }
+  if (deps.ai && deps.vectors) {
+    try {
+      const [vector] = await deps.ai.embed([question], "query");
+      const near = await deps.vectors.query(vector!, { limit: ITEM_PASSAGES, filter: { householdId, itemId: doc.item.id } });
+      for (const point of near) {
+        const attachmentId = point.payload.source === "document" ? String(point.payload.attachmentId) : undefined;
+        add({ ...(attachmentId ? { attachmentId, filename: filename(attachmentId) ?? String(point.payload.filename) } : {}), text: String(point.payload.text) });
+      }
+    } catch (err) {
+      console.warn(`Ask about an item: no passages by meaning (${String(err)})`);
+    }
+  }
+  for (const f of doc.files) {
+    if (f.kind === "document" && f.analysisStatus === "done" && f.analysis?.text) add({ attachmentId: f.id, filename: f.filename, text: f.analysis.text.slice(0, DOCUMENT_CHARS) });
+  }
+  return answerFrom(deps, question, sources, on);
 }
