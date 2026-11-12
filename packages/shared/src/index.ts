@@ -509,8 +509,8 @@ export type AttachmentKind = (typeof attachmentKinds)[number];
 
 /** Upload types we accept, by kind. Also usable as an <input accept> list. */
 export const uploadTypes: Record<AttachmentKind, readonly string[]> = {
-  photo: ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif", "image/gif"],
-  document: ["application/pdf", "image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"],
+  photo: ["image/jpeg", "image/png", "image/webp", "image/avif", "image/heic", "image/heif", "image/gif"],
+  document: ["application/pdf", "image/jpeg", "image/png", "image/webp", "image/avif", "image/heic", "image/heif"],
 };
 
 /** What the vision model saw in a photo or scanned document. Suggestions are only ever applied by a person. */

@@ -59,7 +59,7 @@ import { randomId } from "./lib/secure-context";
  * Types offered by the pickers. HEIC is left out on purpose: iPhone Safari then
  * converts camera-roll photos to JPEG, which every browser can display.
  */
-const PHOTO_ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
+const PHOTO_ACCEPT = "image/jpeg,image/png,image/webp,image/avif,image/gif";
 const ANY_ACCEPT = `${PHOTO_ACCEPT},application/pdf`;
 
 interface Upload {

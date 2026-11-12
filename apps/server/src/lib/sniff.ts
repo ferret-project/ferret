@@ -11,6 +11,10 @@ export function sniffContentType(bytes: Uint8Array): string | null {
   if (ascii(0, 5) === "%PDF-") return "application/pdf";
   if (ascii(4, 8) === "ftyp") {
     const brand = ascii(8, 12);
+    // AVIF (stores' product photos often are): the major brand, or a compatible one after a generic "mif1".
+    const boxEnd = Math.min(((bytes[0]! << 24) | (bytes[1]! << 16) | (bytes[2]! << 8) | bytes[3]!) >>> 0, bytes.length, 64);
+    const compatible = Array.from({ length: Math.max(0, Math.floor((boxEnd - 16) / 4)) }, (_, i) => ascii(16 + i * 4, 20 + i * 4));
+    if (["avif", "avis"].includes(brand) || compatible.some((b) => b === "avif" || b === "avis")) return "image/avif";
     if (["heic", "heix", "hevc", "hevx", "heim", "heis"].includes(brand)) return "image/heic";
     if (["mif1", "msf1", "heif"].includes(brand)) return "image/heif";
   }

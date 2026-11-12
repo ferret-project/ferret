@@ -26,7 +26,7 @@ export const MAX_ROOM_PHOTOS = 5;
 const MAX_PER_PHOTO = 25;
 /** Each reply, thinking included: qwen3-vl thinks a few thousand tokens over a photo before it answers. */
 const MAX_TOKENS = 7000;
-const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
+const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp", "image/avif", "image/heic", "image/heif"];
 
 /** Where a scan's photo is kept (encrypted with the household's key). */
 export const roomPhotoKey = (householdId: string, scanId: string, n: number) => `${householdId}/roomscan-${scanId}-${n}`;

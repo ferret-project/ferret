@@ -77,7 +77,7 @@ export function AddFromPhotos(props: {
         type="file"
         hidden
         multiple
-        accept="image/jpeg,image/png,image/webp,image/gif"
+        accept="image/jpeg,image/png,image/webp,image/avif,image/gif"
         onChange={(e) => {
           const files = [...(e.target.files ?? [])];
           e.target.value = "";

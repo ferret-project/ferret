@@ -147,7 +147,7 @@ function Photograph({ householdId, locationId, roomName }: { householdId: string
           </button>
           {/* `capture`: straight to the camera, each time. */}
           <input ref={camera} type="file" hidden accept="image/*" capture="environment" onChange={(e) => (add([...(e.target.files ?? [])]), (e.target.value = ""))} />
-          <input ref={library} type="file" hidden multiple accept="image/jpeg,image/png,image/webp,image/gif" onChange={(e) => (add([...(e.target.files ?? [])]), (e.target.value = ""))} />
+          <input ref={library} type="file" hidden multiple accept="image/jpeg,image/png,image/webp,image/avif,image/gif" onChange={(e) => (add([...(e.target.files ?? [])]), (e.target.value = ""))} />
           <p className="text-sm text-base-content/70" aria-live="polite">
             {shots.length === 0
               ? t`Nothing photographed in ${roomName} yet.`
