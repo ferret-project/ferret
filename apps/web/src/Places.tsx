@@ -4,6 +4,7 @@
  * tap a location to see what's kept there. Property cards follow FlyonUI's card
  * pattern; the add/rename dialogs reuse the "Dashboard Modal 14" form layout.
  */
+import { StarterTasksDialog } from "./StarterTasks";
 import { BarSearch } from "./Nav";
 import type { LocationNode, PlacesTree, PropertyInput } from "@ferret/shared";
 import { propertyTypes } from "@ferret/shared/utils";
@@ -25,7 +26,8 @@ type Property = PlacesTree["properties"][number];
 /** What the open dialog is doing. */
 type Dialog =
   | { kind: "property"; property?: Property }
-  | { kind: "location"; property: Property; parentId?: string; location?: LocationNode };
+  | { kind: "location"; property: Property; parentId?: string; location?: LocationNode }
+  | { kind: "starter"; propertyId: string };
 
 export const PROPERTY_TYPES: Record<(typeof propertyTypes)[number], { label: MessageDescriptor; icon: string }> = {
   home: { label: msg`Home`, icon: "icon-[tabler--home]" },
@@ -168,8 +170,17 @@ export function Places({ householdName, householdId }: { householdName: string; 
       </main>
 
       {dialog?.kind === "property" && (
-        <PropertyDialog property={dialog.property} onClose={() => setDialog(null)} onSaved={refresh} />
+        <PropertyDialog
+          property={dialog.property}
+          onClose={() => setDialog(null)}
+          onSaved={(created) => {
+            void refresh();
+            // A new home: offer the common upkeep (gutters, smoke alarms…) to tick.
+            if (created && ["home", "vacation", "rental"].includes(created.type)) setDialog({ kind: "starter", propertyId: created.id });
+          }}
+        />
       )}
+      {dialog?.kind === "starter" && <StarterTasksDialog householdId={householdId} propertyId={dialog.propertyId} onClose={() => setDialog(null)} />}
       {dialog?.kind === "location" && (
         <LocationDialog {...dialog} householdId={householdId} onClose={() => setDialog(null)} onSaved={refresh} />
       )}
@@ -255,13 +266,13 @@ function RowActions({ name, onEdit, onRemove }: { name: string; onEdit: () => vo
   );
 }
 
-function PropertyDialog({ property, onClose, onSaved }: { property?: Property; onClose: () => void; onSaved: () => void }) {
+function PropertyDialog({ property, onClose, onSaved }: { property?: Property; onClose: () => void; onSaved: (created?: { id: string; type: Property["type"] }) => void }) {
   const d = property?.details;
   const save = useMutation({
-    mutationFn: (input: PropertyInput) => (property ? api.updateProperty(property.id, input) : api.createProperty(input)),
-    onSuccess: () => {
-      onSaved();
+    mutationFn: async (input: PropertyInput) => (property ? (await api.updateProperty(property.id, input), null) : { id: (await api.createProperty(input)).id, type: input.type }),
+    onSuccess: (created) => {
       onClose();
+      onSaved(created ?? undefined);
     },
   });
   function onSubmit(e: FormEvent<HTMLFormElement>) {

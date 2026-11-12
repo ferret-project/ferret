@@ -4,6 +4,7 @@
  * Also the Maintenance section on an item's page. Rows follow the FlyonUI list
  * pattern used elsewhere; the dialogs reuse the "Dashboard Modal 10" form layout.
  */
+import { StarterTasksButton } from "./StarterTasks";
 import { BarSearch } from "./Nav";
 import type { MaintenanceInput, MaintenanceTask } from "@ferret/shared";
 import { type IntervalUnit, addDays, intervalUnits, today } from "@ferret/shared/utils";
@@ -119,16 +120,20 @@ export function Maintenance({ householdName, householdId, view: asked, month: as
                 suggests what it needs.</Trans>
               </p>
               {canEdit && (
-                <button type="button" className="btn btn-primary" onClick={() => setEditing("new")}>
-                  <span className="icon-[tabler--plus] size-5" />
-                  <Trans>Add a task</Trans>
-                </button>
+                <div className="flex flex-wrap justify-center gap-2">
+                  <button type="button" className="btn btn-primary" onClick={() => setEditing("new")}>
+                    <span className="icon-[tabler--plus] size-5" />
+                    <Trans>Add a task</Trans>
+                  </button>
+                  <StarterTasksButton householdId={householdId} className="btn btn-soft btn-primary" />
+                </div>
               )}
             </div>
           </div>
         )}
         {list.length > 0 && (
-          <div className="join self-start" role="group" aria-label={t`Show as`}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="join" role="group" aria-label={t`Show as`}>
             {(["list", "month"] as const).map((v) => (
               <button
                 key={v}
@@ -141,6 +146,8 @@ export function Maintenance({ householdName, householdId, view: asked, month: as
                 {v === "list" ? t`List` : t`Month`}
               </button>
             ))}
+          </div>
+          {canEdit && <StarterTasksButton householdId={householdId} className="btn btn-text btn-sm" />}
           </div>
         )}
         {view === "month" && list.length > 0 && (

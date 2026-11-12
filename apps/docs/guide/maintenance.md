@@ -4,6 +4,19 @@
 mower every spring*, *clean the dryer vent every year*. A task can be on an item, on a place, or on the whole household,
 and can repeat or be a one-off.
 
+## Common house tasks {#starter}
+
+Not sure where to start? **Common house tasks** on the Maintenance screen (also offered when you add a home in
+**Places**) is a checklist of the usual upkeep: testing smoke and CO alarms, the furnace / AC filter and servicing,
+gutters, the roof, the dryer vent, flushing the water heater, the sump pump, outdoor faucets before a freeze, and more.
+Each shows how often it's usually done. Tick what applies — nothing is added until you do — and each becomes an
+ordinary task you can change or remove. Seasonal ones are first due at the start of spring (April 1) or fall
+(October 1) — twice-yearly ones at whichever comes first; the rest one interval from today. Tasks you already have
+aren't offered again ("Clean gutters" counts as "Clean the gutters").
+
+With more than one property, tasks added right after adding a home carry its name ("Clean the gutters — Lake house");
+or pick one of its places for them.
+
 ## Doing a task
 
 ![Maintenance: what's due in the next two weeks and what's coming up, each with Done](/screenshots/maintenance-light.webp){.shot .light-only}
