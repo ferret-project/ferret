@@ -78,6 +78,19 @@ describe("let AI fill in", () => {
     expect(Object.keys((await item(pat, id)).aiFilled!)).toEqual(["returnBy"]);
   });
 
+  it("adds a warranty only to a thing that has none, and says Ferret did it", async () => {
+    const { pat, jobs, settings } = await household();
+    await settings({ warranty: true, details: true });
+    const { id } = await pat.addItem({ name: "Dust collector", purchaseDate: "2026-11-03" });
+    await pat.as(`/api/v1/items/${id}/warranties`, { method: "POST", body: JSON.stringify({ provider: "JET", startsOn: "2026-11-11", endsOn: "2031-11-11" }) });
+    await pat.upload(id, pdf(), "warranty-card.pdf", "document");
+    await jobs.drain();
+    const warranties = ((await (await pat.as(`/api/v1/items/${id}/warranties`)).json()) as { data: { provider: string }[] }).data;
+    expect(warranties.map((w) => w.provider)).toEqual(["JET"]); // not a second one from the card
+    const history = ((await (await pat.as(`/api/v1/items/${id}/history`)).json()) as { data: { summary: string; via: string; by: string | null }[] }).data;
+    expect(history.find((h) => h.summary.startsWith("Filled in by AI"))).toMatchObject({ via: "ferret", by: null });
+  });
+
   it("never fills a field a person cleared since the file came", async () => {
     const { pat, jobs, settings } = await household();
     await settings({ details: true });

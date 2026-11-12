@@ -60,7 +60,8 @@ export interface Caller {
   timeZone: string;
   /** The household's currency (ISO 4217): how amounts are written in what the server says (formatMoney). */
   currency: string;
-  via: "web" | "api" | "mcp";
+  /** "ferret": a background job acting for nobody (the recall check, AI fill-in). */
+  via: "web" | "api" | "mcp" | "ferret";
   /** The API key's name, when it came with one (recorded as where things it adds came from). */
   keyName?: string | null;
 }

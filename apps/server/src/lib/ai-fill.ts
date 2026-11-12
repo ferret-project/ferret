@@ -116,7 +116,7 @@ export async function autoFill(
   const sure = new Set(s.sure ?? []);
   if (!sure.size) return [];
   // The AI acts for nobody (like the recall check): its history lines say "by AI" themselves.
-  const v: Caller = { deps, db, householdId: file.householdId, userId: "", ...(await householdLocale(db, file.householdId)), via: "web" };
+  const v: Caller = { deps, db, householdId: file.householdId, userId: "", ...(await householdLocale(db, file.householdId)), via: "ferret" };
   const [current] = await db.select().from(item).where(and(eq(item.id, file.itemId), itemScope(v)));
   if (!current) return [];
 
@@ -178,7 +178,9 @@ export async function autoFill(
     const existing = await db
       .select({ id: warranty.id })
       .from(warranty)
-      .where(and(eq(warranty.householdId, v.householdId), eq(warranty.itemId, current.id), eq(warranty.endsOn, endsOn), isNull(warranty.deletedAt)));
+      // Like the fields, only where there's nothing yet: a warranty a person added (or one filled in before) is left
+      // alone, and this one stays a suggestion to tap.
+      .where(and(eq(warranty.householdId, v.householdId), eq(warranty.itemId, current.id), isNull(warranty.deletedAt)));
     if (!existing.length) {
       const w = await createWarranty(v, current.id, { provider: s.warrantyProvider ?? null, startsOn: boughtOn, endsOn, attachmentId: file.id });
       await setMarks(v, current.id, (marks) => ({ ...marks, warranty: { value: endsOn, from: file.filename, attachmentId: file.id, at, warrantyId: w.id } }));

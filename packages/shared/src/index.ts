@@ -1408,7 +1408,8 @@ export interface ItemHistoryEntry {
   action: string;
   summary: string;
   by: string | null;
-  via: "web" | "api" | "mcp";
+  /** "ferret": Ferret itself, in a background job (a recall check, AI fill-in) — nobody's hand. */
+  via: "web" | "api" | "mcp" | "ferret";
 }
 
 // ── Share links (read-only, no account) ─────────────────────────────────────

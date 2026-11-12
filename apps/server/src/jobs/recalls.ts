@@ -11,7 +11,7 @@ import { householdLocale } from "../lib/household-time";
 export const RECALL_SYNC_JOB = "recalls.sync";
 export const RECALL_CHECK_JOB = "recalls.check";
 
-const caller = async (deps: Deps, householdId: string) => ({ deps, db: deps.db, householdId, userId: "", ...(await householdLocale(deps.db, householdId)), via: "web" as const });
+const caller = async (deps: Deps, householdId: string) => ({ deps, db: deps.db, householdId, userId: "", ...(await householdLocale(deps.db, householdId)), via: "ferret" as const });
 
 export function recallSyncJob(deps: Deps): JobHandler {
   return async () => {

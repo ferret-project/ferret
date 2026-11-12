@@ -70,8 +70,8 @@ export function ItemHistory({ itemId, householdId }: { itemId: string; household
               <div className="min-w-0 flex-1 pb-4">
                 <p className="break-words text-sm text-base-content">{e.summary}</p>
                 <p className="text-xs text-base-content/70" title={new Date(e.at).toLocaleString()}>
-                  {e.by ?? (e.action === "recall.found" ? t`Ferret` : t`Someone`)}
-                  {e.via !== "web" && t` via ${ph({ label: t((VIA[e.via] ?? VIA.web!).label) })}`} · {ago(e.at)}
+                  {e.by ?? (e.via === "ferret" || e.action === "recall.found" ? t`Ferret` : t`Someone`)}
+                  {e.via !== "web" && e.via !== "ferret" && t` via ${ph({ label: t((VIA[e.via] ?? VIA.web!).label) })}`} · {ago(e.at)}
                   {e.times > 1 && t` · ${ph({ times: e.times })} times`}
                 </p>
               </div>

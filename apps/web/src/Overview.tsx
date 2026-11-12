@@ -524,6 +524,7 @@ export const VIA: Record<string, { label: MessageDescriptor; icon: string }> = {
   web: { label: msg`app`, icon: "icon-[tabler--user]" },
   api: { label: msg`script`, icon: "icon-[tabler--code]" },
   mcp: { label: msg`Claude`, icon: "icon-[tabler--sparkles]" },
+  ferret: { label: msg`Ferret`, icon: "icon-[tabler--paw]" },
 };
 
 function Activity({ o }: { o: OverviewData }) {
@@ -552,8 +553,8 @@ function Activity({ o }: { o: OverviewData }) {
                   <span className="block text-sm text-base-content">{a.summary}</span>
                 )}
                 <span className="text-xs text-base-content/70">
-                  {a.actorName ?? (a.action === "recall.found" ? t`Ferret` : t`Someone`)}
-                  {a.via !== "web" && t` via ${ph({ label: t(via.label) })}`} · {ago(a.createdAt)}
+                  {a.actorName ?? (a.via === "ferret" || a.action === "recall.found" ? t`Ferret` : t`Someone`)}
+                  {a.via !== "web" && a.via !== "ferret" && t` via ${ph({ label: t(via.label) })}`} · {ago(a.createdAt)}
                 </span>
               </span>
             </li>
