@@ -29,8 +29,13 @@ export const VISION_PX = 1600;
 export const previewKey = (blobKey: string) => `${blobKey}.preview`;
 /** Stored transcription limit (long manuals), and how much of it the model reads for suggestions. */
 const MAX_TEXT = 200_000;
-/** Fewer readable characters than this in docling's Markdown, and a PDF is taken for a scan. */
-const SCANNED_BELOW = 40;
+/**
+ * Fewer readable characters than this in docling's Markdown, and the vision model reads the PDF's first page too: a scan
+ * (no text at all), or a page docling took mostly for a picture — a Home Depot order PDF came back as its first four lines.
+ */
+const THIN_BELOW = 400;
+/** Room for the reasoning and the short JSON reply when reading a document's text (about 700 tokens on a receipt). */
+const DOCUMENT_REPLY_TOKENS = 4000;
 /** What's left of docling's Markdown once its placeholders (`<!-- image -->`), markup and spaces are gone. */
 const readableLength = (markdown: string) => markdown.replace(/<!--[\s\S]*?-->/g, "").replace(/[\s#*_|>`-]/g, "").length;
 const PROMPT_TEXT = 12_000;
@@ -77,8 +82,10 @@ const replySchema = {
         },
         required: ["task", "every", "unit"],
       },
+      maxItems: 8,
     },
-    sure: { type: "array", items: { type: "string", enum: [...SURE_FIELDS] } },
+    // Bounded: unbounded, gpt-oss can repeat one name until it times out (a receipt took 5 minutes, 2026-11-12).
+    sure: { type: "array", items: { type: "string", enum: [...SURE_FIELDS] }, uniqueItems: true, maxItems: SURE_FIELDS.length },
   },
   required: [
     "description", "text", "name", "brand", "model", "serialNumber", "barcode",
@@ -258,10 +265,10 @@ export function analyzeAttachment(deps: {
           : undefined;
 
       let analysis: AttachmentAnalysis | undefined;
-      // A scanned PDF (a picture of a receipt or a warranty card) has no text for docling to find: the vision model
-      // reads its first page instead.
+      // A scanned PDF (a picture of a receipt or a warranty card), or one docling mostly took for a picture: the vision
+      // model reads its first page instead.
       const scanned =
-        row.contentType === "application/pdf" && (markdown === undefined || readableLength(markdown) < SCANNED_BELOW) && deps.pdfPages && deps.ai && deps.images
+        row.contentType === "application/pdf" && (markdown === undefined || readableLength(markdown) < THIN_BELOW) && deps.pdfPages && deps.ai && deps.images
           ? await deps.pdfPages.firstPage(bytes, VISION_PX).then((page) => (page ? deps.images!.resize(page, VISION_PX, "jpeg") : null))
           : null;
       // The browser's vision copy if it sent one (lib/attachments.ts), else made here.
@@ -278,11 +285,13 @@ export function analyzeAttachment(deps: {
         }
       } else if (markdown && (deps.chat ?? deps.ai)) {
         asked = true;
-        analysis = toAnalysis(await (deps.chat ?? deps.ai)!.json({ prompt: textPrompt(markdown, await householdCurrency(deps.db, row.householdId)), schema: replySchema }));
+        // Capped: the reply is short (the text is already stored), so a model stuck repeating itself stops in seconds, not at the timeout.
+        analysis = toAnalysis(await (deps.chat ?? deps.ai)!.json({ prompt: textPrompt(markdown, await householdCurrency(deps.db, row.householdId)), schema: replySchema, maxTokens: DOCUMENT_REPLY_TOKENS }));
       }
       if (!analysis && markdown !== undefined) analysis = { description: "", text: "", suggestions: {} };
       if (!analysis) return void (await save(null)); // couldn't decode it (e.g. HEIC); retrying won't help
-      if (markdown && !scanned) analysis.text = markdown;
+      // The fuller transcription is kept: docling's, unless the vision model read more of a thin page.
+      if (markdown && !(scanned && readableLength(analysis.text) > readableLength(markdown))) analysis.text = markdown;
 
       await save(analysis);
       // Schedules read from a manual: into Suggested maintenance, for a person to add.

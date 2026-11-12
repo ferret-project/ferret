@@ -234,6 +234,24 @@ describe("document analysis (docling)", () => {
     expect(a).toMatchObject({ analysisStatus: "done", analysis: { description: "JET 5-year warranty card.", text: "5 YEAR WARRANTY", suggestions: { warrantyMonths: 60 } } });
   });
 
+  it("asks the vision model about a thin page too, and keeps whichever read more of it", async () => {
+    const thin = "<!-- image -->\nDate Ordered:\nNovember 03, 2026\nOrder Total:\n$3,614.32\n## Delivery";
+    const page = { firstPage: async () => new Uint8Array(await photo()) };
+    const fuller = "Order WN75772557\nJet JCDC-3 3HP 230-Volt Cyclone Dust Collector Kit $2,855.72\nHome Depot Protection Plan 4-Year $508.00";
+    const ai = new FakeAi([{ ...receiptReply, text: fuller }, { ...receiptReply, text: "Order" }]);
+    const { jobs, user } = await setup({ ai, documents: new FakeDocuments([thin, thin]), pdfPages: page });
+    const pat = await user("pat");
+    const { id: itemId } = await pat.addItem({ name: "Dust collector" });
+    await pat.upload(itemId, pdf(), "order.pdf", "document");
+    await jobs.drain();
+    expect((await pat.attachments(itemId))[0]).toMatchObject({ analysis: { text: fuller } });
+    // The vision model read less than docling did: docling's text stays.
+    const { id: other } = await pat.addItem({ name: "Mixer" });
+    await pat.upload(other, pdf("two"), "other.pdf", "document");
+    await jobs.drain();
+    expect((await pat.attachments(other))[0]).toMatchObject({ analysis: { text: thin } });
+  });
+
   it("reads PDFs with the vision model when there's no docling but pages can be drawn", async () => {
     const ai = new FakeAi([receiptReply]);
     const { jobs, user } = await setup({ ai, pdfPages: { firstPage: async () => new Uint8Array(await photo()) } });
