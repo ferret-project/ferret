@@ -11,6 +11,10 @@ text **inside their photos and documents** (a receipt, a label, a manual). Part 
 If whoever runs Ferret has turned on smart search, it also finds things by **meaning**: *"something to make holes"*
 finds the drill.
 
+Manuals mention everything, so in a shop full of them a word can bring up every tool whose manual says it. Turn off
+**Include manuals & receipts** above the results to match only the things themselves (their names, details, notes and
+photos). This device remembers the choice.
+
 Searching from a room, a category or a tag looks only in there — **Search everywhere** under the box widens it.
 
 ### Getting around quickly

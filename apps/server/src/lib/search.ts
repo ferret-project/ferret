@@ -58,13 +58,14 @@ export async function semanticSearch(
   deps: { ai: Ai; vectors: Vectors; reranker?: Reranker; profile?: SearchProfile },
   householdId: string,
   query: string,
-  opts: { limit: number; minScore?: number; judge?: TextModel; hold?: boolean },
+  /** documents false: only the items' own points, not their documents' passages. */
+  opts: { limit: number; minScore?: number; judge?: TextModel; hold?: boolean; documents?: boolean },
 ): Promise<{ hits: Map<string, SearchHit>; held: number }> {
   const p = deps.profile ?? SEARCH_PROFILES.home;
   const minScore = opts.minScore ?? p.minScore;
   const floor = opts.judge || opts.hold ? Math.min(p.judgeFloor, minScore) : minScore;
   const [vector] = await deps.ai.embed([query], "query");
-  const points: Point[] = await deps.vectors.query(vector!, { limit: opts.limit * 3, filter: { householdId } });
+  const points: Point[] = await deps.vectors.query(vector!, { limit: opts.limit * 3, filter: opts.documents === false ? { householdId, source: "item" } : { householdId } });
 
   const relevance = deps.reranker ? await rerank(deps.reranker, query, points) : undefined;
 

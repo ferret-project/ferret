@@ -527,8 +527,17 @@ export async function asListing<T extends typeof item.$inferSelect>(
  * request) leaves them out and says how many are `checking`; "now" asks the judge before answering (the app's second
  * request, Ask, Claude). Without a chat model, the cut-off decides either way.
  */
-export async function searchItems(v: Caller, query: string, filter: ItemFilter, limit: number, judge: "hold" | "now" = "now") {
-  const words = await fullTextSearch(v.db, v.householdId, query, limit);
+export async function searchItems(
+  v: Caller,
+  query: string,
+  filter: ItemFilter,
+  limit: number,
+  judge: "hold" | "now" = "now",
+  /** documents "exclude": what manuals and receipts say doesn't count — only the things themselves and their photos. */
+  opts: { documents?: "include" | "exclude" } = {},
+) {
+  const withDocuments = opts.documents !== "exclude";
+  const words = await fullTextSearch(v.db, v.householdId, query, limit, { documents: withDocuments });
   const hits: Record<string, SearchHit> = Object.fromEntries(
     words.map(({ itemId, rank: _, ...where }) => [itemId, { via: "words" as const, ...where }]),
   );
@@ -542,6 +551,7 @@ export async function searchItems(v: Caller, query: string, filter: ItemFilter, 
       const profile = v.deps.searchProfile ?? SEARCH_PROFILES.home;
       const meaning = await semanticSearch({ ai: ai!, vectors: vectors!, reranker, profile }, v.householdId, query, {
         limit,
+        documents: withDocuments,
         // Alongside word matches, only strong meaning matches are worth adding.
         minScore: words.length ? profile.strongScore : profile.minScore,
         // The chat model decides the unsure ones — when words found nothing (alongside word matches the strong cut-off

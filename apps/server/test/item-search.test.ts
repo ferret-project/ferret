@@ -73,6 +73,17 @@ describe("finding inside one item", () => {
   });
 });
 
+describe("searching everything without manuals", () => {
+  it("leaves out what documents say, but not the thing's own words", async () => {
+    const { pat } = await withManual();
+    const names = async (q: string, extra = "") => ((await (await pat.as(`/api/v1/items?q=${q}${extra}`)).json()) as { data: { name: string }[] }).data.map((i) => i.name);
+    expect(await names("overload")).toEqual(["Dust collector"]); // only its manual says it
+    expect(await names("overload", "&documents=exclude")).toEqual([]);
+    expect(await names("loft", "&documents=exclude")).toEqual(["Dust collector"]); // its notes
+    expect((await pat.as("/api/v1/items?q=x&documents=maybe")).status).toBe(422);
+  });
+});
+
 describe("asking about one item", () => {
   it("answers from that item's passages and cites the manual", async () => {
     const { pat, id, attachmentId, chat } = await withManual([docReply, { answer: "Let it cool for a few minutes, then press the reset button.", found: true, sources: [1, 3] }]);

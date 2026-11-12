@@ -64,16 +64,18 @@ const STOPWORDS = new Set(
  * first by BM25 — names count most. Falls back to substring matching for
  * number-like terms (serials, models) when no whole words match.
  */
-export async function fullTextSearch(db: Db, householdId: string, query: string, limit: number): Promise<TextHit[]> {
+export async function fullTextSearch(db: Db, householdId: string, query: string, limit: number, opts: { documents?: boolean } = {}): Promise<TextHit[]> {
   const terms = (query.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []).filter((t) => !STOPWORDS.has(t)).slice(0, 8);
   if (terms.length === 0) return [];
 
+  // Without documents: the item's own row and its photos' rows only.
+  const noDocuments = opts.documents === false ? sql` AND (attachment_id IS NULL OR attachment_id NOT IN (SELECT id FROM attachment WHERE kind = 'document'))` : sql``;
   type Row = { item_id: string; attachment_id: string | null; filename: string | null; rank: number; snippet: string };
   let rows = await db.all<Row>(sql`
     SELECT item_id, attachment_id, filename, bm25(item_search, 0, 0, 0, 0, 8.0, 1.0) AS rank,
            snippet(item_search, 5, '', '', '…', 24) AS snippet
     FROM item_search
-    WHERE item_search MATCH ${terms.map((t) => `"${t}"*`).join(" ")} AND household_id = ${householdId}
+    WHERE item_search MATCH ${terms.map((t) => `"${t}"*`).join(" ")} AND household_id = ${householdId}${noDocuments}
     ORDER BY rank LIMIT ${limit * 4}`);
 
   const substrings = terms.filter((t) => t.length >= 3);
@@ -82,7 +84,7 @@ export async function fullTextSearch(db: Db, householdId: string, query: string,
       SELECT item_id, attachment_id, filename, bm25(item_search_trigram) AS rank,
              snippet(item_search_trigram, 4, '', '', '…', 24) AS snippet
       FROM item_search_trigram
-      WHERE item_search_trigram MATCH ${substrings.map((t) => `"${t}"`).join(" ")} AND household_id = ${householdId}
+      WHERE item_search_trigram MATCH ${substrings.map((t) => `"${t}"`).join(" ")} AND household_id = ${householdId}${noDocuments}
       ORDER BY rank LIMIT ${limit * 4}`);
   }
 

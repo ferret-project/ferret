@@ -38,7 +38,7 @@ import { ShareButton } from "./Shares";
 import { RecallAlert } from "./PayOff";
 import { ORIGIN_FILTER, itemOriginList } from "./lib/origin";
 import { type AddContext, AddButton, AddFab, DesktopLinks, HouseholdBadge, MenuGroups, Sidebar, switchHousehold, useScanRequests, useSidebarFolded } from "./Nav";
-import { SearchBox, useSearchHotkeys, useSearchText } from "./Search";
+import { SearchBox, useSearchDocuments, useSearchHotkeys, useSearchText } from "./Search";
 import { Everything } from "./Everything";
 import { ItemRow } from "./ItemRow";
 import { navigateTo } from "./lib/navigate";
@@ -1013,19 +1013,21 @@ export function Home({ householdName, householdId, view }: { householdName: stri
   // `#/items?sort=value`: Everything in that order (the router hands the search values over as strings).
   const itemsSort = (useSearch({ strict: false }) as { sort?: string }).sort;
   const listing = Boolean(query) || ["category", "tag"].includes(view.name) || (view.name === "place" && Boolean(place));
+  const [withDocuments, setWithDocuments] = useSearchDocuments();
+  const documents = withDocuments ? undefined : ("exclude" as const);
   const first = useQuery({
     // In a room (not searching): its boxes and loose things — not every box's contents.
-    queryKey: ["items", householdId, query, locationId, missing, categoryId, tag, origin],
+    queryKey: ["items", householdId, query, locationId, missing, categoryId, tag, origin, documents],
     // A search answers at once with the sure matches; maybe-matches are checked by the AI model behind it (below).
-    queryFn: () => api.listItems(query, { locationId, missing, categoryId, tag, origin, topLevel: Boolean(locationId && !query), judge: "later" }),
+    queryFn: () => api.listItems(query, { locationId, missing, categoryId, tag, origin, documents, topLevel: Boolean(locationId && !query), judge: "later" }),
     placeholderData: (previous) => previous, // keep showing results while the next search runs
     enabled: listing,
   });
   // The checked answer, when the first one held some back: it replaces the first when it's in.
   const checking = Boolean(query) && !first.isPlaceholderData && (first.data?.checking ?? 0) > 0;
   const checked = useQuery({
-    queryKey: ["items", householdId, query, locationId, missing, categoryId, tag, origin, "checked"],
-    queryFn: () => api.listItems(query, { locationId, missing, categoryId, tag, origin, judge: "now" }),
+    queryKey: ["items", householdId, query, locationId, missing, categoryId, tag, origin, documents, "checked"],
+    queryFn: () => api.listItems(query, { locationId, missing, categoryId, tag, origin, documents, judge: "now" }),
     enabled: listing && checking,
   });
   const items = checking && checked.data ? checked : first;
@@ -1266,11 +1268,18 @@ export function Home({ householdName, householdId, view }: { householdName: stri
                   {items.data.total === 0 ? t`No matches` : plural(items.data.total, { one: "# match", other: "# matches" })}
                   {place ? t` in ${ph({ name: place.node.name })}` : kind ? t` in ${ph({ name: kind.name })}` : tag ? t` tagged ${tag}` : ""}
                 </span>
-                {(place || kind || tag || missing || origin) && (
-                  <a href={`#/?q=${encodeURIComponent(query)}`} className="link link-primary tap">
-                    <Trans>Search everywhere</Trans>
-                  </a>
-                )}
+                <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                  {/* Manuals mention everything: off, only the things themselves (and their photos) count. */}
+                  <label className="flex cursor-pointer items-center gap-2" title={t`Count what manuals and receipts say`}>
+                    <input type="checkbox" className="switch switch-primary switch-sm" checked={withDocuments} onChange={(e) => setWithDocuments(e.target.checked)} />
+                    <Trans>Include manuals &amp; receipts</Trans>
+                  </label>
+                  {(place || kind || tag || missing || origin) && (
+                    <a href={`#/?q=${encodeURIComponent(query)}`} className="link link-primary tap">
+                      <Trans>Search everywhere</Trans>
+                    </a>
+                  )}
+                </span>
               </div>
             )}
 

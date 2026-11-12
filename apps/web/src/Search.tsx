@@ -101,6 +101,32 @@ function writeRecent(householdId: string, list: string[]) {
  * The search text, kept in the address. `routeKey` is the screen (without its `?q=`): moving to another one takes
  * its own search (usually none).
  */
+const DOCUMENTS_KEY = "ferret.search.documents";
+
+/**
+ * Whether searches count what manuals and receipts say (on unless turned off): a shop full of manuals can bury the
+ * thing itself under every manual that mentions the word. Remembered on this device.
+ */
+export function useSearchDocuments(): [boolean, (on: boolean) => void] {
+  const [on, setOn] = useState(() => {
+    try {
+      return localStorage.getItem(DOCUMENTS_KEY) !== "off";
+    } catch {
+      return true;
+    }
+  });
+  const set = (value: boolean) => {
+    setOn(value);
+    try {
+      if (value) localStorage.removeItem(DOCUMENTS_KEY);
+      else localStorage.setItem(DOCUMENTS_KEY, "off");
+    } catch {
+      // private browsing: just for now
+    }
+  };
+  return [on, set];
+}
+
 export function useSearchText(routeKey: string, onArrive: (query: string) => void) {
   const [search, setSearch] = useState(queryInHash);
   const first = useRef(true);

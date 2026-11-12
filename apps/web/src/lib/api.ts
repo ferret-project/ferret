@@ -365,6 +365,8 @@ export const api = {
       wanted?: "include" | "only";
       /** Searches: "later" = the sure matches now (and `checking`); "now" = the maybe-matches checked first. */
       judge?: "later" | "now";
+      /** Searches: leave out what documents say (manuals, receipts). */
+      documents?: "exclude";
       limit?: number;
       offset?: number;
       /** Not scanned since this day (yyyy-mm-dd); never scanned counts. */
@@ -383,6 +385,7 @@ export const api = {
     const params = new URLSearchParams();
     if (filter.gone) params.set("gone", "only");
     if (q && filter.judge) params.set("judge", filter.judge);
+    if (q && filter.documents) params.set("documents", filter.documents);
     if (filter.containerItemId) params.set("containerItemId", filter.containerItemId);
     if (filter.topLevel) params.set("topLevel", "true");
     if (filter.boxes) params.set("boxes", "true");

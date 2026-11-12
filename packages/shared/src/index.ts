@@ -288,6 +288,8 @@ export const listQuery = z.object({
   dir: z.enum(["asc", "desc"]).optional(),
   /** Searches: "later" answers at once with the sure matches (and `checking`); "now" (default) checks the maybe-matches first. */
   judge: z.enum(["now", "later"]).optional(),
+  /** Searches: "exclude" leaves out what documents say (manuals, receipts) — only the things themselves and their photos. */
+  documents: z.enum(["include", "exclude"]).optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50),
   offset: z.coerce.number().int().min(0).default(0),
 });

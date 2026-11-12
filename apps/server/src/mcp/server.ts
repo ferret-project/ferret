@@ -115,12 +115,16 @@ function buildServer(v: McpCaller) {
       inputSchema: z.object({
         query: z.string().trim().min(1).max(200).describe('What to look for, in the person\'s words: "drill", "something to make holes", a serial number or a box\'s label code'),
         limit: z.number().int().min(1).max(50).default(10).describe("How many matches at most"),
+        documents: z
+          .boolean()
+          .default(true)
+          .describe("false: leave out what manuals and receipts say, matching only the things themselves and their photos — when manuals that mention the word crowd out the thing"),
       }),
       annotations: read,
     },
-    async ({ query, limit }) =>
+    async ({ query, limit, documents }) =>
       run(async () => {
-        const results = await svc.searchItems(v, query, {}, limit);
+        const results = await svc.searchItems(v, query, {}, limit, "now", { documents: documents ? "include" : "exclude" });
         const paths = await svc.locationPaths(v);
         return {
           items: results.data.map((it) => ({ ...itemView(it, paths), matched: compact(results.hits[it.id]) })),
