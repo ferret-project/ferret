@@ -289,6 +289,11 @@ export interface Images {
  */
 export interface PdfPages {
   firstPage(pdf: Uint8Array, maxSize: number): Promise<Uint8Array | null>;
+  /**
+   * The text the PDF itself carries, page by page (up to `maxPages`; "" for a page with none, like a scan) — what a
+   * document reader can miss (tables, a page it took for a picture). Null if it can't be read.
+   */
+  pageTexts?(pdf: Uint8Array, maxPages: number): Promise<string[] | null>;
 }
 
 /**

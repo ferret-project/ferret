@@ -17,6 +17,7 @@ import type { Ai, Analytics, Db, Deps, Documents, Entitlements, Images, JobHandl
 import { householdCurrency } from "../lib/household-time";
 import { suggestTasks } from "../lib/suggested-tasks";
 import { autoFill } from "../lib/ai-fill";
+import { MAX_TEXT_PAGES, withMissedPages } from "../lib/pdf-text";
 
 /** Separate job types so a long PDF never holds up photos (each type is its own lane). */
 export const PHOTO_JOB = "attachment.analyze";
@@ -259,10 +260,12 @@ export function analyzeAttachment(deps: {
       if (!bytes) return void (await save(null));
 
       // Documents: docling's transcription is the stored text (it reads long PDFs page by page).
-      const markdown =
-        kind === "document" && deps.documents
-          ? (await deps.documents.toMarkdown(bytes, row.filename, row.contentType)).slice(0, MAX_TEXT)
-          : undefined;
+      const docling = kind === "document" && deps.documents ? await deps.documents.toMarkdown(bytes, row.filename, row.contentType) : undefined;
+      // Plus what the PDF's own text has that docling dropped (a parts list, a small table) — or, without docling, that
+      // text alone when there's enough of it (lib/pdf-text.ts).
+      const pageTexts = kind === "document" && row.contentType === "application/pdf" ? await deps.pdfPages?.pageTexts?.(bytes, MAX_TEXT_PAGES) : null;
+      const merged = pageTexts ? withMissedPages(docling, pageTexts) : docling;
+      const markdown = (merged !== undefined && (docling !== undefined || readableLength(merged) >= THIN_BELOW) ? merged : docling)?.slice(0, MAX_TEXT);
 
       let analysis: AttachmentAnalysis | undefined;
       // A scanned PDF (a picture of a receipt or a warranty card), or one docling mostly took for a picture: the vision

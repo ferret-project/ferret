@@ -15,20 +15,12 @@ const MAX_IMAGE_PX = 16_000_000;
 const MAX_CANVAS_BYTES = 64 * 1024 * 1024;
 
 /**
- * Draws a PDF's first page with pdf.js (Mozilla's renderer, made for untrusted PDFs) onto @napi-rs/canvas. Nothing in
+ * Reads the text a PDF carries, and draws its first page with pdf.js (Mozilla's renderer, made for untrusted PDFs) onto @napi-rs/canvas. Nothing in
  * the PDF runs: pdf.js 6 has no eval at all, scripting is only in its viewer, and no system fonts are used.
  */
 export class PdfJsPages implements PdfPages {
   async firstPage(pdf: Uint8Array, maxSize: number) {
-    const task = getDocument({
-      data: pdf.slice(), // pdf.js takes ownership of the buffer
-      disableFontFace: true,
-      useSystemFonts: false,
-      standardFontDataUrl: STANDARD_FONTS,
-      verbosity: 0,
-      maxImageSize: MAX_IMAGE_PX,
-      canvasMaxAreaInBytes: MAX_CANVAS_BYTES,
-    });
+    const task = this.open(pdf);
     let timer: ReturnType<typeof setTimeout> | undefined;
     const tooSlow = new Promise<null>((resolve) => {
       timer = setTimeout(() => resolve(null), TIME_LIMIT_MS);
@@ -41,6 +33,45 @@ export class PdfJsPages implements PdfPages {
       clearTimeout(timer);
       await task.destroy().catch(() => {});
     }
+  }
+
+  async pageTexts(pdf: Uint8Array, maxPages: number) {
+    const task = this.open(pdf);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const tooSlow = new Promise<null>((resolve) => {
+      timer = setTimeout(() => resolve(null), TIME_LIMIT_MS);
+    });
+    try {
+      return await Promise.race([this.read(task.promise, maxPages), tooSlow]);
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timer);
+      await task.destroy().catch(() => {});
+    }
+  }
+
+  private open(pdf: Uint8Array) {
+    return getDocument({
+      data: pdf.slice(), // pdf.js takes ownership of the buffer
+      disableFontFace: true,
+      useSystemFonts: false,
+      standardFontDataUrl: STANDARD_FONTS,
+      verbosity: 0,
+      maxImageSize: MAX_IMAGE_PX,
+      canvasMaxAreaInBytes: MAX_CANVAS_BYTES,
+    });
+  }
+
+  private async read(loading: ReturnType<typeof getDocument>["promise"], maxPages: number) {
+    const doc = await loading;
+    const pages: string[] = [];
+    for (let n = 1; n <= Math.min(doc.numPages, maxPages); n++) {
+      const content = await (await doc.getPage(n)).getTextContent();
+      // Each run of text, and a line break where pdf.js saw one.
+      pages.push(content.items.map((i) => ("str" in i ? i.str + (i.hasEOL ? "\n" : "") : "")).join("").replace(/[ \t]+\n/g, "\n").trim());
+    }
+    return pages;
   }
 
   private async draw(loading: ReturnType<typeof getDocument>["promise"], maxSize: number) {
