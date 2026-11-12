@@ -640,9 +640,14 @@ export async function getItem(v: Caller, id: string) {
  */
 async function placement(
   v: Caller,
-  input: Pick<ItemPatch, "locationId" | "containerItemId" | "categoryId">,
+  input: Pick<ItemPatch, "locationId" | "containerItemId" | "categoryId" | "partOfItemId">,
   current?: typeof item.$inferSelect,
 ): Promise<Partial<typeof item.$inferInsert>> {
+  if (input.partOfItemId) {
+    const [whole] = await v.db.select({ id: item.id }).from(item).where(and(eq(item.id, input.partOfItemId), itemScope(v, { gone: "include" })));
+    if (!whole) throw notFound("Item");
+    if (current && whole.id === current.id) throw new HTTPException(422, { message: "A thing can't be a part of itself" });
+  }
   if (input.categoryId) {
     const [found] = await v.db
       .select({ id: category.id })

@@ -407,6 +407,13 @@ describe("adjust_stock", () => {
     ]);
     expect((await ann.as("/api/v1/household/settings", { method: "PUT", body: JSON.stringify({ currency: "GBP" }) })).status).toBe(200);
     expect((await searches())[0]![1]).toBe("https://www.amazon.co.uk/s?k=JET%20717531");
+    // Euros alone say little; the time zone says France. And a household can pick its own.
+    const settings = async (body: object) => (await (await ann.as("/api/v1/household/settings", { method: "PUT", body: JSON.stringify(body) })).json()) as { amazonSite: string; amazonSiteChosen: string | null };
+    expect(await settings({ currency: "EUR", timeZone: "Europe/Paris" })).toMatchObject({ amazonSite: "www.amazon.fr", amazonSiteChosen: null });
+    expect((await searches())[0]![1]).toBe("https://www.amazon.fr/s?k=JET%20717531");
+    expect(await settings({ amazonSite: "www.amazon.de" })).toMatchObject({ amazonSite: "www.amazon.de", amazonSiteChosen: "www.amazon.de" });
+    expect(await settings({ amazonSite: null })).toMatchObject({ amazonSite: "www.amazon.fr", amazonSiteChosen: null });
+    expect((await ann.as("/api/v1/household/settings", { method: "PUT", body: JSON.stringify({ amazonSite: "evil.example" }) })).status).toBe(422);
   });
 });
 

@@ -33,7 +33,7 @@ import { ORIGIN_HOW } from "./lib/origin";
 import { BoxContents, LabelBadge } from "./Boxes";
 import { flattenCategories, useCategories } from "./Catalog";
 import { mergeFields, useTemplates } from "./Templates";
-import { currentCurrency, money } from "./lib/money";
+import { money } from "./lib/money";
 import { CollectionBanner } from "./Collections";
 import { ItemMaintenance, maintenanceKey } from "./Maintenance";
 import { AiFilledCard } from "./AiFill";
@@ -77,6 +77,7 @@ interface Upload {
 export function ItemPage({ itemId, householdId }: { itemId: string; householdId: string }) {
   const qc = useQueryClient();
   const item = useQuery({ queryKey: ["item", householdId, itemId], queryFn: () => api.getItem(itemId) });
+  const amazonSite = useQuery({ queryKey: ["household-settings", householdId], queryFn: api.householdSettings, staleTime: 5 * 60_000 }).data?.amazonSite;
   const attachmentsKey = ["attachments", householdId, itemId];
   const attachments = useQuery({
     queryKey: attachmentsKey,
@@ -308,7 +309,7 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
           {item.data.notes && <p className="text-base-content/80 mt-2 whitespace-pre-line">{item.data.notes}</p>}
           {(() => {
             // Something kept stocked ("keep at least") can be looked for on Amazon until it has a product link.
-            const search = item.data.minQuantity != null && !item.data.disposition ? amazonSearchUrl(item.data, currentCurrency()) : null;
+            const search = item.data.minQuantity != null && !item.data.disposition && amazonSite ? amazonSearchUrl(item.data, amazonSite) : null;
             return (item.data.links?.length || search) ? <ItemLinks links={item.data.links ?? []} search={search} /> : null;
           })()}
           <AddedLine item={item.data} />

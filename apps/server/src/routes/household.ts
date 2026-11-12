@@ -14,7 +14,7 @@ import { accountDeletionInfo, confirmIdentity, deleteAccount, deleteHouseholds }
 import { emailEnabled } from "../lib/email-verification";
 import { invitationEmails } from "../lib/invitation-email";
 import { aiFillSettings, setHouseholdAiFill } from "../lib/ai-fill";
-import { chosenTimeZone, householdCurrency, serverTimeZone, setHouseholdCurrency, setHouseholdTimeZone } from "../lib/household-time";
+import { chosenTimeZone, householdAmazon, householdCurrency, serverTimeZone, setHouseholdAmazon, setHouseholdCurrency, setHouseholdTimeZone } from "../lib/household-time";
 
 export const household = new Hono<AppEnv>();
 
@@ -24,6 +24,7 @@ const settings = async (c: { var: AppEnv["Variables"] }): Promise<HouseholdSetti
   timeZone: await chosenTimeZone(c.var.db, c.var.householdId),
   serverTimeZone: serverTimeZone(),
   currency: await householdCurrency(c.var.db, c.var.householdId),
+  ...(await householdAmazon(c.var.db, c.var.householdId).then((a) => ({ amazonSite: a.site, amazonSiteChosen: a.chosen }))),
   ...(await aiFillSettings(c.var.db, c.var.householdId)),
 });
 
@@ -34,6 +35,7 @@ household.put("/settings", requireWriter, async (c) => {
   const input = await body(c.req.raw, householdSettingsInput);
   if (input.timeZone !== undefined) await setHouseholdTimeZone(c.var.db, c.var.householdId, input.timeZone);
   if (input.currency !== undefined) await setHouseholdCurrency(c.var.db, c.var.householdId, input.currency);
+  if (input.amazonSite !== undefined) await setHouseholdAmazon(c.var.db, c.var.householdId, input.amazonSite);
   if (input.aiFill) await setHouseholdAiFill(c.var.db, c.var.householdId, input.aiFill);
   return c.json(await settings(c));
 });

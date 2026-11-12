@@ -7,6 +7,7 @@ import {
   type AiFillKind,
   aiFillKinds,
   categoryFieldTypes,
+  isAmazonSite,
   isCurrency,
   isTimeZone,
   type ClaimStatus,
@@ -205,6 +206,12 @@ const itemFields = z.object({
   isContainer: z.boolean().describe("A box, bin or case that holds other items (they set containerItemId to it)"),
   locationId: z.string().min(1).optional().nullable().describe("Where it's kept: a location id from list_locations (null: nowhere in particular)"),
   containerItemId: z.string().min(1).optional().nullable().describe("The box it's in: an item id with isContainer; it's then wherever the box is"),
+  partOfItemId: z
+    .string()
+    .min(1)
+    .optional()
+    .nullable()
+    .describe("The thing this is a part or supply for (an item id): bags for a dust collector, filters for a furnace — listed on that thing's page under Parts & supplies. Put the part number in model"),
   categoryId: z.string().min(1).optional().nullable().describe("A category id from list_categories"),
   tags: z.array(tagName).max(30).describe("Tag names; new ones are created. When updating, the full new list"),
   customFields: z
@@ -1681,6 +1688,10 @@ export interface HouseholdSettings {
   serverTimeZone: string;
   /** Its money (ISO 4217, e.g. EUR) — how amounts are written everywhere. USD until chosen. */
   currency: string;
+  /** The Amazon it buys from (Search Amazon): its choice, else worked out from its zone and currency. */
+  amazonSite: string;
+  /** Its own choice of Amazon, or null (worked out). */
+  amazonSiteChosen: string | null;
   /** Which kinds of AI results fill in by themselves here (each: the household's choice, else the server's default). */
   aiFill: Record<AiFillKind, boolean>;
   /** The server's defaults, for kinds the household hasn't chosen (Settings → Server). */
@@ -1785,6 +1796,8 @@ export interface PlanReport {
 export const householdSettingsInput = z.object({
   timeZone: z.string().trim().min(1).max(64).refine(isTimeZone, "That isn't a time zone").nullable().optional(),
   currency: z.string().trim().toUpperCase().length(3).refine(isCurrency, "That isn't a currency").optional(),
+  /** The Amazon it buys from (www.amazon.co.uk…), or null to work it out from the zone and currency. */
+  amazonSite: z.string().trim().toLowerCase().refine((site): boolean => isAmazonSite(site), "That isn't an Amazon store").nullable().optional(),
   /** Per kind: on, off, or null to follow the server's default. */
   aiFill: z.partialRecord(z.enum(aiFillKinds), z.boolean().nullable()).optional(),
 });

@@ -17,7 +17,7 @@ import type { FileStore } from "./files";
 import { normalizeCode } from "./labels";
 import { findPairing } from "./pairing";
 import { productCode } from "./products";
-import { todayFor } from "./household-time";
+import { householdAmazon, todayFor } from "./household-time";
 import { inList } from "./sql";
 import { listMaintenance } from "./maintenance";
 
@@ -316,6 +316,7 @@ export async function shoppingList(v: Caller): Promise<ShoppingList> {
         .from(stockRule)
         .where(and(eq(stockRule.householdId, v.householdId), eq(stockRule.behaviour, "restock"), inList(stockRule.itemId, rows.map((r) => r.id))))
     : [];
+  const amazon = await householdAmazon(v.db, v.householdId);
   const items: ShoppingItem[] = (await asListing(v, rows))
     .map((r) => {
       const need = needs.find((n) => n.part.id === r.id);
@@ -332,7 +333,7 @@ export async function shoppingList(v: Caller): Promise<ShoppingList> {
         photoId: r.photoId,
         unitCents: r.purchasePriceCents ?? r.valueCents ?? null,
         amazon: amazonProductOf(r.links),
-        amazonSearch: amazonProductOf(r.links) ? null : amazonSearchUrl(r, v.currency),
+        amazonSearch: amazonProductOf(r.links) ? null : amazonSearchUrl(r, amazon.site),
       };
     })
     .sort((a, b) => Number(b.quantity === 0) - Number(a.quantity === 0) || a.name.localeCompare(b.name));

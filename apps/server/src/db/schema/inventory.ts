@@ -190,6 +190,11 @@ export const item = sqliteTable(
     containerItemId: text("container_item_id").references((): AnySQLiteColumn => item.id, {
       onDelete: "set null",
     }),
+    /**
+     * The thing this is a part or supply for (a dust collector's bags, a furnace's filters): listed on that thing's page
+     * under Parts & supplies (lib/parts.ts). Same household; cleared if that thing is deleted for good.
+     */
+    partOfItemId: text("part_of_item_id").references((): AnySQLiteColumn => item.id, { onDelete: "set null" }),
     createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
     /**
      * Where it came from: typed into the app, "Add from photos", a walkthrough, a barcode scan, a QR label, a
@@ -235,6 +240,7 @@ export const item = sqliteTable(
     index("item_category_idx").on(t.householdId, t.categoryId),
     index("item_ha_device_idx").on(t.householdId, t.haDeviceId),
     index("item_import_key_idx").on(t.householdId, t.importKey),
+    index("item_part_of_idx").on(t.partOfItemId),
   ],
 );
 
@@ -303,6 +309,8 @@ export const householdSetting = sqliteTable("household_setting", {
   timeZone: text("time_zone"),
   /** Its money (ISO 4217, e.g. EUR): how amounts are written everywhere. Null = US dollars (@ferret/shared money.ts). */
   currency: text("currency"),
+  /** The Amazon it buys from (www.amazon.co.uk…), for Search Amazon. Null = worked out from its zone and currency. */
+  amazonSite: text("amazon_site"),
   /** Which kinds of AI results it lets fill in by themselves (lib/ai-fill.ts); a kind left out follows the server's default. */
   aiFill: text("ai_fill", { mode: "json" }).$type<AiFillSwitches>(),
   /** The last day (UTC, yyyy-mm-dd) anyone in it used Ferret — written at most once a day (lib/plan.ts markActive). */

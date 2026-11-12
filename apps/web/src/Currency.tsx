@@ -4,11 +4,11 @@
  * decimals. Nothing is converted. Owners and admins change it (server: lib/household-time.ts).
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { currencyChoices, currencyName, currencySymbol, formatMoney } from "@ferret/shared/utils";
+import { AMAZON_SITES, currencyChoices, currencyName, currencySymbol, formatMoney } from "@ferret/shared/utils";
 import { useMemo } from "react";
 import { api } from "./lib/api";
 import { Trans } from "@lingui/react/macro";
-import { t } from "@lingui/core/macro";
+import { ph, t } from "@lingui/core/macro";
 
 const label = (code: string) => {
   const symbol = currencySymbol(code);
@@ -76,6 +76,70 @@ export function CurrencyCard({ householdId, canManage }: { householdId: string; 
             {save.isError && <div className="alert alert-soft alert-error text-sm">{save.error.message}</div>}
           </>
         )}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Settings → Household: which Amazon "Search Amazon" opens (the shopping list, things kept stocked). Worked out from the
+ * household's time zone and currency until someone picks one.
+ */
+export function AmazonStoreCard({ householdId, canManage }: { householdId: string; canManage: boolean }) {
+  const qc = useQueryClient();
+  const settings = useQuery({ queryKey: ["household-settings", householdId], queryFn: api.householdSettings });
+  const save = useMutation({
+    mutationFn: (amazonSite: string | null) => api.setHouseholdSettings({ amazonSite }),
+    onSuccess: (data) => {
+      qc.setQueryData(["household-settings", householdId], data);
+      void qc.invalidateQueries({ queryKey: ["shopping", householdId] });
+    },
+  });
+  const s = settings.data;
+  const label = (site: string) => {
+    const store = AMAZON_SITES.find((a) => a.site === site);
+    return store ? `${store.country} — ${site.replace(/^www\./, "")}` : site;
+  };
+
+  return (
+    <section className="card" aria-labelledby="amazon-title">
+      <div className="card-body gap-3">
+        <h2 id="amazon-title" className="card-title flex items-center gap-2">
+          <span className="icon-[tabler--shopping-cart] size-5 text-primary" />
+          <Trans>Amazon store</Trans>
+        </h2>
+        <p className="text-sm text-base-content/70">
+          <Trans>Where Search Amazon looks for parts and supplies on the shopping list. Ferret works it out from the household's time
+          zone and currency; pick one if it's wrong.</Trans>
+        </p>
+        {settings.isError && <div className="alert alert-soft alert-error text-sm">{settings.error.message}</div>}
+        {s &&
+          (canManage ? (
+            <div>
+              <label className="label-text" htmlFor="household-amazon">
+                <Trans>This household's Amazon</Trans>
+              </label>
+              <select
+                id="household-amazon"
+                className="select"
+                value={s.amazonSiteChosen ?? ""}
+                disabled={save.isPending}
+                onChange={(e) => save.mutate(e.target.value || null)}
+              >
+                <option value="">{t`Worked out: ${ph({ store: label(s.amazonSite) })}`}</option>
+                {AMAZON_SITES.map((a) => (
+                  <option key={a.site} value={a.site}>
+                    {label(a.site)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <p className="text-sm">
+              <strong>{label(s.amazonSite)}</strong>
+            </p>
+          ))}
+        {save.isError && <div className="alert alert-soft alert-error text-sm">{save.error.message}</div>}
       </div>
     </section>
   );

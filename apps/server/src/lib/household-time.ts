@@ -3,7 +3,7 @@
  * reminders go out. The server keeps every moment in UTC; only these calendar questions need a zone. Not set: the
  * server's own zone (the TZ environment variable on Node; UTC where there's none).
  */
-import { DEFAULT_CURRENCY, formatMoney, isCurrency, isTimeZone, localParts, type MoneyOptions, today } from "@ferret/shared";
+import { amazonSiteFor, DEFAULT_CURRENCY, formatMoney, isAmazonSite, isCurrency, isTimeZone, localParts, type MoneyOptions, today } from "@ferret/shared";
 import { eq } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { householdSetting } from "../db/schema";
@@ -45,6 +45,25 @@ export async function setHouseholdCurrency(db: Db, householdId: string, currency
     .insert(householdSetting)
     .values({ householdId, currency })
     .onConflictDoUpdate({ target: householdSetting.householdId, set: { currency, updatedAt: new Date() } });
+}
+
+/** The Amazon the household chose (null: not chosen), and the one it buys from — chosen, else from its zone and currency. */
+export async function householdAmazon(db: Db, householdId: string) {
+  const [row] = await db
+    .select({ chosen: householdSetting.amazonSite, timeZone: householdSetting.timeZone, currency: householdSetting.currency })
+    .from(householdSetting)
+    .where(eq(householdSetting.householdId, householdId));
+  const chosen = row?.chosen ?? null;
+  return { chosen, site: amazonSiteFor({ chosen, timeZone: row?.timeZone ?? serverTimeZone(), currency: row?.currency }) };
+}
+
+/** Sets (or, with null, clears) the household's Amazon. */
+export async function setHouseholdAmazon(db: Db, householdId: string, amazonSite: string | null) {
+  if (amazonSite && !isAmazonSite(amazonSite)) throw new HTTPException(422, { message: `${amazonSite} isn't an Amazon store` });
+  await db
+    .insert(householdSetting)
+    .values({ householdId, amazonSite })
+    .onConflictDoUpdate({ target: householdSetting.householdId, set: { amazonSite, updatedAt: new Date() } });
 }
 
 /** Where a household is, for a Caller made outside a request (jobs, share links, feeds): its zone and its currency. */
