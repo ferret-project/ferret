@@ -544,8 +544,8 @@ function Activity({ o }: { o: OverviewData }) {
                 </span>
               </span>
               <span className="min-w-0 flex-1">
-                {a.entityType === "item" && !a.action.endsWith("delete") ? (
-                  <a href={itemHref(a.entityId)} className="tap link link-hover block text-sm text-base-content">
+                {a.itemId ? (
+                  <a href={itemHref(a.itemId)} className="tap link link-hover block text-sm text-base-content">
                     {a.summary}
                   </a>
                 ) : (

@@ -724,7 +724,7 @@ export interface Overview {
   openClaims: WarrantyClaim[];
   /** Open tasks: how many are overdue or due within 14 days, and the next few. */
   maintenance: { overdue: number; due: number; next: MaintenanceTask[] };
-  activity: { id: string; action: string; summary: string | null; via: string; actorName: string | null; entityType: string; entityId: string; createdAt: string }[];
+  activity: { id: string; action: string; summary: string | null; via: string; actorName: string | null; entityType: string; entityId: string; /** The item it's about, if it still exists. */ itemId: string | null; createdAt: string }[];
   /** Running low: how many things to buy, how many have run out, and the first few. */
   shopping: { count: number; out: number; next: ShoppingItem[] };
 }

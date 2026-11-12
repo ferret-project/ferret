@@ -1033,10 +1033,20 @@ export async function overview(v: Caller): Promise<Overview> {
         actorName: user.name,
         entityType: activity.entityType,
         entityId: activity.entityId,
+        // The thing it's about, while it's still there — so the line can open it.
+        itemId: item.id,
         createdAt: activity.createdAt,
       })
       .from(activity)
       .leftJoin(user, eq(user.id, activity.actorId))
+      .leftJoin(
+        item,
+        and(
+          eq(item.id, sql`coalesce(${activity.itemId}, case when ${activity.entityType} = 'item' then ${activity.entityId} end)`),
+          eq(item.householdId, v.householdId),
+          isNull(item.deletedAt),
+        ),
+      )
       .where(eq(activity.householdId, v.householdId))
       .orderBy(desc(activity.createdAt))
       .limit(8),

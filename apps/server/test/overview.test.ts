@@ -39,6 +39,9 @@ describe("overview", () => {
     expect(o.missing).toEqual({ photo: 2, value: 1, place: 2, document: 2, category: 3, serial: expect.any(Number) });
     expect(o.warranties).toEqual([expect.objectContaining({ itemName: "Mixer", provider: "KitchenAid", status: "expiring" })]);
     expect(o.activity[0]).toMatchObject({ actorName: "ann", via: "web" });
+    // Every line about a thing opens it — a warranty's too, not only the item's own changes.
+    expect(o.activity[0]).toMatchObject({ action: "warranty.create", itemId: drill.id });
+    expect(o.activity.find((a) => a.action === "item.create" && a.entityId === mixer.id)?.itemId).toBe(mixer.id);
 
     // The places tree says what each room holds is worth.
     const tree = (await (await ann.as("/api/v1/locations/tree")).json()) as PlacesTree;
