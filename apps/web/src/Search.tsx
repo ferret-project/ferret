@@ -54,6 +54,12 @@ export function searchFromAnywhere() {
 }
 
 /** `inItem`: an item's page is open — `/` and ⌘K search inside it (ItemSearch.tsx) rather than going home. */
+/** The home screen's search with these words (or empty, the cursor in it) — "Everything" from an item's own search. */
+export function searchEverything(query: string) {
+  focusOnMount = true;
+  navigateTo(query ? `#/?q=${encodeURIComponent(query)}` : "#/");
+}
+
 export function useSearchHotkeys(onHomeScreen: boolean, inItem = false) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {

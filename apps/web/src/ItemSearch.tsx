@@ -11,7 +11,7 @@ import { useEffect, useRef, useState } from "react";
 import { AskFerret } from "./Ask";
 import { api } from "./lib/api";
 import { usePlan } from "./PlanUsage";
-import { ITEM_SEARCH_EVENT } from "./Search";
+import { ITEM_SEARCH_EVENT, searchEverything } from "./Search";
 
 
 const SOURCE_ICON: Record<ItemPassage["source"], string> = {
@@ -97,6 +97,17 @@ export function ItemSearch({ itemId, itemName, householdId, onClose }: { itemId:
   return (
     <section className="card border border-primary/20" aria-label={t`Search ${ph({ name: itemName })}`}>
       <div className="card-body gap-3 p-4">
+        {/* Where to search: this item (here), or everything (the home screen's search, with the same words). */}
+        <div className="join self-start" role="radiogroup" aria-label={t`Where to search`}>
+          <button type="button" role="radio" aria-checked="true" className="btn join-item btn-sm btn-primary">
+            <span className="icon-[tabler--box] size-4" />
+            <Trans>In this item</Trans>
+          </button>
+          <button type="button" role="radio" aria-checked="false" className="btn join-item btn-sm btn-soft" onClick={() => searchEverything(query.trim())}>
+            <span className="icon-[tabler--world-search] size-4" />
+            <Trans>Everything</Trans>
+          </button>
+        </div>
         <div className="flex items-center gap-2">
           <label className="input grow items-center gap-3">
             <span className="icon-[tabler--search] text-base-content/70 size-5 shrink-0" />
@@ -112,6 +123,12 @@ export function ItemSearch({ itemId, itemName, householdId, onClose }: { itemId:
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => {
+                // ⌘K / Ctrl+K again, from this box: search everything instead.
+                if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "k") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  return searchEverything(query.trim());
+                }
                 if (e.key !== "Escape") return;
                 e.preventDefault();
                 if (query) setQuery("");
@@ -145,9 +162,9 @@ export function ItemSearch({ itemId, itemName, householdId, onClose }: { itemId:
 
         {q.length >= 3 && aiAllowed && <AskFerret key={q} question={q} itemId={itemId} />}
         {q && (
-          <a href={`#/?q=${encodeURIComponent(q)}`} className="tap link link-hover text-primary self-start text-sm">
+          <button type="button" className="tap link link-hover text-primary self-start text-sm" onClick={() => searchEverything(q)}>
             <Trans>Search everything for “{q}”</Trans>
-          </a>
+          </button>
         )}
       </div>
     </section>

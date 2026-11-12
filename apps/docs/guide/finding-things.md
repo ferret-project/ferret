@@ -56,7 +56,8 @@ all of it, or open the document.
 
 **Ask about this item** answers a question from that thing alone — *"how do I reset it when it shuts off?"*, *"what
 doesn't the protection plan cover?"* — and shows the documents it used. It counts as an AI action, like Ask Ferret.
-**Search everything** takes your words to the home screen's search.
+To search everything instead, switch to **Everything** at the top (or press <kbd>⌘K</kbd> again): your words go to the
+home screen's search.
 
 ## Browsing
 
