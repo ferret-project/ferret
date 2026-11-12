@@ -146,6 +146,7 @@ export default defineConfig({
             { text: "Email and notifications", link: "/hosting/email" },
             { text: "Backups and restoring", link: "/hosting/backups" },
             { text: "The server admin", link: "/hosting/server-admin" },
+            { text: "Server check", link: "/hosting/server-check" },
             { text: "Certificates", link: "/hosting/certificates" },
             { text: "Home dashboards", link: "/hosting/dashboards" },
             { text: "Upgrading", link: "/hosting/upgrading" },

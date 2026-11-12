@@ -1,6 +1,6 @@
 /**
  * Settings → Server: what belongs to the whole server rather than one household, for its admin only — the nightly
- * backups (status, "Back up now", the copies kept, each one's restore check, how to restore), recall checks (on or off),
+ * backups (status, "Back up now", the copies kept, each one's restore check, how to restore), the server check, recall checks (on or off),
  * certificates for the server's own connections, and handing the admin role to someone else. Restoring is a command on the server, not a button: see restoreCommands below.
  */
 import type { BackupRun, BackupSnapshot, BackupStatus, ServerCertificate, ServerSecrets } from "@ferret/shared";
@@ -29,6 +29,7 @@ export function Server() {
       <HostingUsageCard />
       <DemoSwitches />
       {!demo && <Backups />}
+      <ServerCheck />
       <ServiceErrors />
       <BarcodeLookups />
       <RecallChecks />
@@ -146,6 +147,93 @@ function CopyDetails({ text }: { text: string }) {
 }
 
 /** The online barcode database (BARCODE_LOOKUP) and what's left of its daily allowance, as it said at the last lookup. */
+/** What each kind of finding means, in the reader's language (the server's own sentence is the fallback). */
+const CHECK_WORDS: Record<string, MessageDescriptor> = {
+  "files.missing": msg`Files the database lists that aren't in the file store — their photos or documents can't be opened.`,
+  "thumbnails.missing": msg`Small pictures (thumbnails) missing from the file store — those things show no picture in lists.`,
+  "files.unreadable": msg`Files that won't decrypt with their household's key (from a sample) — damaged, or written with another FILES_KEY.`,
+  "files.partial": msg`Only part of the files were looked for — run it again later for the rest.`,
+  "items.room": msg`Things in a room that's been deleted or belongs to another household — they don't show under any room.`,
+  "items.box": msg`Things in a box that's been deleted or belongs to another household.`,
+  "items.category": msg`Things whose category was deleted — they count as having none.`,
+  "locations.parent": msg`Places inside a place that's been deleted — they can't be reached in Places.`,
+  "attachments.item": msg`Photos or documents whose thing is missing or in another household.`,
+  "items.household": msg`Things belonging to a household that no longer exists.`,
+  "households.members": msg`Households nobody is a member of — nobody can open them.`,
+  "jobs.failed": msg`Background jobs that gave up after their last try (the service error log says why).`,
+  "jobs.stuck": msg`Background jobs still running whose turn came over an hour ago — a slow model, or a restart mid-job.`,
+  "imports.ai": msg`Imports sorted with AI that never finished.`,
+  "downloads.stuck": msg`Downloads from a web address still waiting after a day.`,
+  "roomscans.stuck": msg`Room scans that never finished.`,
+};
+
+/** Server check: on demand, read-only — files, rows pointing at nothing, unfinished work, backups. */
+function ServerCheck() {
+  const check = useMutation({ mutationFn: api.serverCheck });
+  const r = check.data;
+  const problems = r?.findings.filter((f) => f.level === "problem").length ?? 0;
+  return (
+    <section className="card" aria-labelledby="server-check-title">
+      <div className="card-body gap-3">
+        <h2 id="server-check-title" className="card-title flex items-center gap-2">
+          <span className="icon-[tabler--stethoscope] size-5 text-primary" />
+          <Trans>Server check</Trans>
+        </h2>
+        <p className="text-sm text-base-content/70">
+          <Trans>Looks over the running server: every file the database expects is in the store (and a few decrypt), nothing points at something deleted, no work was left unfinished, and backups are recent. It changes nothing.</Trans>
+        </p>
+        <div>
+          <button type="button" className="btn btn-soft btn-primary btn-wrap" disabled={check.isPending} onClick={() => check.mutate()}>
+            {check.isPending ? <span className="loading loading-spinner loading-sm" /> : <span className="icon-[tabler--player-play] size-5" />}
+            {r ? t`Check again` : t`Check now`}
+          </button>
+        </div>
+        {check.isError && <div className="alert alert-soft alert-error">{check.error.message}</div>}
+        {r && (
+          <>
+            <p className="text-sm text-base-content/70">
+              {t`Looked for ${ph({ checked: r.files.checked.toLocaleString() })} of ${ph({ total: r.files.total.toLocaleString() })} files and decrypted ${ph({ decrypted: r.files.decrypted })} · ${ph({ seconds: (r.ms / 1000).toFixed(1) })} s`}
+            </p>
+            {r.findings.length === 0 ? (
+              <div className="alert alert-soft alert-success flex items-center gap-2">
+                <span className="icon-[tabler--circle-check] size-5" />
+                <Trans>Everything looks right.</Trans>
+              </div>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {r.findings.map((f) => (
+                  <li key={f.kind} className={`rounded-box border p-3 ${f.level === "problem" ? "border-error/40 bg-error/5" : "border-base-content/15"}`}>
+                    <p className="flex items-start gap-2">
+                      <span className={`mt-0.5 size-5 shrink-0 ${f.level === "problem" ? "icon-[tabler--alert-triangle] text-error" : "icon-[tabler--info-circle] text-base-content/70"}`} />
+                      <span className="min-w-0 flex-1">
+                        {CHECK_WORDS[f.kind] ? t(CHECK_WORDS[f.kind]!) : f.text}
+                        {f.count > 1 && <span className="badge badge-soft badge-sm ms-2">{f.count.toLocaleString()}</span>}
+                      </span>
+                    </p>
+                    {f.examples.length > 0 && (
+                      <ul className="ms-7 mt-1 list-disc ps-4 text-sm text-base-content/70">
+                        {f.examples.map((e, i) => (
+                          <li key={i} className="break-words">{e}</li>
+                        ))}
+                        {f.count > f.examples.length && <li className="list-none">{t`and ${ph({ more: (f.count - f.examples.length).toLocaleString() })} more`}</li>}
+                      </ul>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {problems > 0 && (
+              <p className="text-sm text-base-content/70">
+                <Trans>The help's Server check page says what to do about each.</Trans> <HelpLink page="hosting/server-check.html" label={t`Server check`} />
+              </p>
+            )}
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function BarcodeLookups() {
   const status = useQuery({ queryKey: ["server-barcode-lookups"], queryFn: api.barcodeLookupStatus, refetchInterval: 60_000 });
   const s = status.data;

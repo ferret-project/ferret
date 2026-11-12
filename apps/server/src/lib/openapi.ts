@@ -423,6 +423,7 @@ export const OPERATIONS: Operation[] = [
     body: accountDeleteInput,
     writes: true,
   },
+  { method: "post", path: "/server/check", tag: "Server", summary: "Check the live server: missing or unreadable files, rows pointing at deleted things, unfinished work, stale backups (server admin; read-only)", returns: "ServerCheckResult" },
   { method: "get", path: "/server/barcode-lookups", tag: "Server", summary: "Online barcode lookups: on or off, and what's left of the database's daily allowance as of the last lookup (server admin)", returns: "BarcodeLookupStatus" },
   { method: "get", path: "/server/ai-fill", tag: "Server", summary: "Let AI fill in: which kinds are on by default for this server's households (server admin)", returns: "Record<AiFillKind, boolean>" },
   { method: "put", path: "/server/ai-fill", tag: "Server", summary: "Turn kinds of AI filling-in on or off by default for households that haven't chosen (server admin)", writes: true, returns: "Record<AiFillKind, boolean>" },

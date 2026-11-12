@@ -304,6 +304,7 @@ export const api = {
   /** Same-origin, so the download carries the session cookie. */
   draftListing: (itemId: string) =>
     request<{ title: string; description: string; priceCents: number | null; priceReasoning: string }>(`/items/${encodeURIComponent(itemId)}/listing`, { method: "POST" }),
+  serverCheck: () => request<ServerCheckResult>("/server/check", { method: "POST" }),
   heirs: () => request<{ data: HeirGroup[] }>("/export/heirs.json"),
   donations: (year?: number) => request<{ years: DonationYear[]; data: DonationRow[] }>(`/export/donations.json${year ? `?year=${year}` : ""}`),
   donationsCsvUrl: (year: number) => `/api/v1/export/donations.csv?year=${year}`,
@@ -627,4 +628,12 @@ export type HeirGroup = {
   heir: string;
   valueCents: number;
   items: { id: string; name: string; brand: string | null; model: string | null; serialNumber: string | null; description: string | null; quantity: number; place: string | null; box: string | null; valueCents: number | null; photoId: string | null }[];
+};
+
+/** Settings → Server's check of the live server (server lib/server-check.ts). */
+export type ServerCheckResult = {
+  at: string;
+  ms: number;
+  files: { total: number; checked: number; missing: number; decrypted: number; unreadable: number };
+  findings: { kind: string; level: "problem" | "note"; count: number; text: string; examples: string[] }[];
 };

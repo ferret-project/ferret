@@ -16,6 +16,7 @@ import { DEMO_PARTS, partsOff, setPartsOff } from "../lib/demo-switches";
 import { HTTPException } from "hono/http-exception";
 import { aboutServer, clearServiceErrors, listServiceErrors } from "../lib/service-errors";
 import { barcodeLookupStatus } from "../lib/products";
+import { runServerCheck } from "../lib/server-check";
 import { MAX_FILE_BYTES, addClient, addTrusted, listCertificates, removeCertificate } from "../lib/certificates";
 
 export const server = new Hono<AppEnv>();
@@ -108,6 +109,9 @@ server.post("/certificates/client", async (c) => {
 server.delete("/certificates/:id", async (c) => c.json(await removeCertificate(c.var.deps, c.var.config.FILES_KEY, c.req.param("id"))));
 
 /** Online barcode lookups: on or off, and what's left of the database's allowance today. */
+/** Server check: files, rows pointing at nothing, unfinished work, backups — read-only, on demand. */
+server.post("/check", async (c) => c.json(await runServerCheck({ db: c.var.db, blobs: c.var.deps.blobs, files: c.var.files })));
+
 server.get("/barcode-lookups", async (c) => c.json(await barcodeLookupStatus(c.var.deps)));
 
 /** "Let AI fill in": which kinds are on by default for this server's households (each household can still choose). */
