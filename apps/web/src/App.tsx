@@ -16,7 +16,7 @@ import { type FormEvent, useEffect, useRef, useState } from "react";
 import { api } from "./lib/api";
 import { authClient, passkeysSupported, useCanEdit, signOut } from "./lib/auth";
 import { findLocation, usePlaces } from "./lib/places";
-import { type Route, addedHref, scanRoomHref, walkthroughHref, HOME_HREF, ITEMS_HREF, PLACES_HREF, itemHref } from "./lib/route";
+import { type Route, addedHref, scanRoomHref, walkthroughHref, HOME_HREF, ITEMS_HREF, PLACES_HREF, itemHref, categoryHref } from "./lib/route";
 import { useRoomScanOn } from "./lib/room-scan";
 import { useRouteName } from "./lib/route-name";
 import { HouseholdContext, useHousehold } from "./lib/household";
@@ -41,6 +41,7 @@ import { ORIGIN_FILTER, itemOriginList } from "./lib/origin";
 import { type AddContext, AddButton, AddFab, DesktopLinks, HouseholdBadge, MenuGroups, Sidebar, switchHousehold, useScanRequests, useSidebarFolded } from "./Nav";
 import { SearchBox, useSearchDocuments, useSearchHotkeys, useSearchText } from "./Search";
 import { Everything } from "./Everything";
+import { FolderRow } from "./Folder";
 import { ItemRow } from "./ItemRow";
 import { navigateTo } from "./lib/navigate";
 import { HOUSEHOLD_NAME_MAX, NewHouseholdDialog, createHousehold } from "./NewHousehold";
@@ -1020,7 +1021,8 @@ export function Home({ householdName, householdId, view }: { householdName: stri
     // In a room (not searching): its boxes and loose things — not every box's contents.
     queryKey: ["items", householdId, query, locationId, missing, categoryId, tag, origin, documents],
     // A search answers at once with the sure matches; maybe-matches are checked by the AI model behind it (below).
-    queryFn: () => api.listItems(query, { locationId, missing, categoryId, tag, origin, documents, topLevel: Boolean(locationId && !query), judge: "later" }),
+    // A category's page folds its big subcategories (they have tiles above), so its own things aren't buried.
+    queryFn: () => api.listItems(query, { locationId, missing, categoryId, tag, origin, documents, topLevel: Boolean(locationId && !query), fold: Boolean(categoryId), judge: "later" }),
     placeholderData: (previous) => previous, // keep showing results while the next search runs
     enabled: listing,
   });
@@ -1302,6 +1304,9 @@ export function Home({ householdName, householdId, view }: { householdName: stri
               </p>
             )}
             <ul className="flex flex-col gap-2">
+              {!query && items.data?.folded?.map((g) => (
+                <FolderRow key={g.categoryId} folder={g} onOpen={() => navigateTo(categoryHref(g.categoryId))} />
+              ))}
               {items.data?.data.map((item) => (
                 <ItemRow
                   key={item.id}
