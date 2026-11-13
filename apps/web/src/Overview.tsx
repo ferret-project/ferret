@@ -22,6 +22,8 @@ import { t, ph, plural, msg } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
 
+const BOUGHT_HREF = `${ITEMS_HREF}?sort=bought`;
+
 export const MISSING_LABELS: Record<MissingDetail, { label: MessageDescriptor; filter: MessageDescriptor; icon: string }> = {
   photo: { label: msg`Photo`, filter: msg`No photo yet`, icon: "icon-[tabler--camera]" },
   value: { label: msg`Value or price`, filter: msg`No value or price`, icon: "icon-[tabler--cash]" },
@@ -97,8 +99,19 @@ export function OverviewSections({ householdId, places }: { householdId: string;
       {/* On a wide screen, the sections flow into two columns (each kept whole). */}
       <div className="flex flex-col gap-4 md:block md:columns-2 md:gap-4 md:[&>*]:mb-4 md:[&>*]:break-inside-avoid">
       {o.total.valueCents > 0 && (
-        <Section icon="icon-[tabler--chart-area-line]" title={t`Worth over time`} aside={<span className="text-sm text-base-content/70"><Trans>by when things came in</Trans></span>}>
-          <WorthOverTime byMonth={o.byMonth} />
+        <Section
+          icon="icon-[tabler--chart-area-line]"
+          title={t`Worth over time`}
+          aside={
+            <a href={BOUGHT_HREF} className="tap link link-hover text-sm text-base-content/70">
+              <Trans>by when things came in</Trans>
+            </a>
+          }
+        >
+          {/* The chart opens everything, the most recently bought first. */}
+          <a href={BOUGHT_HREF} className="block rounded-field" aria-label={t`Everything, the most recently bought first`}>
+            <WorthOverTime byMonth={o.byMonth} />
+          </a>
         </Section>
       )}
       <Upkeep o={o} />
@@ -122,6 +135,7 @@ export function OverviewSections({ householdId, places }: { householdId: string;
           <CategoryDonut
             groups={o.byCategory}
             href={(name) => {
+              if (name === "No category") return missingHref("category");
               const top = (categories.data ?? []).find((c) => c.name === name);
               return top ? categoryHref(top.id) : undefined;
             }}
