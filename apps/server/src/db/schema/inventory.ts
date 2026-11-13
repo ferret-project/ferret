@@ -223,6 +223,8 @@ export const item = sqliteTable(
      * A field leaves this when a person confirms or edits it; Undo clears the field again.
      */
     aiFilled: text("ai_filled", { mode: "json" }).$type<Record<string, AiFill>>(),
+    /** What replaced it, once it's gone (GoneDialog): both pages link the other. Same household. */
+    replacedById: text("replaced_by_id").references((): AnySQLiteColumn => item.id, { onDelete: "set null" }),
     /** How long this one should last, in years — overrides its category's and the typical lifespan (lib/lifespans.ts). */
     lifespanYears: integer("lifespan_years"),
     /** What it would cost to replace today, in cents — set by a person (maybe from the AI's estimate). */
@@ -368,6 +370,8 @@ export const attachment = sqliteTable(
      * the order they were added (lib/attachments.ts PHOTO_ORDER). Null: never chosen.
      */
     mainAt: integer("main_at", { mode: "timestamp_ms" }),
+    /** A repair's before/after photo or invoice (lib/repairs.ts): still its item's, shown with the repair too. */
+    repairId: text("repair_id").references((): AnySQLiteColumn => repair.id, { onDelete: "set null" }),
     createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
     ...timestamps,
   },
@@ -564,6 +568,33 @@ export const maintenanceLog = sqliteTable(
     createdAt: timestamps.createdAt,
   },
   (t) => [index("maintenance_log_task_idx").on(t.householdId, t.taskId)],
+);
+
+/**
+ * A repair (lib/repairs.ts): a one-off fix, not a schedule — what went wrong, what was done, who did it, the parts,
+ * the cost (counted in the item's cost of ownership), photos (attachments with repairId), a repair warranty (a
+ * warranty row of the item) and optionally the maintenance task it belongs to. Soft-deleted (purgeDeleted).
+ */
+export const repair = sqliteTable(
+  "repair",
+  {
+    id: id(),
+    householdId: householdId(),
+    itemId: text("item_id")
+      .notNull()
+      .references(() => item.id, { onDelete: "cascade" }),
+    repairedOn: text("repaired_on").notNull(), // ISO yyyy-mm-dd
+    problem: text("problem"),
+    work: text("work").notNull(),
+    providerId: text("provider_id").references(() => provider.id, { onDelete: "set null" }),
+    parts: text("parts"),
+    costCents: integer("cost_cents"),
+    warrantyId: text("warranty_id").references(() => warranty.id, { onDelete: "set null" }),
+    taskId: text("task_id").references(() => maintenanceTask.id, { onDelete: "set null" }),
+    doneBy: text("done_by").references(() => user.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (t) => [index("repair_item_idx").on(t.householdId, t.itemId)],
 );
 
 /**

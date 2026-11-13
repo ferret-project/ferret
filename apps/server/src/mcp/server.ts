@@ -57,8 +57,9 @@ import { itemParts } from "../lib/parts";
 import { markMissing, markSeen } from "../lib/sightings";
 import * as reviews from "../lib/room-reviews";
 import { itemLifespan, replacementForecast } from "../lib/lifespans";
+import * as repairs from "../lib/repairs";
 import type { RoomReview } from "@ferret/shared";
-import { reviewOutcomes } from "@ferret/shared";
+import { repairInput, repairPatch, reviewOutcomes } from "@ferret/shared";
 import type { FileStore } from "../lib/files";
 import * as upkeep from "../lib/maintenance";
 import * as products from "../lib/products";
@@ -157,7 +158,7 @@ function buildServer(v: McpCaller) {
     {
       title: "Get an item",
       description:
-        "Everything about one item: all its fields, where it's kept (and which box), its parts and supplies (bags, filters — items of their own with partOfItemId set to it; add one with create_item and partOfItemId, the part number in model; its manuals' suggested parts are in attachments' suggestions.parts), warranties and claims, its photos and documents with what the vision model read in them, when it was last seen (lastSeen; missingSince if nobody can find it), and any suggested fields waiting for the person to confirm (item fields go through update_item, a warranty through save_warranty, a schedule through save_maintenance). Use it after search_inventory or list_items has found the item, when you need the details; for what happened to it over time use item_history, and for a quick look at many items list_items is enough.",
+        "Everything about one item: all its fields, where it's kept (and which box), its parts and supplies (bags, filters — items of their own with partOfItemId set to it; add one with create_item and partOfItemId, the part number in model; its manuals' suggested parts are in attachments' suggestions.parts), warranties and claims, its photos and documents with what the vision model read in them, its repairs, what owning it has cost (cost: paid + maintenance + repairs − what it sold for, per year owned), what replaced it, how long it should last (lifespan), when it was last seen (lastSeen; missingSince if nobody can find it), and any suggested fields waiting for the person to confirm (item fields go through update_item, a warranty through save_warranty, a schedule through save_maintenance). Use it after search_inventory or list_items has found the item, when you need the details; for what happened to it over time use item_history, and for a quick look at many items list_items is enough.",
       inputSchema: z.object({ id: z.string().min(1).describe("The item's id, from search_inventory or list_items") }),
       annotations: read,
     },
@@ -189,6 +190,10 @@ function buildServer(v: McpCaller) {
           label: listed?.labelCode ?? undefined,
           // When someone last saw it (scanned, "Still here", a room review); missingSince: nobody can find it.
           lastSeen: listed?.lastSeen ? compact({ at: listed.lastSeen.at, by: listed.lastSeen.by, how: listed.lastSeen.kind }) : undefined,
+          // Repairs, what owning it has cost, and what replaced it / what it replaced.
+          repairs: await repairs.listRepairs(v, id).then((rs) => (rs.length ? rs.map((r) => compact({ id: r.id, repairedOn: r.repairedOn, work: r.work, problem: r.problem, by: r.providerName, parts: r.parts, costCents: r.costCents, warrantyEndsOn: r.warrantyEndsOn })) : undefined)),
+          cost: await repairs.ownershipCost(v, id).then((c) => compact({ totalCents: c.totalCents, perYearCents: c.perYearCents, years: c.years, paidCents: c.paidCents, maintenanceCents: c.maintenanceCents || undefined, repairCents: c.repairCents || undefined, backCents: c.backCents })),
+          ...(await repairs.replacementsOf(v, it).then(({ replacedBy, replaces }) => compact({ replacedBy: replacedBy ?? undefined, replaces: replaces.length ? replaces : undefined }))),
           // How long it should last and when it's likely due — an estimate (its own, its category's or typical).
           lifespan: await itemLifespan(v, it).then((l) => (l ? compact({ ...l, from: l.from ?? undefined }) : undefined)),
           warranties: warranties.map((w) =>
@@ -1031,6 +1036,31 @@ function buildServer(v: McpCaller) {
   );
 
   server.registerTool(
+    "save_repair",
+    {
+      title: "Log or change a repair",
+      description:
+        "Records a repair of an item — a one-off fix, not scheduled maintenance: when (repairedOn), what was done (work), what went wrong (problem), who did it (providerId, from list_providers), parts, what it cost (cents) — or, with id, changes one. warrantyEndsOn adds a warranty on the repair to the item's warranties; taskId links it to a maintenance task of that item. Repairs count in the item's cost of ownership (get_item's cost). Use it when the person says something was fixed (\"the plumber replaced the water heater's thermostat, $180\"). Returns the repair with its id.",
+      inputSchema: repairPatch.extend({
+        id: idOf("repair", "get_item"),
+        itemId: z.string().min(1).optional().describe("To log one: the item's id, from search_inventory"),
+        warrantyEndsOn: repairInput.shape.warrantyEndsOn,
+      }),
+      annotations: write,
+    },
+    async ({ id, itemId, ...fields }) =>
+      run(async () => {
+        const view = (r: Awaited<ReturnType<typeof repairs.getRepair>>) => compact({ ...r, itemId: undefined, attachmentIds: r.attachmentIds.length ? r.attachmentIds : undefined });
+        if (id) {
+          const { warrantyEndsOn: _w, ...patch } = fields;
+          return view(await repairs.updateRepair(v, id, parseAs(repairPatch, patch, "change a repair")));
+        }
+        if (!itemId) throw new HTTPException(422, { message: "To log a repair, give the item's itemId" });
+        return view(await repairs.createRepair(v, itemId, parseAs(repairInput, fields, "log a repair")));
+      }),
+  );
+
+  server.registerTool(
     "save_warranty_claim",
     {
       title: "File or update a warranty claim",
@@ -1156,13 +1186,13 @@ function buildServer(v: McpCaller) {
       description: `Removes one thing from the household's records, by kind and id. Confirm with the person first. What each kind does:
 - item: only when it was added by mistake or should be gone from the records — for something sold, given away, donated, thrown out, lost or stolen use update_item with disposition, which keeps it for insurance. It stays in Recently deleted for ${TRASH_DAYS} days (restore_item brings it back), then goes for good with its photos and documents.
 - warranty: one added by mistake or twice (an ended warranty stays on record as expired); its claims go with it. claim: a warranty claim filed by mistake.
-- maintenance: a task no longer needed — not one just done (that's complete_maintenance); its past times done stay in the item's history.
+- maintenance: a task no longer needed — not one just done (that's complete_maintenance); its past times done stay in the item's history. repair: one logged by mistake (its photos and warranty stay the item's).
 - property / location: only when empty (no things anywhere in it, empty rooms inside go with it); otherwise refused — move the things first with bulk_update_items.
 - category: its things and subcategories move up to its parent. provider: their past visits stay, without the name. collection: its owned things stay (out of the collection); its want-list entries go. coverage_limit: a limit that no longer applies.
 Only remove (item) can be undone. Returns what was removed.`,
       inputSchema: z.object({
         kind: z
-          .enum(["item", "warranty", "claim", "maintenance", "property", "location", "category", "provider", "collection", "coverage_limit"])
+          .enum(["item", "warranty", "claim", "maintenance", "repair", "property", "location", "category", "provider", "collection", "coverage_limit"])
           .describe("What it is"),
         id: z.string().min(1).describe("Its id, from the tool that lists that kind (search_inventory, get_item, list_maintenance, list_locations…)"),
       }),
@@ -1175,6 +1205,7 @@ Only remove (item) can be undone. Returns what was removed.`,
           warranty: () => warranties.deleteWarranty(v, id),
           claim: () => claims.deleteClaim(v, id),
           maintenance: () => upkeep.deleteTask(v, id),
+          repair: () => repairs.deleteRepair(v, id),
           property: () => svc.deleteProperty(v, id),
           location: () => svc.deleteLocation(v, id),
           category: () => catalog.deleteCategory(v, id),

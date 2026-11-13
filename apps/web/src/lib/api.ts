@@ -2,6 +2,10 @@ import type {
   ItemParts,
   RoomReview,
   ReplacementForecast,
+  Repair,
+  RepairInput,
+  RepairPatch,
+  OwnershipCost,
   RoomToReview,
   ReviewOutcome,
   ServerCertificates,
@@ -173,7 +177,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
  * progress, which matters for big phone photos on a slow connection. A photo goes
  * with its thumbnail and vision copy, made here (lib/photo-copies.ts).
  */
-async function upload(itemId: string, file: File, kind: AttachmentKind, onProgress: (fraction: number) => void) {
+async function upload(itemId: string, file: File, kind: AttachmentKind, onProgress: (fraction: number) => void, opts: { repairId?: string } = {}) {
   const copies = await photoCopies(file);
   return new Promise<Attachment>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -190,6 +194,7 @@ async function upload(itemId: string, file: File, kind: AttachmentKind, onProgre
     const form = new FormData();
     form.set("file", file);
     form.set("kind", kind);
+    if (opts.repairId) form.set("repairId", opts.repairId);
     if (copies.thumbnail) form.set("thumbnail", copies.thumbnail, "thumbnail");
     if (copies.preview) form.set("preview", copies.preview, "preview");
     xhr.send(form);
@@ -427,6 +432,12 @@ export const api = {
   /** "Can't find it". */
   markMissing: (id: string) => request<void>(`/items/${id}/missing`, { method: "POST" }),
   roomsToReview: () => request<{ data: RoomToReview[] }>("/room-reviews"),
+  listRepairs: (itemId: string) => request<{ data: Repair[] }>(`/items/${itemId}/repairs`),
+  createRepair: (itemId: string, input: RepairInput) => request<Repair>(`/items/${itemId}/repairs`, { method: "POST", body: JSON.stringify(input) }),
+  updateRepair: (id: string, patch: RepairPatch) => request<Repair>(`/repairs/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
+  deleteRepair: (id: string) => request<void>(`/repairs/${id}`, { method: "DELETE" }),
+  /** What owning it has cost. */
+  ownershipCost: (itemId: string) => request<OwnershipCost>(`/items/${itemId}/cost`),
   /** The replacement forecast, `years` ahead. */
   replacements: (years = 10) => request<ReplacementForecast>(`/replacements?years=${years}`),
   roomReview: (locationId: string) => request<RoomReview>(`/room-reviews/${locationId}`),

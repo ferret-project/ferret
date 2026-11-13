@@ -12,6 +12,7 @@ On its page, **Edit → No longer have it?**, then:
 - **When** (today unless you say otherwise);
 - **Sold for**, **Worth when given** for a donation, or for lost and stolen things **Insurance paid**, if you like;
 - a **note** — who bought it, the police report number.
+- what **replaced** it, if anything: both pages then link the other ([more](./repairs#replaced-by)).
 
 A box has to be empty first. Its maintenance stops, and its warranties drop off the lists.
 

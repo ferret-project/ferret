@@ -59,6 +59,8 @@ import {
   householdDeleteInput,
   accountDeleteInput,
   reviewItemBody,
+  repairInput,
+  repairPatch,
 } from "@ferret/shared";
 import { z } from "zod";
 import { BROWSER_EVENTS } from "./analytics";
@@ -128,6 +130,11 @@ export const OPERATIONS: Operation[] = [
   { method: "post", path: "/items/{id}/ask", tag: "Items", summary: "Ask about one item", description: "Answered only from that item: its details, warranties and the passages of its documents, with citations. Counts as an AI action, like Ask.", body: askInput, returns: "AskAnswer" },
   { method: "post", path: "/items/{id}/seen", tag: "Items", summary: "\"Still here\": seen now (a box with everything in it); found again if it was missing", writes: true, returns: "{ confirmed }" },
   { method: "post", path: "/items/{id}/missing", status: 204, tag: "Items", summary: "\"Can't find it\": missing (listed with ?misplaced=only) until it's seen again or given up as lost", writes: true },
+  { method: "get", path: "/items/{id}/repairs", tag: "Repairs", summary: "An item's repairs, newest first: what went wrong, what was done, who, parts, cost, its photos and warranty", returns: "{ data: Repair[] }" },
+  { method: "post", path: "/items/{id}/repairs", status: 201, tag: "Repairs", summary: "Log a repair (warrantyEndsOn adds a warranty on the repair to the item). Photos: upload to the item with repairId", body: repairInput, writes: true, returns: "Repair" },
+  { method: "patch", path: "/repairs/{id}", tag: "Repairs", summary: "Change a repair", body: repairPatch, writes: true, returns: "Repair" },
+  { method: "delete", path: "/repairs/{id}", tag: "Repairs", summary: "Remove a repair (its photos and warranty stay the item's)", writes: true },
+  { method: "get", path: "/items/{id}/cost", tag: "Items", summary: "What owning it has cost: paid + maintenance + repairs, less what it sold for — in total and per year owned", returns: "OwnershipCost" },
   { method: "get", path: "/replacements", tag: "Items", summary: "The replacement forecast: things with a lifespan (their own, their category's or the typical one for their kind) by the year they're likely due — past their typical life, then this year and the next (?years=, default 10). Estimates, not advice", returns: "ReplacementForecast" },
   { method: "get", path: "/room-reviews", tag: "Room reviews", summary: "Places with things in them, the next to review first: reviews under way, never reviewed, then longest ago", returns: "{ data: RoomToReview[] }" },
   { method: "get", path: "/room-reviews/{locationId}", tag: "Room reviews", summary: "A place's review: what's still to check, what's been checked, places inside", returns: "RoomReview" },
@@ -193,7 +200,7 @@ export const OPERATIONS: Operation[] = [
     tag: "Photos & documents",
     summary: "Upload a photo or document",
     description:
-      "multipart/form-data with `file` and `kind` (photo | document). The type is sniffed, not trusted. Analysis runs in the background (`analyze=false`: don't — nothing to read in it). `main=true`: a photo becomes the item's main photo. Optionally `thumbnail` (≤ 600 px, ≤ 400 KB) and `preview` (≤ 1600 px, ≤ 2 MB, what the vision model looks at) — WebP, JPEG or PNG made by the client; otherwise the server makes them.",
+      "multipart/form-data with `file` and `kind` (photo | document). The type is sniffed, not trusted. Analysis runs in the background (`analyze=false`: don't — nothing to read in it). `main=true`: a photo becomes the item's main photo. `repairId`: a photo or invoice of one of its repairs (not analysed). Optionally `thumbnail` (≤ 600 px, ≤ 400 KB) and `preview` (≤ 1600 px, ≤ 2 MB, what the vision model looks at) — WebP, JPEG or PNG made by the client; otherwise the server makes them.",
     upload: true,
     writes: true,
     returns: "Attachment",

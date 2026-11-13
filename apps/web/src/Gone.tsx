@@ -10,6 +10,7 @@ import { today } from "@ferret/shared/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { HelpLink } from "./HelpLink";
+import { type Choice, ItemPicker } from "./Combobox";
 import { api } from "./lib/api";
 import { useCanEdit } from "./lib/auth";
 import { donationsHref, itemHref, PAST_HREF } from "./lib/route";
@@ -48,8 +49,10 @@ export function useRefreshAll(householdId: string) {
 export function GoneDialog({ item, householdId, onClose, onDone, initial = "sold" }: { item: ItemListing; householdId: string; onClose: () => void; onDone?: () => void; initial?: ItemDisposition }) {
   const refresh = useRefreshAll(householdId);
   const [what, setWhat] = useState<ItemDisposition>(initial);
+  // What replaced it: both pages link the other (and its cost of ownership ends here).
+  const [replacedBy, setReplacedBy] = useState<Choice | null>(null);
   const save = useMutation({
-    mutationFn: async ({ receipt, ...patch }: { disposition: ItemDisposition; disposedOn: string; disposalCents: number | null; disposalNote: string | null; disposedTo: string | null; receipt: File | null }) => {
+    mutationFn: async ({ receipt, ...patch }: { disposition: ItemDisposition; disposedOn: string; disposalCents: number | null; disposalNote: string | null; disposedTo: string | null; replacedById?: string | null; receipt: File | null }) => {
       const saved = await api.updateItem(item.id, patch);
       // A donation's receipt goes on the item with its other documents.
       if (receipt) await api.uploadAttachment(item.id, receipt, "document", () => {});
@@ -72,6 +75,7 @@ export function GoneDialog({ item, householdId, onClose, onDone, initial = "sold
       disposalNote: String(f.get("note") || "").trim() || null,
       disposedTo: what === "donated" ? String(f.get("to") || "").trim() || null : null,
       receipt: what === "donated" && f.get("receipt") instanceof File && (f.get("receipt") as File).size > 0 ? (f.get("receipt") as File) : null,
+      ...(replacedBy ? { replacedById: replacedBy.id } : {}),
     });
   }
   return (
@@ -127,6 +131,7 @@ export function GoneDialog({ item, householdId, onClose, onDone, initial = "sold
             </div>
           </>
         )}
+        <ItemPicker householdId={householdId} id="gone-replaced-by" name="replacedById" label={t`Replaced by (optional)`} value={replacedBy} onChange={setReplacedBy} noneLabel={t`Nothing`} exclude={[item.id]} />
         <div>
           <label className="label-text" htmlFor="gone-note">
             <Trans>Note</Trans>

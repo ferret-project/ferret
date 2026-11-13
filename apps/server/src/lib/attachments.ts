@@ -31,6 +31,7 @@ export const attachmentFields = {
   hasThumbnail: sql<boolean>`coalesce(${attachment.thumbnailKey}, '') <> ''`.mapWith(Boolean),
   originalRemoved: sql<boolean>`${attachment.originalRemovedAt} is not null`.mapWith(Boolean),
   mainAt: attachment.mainAt,
+  repairId: attachment.repairId,
 };
 
 /** Makes a photo its item's main photo — its picture in lists, first on its page. */
@@ -87,7 +88,7 @@ export async function addAttachment(
   v: Caller,
   files: FileStore,
   itemId: string,
-  upload: { bytes: Uint8Array; filename: string; kind: AttachmentKind; made?: MadeCopies; analyze?: boolean },
+  upload: { bytes: Uint8Array; filename: string; kind: AttachmentKind; made?: MadeCopies; analyze?: boolean; repairId?: string | null },
 ) {
   const [owner] = await v.db
     .select({ id: item.id, name: item.name })
@@ -133,6 +134,7 @@ export async function addAttachment(
       thumbnailKey,
       analysisStatus: analyze ? "pending" : null,
       createdBy: v.userId,
+      repairId: upload.repairId ?? null,
     })
     .returning(attachmentFields)
     .catch(async (err) => {

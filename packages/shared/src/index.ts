@@ -238,6 +238,7 @@ const itemFields = z.object({
   disposalNote: optionalText(2000).describe("Who it went to, or what happened (for a lost or stolen claim)"),
   replacementCents: cents.describe("What it would cost to replace today, in cents (for the insurance report)"),
   lifespanYears: z.number().int().min(1).max(100).optional().nullable().describe("How many years this one should last, if not its category's or the typical lifespan — for the replacement forecast"),
+  replacedById: z.string().min(1).optional().nullable().describe("What replaced it, once it's gone: the new item's id — both pages link the other"),
 });
 export const itemInput = itemFields.extend({
   origin: z.enum(appOrigins).optional().describe("Which of the app's ways added it; ignored for Claude and API keys (recorded by the server)"),
@@ -327,6 +328,67 @@ export interface Warranty extends WarrantyInput {
   itemId: string;
   status: WarrantyStatus;
   createdAt: string;
+}
+
+// ── Repairs ─────────────────────────────────────────────────────────────────
+const repairFields = {
+  repairedOn: z.iso.date().describe("When it was repaired, yyyy-mm-dd"),
+  work: z.string().trim().min(1).max(300).describe('What was done: "Replaced the drain pump"'),
+  problem: optionalText(2000).describe('What went wrong: "Wouldn\'t drain, error E21"'),
+  providerId: z.string().min(1).optional().nullable().describe("Who did it, if not you: a service provider's id (list_providers)"),
+  parts: optionalText(1000).describe('Parts used: "Drain pump 00436440"'),
+  costCents: z.number().int().min(0).max(1_000_000_000).optional().nullable().describe("What it cost, in cents (parts and labour)"),
+  taskId: z.string().min(1).optional().nullable().describe("The maintenance task it was part of, if any (its id from list_maintenance)"),
+};
+export const repairInput = z.object({
+  ...repairFields,
+  /** A warranty on the repair itself: added as a warranty of the item (from the repair day to `endsOn`). */
+  warrantyEndsOn: z.iso.date().optional().nullable().describe("If the repair has its own warranty: when it ends, yyyy-mm-dd — added to the item's warranties"),
+});
+export type RepairInput = z.infer<typeof repairInput>;
+export const repairPatch = z.object(repairFields).partial();
+export type RepairPatch = z.infer<typeof repairPatch>;
+
+export interface Repair {
+  id: string;
+  itemId: string;
+  repairedOn: string;
+  work: string;
+  problem: string | null;
+  providerId: string | null;
+  /** The provider's name, for showing. */
+  providerName: string | null;
+  parts: string | null;
+  costCents: number | null;
+  warrantyId: string | null;
+  /** The repair warranty's end, while it exists. */
+  warrantyEndsOn: string | null;
+  taskId: string | null;
+  taskTitle: string | null;
+  /** Who logged it. */
+  by: string | null;
+  /** Photos and documents of it (attachments of the item with this repairId). */
+  attachmentIds: string[];
+  createdAt: string;
+}
+
+/** What owning a thing has cost (GET /items/:id/cost): paid, maintenance, repairs, less what it sold for. */
+export interface OwnershipCost {
+  /** What was paid (× quantity), if known. */
+  paidCents: number | null;
+  maintenanceCents: number;
+  /** Done maintenance with a cost. */
+  maintenanceTimes: number;
+  repairCents: number;
+  repairs: number;
+  /** What it sold for (or insurance paid), once gone. */
+  backCents: number | null;
+  totalCents: number;
+  /** Years owned so far (or until it went), at least one. */
+  years: number;
+  perYearCents: number;
+  /** When owning it began: bought, or added. */
+  since: string;
 }
 
 // ── Service providers ───────────────────────────────────────────────────────
@@ -624,6 +686,8 @@ export interface Attachment {
   originalRemoved: boolean;
   /** When it was made the item's main photo (its picture in lists); photos come newest choice first. */
   mainAt: string | null;
+  /** A repair's photo or invoice (lib/repairs.ts). */
+  repairId?: string | null;
 }
 
 // ── API response shapes ─────────────────────────────────────────────────────
@@ -735,6 +799,9 @@ export interface ItemListing extends Item {
   loan: { direction: LoanDirection; person: string; since: string; dueOn: string | null } | null;
   /** When its QR label or barcode was last scanned to it, by whom (their name), and how. */
   lastScanned: { at: string; by: string | null; how: SightingHow } | null;
+  /** One item's page (GET /items/:id): what replaced it, and what it replaced. */
+  replacedBy?: { id: string; name: string } | null;
+  replaces?: { id: string; name: string }[];
   /** One item's page (GET /items/:id): how long it should last and when it's likely due (null: no lifespan known). */
   lifespan?: ItemLifespan | null;
   /** When it was last seen at all (scanned, "Still here", a room review), by whom, which way — null if never. */

@@ -102,6 +102,7 @@ export default defineConfig({
           items: [
             { text: "Warranties and claims", link: "/guide/warranties" },
             { text: "Maintenance", link: "/guide/maintenance" },
+            { text: "Repairs and cost of ownership", link: "/guide/repairs" },
             { text: "Reminders", link: "/guide/reminders" },
             { text: "Needs attention", link: "/guide/attention" },
             { text: "Recalls", link: "/guide/recalls" },

@@ -35,6 +35,7 @@ import {
   itemSighting,
   roomReview,
   roomReviewEntry,
+  repair,
   usageReading,
   stockRule,
   tag,
@@ -118,13 +119,14 @@ export async function householdData(v: Caller, root: string, householdName: stri
   const templates = await listTemplates(v);
   const collections = await listCollections(v);
   const owned = await v.db.select().from(ownLabel).where(eq(ownLabel.householdId, h)).orderBy(asc(ownLabel.createdAt));
-  const [rules, moves, readings, sightings, reviews, reviewEntries] = await Promise.all([
+  const [rules, moves, readings, sightings, reviews, reviewEntries, fixes] = await Promise.all([
     v.db.select().from(stockRule).where(eq(stockRule.householdId, h)),
     v.db.select().from(stockMovement).where(eq(stockMovement.householdId, h)).orderBy(asc(stockMovement.createdAt)),
     v.db.select().from(usageReading).where(eq(usageReading.householdId, h)).orderBy(asc(usageReading.readOn)),
     v.db.select().from(itemSighting).where(eq(itemSighting.householdId, h)),
     v.db.select().from(roomReview).where(eq(roomReview.householdId, h)).orderBy(asc(roomReview.startedAt)),
     v.db.select().from(roomReviewEntry).where(eq(roomReviewEntry.householdId, h)),
+    v.db.select().from(repair).where(and(eq(repair.householdId, h), isNull(repair.deletedAt))).orderBy(asc(repair.repairedOn)),
   ]);
   const doers = [...new Set([...logs.map((l) => l.doneBy), ...moves.map((m) => m.userId), ...readings.map((r) => r.userId), ...sightings.map((x) => x.userId), ...reviews.map((r) => r.startedBy)].filter((id): id is string => !!id))];
   const people = doers.length ? await v.db.select({ id: user.id, name: user.name }).from(user).where(inList(user.id, doers)) : [];
@@ -248,6 +250,21 @@ export async function householdData(v: Caller, root: string, householdName: stri
       valueCents: i.valueCents,
       /** Its own expected life in years, if set (else its category's or the typical one). */
       lifespanYears: i.lifespanYears,
+      /** What replaced it (an item id in this file), once it's gone. */
+      replacedById: i.replacedById,
+      /** Repairs: when, what went wrong, what was done, by whom, parts, cost, its warranty and photos (files' ids). */
+      repairs: fixes
+        .filter((r) => r.itemId === i.id)
+        .map((r) => ({
+          on: r.repairedOn,
+          problem: r.problem,
+          work: r.work,
+          provider: r.providerId ? (providerName.get(r.providerId) ?? null) : null,
+          parts: r.parts,
+          costCents: r.costCents,
+          warrantyId: r.warrantyId,
+          files: files.filter((f) => f.repairId === r.id).map((f) => f.id),
+        })),
       notes: i.notes,
       favorite: i.favorite,
       heir: i.heir,

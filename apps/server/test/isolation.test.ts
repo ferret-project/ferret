@@ -68,6 +68,7 @@ async function annHousehold() {
   await make("POST", `/api/v1/maintenance/${task.id}/done`, { note: `${SECRET} done note` });
   const loan = await make("POST", `/api/v1/items/${drill.id}/loans`, { direction: "lent", person: `${SECRET} Sam` });
   const reading = await make("POST", `/api/v1/items/${drill.id}/usage`, { value: 12, note: `${SECRET} reading` });
+  const fix = await make("POST", `/api/v1/items/${drill.id}/repairs`, { repairedOn: "2026-01-02", work: `${SECRET} new chuck`, problem: `${SECRET} wobble`, costCents: 4500, warrantyEndsOn: "2027-01-02" });
   const rule = await make("PUT", `/api/v1/items/${filters.id}/stock-rules`, { code: `${SECRET}CODE`, behaviour: "use" });
   const moved = await make<{ movementId: string }>("POST", `/api/v1/items/${filters.id}/stock`, { delta: 1, note: `${SECRET} restock` });
   const pairing = await make("POST", `/api/v1/items/${drill.id}/pairing`, { code: "482-39-517", label: `${SECRET} hub` });
@@ -114,6 +115,7 @@ async function annHousehold() {
     "api-keys": key.id,
     "security/sessions": sessions.data[0]!.id,
     usage: reading.id,
+    repairs: fix.id,
   };
   const params: Record<string, string> = { ruleId: rule.id, pairingId: pairing.id, code: codes[0]!, n: "0", name: "x", locationId: shelf.id, itemId: box.id };
   // What Bob sends with every write: plausible fields of his own, then the same with one of Ann's things in each

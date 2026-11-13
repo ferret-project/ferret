@@ -6,7 +6,7 @@
 import { householdSummary } from "../lib/summary";
 import { PHOTO_ORDER } from "../lib/photo-order";
 import * as usage from "../lib/usage";
-import { usageReadingInput, itemsBulk, reviewItemBody,
+import { usageReadingInput, itemsBulk, reviewItemBody, repairInput, repairPatch,
   askInput,
   dismissPartInput,
   itemFindQuery,
@@ -45,6 +45,7 @@ import { isServerAdmin } from "../lib/server-admin";
 import { itemHistory } from "../lib/history";
 import { markMissing, markSeen } from "../lib/sightings";
 import { itemLifespan, replacementForecast } from "../lib/lifespans";
+import * as repairs from "../lib/repairs";
 import { checkInReview, finishRoomReview, getRoomReview, roomsToReview, startRoomReview } from "../lib/room-reviews";
 import * as warranties from "../lib/warranties";
 
@@ -76,6 +77,7 @@ inventory.use("/usage/*", requireUser, requireHousehold);
 inventory.use("/room-reviews/*", requireUser, requireHousehold);
 inventory.use("/room-reviews", requireUser, requireHousehold);
 inventory.use("/replacements", requireUser, requireHousehold);
+inventory.use("/repairs/*", requireUser, requireHousehold);
 inventory.use("/warranties/*", requireUser, requireHousehold);
 inventory.use("/warranties", requireUser, requireHousehold);
 
@@ -218,6 +220,16 @@ inventory.post("/items/:id/missing", requireWriter, async (c) => {
   await markMissing(callerOf(c), c.req.param("id"));
   return c.body(null, 204);
 });
+// ── Repairs and cost of ownership (lib/repairs.ts) ──────────────────────────
+inventory.get("/items/:id/repairs", async (c) => c.json({ data: await repairs.listRepairs(callerOf(c), c.req.param("id")) }));
+inventory.post("/items/:id/repairs", requireWriter, async (c) => c.json(await repairs.createRepair(callerOf(c), c.req.param("id"), await body(c.req.raw, repairInput)), 201));
+inventory.patch("/repairs/:id", requireWriter, async (c) => c.json(await repairs.updateRepair(callerOf(c), c.req.param("id"), await body(c.req.raw, repairPatch))));
+inventory.delete("/repairs/:id", requireWriter, async (c) => {
+  await repairs.deleteRepair(callerOf(c), c.req.param("id"));
+  return c.body(null, 204);
+});
+inventory.get("/items/:id/cost", async (c) => c.json(await repairs.ownershipCost(callerOf(c), c.req.param("id"))));
+
 /** The replacement forecast: things by the year they're likely due (estimates from lifespans — lib/lifespans.ts). */
 inventory.get("/replacements", async (c) => {
   const { years } = z.object({ years: z.coerce.number().int().min(1).max(30).default(10) }).parse(c.req.query());
@@ -242,7 +254,7 @@ inventory.get("/items/:id", async (c) => {
   const found = await svc.getItem(v, c.req.param("id"));
   const [listed] = await svc.asListing(v, [found]);
   const [by] = found.createdBy ? await c.var.db.select({ name: user.name }).from(user).where(eq(user.id, found.createdBy)) : [];
-  return c.json({ ...listed, addedBy: by?.name ?? null, ownLabels: await ownLabelsOf(v, found.id), lifespan: await itemLifespan(v, found) });
+  return c.json({ ...listed, addedBy: by?.name ?? null, ownLabels: await ownLabelsOf(v, found.id), lifespan: await itemLifespan(v, found), ...(await repairs.replacementsOf(v, found)) });
 });
 
 /** One change to many things: move, category, tag, untag, delete (≤200 at a time). */
@@ -324,9 +336,11 @@ inventory.post("/items/:id/attachments", requireWriter, uploadLimit, async (c) =
   const bytes = new Uint8Array(await file.arrayBuffer());
   const copy = async (part: unknown) => (part instanceof File ? new Uint8Array(await part.arrayBuffer()) : undefined);
   const made = { thumbnail: await copy(form.thumbnail), preview: await copy(form.preview) };
+  // repairId: a repair's before/after photo or invoice (the repair must be this item's) — not read for suggestions.
+  const repairId = typeof form.repairId === "string" && form.repairId ? await repairs.repairOfItem(callerOf(c), c.req.param("id"), form.repairId) : null;
   // analyze=false: nothing to read in it (a room scan's crop of something already named) — no AI action spent.
-  const analyze = form.analyze !== "false";
-  const row = await addAttachment(callerOf(c), c.var.files, c.req.param("id"), { bytes, filename: file.name, kind: kind.data, made, analyze });
+  const analyze = form.analyze !== "false" && !repairId;
+  const row = await addAttachment(callerOf(c), c.var.files, c.req.param("id"), { bytes, filename: file.name, kind: kind.data, made, analyze, repairId });
   // main=true: it's the item's picture from now on (a crop of one of its photos).
   if (form.main === "true" && kind.data === "photo") await setMainPhoto(callerOf(c), row.id);
   return c.json(row, 201);

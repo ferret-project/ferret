@@ -671,9 +671,14 @@ export async function getItem(v: Caller, id: string) {
  */
 async function placement(
   v: Caller,
-  input: Pick<ItemPatch, "locationId" | "containerItemId" | "categoryId" | "partOfItemId">,
+  input: Pick<ItemPatch, "locationId" | "containerItemId" | "categoryId" | "partOfItemId" | "replacedById">,
   current?: typeof item.$inferSelect,
 ): Promise<Partial<typeof item.$inferInsert>> {
+  if (input.replacedById) {
+    const [by] = await v.db.select({ id: item.id }).from(item).where(and(eq(item.id, input.replacedById), itemScope(v, { gone: "include" })));
+    if (!by) throw notFound("Item");
+    if (current && by.id === current.id) throw new HTTPException(422, { message: "A thing can't replace itself" });
+  }
   if (input.partOfItemId) {
     const [whole] = await v.db.select({ id: item.id }).from(item).where(and(eq(item.id, input.partOfItemId), itemScope(v, { gone: "include" })));
     if (!whole) throw notFound("Item");
@@ -908,6 +913,10 @@ async function describeChanges(
     if (a !== b) out.push(a == null ? `${label} set to ${dollars(b)}` : b == null ? `${label} removed` : `${label} ${dollars(a)} → ${dollars(b)}`);
   }
   if (was.quantity !== now.quantity) out.push(`quantity ${was.quantity} → ${now.quantity}`);
+  if ((was.replacedById ?? null) !== (now.replacedById ?? null)) {
+    const [by] = now.replacedById ? await v.db.select({ name: item.name }).from(item).where(and(eq(item.id, now.replacedById), eq(item.householdId, v.householdId))) : [];
+    out.push(by ? `replaced by ${by.name}` : "no longer marked as replaced");
+  }
   if ((was.lifespanYears ?? null) !== (now.lifespanYears ?? null)) out.push(now.lifespanYears == null ? "expected life back to typical" : `expected to last ${now.lifespanYears} years`);
   if ((was.minQuantity ?? null) !== (now.minQuantity ?? null)) out.push(now.minQuantity == null ? "no minimum kept" : `keep at least ${now.minQuantity}`);
   if ((was.usageUnit ?? null) !== (now.usageUnit ?? null)) out.push(now.usageUnit ? `counts ${now.usageUnit}` : "doesn't count use any more");

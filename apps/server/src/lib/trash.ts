@@ -14,7 +14,7 @@ import { requireRoom } from "./plan";
 import { addDays, type DeletedItem, TRASH_DAYS } from "@ferret/shared";
 import { and, asc, desc, eq, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
-import {
+import { repair,
   collection,
   itemTemplate,
   activity,
@@ -165,6 +165,7 @@ export async function purgeDeleted(p: Purger, now = Date.now()) {
   // The rest: rows only (foreign keys clear what pointed at them).
   const counts: Record<string, number> = { items: items.length, files: files.length, "room scans": roomScans };
   for (const [name, table] of [
+    ["repairs", repair],
     ["claims", warrantyClaim],
     ["warranties", warranty],
     ["maintenance", maintenanceTask],

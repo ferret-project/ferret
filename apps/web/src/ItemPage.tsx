@@ -7,6 +7,7 @@ import { ListingButton } from "./Listing";
 import { amazonSearchUrl, today } from "@ferret/shared/utils";
 import { MissingBanner, SeenLine } from "./Tracking";
 import { LifespanLine } from "./Replacements";
+import { ItemRepairs, OwnershipCard, ReplacedLine } from "./Repairs";
 import { UsageCard } from "./Usage";
 import { BarSearch } from "./Nav";
 import { ItemSearch } from "./ItemSearch";
@@ -304,6 +305,7 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
           <ReturnLine returnBy={item.data.returnBy} gone={Boolean(item.data.disposition)} />
           {/* How long it should last and when it's likely due — an estimate. */}
           <LifespanLine lifespan={item.data.lifespan} />
+          <ReplacedLine item={item.data} />
           {item.data.partOfItemId && <PartOfLine partOfItemId={item.data.partOfItemId} householdId={householdId} />}
           {item.data.heir && <p className="text-base-content/80 text-sm"><Trans>Goes to {ph({ heir: item.data.heir })}</Trans></p>}
           <Classification
@@ -339,6 +341,7 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
           ["item-photos", t`Photos`, photos.length],
           ["item-warranties", t`Warranties`, warranties.data?.data.length ?? 0],
           ["item-maintenance", t`Maintenance`, tasks.data?.data.length ?? 0],
+          ["item-repairs", t`Repairs`, 0],
           ["item-documents", t`Documents`, documents.length],
           ["item-history", t`History`, 0],
         ]}
@@ -506,6 +509,12 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
 
       <div id="item-maintenance" className="scroll-mt-20">
         <ItemMaintenance itemId={itemId} householdId={householdId} />
+      </div>
+
+      <div id="item-repairs" className="flex scroll-mt-20 flex-col gap-3">
+        <ItemRepairs item={item.data} householdId={householdId} />
+        {/* Paid + maintenance + repairs − what it sold for, per year. */}
+        <OwnershipCard itemId={itemId} householdId={householdId} lifespan={item.data.lifespan} />
       </div>
 
       {/* ④ Documents */}
