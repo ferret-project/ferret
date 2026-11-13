@@ -40,7 +40,7 @@ import { RecallAlert } from "./PayOff";
 import { ORIGIN_FILTER, itemOriginList } from "./lib/origin";
 import { type AddContext, AddButton, AddFab, DesktopLinks, HouseholdBadge, MenuGroups, Sidebar, switchHousehold, useScanRequests, useSidebarFolded } from "./Nav";
 import { SearchBox, useSearchDocuments, useSearchHotkeys, useSearchText } from "./Search";
-import { Everything } from "./Everything";
+import { Everything, Pager } from "./Everything";
 import { FolderRow } from "./Folder";
 import { ItemRow } from "./ItemRow";
 import { navigateTo } from "./lib/navigate";
@@ -976,6 +976,7 @@ function AccountMenu({ householdName, householdId }: { householdName: string; ho
 
 // ── Main screen ─────────────────────────────────────────────────────────────
 /** The views under the search box: the dashboard, a property, a room, or the list of everything. */
+const LIST_PAGE = 50;
 type HomeView = Extract<Route, { name: "home" | "property" | "place" | "items" | "category" | "tag" }>;
 
 /**
@@ -1017,12 +1018,17 @@ export function Home({ householdName, householdId, view }: { householdName: stri
   const listing = Boolean(query) || ["category", "tag"].includes(view.name) || (view.name === "place" && Boolean(place));
   const [withDocuments, setWithDocuments] = useSearchDocuments();
   const documents = withDocuments ? undefined : ("exclude" as const);
+  // A room's, category's or tag's things, 50 at a time (searches answer with their best matches only).
+  const [page, setPage] = useState(0);
+  const pageKey = JSON.stringify([view, missing, origin]);
+  useEffect(() => setPage(0), [pageKey]);
+  const offset = query ? 0 : page * LIST_PAGE;
   const first = useQuery({
     // In a room (not searching): its boxes and loose things — not every box's contents.
-    queryKey: ["items", householdId, query, locationId, missing, categoryId, tag, origin, documents],
+    queryKey: ["items", householdId, query, locationId, missing, categoryId, tag, origin, documents, offset],
     // A search answers at once with the sure matches; maybe-matches are checked by the AI model behind it (below).
     // A category's page folds its big subcategories (they have tiles above), so its own things aren't buried.
-    queryFn: () => api.listItems(query, { locationId, missing, categoryId, tag, origin, documents, topLevel: Boolean(locationId && !query), fold: Boolean(categoryId), judge: "later" }),
+    queryFn: () => api.listItems(query, { locationId, missing, categoryId, tag, origin, documents, topLevel: Boolean(locationId && !query), fold: Boolean(categoryId), limit: LIST_PAGE, offset, judge: "later" }),
     placeholderData: (previous) => previous, // keep showing results while the next search runs
     enabled: listing,
   });
@@ -1334,6 +1340,10 @@ export function Home({ householdName, householdId, view }: { householdName: stri
                       ? t`Nothing kept here yet.`
                       : t`Nothing here yet — add your first item above.`}
               </div>
+            )}
+
+            {!query && items.data && (items.data.rows ?? items.data.total) > LIST_PAGE && (
+              <Pager page={page} pages={Math.ceil((items.data.rows ?? items.data.total) / LIST_PAGE)} total={items.data.rows ?? items.data.total} onPage={setPage} size={LIST_PAGE} />
             )}
           </>
         )}

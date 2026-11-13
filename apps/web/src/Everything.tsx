@@ -300,7 +300,7 @@ export function Everything(props: { householdId: string; missing?: MissingDetail
         </div>
       )}
 
-      {pageRows > PAGE && <Pager page={page} pages={Math.ceil(pageRows / PAGE)} total={total} onPage={setPage} />}
+      {pageRows > PAGE && <Pager page={page} pages={Math.ceil(pageRows / PAGE)} total={pageRows} onPage={setPage} />}
 
       {peek && table && <QuickView householdId={householdId} item={rows.find((r) => r.id === peek.id) ?? peek} onClose={() => setPeek(null)} />}
     </div>
@@ -652,9 +652,11 @@ function Thumb({ item, className }: { item: ItemListing; className: string }) {
   );
 }
 
-function Pager(props: { page: number; pages: number; total: number; onPage: (p: number) => void }) {
-  const from = props.page * PAGE + 1;
-  const to = Math.min(props.total, (props.page + 1) * PAGE);
+/** Previous / Next through a list `size` (50) rows at a time; `total` is how many rows there are. */
+export function Pager(props: { page: number; pages: number; total: number; onPage: (p: number) => void; size?: number }) {
+  const size = props.size ?? PAGE;
+  const from = props.page * size + 1;
+  const to = Math.min(props.total, (props.page + 1) * size);
   const go = (p: number) => {
     props.onPage(p);
     window.scrollTo({ top: 0 });
