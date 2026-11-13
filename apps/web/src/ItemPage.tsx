@@ -36,7 +36,7 @@ import { BoxContents, LabelBadge } from "./Boxes";
 import { flattenCategories, useCategories } from "./Catalog";
 import { mergeFields, useTemplates } from "./Templates";
 import { money } from "./lib/money";
-import { CollectionBanner } from "./Collections";
+import { CollectionBadge, CollectionBanner } from "./Collections";
 import { ItemMaintenance, maintenanceKey } from "./Maintenance";
 import { AiFilledCard } from "./AiFill";
 import { ReplacementCard } from "./Replacement";
@@ -309,6 +309,7 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
           {item.data.partOfItemId && <PartOfLine partOfItemId={item.data.partOfItemId} householdId={householdId} />}
           {item.data.heir && <p className="text-base-content/80 text-sm"><Trans>Goes to {ph({ heir: item.data.heir })}</Trans></p>}
           <Classification
+            householdId={householdId}
             item={item.data}
             fields={mergeFields(
               flattenCategories(categories.data ?? []).find((c) => c.id === item.data.categoryId)?.allFields ?? [],
@@ -664,9 +665,10 @@ function JumpLinks({ sections }: { sections: [id: string, label: string, count: 
 }
 
 /** Category (a link to everything like it), the category's extra fields, and tags (links to their collections). */
-function Classification({ item, fields }: { item: ItemListing; fields: CategoryField[] }) {
+function Classification({ item, fields, householdId }: { item: ItemListing; fields: CategoryField[]; householdId: string }) {
   const values = fields.filter((f) => item.customFields?.[f.key] !== undefined && item.customFields?.[f.key] !== "");
-  if (!item.categoryId && !item.tags.length && !values.length) return null;
+  const collectionId = item.collectionId && !item.wanted ? item.collectionId : null;
+  if (!item.categoryId && !item.tags.length && !values.length && !collectionId) return null;
   return (
     <div className="mt-2 flex flex-col gap-2">
       {values.length > 0 && (
@@ -689,6 +691,7 @@ function Classification({ item, fields }: { item: ItemListing; fields: CategoryF
             {item.category}
           </a>
         )}
+        {collectionId && <CollectionBadge householdId={householdId} collectionId={collectionId} />}
         {item.tags.map((tag) => (
           <a key={tag} href={tagHref(tag)} className="tap badge badge-soft badge-primary gap-1">
             <span className="icon-[tabler--tag] size-3.5" />

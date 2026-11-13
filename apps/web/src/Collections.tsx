@@ -580,6 +580,18 @@ export function CollectionFields(props: {
 }
 
 /** On a thing's page: which collection it's in, and — on the want list — "Got it". */
+/** An owned thing's collection, beside its category and tags: a link to the collection's grid. */
+export function CollectionBadge({ householdId, collectionId }: { householdId: string; collectionId: string }) {
+  const collections = useCollections(householdId);
+  const name = collections.data?.find((x) => x.id === collectionId)?.name;
+  return (
+    <a href={collectionHref(collectionId)} className="tap badge badge-soft badge-accent gap-1">
+      <span className="icon-[tabler--stack-2] size-3.5" />
+      {name ? t`${name} collection` : t`Collection`}
+    </a>
+  );
+}
+
 export function CollectionBanner({ householdId, item }: { householdId: string; item: Pick<ItemListing, "id" | "collectionId" | "wanted"> }) {
   const qc = useQueryClient();
   const canEdit = useCanEdit(householdId);
@@ -588,16 +600,9 @@ export function CollectionBanner({ householdId, item }: { householdId: string; i
     mutationFn: () => api.updateItem(item.id, { wanted: false }),
     onSuccess: () => Promise.all(["item", "items", "collections", "overview"].map((k) => qc.invalidateQueries({ queryKey: [k, householdId] }))),
   });
-  if (!item.collectionId) return null;
+  // Owned things show their collection as a badge beside the category and tags (CollectionBadge).
+  if (!item.collectionId || !item.wanted) return null;
   const c = collections.data?.find((x) => x.id === item.collectionId);
-  if (!item.wanted) {
-    return (
-      <a href={collectionHref(item.collectionId)} className="tap badge badge-soft badge-primary gap-1 self-start">
-        <span className="icon-[tabler--stack-2] size-4" />
-        {c?.name ?? t`Collection`}
-      </a>
-    );
-  }
   return (
     <div className="alert alert-soft alert-info flex flex-wrap items-center gap-3" role="status">
       <span className="icon-[tabler--heart] size-5 shrink-0" />
