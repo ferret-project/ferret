@@ -6,7 +6,7 @@
 import { sql } from "drizzle-orm";
 import { index, integer, primaryKey, real, sqliteTable, text, uniqueIndex, type AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import type { SightingHow, SightingKind } from "@ferret/shared/utils";
-import type { AiFill, AiFillSwitches, AnalysisStatus, AttachmentAnalysis, CategoryField, CustomFieldValues, HaSnapshot, ItemLink, ItemOrigin, ProductInfo, RoomScanCandidate, RoomScanStatus } from "@ferret/shared";
+import type { AiFill, AiFillSwitches, AnalysisStatus, AttachmentAnalysis, CategoryField, CustomFieldValues, HaSnapshot, ItemLink, ItemOrigin, ProductInfo, ReviewOutcome, RoomScanCandidate, RoomScanStatus } from "@ferret/shared";
 import { invitation, organization, user } from "./auth";
 
 const id = () =>
@@ -229,6 +229,11 @@ export const item = sqliteTable(
     upkeepCheckedAt: integer("upkeep_checked_at", { mode: "timestamp_ms" }),
     /** Merged into another item (lib/duplicates.ts): it's in Recently deleted, and old links lead to that one. */
     mergedIntoId: text("merged_into_id"),
+    /**
+     * Since when nobody can find it ("Can't find it" — lib/sightings.ts): a state, not a disposition, so it still counts
+     * as owned. Cleared when it's found (seen again) or given up as lost (a disposition).
+     */
+    missingSince: integer("missing_since", { mode: "timestamp_ms" }),
     /** Last time the item was embedded for semantic search (null = never; stale if older than updatedAt). */
     indexedAt: integer("indexed_at", { mode: "timestamp_ms" }),
     ...timestamps,
@@ -877,8 +882,9 @@ export const stockRule = sqliteTable(
 /** Every change to an item's count: by a scan, by hand, by editing the item, by an undo — who, how, and what it left. */
 /**
  * When a thing was last seen, by kind (lib/sightings.ts): "scanned" — its QR label or barcode looked up (it may only have
- * been while searching; the weakest kind). One row per item and kind, overwritten each time — not history (scans would
- * flood it), and not a change to the item (no re-index, nothing in "recently changed").
+ * been while searching; the weakest kind), "confirmed" — "Still here" or found, "reviewed" — checked in a room review.
+ * One row per item and kind, overwritten each time — not history (scans would flood it), and not a change to the item
+ * (no re-index, nothing in "recently changed").
  */
 export const itemSighting = sqliteTable(
   "item_sighting",
@@ -894,6 +900,42 @@ export const itemSighting = sqliteTable(
     how: text("how").$type<SightingHow>().notNull(),
   },
   (t) => [primaryKey({ columns: [t.itemId, t.kind] }), index("item_sighting_household_idx").on(t.householdId, t.kind, t.at)],
+);
+
+/**
+ * A room review (lib/room-reviews.ts): someone walks a place thing by thing — still here, moved, gone, can't find it.
+ * One open per place at a time (anyone in the household carries it on); `finishedAt` set when it's done.
+ */
+export const roomReview = sqliteTable(
+  "room_review",
+  {
+    id: id(),
+    householdId: householdId(),
+    locationId: text("location_id")
+      .notNull()
+      .references(() => location.id, { onDelete: "cascade" }),
+    startedBy: text("started_by").references(() => user.id, { onDelete: "set null" }),
+    startedAt: integer("started_at", { mode: "timestamp_ms" }).notNull(),
+    finishedAt: integer("finished_at", { mode: "timestamp_ms" }),
+  },
+  (t) => [index("room_review_location_idx").on(t.householdId, t.locationId, t.finishedAt)],
+);
+
+/** What a room review found for each thing it checked (changeable until the review's finished). */
+export const roomReviewEntry = sqliteTable(
+  "room_review_entry",
+  {
+    householdId: householdId(),
+    reviewId: text("review_id")
+      .notNull()
+      .references(() => roomReview.id, { onDelete: "cascade" }),
+    itemId: text("item_id")
+      .notNull()
+      .references(() => item.id, { onDelete: "cascade" }),
+    outcome: text("outcome").$type<ReviewOutcome>().notNull(),
+    at: integer("at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.reviewId, t.itemId] })],
 );
 
 export const stockMovement = sqliteTable(

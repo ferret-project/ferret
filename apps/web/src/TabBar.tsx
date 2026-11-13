@@ -13,7 +13,7 @@ type Tab = { href: string; label: MessageDescriptor; icon: string; active: strin
 const TABS: Tab[] = [
   { href: HOME_HREF, label: msg`Home`, icon: "icon-[tabler--home]", active: "icon-[tabler--home-filled]", routes: ["home", "category", "tag", "label"] },
   { href: ITEMS_HREF, label: msg`Everything`, icon: "icon-[tabler--layout-grid]", active: "icon-[tabler--layout-grid-filled]", routes: ["items", "item"] },
-  { href: PLACES_HREF, label: msg`Places`, icon: "icon-[tabler--map-pin]", active: "icon-[tabler--map-pin-filled]", routes: ["places", "property", "place", "walkthrough"] },
+  { href: PLACES_HREF, label: msg`Places`, icon: "icon-[tabler--map-pin]", active: "icon-[tabler--map-pin-filled]", routes: ["places", "property", "place", "walkthrough", "review"] },
   { href: MAINTENANCE_HREF, label: msg`Maintenance`, icon: "icon-[tabler--tool]", active: "icon-[tabler--tool]", routes: ["maintenance", "providers", "provider"] },
   // Everything else, grouped (Nav.tsx MorePage) — settings included.
   {
@@ -21,7 +21,7 @@ const TABS: Tab[] = [
     label: msg`More`,
     icon: "icon-[tabler--dots-circle-horizontal]",
     active: "icon-[tabler--dots-circle-horizontal]",
-    routes: ["more", "settings", "categories", "deleted", "shopping", "past", "donations", "heirs", "loans", "coverage", "warranties", "ai-filled", "duplicates", "report", "labels", "import"],
+    routes: ["more", "settings", "categories", "deleted", "shopping", "past", "donations", "heirs", "loans", "coverage", "warranties", "ai-filled", "duplicates", "reviews", "misplaced", "report", "labels", "import"],
   },
 ];
 

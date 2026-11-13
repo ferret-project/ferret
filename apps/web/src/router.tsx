@@ -24,6 +24,7 @@ import { Borrower, Loans } from "./Loans";
 import { WarrantyList } from "./WarrantyList";
 import { AiFilled } from "./AiFill";
 import { Duplicates } from "./Duplicates";
+import { Misplaced, RoomReviewScreen, RoomsToReview } from "./Tracking";
 import { Coverage } from "./PayOff";
 import { ItemPage } from "./ItemPage";
 import { LabelLanding, PrintLabels } from "./Labels";
@@ -261,6 +262,15 @@ const walkthroughRoute = createRoute({
     return <Walkthrough householdId={useHousehold().householdId} locationId={null} step="photos" />;
   },
 });
+const reviewRoute = createRoute({
+  getParentRoute: () => screensRoute,
+  path: "review/$locationId",
+  staticData: { name: "review" },
+  component: function ReviewRoom() {
+    const { locationId } = reviewRoute.useParams();
+    return <RoomReviewScreen key={locationId} householdId={useHousehold().householdId} locationId={locationId} />;
+  },
+});
 const walkthroughRoomRoute = createRoute({
   getParentRoute: () => screensRoute,
   path: "walkthrough/$locationId",
@@ -368,6 +378,7 @@ const routeTree = rootRoute.addChildren([
     collectionRoute,
     walkthroughRoomRoute,
     walkthroughReviewRoute,
+    reviewRoute,
     ...importRoutes,
     screen("places", "places", Places),
     screen("categories", "categories", ({ householdId }) => <Categories householdId={householdId} />),
@@ -381,6 +392,8 @@ const routeTree = rootRoute.addChildren([
     screen("heirs", "heirs", Heirs),
     screen("warranties", "warranties", ({ householdId }) => <WarrantyList householdId={householdId} />),
     screen("duplicates", "duplicates", ({ householdId }) => <Duplicates householdId={householdId} />),
+    screen("review", "reviews", ({ householdId }) => <RoomsToReview householdId={householdId} />),
+    screen("misplaced", "misplaced", ({ householdId }) => <Misplaced householdId={householdId} />),
     screen("ai-filled", "ai-filled", ({ householdId }) => <AiFilled householdId={householdId} />),
     screen("coverage", "coverage", ({ householdId }) => <Coverage householdId={householdId} />),
     screen("more", "more", ({ householdId }) => <MorePage householdId={householdId} />),

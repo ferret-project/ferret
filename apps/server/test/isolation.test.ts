@@ -84,6 +84,9 @@ async function annHousehold() {
   await make("DELETE", `/api/v1/items/${kettle.id}`);
   const tags = await make<{ data: { id: string; name: string }[] }>("GET", "/api/v1/tags");
   await t.jobs.drain(); // photos analysed, items indexed into the vector store
+  // A review of the shelf under way, its toolbox checked (lib/room-reviews.ts).
+  await make("POST", `/api/v1/room-reviews/${shelf.id}`);
+  await make("POST", `/api/v1/room-reviews/${shelf.id}/items/${box.id}`, { outcome: "here" });
 
   // Ann's id for each kind of thing, by the path segment before it.
   const missing = crypto.randomUUID(); // kinds with nothing of Ann's to point at (room scans, recalls…): any id
@@ -112,7 +115,7 @@ async function annHousehold() {
     "security/sessions": sessions.data[0]!.id,
     usage: reading.id,
   };
-  const params: Record<string, string> = { ruleId: rule.id, pairingId: pairing.id, code: codes[0]!, n: "0", name: "x" };
+  const params: Record<string, string> = { ruleId: rule.id, pairingId: pairing.id, code: codes[0]!, n: "0", name: "x", locationId: shelf.id, itemId: box.id };
   // What Bob sends with every write: plausible fields of his own, then the same with one of Ann's things in each
   // reference — one at a time, so a reference that's refused can't hide one that isn't checked.
   const base = {

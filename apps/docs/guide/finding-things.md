@@ -37,13 +37,12 @@ maintenance done, and stock used or bought — with who did it, and whether thro
 opens the rest. It stays for things you no longer have, too. Claude can read it as well: *"when did we move the
 ladder?"*
 
-## Last scanned
+## Last seen
 
-Each time someone scans a thing's [QR label](./labels), barcode or pairing code — with the phone's camera or Ferret's
-scanner — Ferret notes when, and who. Its page says so under *Added…* (*Label last scanned 3 days ago by Sam*), a box
-lists it beside each thing inside, and **Everything → Last scanned** finds what nobody has scanned in a month, six
-months or a year (never scanned counts). A scan only means someone looked the code up; it isn't kept in the history,
-and it doesn't count as a change to the thing. When a code is on several things, only the one picked counts.
+Each time someone scans a thing's [QR label](./labels), barcode or pairing code, taps **Still here** on its page, or
+checks it in a [room review](./room-review), Ferret notes when, and who. Its page says so under *Added…*, and
+**Everything → Last seen** finds what nobody has seen in a month, six months or a year. More in
+[Room review and last seen](./room-review#last-seen).
 
 ## Ask Ferret
 
@@ -74,8 +73,9 @@ home screen's search.
 
 ## Everything
 
-**Filter** by where things came from, what they're missing, category, place, tag or when they were last scanned, and
-choose the **order** — last changed, newest, name, most valuable, bought most recently or scanned most recently. On a
+**Filter** by where things came from, what they're missing, category, place, tag or when they were last seen, and
+choose the **order** — last changed, newest, name, most valuable, bought most recently, scanned most recently or not
+seen the longest. On a
 phone these are under **Filter and sort**. Or [describe it in plain words](./ai#describe-what-you-re-looking-for):
 *tools bought last year over $100*.
 

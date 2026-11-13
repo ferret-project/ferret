@@ -29,6 +29,7 @@ const KIND: Record<AttentionItem["kind"], { icon: string; label: MessageDescript
   coverage: { icon: "icon-[tabler--umbrella]", label: msg`Coverage` },
   service: { icon: "icon-[tabler--plug-connected-x]", label: msg`Service` },
   ai: { icon: "icon-[tabler--sparkles]", label: msg`Suggestion` },
+  seen: { icon: "icon-[tabler--eye-check]", label: msg`Keeping track` },
 };
 
 const hrefFor = (a: AttentionItem) =>

@@ -1,5 +1,8 @@
 import type {
   ItemParts,
+  RoomReview,
+  RoomToReview,
+  ReviewOutcome,
   ServerCertificates,
   AccountDeletionInfo,
   HouseholdDeletionInfo,
@@ -371,6 +374,10 @@ export const api = {
       offset?: number;
       /** Not scanned since this day (yyyy-mm-dd); never scanned counts. */
       notScannedSince?: string;
+      /** Not seen (scanned, "Still here", a room review) since this day, and added before it. */
+      notSeenSince?: string;
+      /** Only things nobody can find. */
+      misplaced?: boolean;
       /** Worth (value, else price paid) at least / at most, in cents. */
       minWorth?: string;
       maxWorth?: string;
@@ -402,6 +409,8 @@ export const api = {
     if (filter.collectionId) params.set("collectionId", filter.collectionId);
     if (filter.wanted) params.set("wanted", filter.wanted);
     if (filter.notScannedSince) params.set("notScannedSince", filter.notScannedSince);
+    if (filter.notSeenSince) params.set("notSeenSince", filter.notSeenSince);
+    if (filter.misplaced) params.set("misplaced", "only");
     for (const k of ["minWorth", "maxWorth", "boughtFrom", "boughtTo"] as const) if (filter[k]) params.set(k, filter[k]!);
     return request<ItemSearch>(`/items${params.size ? `?${params}` : ""}`);
   },
@@ -412,6 +421,16 @@ export const api = {
   updateItem: (id: string, patch: ItemPatch) =>
     request<Item>(`/items/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
   deleteItem: (id: string) => request<void>(`/items/${id}`, { method: "DELETE" }),
+  /** "Still here" (or found it): seen now — a box with what's in it. */
+  markSeen: (id: string) => request<{ confirmed: number }>(`/items/${id}/seen`, { method: "POST" }),
+  /** "Can't find it". */
+  markMissing: (id: string) => request<void>(`/items/${id}/missing`, { method: "POST" }),
+  roomsToReview: () => request<{ data: RoomToReview[] }>("/room-reviews"),
+  roomReview: (locationId: string) => request<RoomReview>(`/room-reviews/${locationId}`),
+  startRoomReview: (locationId: string) => request<RoomReview>(`/room-reviews/${locationId}`, { method: "POST" }),
+  checkInReview: (locationId: string, itemId: string, outcome: ReviewOutcome, to?: string) =>
+    request<RoomReview>(`/room-reviews/${locationId}/items/${itemId}`, { method: "POST", body: JSON.stringify({ outcome, locationId: to }) }),
+  finishRoomReview: (locationId: string) => request<RoomReview>(`/room-reviews/${locationId}/finish`, { method: "POST" }),
   /** One change to many things (≤200): move, category, tag, untag, delete. */
   bulkItems: (input: ItemsBulk) => request<ItemsBulkResult>("/items/bulk", { method: "POST", body: JSON.stringify(input) }),
   /** Recently deleted (30 days). */

@@ -15,8 +15,9 @@ import { CLAIM_STATUS } from "./Claims";
 import { SetupChecklist } from "./Setup";
 import { dance, isFerretDay } from "./lib/dook";
 import side from "./assets/mascot/side.webp";
-import { BY_VALUE_HREF, CATEGORIES_HREF, COLLECTIONS_HREF, categoryHref, collectionHref, ITEMS_HREF, REPORT_HREF, SHOPPING_HREF, WARRANTIES_HREF, itemHref, MAINTENANCE_HREF, missingHref, placeHref, tagHref } from "./lib/route";
+import { MISPLACED_HREF, REVIEW_HREF, reviewHref, BY_VALUE_HREF, CATEGORIES_HREF, COLLECTIONS_HREF, categoryHref, collectionHref, ITEMS_HREF, REPORT_HREF, SHOPPING_HREF, WARRANTIES_HREF, itemHref, MAINTENANCE_HREF, missingHref, placeHref, tagHref } from "./lib/route";
 import { useCollections } from "./Collections";
+import { reviewedText } from "./Tracking";
 import { t, ph, plural, msg } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
@@ -103,6 +104,7 @@ export function OverviewSections({ householdId, places }: { householdId: string;
       <Upkeep o={o} />
       {o.shopping.count > 0 && <ToBuy o={o} />}
       <Gaps o={o} />
+      {o.total.items > 0 && o.tracking.nextRoom && <KeepingTrack o={o} />}
       {(o.warranties.length > 0 || o.openClaims.length > 0) && <Warranties o={o} />}
       <Collections householdId={householdId} />
       {o.byRoom.length > 0 && (
@@ -257,6 +259,51 @@ function Gaps({ o }: { o: OverviewData }) {
           );
         })}
       </ul>
+    </Section>
+  );
+}
+
+/**
+ * Keeping track: things nobody can find, things not seen in a year, and the place to review next (Tracking.tsx).
+ */
+function KeepingTrack({ o }: { o: OverviewData }) {
+  const { notSeenYear, misplaced, nextRoom } = o.tracking;
+  return (
+    <Section
+      icon="icon-[tabler--eye-check]"
+      title={t`Keeping track`}
+      aside={
+        <a href={REVIEW_HREF} className="tap link link-primary link-hover text-sm">
+          <Trans>Room review</Trans>
+        </a>
+      }
+    >
+      {(misplaced > 0 || notSeenYear > 0) && (
+        <div className="-mt-2 flex flex-wrap gap-2">
+          {misplaced > 0 && (
+            <a href={MISPLACED_HREF} className="tap badge badge-soft badge-warning">
+              {plural(misplaced, { one: "# nobody can find", other: "# nobody can find" })}
+            </a>
+          )}
+          {notSeenYear > 0 && (
+            <a href={`${ITEMS_HREF}?unseen=12`} className="tap badge badge-soft badge-info">
+              {plural(notSeenYear, { one: "# not seen in a year", other: "# not seen in a year" })}
+            </a>
+          )}
+        </div>
+      )}
+      {nextRoom && (
+        <a href={reviewHref(nextRoom.locationId)} className="flex min-h-11 items-center gap-3 rounded-field px-2 py-1.5 hover:bg-base-200">
+          <span className="icon-[tabler--list-check] size-5 shrink-0 text-primary" aria-hidden />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-base-content">{o.properties > 1 ? nextRoom.path : nextRoom.path.replace(/^[^›]+› /, "")}</span>
+            <span className="block truncate text-sm text-base-content/70">
+              {reviewedText(nextRoom)} · {plural(nextRoom.items, { one: "# thing", other: "# things" })}
+            </span>
+          </span>
+          <span className="shrink-0 text-sm font-medium text-primary">{nextRoom.open ? t`Carry on` : t`Review`}</span>
+        </a>
+      )}
     </Section>
   );
 }

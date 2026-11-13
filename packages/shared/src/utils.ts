@@ -18,11 +18,14 @@ export function isTimeZone(name: string) {
   }
 }
 
-/** When a thing was last seen, by kind — "scanned" now; "confirmed" ("still here") and "reviewed" (a room review) to come. */
-export const sightingKinds = ["scanned"] as const;
+/**
+ * When a thing was last seen, by kind: "scanned" (its label or barcode looked up — maybe only while searching, the
+ * weakest), "confirmed" (someone tapped "Still here", or found it) and "reviewed" (checked in a room review).
+ */
+export const sightingKinds = ["scanned", "confirmed", "reviewed"] as const;
 export type SightingKind = (typeof sightingKinds)[number];
-/** How it was seen. */
-export const sightingHows = ["label", "barcode", "pairing"] as const;
+/** How it was seen: a label, barcode or pairing code scanned; a tap in the app; its box confirmed (so it's in there). */
+export const sightingHows = ["label", "barcode", "pairing", "app", "box"] as const;
 export type SightingHow = (typeof sightingHows)[number];
 
 export const claimStatuses = ["filed", "in_progress", "approved", "denied", "resolved"] as const;

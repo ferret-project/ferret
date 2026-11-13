@@ -14,6 +14,7 @@ things to do, not messages: an entry disappears once it's dealt with.
 | Claims | No news for two weeks — time to follow up |
 | New items to name | Added from photos and not confirmed yet |
 | Things to buy | One entry for the [shopping list](./stock#shopping-list) — urgent once something's run out |
+| Keeping track | Things nobody can find, and things not seen in a year — [review a room](./room-review) (never urgent) |
 | Backups | Failing, or none lately — for [the server admin](../hosting/server-admin) only |
 
 Urgent entries are also what the [daily reminder](./reminders) sends.

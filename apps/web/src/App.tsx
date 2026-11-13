@@ -24,6 +24,7 @@ import { type Choice, ItemPicker } from "./Combobox";
 import { Outlet, useSearch } from "@tanstack/react-router";
 import { Breadcrumbs, PlaceTiles, PropertyCards, PropertyHeader } from "./Browse";
 import { MISSING_LABELS, OverviewSections } from "./Overview";
+import { ReviewRoomLink } from "./Tracking";
 import { CategoryTiles, categoryIcon, flattenCategories, useCategories } from "./Catalog";
 import { LabelBadge } from "./Boxes";
 import { AttentionBell } from "./AttentionBell";
@@ -1011,7 +1012,7 @@ export function Home({ householdName, householdId, view }: { householdName: stri
   // Everything (not searching) has its own table, filters and pages.
   const everything = !query && view.name === "items";
   // `#/items?sort=value`: Everything in that order (the router hands the search values over as strings).
-  const itemsSort = (useSearch({ strict: false }) as { sort?: string }).sort;
+  const { sort: itemsSort, unseen: itemsUnseen } = useSearch({ strict: false }) as { sort?: string; unseen?: string };
   const listing = Boolean(query) || ["category", "tag"].includes(view.name) || (view.name === "place" && Boolean(place));
   const [withDocuments, setWithDocuments] = useSearchDocuments();
   const documents = withDocuments ? undefined : ("exclude" as const);
@@ -1175,14 +1176,17 @@ export function Home({ householdName, householdId, view }: { householdName: stri
                 )
               }
             />
+            {/* "Review this room" — and when it last was (Tracking.tsx). */}
+            <ReviewRoomLink locationId={view.locationId} householdId={householdId} />
             {place && place.node.children.length > 0 && <PlaceTiles nodes={place.node.children} title={t`Inside ${ph({ name: place.node.name })}`} />}
           </>
         )}
 
         {everything && (
           <Everything
-            key={itemsSort ?? ""}
+            key={`${itemsSort ?? ""}|${itemsUnseen ?? ""}`}
             sort={itemsSort}
+            unseen={itemsUnseen}
             householdId={householdId}
             missing={missing}
             origin={origin}

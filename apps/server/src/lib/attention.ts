@@ -27,6 +27,7 @@ import { moneyText, todayFor } from "./household-time";
 import { suggestedTaskCount } from "./suggested-tasks";
 import { aiFillEntries } from "./ai-fill";
 import { duplicateCount } from "./duplicates";
+import { trackingSummary } from "./room-reviews";
 
 const MAINTENANCE_DAYS = 7;
 const WARRANTY_DAYS = 30;
@@ -233,6 +234,16 @@ export async function needsAttention(v: Caller): Promise<AttentionItem[]> {
   if (filled) {
     out.push({ kind: "ai", severity: "soon", id: "ai-filled", title: `AI filled in ${filled} ${filled === 1 ? "detail" : "details"}`, detail: "Check what it filled in", itemId: null, date: null, href: "#/ai-filled" });
   }
+  // Keeping track: gentle, never urgent — things nobody can find, and things not seen in a year (review a room).
+  const tracking = await trackingSummary(v);
+  if (tracking.misplaced) {
+    const n = tracking.misplaced;
+    out.push({ kind: "seen", severity: "soon", id: "misplaced", title: `${n} ${n === 1 ? "thing" : "things"} nobody can find`, detail: "Found it, or is it lost for good?", itemId: null, date: null, href: "#/misplaced" });
+  }
+  if (tracking.notSeenYear) {
+    const n = tracking.notSeenYear;
+    out.push({ kind: "seen", severity: "soon", id: "not-seen", title: `${n} ${n === 1 ? "thing" : "things"} not seen in a year`, detail: "Review a room to check they're still there", itemId: null, date: null, href: "#/review" });
+  }
   const duplicates = await duplicateCount(v);
   if (duplicates) {
     out.push({ kind: "ai", severity: "soon", id: "duplicates", title: `${duplicates} possible ${duplicates === 1 ? "duplicate" : "duplicates"}`, detail: "The same thing added twice? Merge or keep both", itemId: null, date: null, href: "#/duplicates" });
@@ -316,7 +327,7 @@ export async function needsAttention(v: Caller): Promise<AttentionItem[]> {
   }
 
   // Urgent first; then by kind (things with a deadline before things waiting on someone); then soonest.
-  const order: Record<AttentionItem["kind"], number> = { backup: 0, service: 0, recall: 1, maintenance: 2, return: 3, loan: 3, warranty: 4, shopping: 5, coverage: 6, claim: 7, review: 8, roomscan: 8, ai: 9 };
+  const order: Record<AttentionItem["kind"], number> = { backup: 0, service: 0, recall: 1, maintenance: 2, return: 3, loan: 3, warranty: 4, shopping: 5, coverage: 6, claim: 7, review: 8, roomscan: 8, ai: 9, seen: 10 };
   return out.sort(
     (a, b) =>
       (a.severity === b.severity ? 0 : a.severity === "urgent" ? -1 : 1) ||

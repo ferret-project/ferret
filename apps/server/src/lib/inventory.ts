@@ -3,7 +3,8 @@
  * tools (mcp/tools.ts) both do, so the app and Claude always agree. Every
  * function acts for one caller in one household and filters by its householdId.
  */
-import { lastScans } from "./sightings";
+import { sightingsOf } from "./sightings";
+import { trackingSummary } from "./room-reviews";
 import { PHOTO_ORDER } from "./photo-order";
 import { meaningSearchAllowed, recordUsage, requireAllowed, requireRoom } from "./plan";
 import {
@@ -29,7 +30,7 @@ import {
   today,
   warrantyStatus,
 } from "@ferret/shared";
-import { and, asc, count, desc, eq, exists, inArray, isNotNull, isNull, notExists, type SQL, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, exists, inArray, isNotNull, isNull, lt, notExists, type SQL, sql } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { activity, attachment, category, collection, item, itemSighting, itemTag, itemTemplate, label, location, property, user, warranty } from "../db/schema";
 import { INDEX_JOB } from "../jobs/index-item";
@@ -338,6 +339,8 @@ export interface ItemFilter {
   collectionId?: string;
   /** Not scanned since this day (household time zone; never scanned counts) — lib/sightings.ts. */
   notScannedSince?: string;
+  notSeenSince?: string;
+  misplaced?: "only";
   /**
    * The want list (things not owned yet): left out unless asked for — "include" it, or "only" it. What's reached by
    * its id (gone: "include") includes it too.
@@ -394,7 +397,22 @@ export function itemScope(v: Caller, filter: ItemFilter = {}) {
       ),
     );
   }
+  if (filter.notSeenSince) where.push(notSeenSince(v, startOfDayIn(filter.notSeenSince, v.timeZone)));
+  if (filter.misplaced === "only") where.push(isNotNull(item.missingSince));
   return and(...where);
+}
+
+/** Not seen since then: added before it, and no sighting of any kind since (adding a thing is seeing it). */
+export function notSeenSince(v: Caller, since: Date): SQL {
+  return and(
+    lt(item.createdAt, since),
+    notExists(
+      v.db
+        .select({ one: sql`1` })
+        .from(itemSighting)
+        .where(and(eq(itemSighting.itemId, item.id), sql`${itemSighting.at} >= ${since.getTime()}`)),
+    ),
+  )!;
 }
 
 function lacks(v: Caller, detail: MissingDetail): SQL {
@@ -425,6 +443,7 @@ const SORTS = {
   bought: item.purchaseDate,
   added: item.createdAt,
   scanned: sql`(select ${itemSighting.at} from ${itemSighting} where ${itemSighting.itemId} = ${item.id} and ${itemSighting.kind} = 'scanned')`,
+  seen: sql`coalesce((select max(${itemSighting.at}) from ${itemSighting} where ${itemSighting.itemId} = ${item.id}), ${item.createdAt})`,
 } as const;
 
 export async function listItems(
@@ -466,7 +485,7 @@ export async function withTags<T extends { id: string }>(v: Caller, rows: T[]) {
 export async function asListing<T extends typeof item.$inferSelect>(
   v: Caller,
   rows: T[],
-): Promise<(T & Pick<ItemListing, "photoId" | "place" | "category" | "container" | "contents" | "labelCode" | "loan" | "lastScanned">)[]> {
+): Promise<(T & Pick<ItemListing, "photoId" | "place" | "category" | "container" | "contents" | "labelCode" | "loan" | "lastScanned" | "lastSeen">)[]> {
   if (!rows.length) return [];
   const ids = rows.map((r) => r.id);
   const boxIds = [...new Set(rows.flatMap((r) => (r.containerItemId ? [r.containerItemId] : [])))];
@@ -496,7 +515,7 @@ export async function asListing<T extends typeof item.$inferSelect>(
       .from(label)
       .where(and(eq(label.householdId, v.householdId), inList(label.itemId, ids))),
     openLoansFor(v, ids),
-    lastScans(v, ids),
+    sightingsOf(v, ids),
   ]);
   const boxName = new Map(boxes.map((b) => [b.id, b.name]));
   const contentCount = new Map(inside.map((c) => [c.boxId, c.n]));
@@ -512,7 +531,8 @@ export async function asListing<T extends typeof item.$inferSelect>(
     contents: contentCount.get(r.id) ?? 0,
     labelCode: codeOf.get(r.id) ?? null,
     loan: loans.has(r.id) ? (({ direction, person, since, dueOn }) => ({ direction, person, since, dueOn }))(loans.get(r.id)!) : null,
-    lastScanned: scans.get(r.id) ?? null,
+    lastScanned: scans.scanned.get(r.id) ?? null,
+    lastSeen: scans.seen.get(r.id) ?? null,
   }));
 }
 
@@ -774,7 +794,8 @@ function disposalChange(current: typeof item.$inferSelect, input: ItemPatch, on:
   }
   const reason = input.disposition;
   return {
-    fields: { disposedOn: input.disposedOn ?? current.disposedOn ?? on },
+    // Gone (lost, at last, or sold…): no longer something nobody can find.
+    fields: { disposedOn: input.disposedOn ?? current.disposedOn ?? on, missingSince: null },
     gone: true,
     summary: (name: string) => `${DISPOSAL_WORDS[reason]} ${name}`,
   };
@@ -1125,6 +1146,7 @@ export async function overview(v: Caller): Promise<Overview> {
     },
     activity: recent.map((a) => ({ ...a, createdAt: a.createdAt.toISOString() })),
     shopping: await shoppingList(v).then(({ items }) => ({ count: items.length, out: items.filter((i) => i.quantity === 0).length, next: items.slice(0, 5) })),
+    tracking: await trackingSummary(v),
   };
 }
 

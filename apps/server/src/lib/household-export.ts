@@ -33,6 +33,8 @@ import {
   provider,
   stockMovement,
   itemSighting,
+  roomReview,
+  roomReviewEntry,
   usageReading,
   stockRule,
   tag,
@@ -116,13 +118,15 @@ export async function householdData(v: Caller, root: string, householdName: stri
   const templates = await listTemplates(v);
   const collections = await listCollections(v);
   const owned = await v.db.select().from(ownLabel).where(eq(ownLabel.householdId, h)).orderBy(asc(ownLabel.createdAt));
-  const [rules, moves, readings, sightings] = await Promise.all([
+  const [rules, moves, readings, sightings, reviews, reviewEntries] = await Promise.all([
     v.db.select().from(stockRule).where(eq(stockRule.householdId, h)),
     v.db.select().from(stockMovement).where(eq(stockMovement.householdId, h)).orderBy(asc(stockMovement.createdAt)),
     v.db.select().from(usageReading).where(eq(usageReading.householdId, h)).orderBy(asc(usageReading.readOn)),
     v.db.select().from(itemSighting).where(eq(itemSighting.householdId, h)),
+    v.db.select().from(roomReview).where(eq(roomReview.householdId, h)).orderBy(asc(roomReview.startedAt)),
+    v.db.select().from(roomReviewEntry).where(eq(roomReviewEntry.householdId, h)),
   ]);
-  const doers = [...new Set([...logs.map((l) => l.doneBy), ...moves.map((m) => m.userId), ...readings.map((r) => r.userId), ...sightings.map((x) => x.userId)].filter((id): id is string => !!id))];
+  const doers = [...new Set([...logs.map((l) => l.doneBy), ...moves.map((m) => m.userId), ...readings.map((r) => r.userId), ...sightings.map((x) => x.userId), ...reviews.map((r) => r.startedBy)].filter((id): id is string => !!id))];
   const people = doers.length ? await v.db.select({ id: user.id, name: user.name }).from(user).where(inList(user.id, doers)) : [];
   const liveProperties = live(properties);
   const livePlaces = live(places);
@@ -200,6 +204,15 @@ export async function householdData(v: Caller, root: string, householdName: stri
       path: placePath(p.id),
       notes: p.notes,
       label: labelFor("locationId", p.id),
+      /** Room reviews of it: when, by whom, and what each thing checked turned out to be (here, moved, gone, missing). */
+      reviews: reviews
+        .filter((r) => r.locationId === p.id)
+        .map((r) => ({
+          startedAt: iso(r.startedAt),
+          finishedAt: r.finishedAt ? iso(r.finishedAt) : null,
+          by: r.startedBy ? (who.get(r.startedBy) ?? null) : null,
+          checked: reviewEntries.filter((e) => e.reviewId === r.id && itemIds.has(e.itemId)).map((e) => ({ itemId: e.itemId, found: e.outcome, at: iso(e.at) })),
+        })),
     })),
     categories: liveCategories.map((c) => ({ id: c.id, parentId: c.parentId, name: c.name, path: categoryPath(c.id), fields: c.fields ?? [] })),
     /** Kinds of thing with their own fields (a coin's year, mint mark…): items' templateId, values in customFields. */
@@ -273,10 +286,12 @@ export async function householdData(v: Caller, root: string, householdName: stri
           .filter((m) => m.itemId === i.id)
           .map((m) => ({ at: iso(m.createdAt), change: m.delta, left: m.quantityAfter, how: m.reason, by: m.userId ? (who.get(m.userId) ?? null) : null, note: m.note, undone: m.undoneAt != null })),
       },
-      /** When it was last seen, by kind ("scanned": its label or barcode), by whom and how. */
+      /** When it was last seen, by kind ("scanned": its label or barcode; "confirmed": Still here; "reviewed": a room review), by whom and how. */
       lastSeen: sightings
         .filter((x) => x.itemId === i.id)
         .map((x) => ({ kind: x.kind, at: iso(x.at), by: x.userId ? (who.get(x.userId) ?? null) : null, how: x.how })),
+      /** Since when nobody can find it ("Can't find it"), or null. */
+      missingSince: i.missingSince ? iso(i.missingSince) : null,
       addedAt: iso(i.createdAt),
       /** How it was added (app, photos, walkthrough, scan, label, spreadsheet, homeassistant, claude, api) and the file's or key's name. */
       addedFrom: i.origin ? { how: i.origin, detail: i.originDetail } : null,

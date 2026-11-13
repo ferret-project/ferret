@@ -13,6 +13,7 @@ import {
   type ClaimStatus,
   claimStatuses,
   type SightingHow,
+  type SightingKind,
   itemConditions,
   propertyTypes,
   intervalUnits,
@@ -248,7 +249,7 @@ export const itemPatch = itemFields.partial();
 export type ItemPatch = z.infer<typeof itemPatch>;
 
 /** The orders a list can come in: last changed (the default), name, value, when bought, when added. */
-export const itemSorts = ["updated", "name", "value", "bought", "added", "scanned"] as const;
+export const itemSorts = ["updated", "name", "value", "bought", "added", "scanned", "seen"] as const;
 export type ItemSort = (typeof itemSorts)[number];
 
 export const listQuery = z.object({
@@ -277,13 +278,17 @@ export const listQuery = z.object({
   origin: z.enum(itemOrigins).optional(),
   /** Not scanned since this day (yyyy-mm-dd) — never scanned counts: "what hasn't been seen in a year?" */
   notScannedSince: z.iso.date().optional(),
+  /** Not seen since this day (yyyy-mm-dd): no scan, "Still here" or room review since, and added before it. */
+  notSeenSince: z.iso.date().optional(),
+  /** "only": things nobody can find (marked "Can't find it", not yet found or given up as lost). */
+  misplaced: z.enum(["only"]).optional(),
   /** Worth (value, else price paid) at least / at most this many cents. */
   minWorth: z.coerce.number().int().min(0).optional(),
   maxWorth: z.coerce.number().int().min(0).optional(),
   /** Bought on or after / on or before this day (yyyy-mm-dd). */
   boughtFrom: z.iso.date().optional(),
   boughtTo: z.iso.date().optional(),
-  /** Lists (not searches): the order — last changed (default), name, value, when bought, when added, when last scanned. */
+  /** Lists (not searches): the order — last changed (default), name, value, when bought, when added, last scanned, last seen. */
   sort: z.enum(itemSorts).optional(),
   dir: z.enum(["asc", "desc"]).optional(),
   /** Searches: "later" answers at once with the sure matches (and `checking`); "now" (default) checks the maybe-matches first. */
@@ -635,6 +640,8 @@ export interface Item extends Omit<ItemInput, "origin"> {
   aiFilled?: Record<string, AiFill> | null;
   /** The AI's latest replacement-cost estimate — a suggestion; `replacementCents` is what a person set. */
   replacementEstimate?: { cents: number; reasoning: string; at: string } | null;
+  /** Since when nobody can find it ("Can't find it"): cleared when it's found, or given up as lost. */
+  missingSince?: string | null;
 }
 
 export interface Paged<T> {
@@ -724,6 +731,8 @@ export interface ItemListing extends Item {
   loan: { direction: LoanDirection; person: string; since: string; dueOn: string | null } | null;
   /** When its QR label or barcode was last scanned to it, by whom (their name), and how. */
   lastScanned: { at: string; by: string | null; how: SightingHow } | null;
+  /** When it was last seen at all (scanned, "Still here", a room review), by whom, which way — null if never. */
+  lastSeen: { at: string; by: string | null; kind: SightingKind; how: SightingHow } | null;
 }
 
 /** Every property with its locations as a tree (`GET /locations/tree`). */
@@ -812,6 +821,55 @@ export interface Overview {
   activity: { id: string; action: string; summary: string | null; via: string; actorName: string | null; entityType: string; entityId: string; /** The item it's about, if it still exists. */ itemId: string | null; createdAt: string }[];
   /** Running low: how many things to buy, how many have run out, and the first few. */
   shopping: { count: number; out: number; next: ShoppingItem[] };
+  /** Keeping track (lib/room-reviews.ts): things not seen in a year, things nobody can find, and the room checked longest ago. */
+  tracking: TrackingSummary;
+}
+
+// ── Last seen, room reviews, can't find ─────────────────────────────────────
+export interface TrackingSummary {
+  /** Things added more than a year ago and not seen (scanned, "Still here", a room review) since. */
+  notSeenYear: number;
+  /** Things marked "Can't find it". */
+  misplaced: number;
+  /** The place with things in it that was reviewed longest ago (never reviewed first, the fullest of those first). */
+  nextRoom: RoomToReview | null;
+}
+
+export interface RoomToReview {
+  locationId: string;
+  /** "Highland House › Garage" */
+  path: string;
+  /** Things kept right there (in boxes there too). */
+  items: number;
+  /** When its last room review was finished — null if it never was. */
+  reviewedAt: string | null;
+  /** A review started and not finished: how far it got. */
+  open: { done: number; startedAt: string } | null;
+}
+
+export const reviewOutcomes = ["here", "moved", "gone", "missing"] as const;
+export type ReviewOutcome = (typeof reviewOutcomes)[number];
+
+export const reviewItemBody = z.object({
+  outcome: z.enum(reviewOutcomes),
+  /** "moved": where to. */
+  locationId: z.string().optional(),
+});
+
+/** A room review (GET /room-reviews/:locationId): what's there, and what's been checked. */
+export interface RoomReview {
+  locationId: string;
+  path: string;
+  /** The review under way (null: none started — POST starts one). */
+  review: { id: string; startedAt: string; startedBy: string | null } | null;
+  /** When the last one was finished. */
+  reviewedAt: string | null;
+  /** Not yet checked in this review: what's in the room, boxes with how many things in them, loose things. */
+  toCheck: ItemListing[];
+  /** Checked in this review, newest first. */
+  checked: (ItemListing & { outcome: ReviewOutcome; checkedAt: string })[];
+  /** Places inside this one that have things in them (each reviewed on its own). */
+  inside: { locationId: string; name: string; items: number }[];
 }
 
 // ── Insurance export ────────────────────────────────────────────────────────
@@ -918,7 +976,7 @@ export interface Label {
 // ── Needs attention (the bell) ──────────────────────────────────────────────
 /** Something to act on now; it disappears once it's dealt with (no read/unread state). */
 export interface AttentionItem {
-  kind: "maintenance" | "warranty" | "return" | "claim" | "review" | "roomscan" | "backup" | "shopping" | "loan" | "recall" | "coverage" | "service" | "ai";
+  kind: "maintenance" | "warranty" | "return" | "claim" | "review" | "roomscan" | "backup" | "shopping" | "loan" | "recall" | "coverage" | "service" | "ai" | "seen";
   /** urgent: overdue / today; soon: coming up or waiting. */
   severity: "urgent" | "soon";
   /** The thing it's about (task, warranty, claim or item id; a backup's run id). */

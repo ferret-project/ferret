@@ -34,7 +34,7 @@ const byValue = (v: ItemDisposition | null | undefined) => DISPOSITIONS.find((d)
 const formatDate = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 
 /** Every query that lists or totals things: a thing leaving (or coming back) changes them all. */
-function useRefreshAll(householdId: string) {
+export function useRefreshAll(householdId: string) {
   const qc = useQueryClient();
   return () =>
     Promise.all(
@@ -45,9 +45,9 @@ function useRefreshAll(householdId: string) {
 }
 
 /** "What happened to it?" — then it's gone from lists and totals. */
-export function GoneDialog({ item, householdId, onClose, onDone }: { item: ItemListing; householdId: string; onClose: () => void; onDone?: () => void }) {
+export function GoneDialog({ item, householdId, onClose, onDone, initial = "sold" }: { item: ItemListing; householdId: string; onClose: () => void; onDone?: () => void; initial?: ItemDisposition }) {
   const refresh = useRefreshAll(householdId);
-  const [what, setWhat] = useState<ItemDisposition>("sold");
+  const [what, setWhat] = useState<ItemDisposition>(initial);
   const save = useMutation({
     mutationFn: async ({ receipt, ...patch }: { disposition: ItemDisposition; disposedOn: string; disposalCents: number | null; disposalNote: string | null; disposedTo: string | null; receipt: File | null }) => {
       const saved = await api.updateItem(item.id, patch);

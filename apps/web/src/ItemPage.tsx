@@ -5,7 +5,7 @@
  */
 import { ListingButton } from "./Listing";
 import { amazonSearchUrl, today } from "@ferret/shared/utils";
-import { lastScannedText } from "./lib/last-scanned";
+import { MissingBanner, SeenLine } from "./Tracking";
 import { UsageCard } from "./Usage";
 import { BarSearch } from "./Nav";
 import { ItemSearch } from "./ItemSearch";
@@ -260,6 +260,8 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
       {/* ① Details */}
       {/* Sold, given away, lost…: what happened, and "Bring it back". */}
       <GoneBanner item={item.data} householdId={householdId} />
+      {/* Nobody can find it: Found it / It's lost. */}
+      <MissingBanner item={item.data} householdId={householdId} />
       {/* On a wide screen: the photos beside the details, as a product page shows them. */}
       <div className={`grid gap-6 ${photos.length ? "lg:grid-cols-2" : ""}`}>
       {photos.length > 0 && (
@@ -315,6 +317,7 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
             return (item.data.links?.length || search) ? <ItemLinks links={item.data.links ?? []} search={search} /> : null;
           })()}
           <AddedLine item={item.data} />
+          <SeenLine item={item.data} householdId={householdId} />
           <div className="mt-2 flex flex-col gap-2">
             <CollectionBanner householdId={householdId} item={item.data} />
           </div>
@@ -584,9 +587,9 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
 
 /**
  * "Added Oct 19, 2026 by Ann, from a spreadsheet (orders.csv)" — the "how" links to everything else added that way —
- * and when its label or barcode was last scanned.
+ * (when it was last seen is SeenLine's, beneath it).
  */
-function AddedLine({ item: it }: { item: Pick<ItemListing, "createdAt" | "origin" | "originDetail" | "addedBy" | "roomScanId" | "lastScanned"> }) {
+function AddedLine({ item: it }: { item: Pick<ItemListing, "createdAt" | "origin" | "originDetail" | "addedBy" | "roomScanId"> }) {
   const when = new Date(it.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
   const detail = it.originDetail && it.originDetail !== "Home Assistant" ? ` (${it.originDetail})` : "";
   return (
@@ -609,11 +612,6 @@ function AddedLine({ item: it }: { item: Pick<ItemListing, "createdAt" | "origin
             see the room photo
           </a></Trans>
         </>
-      )}
-      {it.lastScanned && (
-        <span className="block" title={new Date(it.lastScanned.at).toLocaleString()}>
-          {lastScannedText(it.lastScanned)}
-        </span>
       )}
     </p>
   );

@@ -34,8 +34,9 @@ const SORTS: { value: ItemSort; label: MessageDescriptor; dir: "asc" | "desc" }[
   { value: "value", label: msg`Most valuable`, dir: "desc" },
   { value: "bought", label: msg`Bought most recently`, dir: "desc" },
   { value: "scanned", label: msg`Scanned most recently`, dir: "desc" },
+  { value: "seen", label: msg`Not seen the longest`, dir: "asc" },
 ];
-/** "Last scanned": not in this many months (never scanned counts). */
+/** "Last seen": not in this many months (scanned, "Still here", a room review — never seen counts, once it's that old). */
 const UNSCANNED = [
   { value: "1", label: msg`Not in a month` },
   { value: "6", label: msg`Not in 6 months` },
@@ -71,8 +72,11 @@ function useWide() {
   return wide;
 }
 
-/** `sort`: the order to start in, from the address (`#/items?sort=value` — the dashboard's Worth). */
-export function Everything(props: { householdId: string; missing?: MissingDetail; origin?: ItemOrigin; placeFrom?: string; sort?: string }) {
+/**
+ * `sort`: the order to start in, from the address (`#/items?sort=value` — the dashboard's Worth); `unseen`: months
+ * not seen (`#/items?unseen=12` — the dashboard's "not seen in a year").
+ */
+export function Everything(props: { householdId: string; missing?: MissingDetail; origin?: ItemOrigin; placeFrom?: string; sort?: string; unseen?: string }) {
   const { householdId } = props;
   // Filters from plain words (AI-2) that the filter bar has no control for, shown as chips.
   const [extra, setExtra] = useState<ExtraFilters>({});
@@ -82,7 +86,7 @@ export function Everything(props: { householdId: string; missing?: MissingDetail
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [locationId, setLocationId] = useState<string | null>(null);
   const [tag, setTag] = useState("");
-  const [unscanned, setUnscanned] = useState("");
+  const [unscanned, setUnscanned] = useState(UNSCANNED.some((u) => u.value === props.unseen) ? props.unseen! : "");
   const [sort, setSort] = useState<{ by: ItemSort; dir: "asc" | "desc" }>(startSort ? { by: startSort.value, dir: startSort.dir } : { by: "updated", dir: "desc" });
   const [page, setPage] = useState(0);
   const [layout, setLayoutState] = useState<Layout>(storedLayout);
@@ -102,7 +106,7 @@ export function Everything(props: { householdId: string; missing?: MissingDetail
     tag: tag || undefined,
     missing,
     origin,
-    notScannedSince: unscanned ? monthsAgo(Number(unscanned)) : undefined,
+    notSeenSince: unscanned ? monthsAgo(Number(unscanned)) : undefined,
     minWorth: extra.minWorth,
     maxWorth: extra.maxWorth,
     boughtFrom: extra.boughtFrom,
@@ -374,7 +378,7 @@ function FilterBar(props: {
               ))}
             </select>
           </Field>
-          <Field label={t`Last scanned`} id="filter-scanned">
+          <Field label={t`Last seen`} id="filter-scanned">
             <select id="filter-scanned" className="select" value={props.unscanned} onChange={(e) => props.onUnscanned(e.target.value)}>
               <option value="">{t`Any time`}</option>
               {UNSCANNED.map((u) => (

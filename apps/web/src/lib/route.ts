@@ -8,6 +8,7 @@ import type { MissingDetail } from "@ferret/shared/utils";
  * #/category/:id, #/tag/:name (a tag is a collection), #/categories (edit them, and tags),
  * #/places (edit the tree), #/import[/csv|/home-assistant] (bring things in), #/loans (lent and borrowed),
  * #/s/:token (a share link) and #/b/:token (a borrower's reminder link) — both signed out too, #/maintenance, #/deleted (recently deleted), #/settings[/notifications|/security|/api] (household, reminders, sign-in, API keys),
+ * #/review[/:locationId] (room reviews), #/misplaced (things nobody can find),
  * #/providers[/:id] (service providers), #/l/:code (a scanned QR label), #/labels[?codes=A,B] (print labels), #/report (insurance report),
  * #/invite/:id (an invitation link — works signed out too), #/unlock/:token (a "sign in again" link) and
  * #/reset-password/:token (an emailed password-reset link), both signed out. A trailing `?q=` is a search kept in
@@ -43,6 +44,9 @@ export type Route =
   | { name: "warranties" }
   | { name: "ai-filled" }
   | { name: "duplicates" }
+  | { name: "reviews" }
+  | { name: "review"; locationId: string }
+  | { name: "misplaced" }
   | { name: "coverage" }
   | { name: "more" }
   | { name: "item"; id: string }
@@ -108,6 +112,11 @@ export const WARRANTIES_HREF = "#/warranties";
 export const HEIRS_HREF = "#/heirs";
 /** What the AI filled in by itself, waiting for someone to check it (AiFill.tsx). */
 export const AI_FILLED_HREF = "#/ai-filled";
+/** Room reviews: places to check, the longest unchecked first (Tracking.tsx); one place's review. */
+export const REVIEW_HREF = "#/review";
+export const reviewHref = (locationId: string) => `${REVIEW_HREF}/${encodeURIComponent(locationId)}`;
+/** Things nobody can find (Tracking.tsx). */
+export const MISPLACED_HREF = "#/misplaced";
 /** Things that may be the same thing twice, to merge (Duplicates.tsx). */
 export const DUPLICATES_HREF = "#/duplicates";
 /** Everything, most valuable first (the dashboard's Worth). */

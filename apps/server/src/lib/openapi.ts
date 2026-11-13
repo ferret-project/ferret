@@ -58,6 +58,7 @@ import {
   warrantyPatch,
   householdDeleteInput,
   accountDeleteInput,
+  reviewItemBody,
 } from "@ferret/shared";
 import { z } from "zod";
 import { BROWSER_EVENTS } from "./analytics";
@@ -125,6 +126,13 @@ export const OPERATIONS: Operation[] = [
   { method: "post", path: "/items/{id}/parts/dismiss", tag: "Items", summary: "Dismiss a part a manual suggested", body: dismissPartInput, writes: true, returns: "204" },
   { method: "get", path: "/items/{id}/find", tag: "Items", summary: "Search inside one item: passages of its documents (by section), its photos' text, warranties and notes that have the words, best first", query: itemFindQuery, returns: "ItemFindResult" },
   { method: "post", path: "/items/{id}/ask", tag: "Items", summary: "Ask about one item", description: "Answered only from that item: its details, warranties and the passages of its documents, with citations. Counts as an AI action, like Ask.", body: askInput, returns: "AskAnswer" },
+  { method: "post", path: "/items/{id}/seen", tag: "Items", summary: "\"Still here\": seen now (a box with everything in it); found again if it was missing", writes: true, returns: "{ confirmed }" },
+  { method: "post", path: "/items/{id}/missing", status: 204, tag: "Items", summary: "\"Can't find it\": missing (listed with ?misplaced=only) until it's seen again or given up as lost", writes: true },
+  { method: "get", path: "/room-reviews", tag: "Room reviews", summary: "Places with things in them, the next to review first: reviews under way, never reviewed, then longest ago", returns: "{ data: RoomToReview[] }" },
+  { method: "get", path: "/room-reviews/{locationId}", tag: "Room reviews", summary: "A place's review: what's still to check, what's been checked, places inside", returns: "RoomReview" },
+  { method: "post", path: "/room-reviews/{locationId}", tag: "Room reviews", summary: "Start a review of a place (or carry on the one under way)", writes: true, returns: "RoomReview" },
+  { method: "post", path: "/room-reviews/{locationId}/items/{itemId}", tag: "Room reviews", summary: "What the review found: here (seen), moved (locationId: where to), gone (after setting its disposition), missing", body: reviewItemBody, writes: true, returns: "RoomReview" },
+  { method: "post", path: "/room-reviews/{locationId}/finish", tag: "Room reviews", summary: "Finish the review: the place's \"last reviewed\", and a line in recent changes", writes: true, returns: "RoomReview" },
   { method: "get", path: "/items/{id}/history", tag: "Items", summary: "What happened to an item, newest first: added, edits (what changed), moves, photos, warranties, maintenance, stock (?limit=, ?offset=)", returns: "{ data: ItemHistoryEntry[], more }" },
   { method: "get", path: "/items/{id}/usage", tag: "Maintenance", summary: "Maintenance by use: what the item counts (miles, hours…), its readings (newest first), the latest, and how fast it goes up per day", returns: "UsageSummary" },
   { method: "post", path: "/items/{id}/usage", tag: "Maintenance", summary: "Log a reading (odometer, hour meter): its maintenance by use is rescheduled from it", body: usageReadingInput, writes: true, returns: "UsageReading" },

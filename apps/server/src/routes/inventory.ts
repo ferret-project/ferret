@@ -6,7 +6,7 @@
 import { householdSummary } from "../lib/summary";
 import { PHOTO_ORDER } from "../lib/photo-order";
 import * as usage from "../lib/usage";
-import { usageReadingInput, itemsBulk,
+import { usageReadingInput, itemsBulk, reviewItemBody,
   askInput,
   dismissPartInput,
   itemFindQuery,
@@ -43,6 +43,8 @@ import { addAttachment, attachmentFields, setMainPhoto } from "../lib/attachment
 import { sniffContentType } from "../lib/sniff";
 import { isServerAdmin } from "../lib/server-admin";
 import { itemHistory } from "../lib/history";
+import { markMissing, markSeen } from "../lib/sightings";
+import { checkInReview, finishRoomReview, getRoomReview, roomsToReview, startRoomReview } from "../lib/room-reviews";
 import * as warranties from "../lib/warranties";
 
 export const inventory = new Hono<AppEnv>();
@@ -70,6 +72,8 @@ inventory.use("/items/*", requireUser, requireHousehold);
 inventory.use("/items", requireUser, requireHousehold);
 inventory.use("/attachments/*", requireUser, requireHousehold);
 inventory.use("/usage/*", requireUser, requireHousehold);
+inventory.use("/room-reviews/*", requireUser, requireHousehold);
+inventory.use("/room-reviews", requireUser, requireHousehold);
 inventory.use("/warranties/*", requireUser, requireHousehold);
 inventory.use("/warranties", requireUser, requireHousehold);
 
@@ -125,7 +129,7 @@ inventory.delete("/locations/:id", requireWriter, async (c) => {
 
 // ── Items ───────────────────────────────────────────────────────────────────
 inventory.get("/items", async (c) => {
-  const { q, locationId, barcode, missing, categoryId, tag, containerItemId, topLevel, boxes, gone, collectionId, wanted, judge, documents, origin, notScannedSince, minWorth, maxWorth, boughtFrom, boughtTo, sort, dir, limit, offset } = listQuery.parse(c.req.query());
+  const { q, locationId, barcode, missing, categoryId, tag, containerItemId, topLevel, boxes, gone, collectionId, wanted, judge, documents, origin, notScannedSince, notSeenSince, misplaced, minWorth, maxWorth, boughtFrom, boughtTo, sort, dir, limit, offset } = listQuery.parse(c.req.query());
   const v = callerOf(c);
   // A location or category includes everything nested inside it ("what's in the garage?").
   const tagged = tag ? await findTag(v, tag) : undefined;
@@ -144,6 +148,8 @@ inventory.get("/items", async (c) => {
     wanted,
     origin,
     notScannedSince,
+    notSeenSince,
+    misplaced,
     minWorthCents: minWorth,
     maxWorthCents: maxWorth,
     boughtFrom,
@@ -197,6 +203,27 @@ inventory.post("/items/:id/ask", async (c) => {
   const { question } = await body(c.req.raw, askInput);
   return c.json(await svc.askItem(callerOf(c), c.req.param("id"), question));
 });
+
+// ── Keeping track: last seen, can't find, room reviews (lib/sightings.ts, lib/room-reviews.ts) ─────────────
+/** "Still here" (or found it): seen now — a box with everything in it. */
+inventory.post("/items/:id/seen", requireWriter, async (c) => {
+  const v = callerOf(c);
+  const confirmed = await markSeen(v, c.req.param("id"));
+  return c.json({ confirmed });
+});
+/** "Can't find it": missing until it's seen again or given up as lost. */
+inventory.post("/items/:id/missing", requireWriter, async (c) => {
+  await markMissing(callerOf(c), c.req.param("id"));
+  return c.body(null, 204);
+});
+inventory.get("/room-reviews", async (c) => c.json({ data: await roomsToReview(callerOf(c)) }));
+inventory.get("/room-reviews/:locationId", async (c) => c.json(await getRoomReview(callerOf(c), c.req.param("locationId"))));
+inventory.post("/room-reviews/:locationId", requireWriter, async (c) => c.json(await startRoomReview(callerOf(c), c.req.param("locationId"))));
+inventory.post("/room-reviews/:locationId/items/:itemId", requireWriter, async (c) => {
+  const { outcome, locationId } = await body(c.req.raw, reviewItemBody);
+  return c.json(await checkInReview(callerOf(c), c.req.param("locationId"), c.req.param("itemId"), outcome, locationId));
+});
+inventory.post("/room-reviews/:locationId/finish", requireWriter, async (c) => c.json(await finishRoomReview(callerOf(c), c.req.param("locationId"))));
 
 inventory.get("/items/:id/history", async (c) => {
   const page = z.object({ limit: z.coerce.number().int().min(1).max(100).default(30), offset: z.coerce.number().int().min(0).default(0) }).parse(c.req.query());

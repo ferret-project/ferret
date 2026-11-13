@@ -33,6 +33,8 @@ import {
   LOANS_HREF,
   MAINTENANCE_HREF,
   PAST_HREF,
+  REVIEW_HREF,
+  MISPLACED_HREF,
   PLACES_HREF,
   PROVIDERS_HREF,
   REPORT_HREF,
@@ -74,6 +76,8 @@ export const NAV_GROUPS: { title: MessageDescriptor; links: Link[] }[] = [
     links: [
       { href: SHOPPING_HREF, label: msg`Shopping list`, icon: "icon-[tabler--shopping-cart]" },
       { href: LOANS_HREF, label: msg`Lent & borrowed`, icon: "icon-[tabler--arrows-exchange]" },
+      { href: REVIEW_HREF, label: msg`Room review`, icon: "icon-[tabler--list-check]" },
+      { href: MISPLACED_HREF, label: msg`Can't find`, icon: "icon-[tabler--map-pin-question]" },
       { href: PAST_HREF, label: msg`Past things`, icon: "icon-[tabler--history]" },
       { href: DELETED_HREF, label: msg`Recently deleted`, icon: "icon-[tabler--trash]" },
     ],
