@@ -293,6 +293,11 @@ export const listQuery = z.object({
   /** Bought on or after / on or before this day (yyyy-mm-dd). */
   boughtFrom: z.iso.date().optional(),
   boughtTo: z.iso.date().optional(),
+  /**
+   * Lists (not searches): "category" folds every category with at least `FOLD_AT` matching things into one row
+   * (`folded`, listed before the things on the first pages) — never the category being filtered by.
+   */
+  fold: z.enum(["category"]).optional(),
   /** Lists (not searches): the order — last changed (default), name, value, when bought, when added, last scanned, last seen. */
   sort: z.enum(itemSorts).optional(),
   dir: z.enum(["asc", "desc"]).optional(),
@@ -847,6 +852,26 @@ export interface ItemSearch extends Paged<ItemListing> {
    * checked answer (the chat model decides which of them are what was meant).
    */
   checking?: number;
+  /** Lists asked with `fold=category`: this page's folded categories (before its things). */
+  folded?: FoldedCategory[];
+  /** Lists asked with `fold=category`: rows to page through — folded categories + the things not in them. */
+  rows?: number;
+}
+
+/** How many matching things a category needs before a folded list shows it as one row. */
+export const FOLD_AT = 10;
+
+/** A category shown as one row in a folded list. */
+export interface FoldedCategory {
+  categoryId: string;
+  name: string;
+  /** "3D printing › Filament". */
+  path: string;
+  /** Matching things in it (not its subcategories). */
+  count: number;
+  valueCents: number;
+  /** A few of its things' first photos. */
+  photoIds: string[];
 }
 
 // ── Households: roles and invitations ───────────────────────────────────────

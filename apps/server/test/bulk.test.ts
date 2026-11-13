@@ -28,6 +28,53 @@ describe("sorting the list", () => {
   });
 });
 
+describe("folding big categories", () => {
+  type Folded = { data: { name: string }[]; total: number; rows: number; valueCents: number; folded: { name: string; path: string; count: number; valueCents: number; photoIds: string[] }[] };
+  it("shows a category with ten or more things as one row, first, paged as one row — never the one filtered by", async () => {
+    const { user } = await setup();
+    const ann = await user("ann");
+    const printing = await json<{ id: string }>(send(ann, "POST", "/api/v1/categories", { name: "3D printing" }));
+    const filament = await json<{ id: string }>(send(ann, "POST", "/api/v1/categories", { name: "Filament", parentId: printing.id }));
+    const tools = await json<{ id: string }>(send(ann, "POST", "/api/v1/categories", { name: "Tools" }));
+    for (let i = 0; i < 12; i++) await ann.addItem({ name: `PLA ${String(i).padStart(2, "0")}`, categoryId: filament.id, valueCents: 1000 });
+    for (let i = 0; i < 9; i++) await ann.addItem({ name: `Tool ${i}`, categoryId: tools.id });
+    await ann.addItem({ name: "Printer", categoryId: printing.id, valueCents: 100000 });
+    await ann.addItem({ name: "Lamp" });
+
+    const all = await json<Folded>(ann.as("/api/v1/items?fold=category&sort=name&dir=asc&limit=50"));
+    expect(all.folded).toEqual([{ categoryId: filament.id, name: "Filament", path: "3D printing › Filament", count: 12, valueCents: 12000, photoIds: [] }]);
+    // Nine tools stay as they are; the header still counts (and values) everything.
+    expect(all.data.map((i) => i.name)).toEqual(["Lamp", "Printer", ...Array.from({ length: 9 }, (_, i) => `Tool ${i}`)]);
+    expect(all).toMatchObject({ total: 23, rows: 12, valueCents: 112000 });
+
+    // The folded row is the first row of the first page; the next page carries on with the things.
+    const first = await json<Folded>(ann.as("/api/v1/items?fold=category&sort=name&dir=asc&limit=5"));
+    expect(first.folded.map((g) => g.name)).toEqual(["Filament"]);
+    expect(first.data.map((i) => i.name)).toEqual(["Lamp", "Printer", "Tool 0", "Tool 1"]);
+    const second = await json<Folded>(ann.as("/api/v1/items?fold=category&sort=name&dir=asc&limit=5&offset=5"));
+    expect(second.folded).toEqual([]);
+    expect(second.data.map((i) => i.name)).toEqual(["Tool 2", "Tool 3", "Tool 4", "Tool 5", "Tool 6"]);
+
+    // Filtered to 3D printing: Filament (inside it) still folds; filtered to Filament itself, it opens.
+    const printingOnly = await json<Folded>(ann.as(`/api/v1/items?fold=category&categoryId=${printing.id}`));
+    expect(printingOnly.folded.map((g) => g.name)).toEqual(["Filament"]);
+    expect(printingOnly.data.map((i) => i.name)).toEqual(["Printer"]);
+    const filamentOnly = await json<Folded>(ann.as(`/api/v1/items?fold=category&categoryId=${filament.id}&limit=50`));
+    expect(filamentOnly.folded).toEqual([]);
+    expect(filamentOnly.data).toHaveLength(12);
+
+    // Other filters count: worth $50 or more is only the printer, so nothing folds.
+    const dear = await json<Folded>(ann.as("/api/v1/items?fold=category&minWorth=5000"));
+    expect(dear.folded).toEqual([]);
+    expect(dear.data.map((i) => i.name)).toEqual(["Printer"]);
+
+    // Without fold, the list is as it was.
+    const plain = await json<Folded & { folded?: unknown }>(ann.as("/api/v1/items?limit=50"));
+    expect(plain.folded).toBeUndefined();
+    expect(plain.data).toHaveLength(23);
+  });
+});
+
 describe("bulk changes", () => {
   it("moves, files, tags and deletes many things, skipping what isn't yours", async () => {
     const { user, db } = await setup();

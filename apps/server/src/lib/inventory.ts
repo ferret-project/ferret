@@ -10,6 +10,7 @@ import { PHOTO_ORDER } from "./photo-order";
 import { meaningSearchAllowed, recordUsage, requireAllowed, requireRoom } from "./plan";
 import {
   type AiFill,
+  FOLD_AT,
   SERIAL_WORTH_CENTS,
   type ItemDisposition,
   type ItemOrigin,
@@ -31,7 +32,7 @@ import {
   today,
   warrantyStatus,
 } from "@ferret/shared";
-import { and, asc, count, desc, eq, exists, inArray, isNotNull, isNull, lt, notExists, type SQL, sql } from "drizzle-orm";
+import { type AnyColumn, and, asc, count, desc, eq, exists, inArray, isNotNull, isNull, lt, ne, notExists, or, type SQL, sql } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { activity, attachment, category, collection, item, itemSighting, itemTag, itemTemplate, label, location, property, user, warranty } from "../db/schema";
 import { INDEX_JOB } from "../jobs/index-item";
@@ -450,21 +451,38 @@ const SORTS = {
 export async function listItems(
   v: Caller,
   filter: ItemFilter,
-  page: { limit: number; offset: number; sort?: keyof typeof SORTS; dir?: "asc" | "desc" },
+  page: {
+    limit: number;
+    offset: number;
+    sort?: keyof typeof SORTS;
+    dir?: "asc" | "desc";
+    /** Fold big categories into one row each — not this one (the category being filtered by). */
+    fold?: { except?: string };
+  },
 ) {
   const scope = itemScope(v, filter);
   const by = SORTS[page.sort ?? "updated"];
   // Things with no value or date sort last either way; ties by name.
   const order = page.dir === "asc" ? [sql`${by} is null`, asc(by), asc(item.name)] : [sql`${by} is null`, desc(by), asc(item.name)];
-  const [rows, [totals]] = await Promise.all([
-    v.db.select().from(item).where(scope).orderBy(...order).limit(page.limit).offset(page.offset),
+  const totalsOf = (where: SQL | undefined) =>
     v.db
       .select({
         total: count(),
         cents: sql<number>`coalesce(sum(coalesce(${item.valueCents}, ${item.purchasePriceCents}) * max(${item.quantity}, 1)), 0)`,
       })
       .from(item)
-      .where(scope),
+      .where(where);
+  const groups = page.fold ? await bigCategories(v, scope, by, page.sort ?? "updated", page.dir ?? "desc", page.fold.except) : [];
+  // Folded categories come first (as folders do), then the things not in one.
+  const loose = groups.length ? and(scope, or(isNull(item.categoryId), sql`not (${inList(item.categoryId, groups.map((g) => g.categoryId))})`)) : scope;
+  const shown = groups.slice(page.offset, page.offset + page.limit);
+  const limit = page.limit - shown.length;
+  const offset = Math.max(0, page.offset - groups.length);
+  const [rows, [totals], [looseTotals], photos] = await Promise.all([
+    limit > 0 ? v.db.select().from(item).where(loose).orderBy(...order).limit(limit).offset(offset) : [],
+    totalsOf(scope),
+    groups.length ? totalsOf(loose) : [undefined],
+    folderPhotos(v, scope, shown.map((g) => g.categoryId)),
   ]);
   return {
     data: await withTags(v, rows),
@@ -473,7 +491,64 @@ export async function listItems(
     valueCents: Number(totals?.cents ?? 0),
     limit: page.limit,
     offset: page.offset,
+    ...(page.fold && {
+      folded: shown.map(({ key: _key, ...g }) => ({ ...g, photoIds: photos.get(g.categoryId) ?? [] })),
+      rows: groups.length + (groups.length ? (looseTotals?.total ?? 0) : (totals?.total ?? 0)),
+    }),
   };
+}
+
+/**
+ * The categories with at least FOLD_AT of the matching things (directly in them), in the list's order: each by its
+ * newest / most valuable… thing (by name: the category's own name; most valuable: what they're all worth).
+ */
+async function bigCategories(v: Caller, scope: SQL | undefined, by: SQL | AnyColumn, sort: keyof typeof SORTS, dir: "asc" | "desc", except?: string) {
+  const worth = sql<number>`coalesce(sum(coalesce(${item.valueCents}, ${item.purchasePriceCents}) * max(${item.quantity}, 1)), 0)`;
+  const rows = await v.db
+    .select({ categoryId: item.categoryId, n: count(), cents: worth, key: dir === "asc" ? sql<unknown>`min(${by})` : sql<unknown>`max(${by})` })
+    .from(item)
+    .where(and(scope, isNotNull(item.categoryId), except ? ne(item.categoryId, except) : undefined))
+    .groupBy(item.categoryId)
+    .having(sql`count(*) >= ${FOLD_AT}`);
+  if (!rows.length) return [];
+  const info = await categoryInfo(v);
+  const groups = rows.map((r) => {
+    const path = info.get(r.categoryId!)?.path ?? "";
+    return {
+      categoryId: r.categoryId!,
+      name: path.split(" › ").at(-1) ?? path,
+      path,
+      count: r.n,
+      valueCents: Number(r.cents),
+      key: sort === "name" ? path.toLowerCase() : sort === "value" ? Number(r.cents) : (r.key as string | number | null),
+    };
+  });
+  const sign = dir === "asc" ? 1 : -1;
+  return groups.sort((a, b) => {
+    if (a.key == null || b.key == null) return a.key == null ? (b.key == null ? a.path.localeCompare(b.path) : 1) : -1;
+    return a.key < b.key ? -sign : a.key > b.key ? sign : a.path.localeCompare(b.path);
+  });
+}
+
+/** Up to four first photos of the matching things in each of these categories (the most recently changed things first). */
+async function folderPhotos(v: Caller, scope: SQL | undefined, categoryIds: string[]) {
+  const out = new Map<string, string[]>();
+  await Promise.all(
+    categoryIds.map(async (id) => {
+      const photos = await v.db
+        .select({ id: attachment.id, itemId: attachment.itemId })
+        .from(attachment)
+        .innerJoin(item, eq(item.id, attachment.itemId))
+        .where(and(scope, eq(item.categoryId, id), eq(attachment.householdId, v.householdId), eq(attachment.kind, "photo"), isNull(attachment.deletedAt)))
+        .orderBy(desc(item.updatedAt), ...PHOTO_ORDER)
+        .limit(24);
+      const seen = new Set<string>();
+      const ids: string[] = [];
+      for (const p of photos) if (!seen.has(p.itemId) && ids.length < 4) (seen.add(p.itemId), ids.push(p.id));
+      out.set(id, ids);
+    }),
+  );
+  return out;
 }
 
 /** Items as lists show them: with their first photo (for a thumbnail) and where they're kept. */

@@ -3,7 +3,7 @@
  * came from, its category, place or tag, or what it's missing; sorted; a page at a time. In the table, tick things to
  * move, file, tag or delete them together, and click a row to see it at a glance beside the table.
  */
-import type { ItemListing, ItemOrigin, ItemSort, ItemsBulk, ItemsBulkResult, MissingDetail } from "@ferret/shared";
+import type { FoldedCategory, ItemListing, ItemOrigin, ItemSort, ItemsBulk, ItemsBulkResult, MissingDetail } from "@ferret/shared";
 import { missingDetails } from "@ferret/shared/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useEffect, useState } from "react";
@@ -50,6 +50,15 @@ function monthsAgo(months: number) {
 }
 type Layout = "list" | "table";
 const LAYOUT_KEY = "ferret-everything-layout";
+const FOLD_KEY = "ferret-everything-fold";
+
+function storedFold(): boolean {
+  try {
+    return localStorage.getItem(FOLD_KEY) === "on";
+  } catch {
+    return false;
+  }
+}
 
 function storedLayout(): Layout {
   try {
@@ -90,6 +99,16 @@ export function Everything(props: { householdId: string; missing?: MissingDetail
   const [sort, setSort] = useState<{ by: ItemSort; dir: "asc" | "desc" }>(startSort ? { by: startSort.value, dir: startSort.dir } : { by: "updated", dir: "desc" });
   const [page, setPage] = useState(0);
   const [layout, setLayoutState] = useState<Layout>(storedLayout);
+  // Fold big categories (ten or more things) into one row each — per device, like the layout.
+  const [fold, setFoldState] = useState(storedFold);
+  const setFold = (on: boolean) => {
+    setFoldState(on);
+    try {
+      localStorage.setItem(FOLD_KEY, on ? "on" : "off");
+    } catch {
+      // Remembering it is only a convenience.
+    }
+  };
   const wide = useWide();
   const table = wide && layout === "table";
   const setLayout = (l: Layout) => {
@@ -113,11 +132,11 @@ export function Everything(props: { householdId: string; missing?: MissingDetail
     boughtTo: extra.boughtTo,
   };
   // A new filter or order starts again at the first page.
-  const filterKey = JSON.stringify([filters, sort]);
+  const filterKey = JSON.stringify([filters, sort, fold]);
   useEffect(() => setPage(0), [filterKey]);
   const items = useQuery({
-    queryKey: ["items", householdId, "everything", filters, extra.q, sort, page],
-    queryFn: () => api.listItems(extra.q, { ...filters, sort: sort.by, dir: sort.dir, limit: PAGE, offset: page * PAGE }),
+    queryKey: ["items", householdId, "everything", filters, extra.q, sort, fold, page],
+    queryFn: () => api.listItems(extra.q, { ...filters, fold, sort: sort.by, dir: sort.dir, limit: PAGE, offset: page * PAGE }),
     placeholderData: (previous) => previous,
   });
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -127,6 +146,10 @@ export function Everything(props: { householdId: string; missing?: MissingDetail
   const filtered = Boolean(categoryId || locationId || tag || missing || origin || unscanned || Object.keys(extra).length);
   const total = items.data?.total ?? 0;
   const rows = items.data?.data ?? [];
+  const folded = items.data?.folded ?? [];
+  // Folded, a category is one row to page through.
+  const pageRows = items.data?.rows ?? total;
+  const openFolder = (g: FoldedCategory) => setCategoryId(g.categoryId);
 
   return (
     <div className="flex flex-col gap-4">
@@ -142,6 +165,17 @@ export function Everything(props: { householdId: string; missing?: MissingDetail
             </p>
           )}
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          className={`btn btn-sm ${fold ? "btn-primary" : "btn-soft"}`}
+          aria-pressed={fold}
+          title={t`Show each category with ten or more things as one row`}
+          onClick={() => setFold(!fold)}
+        >
+          <span className="icon-[tabler--folders] size-4" />
+          <Trans>Fold big categories</Trans>
+        </button>
         {wide && (
           <div className="join" role="group" aria-label={t`Show as`}>
             {(["table", "list"] as const).map((l) => (
@@ -158,6 +192,7 @@ export function Everything(props: { householdId: string; missing?: MissingDetail
             ))}
           </div>
         )}
+        </div>
       </div>
 
       <PlainWordsFilter
@@ -228,6 +263,8 @@ export function Everything(props: { householdId: string; missing?: MissingDetail
 
           <ItemTable
             householdId={householdId}
+            folded={folded}
+            onFolder={openFolder}
             rows={rows}
             sort={sort}
             onSort={setSort}
@@ -239,6 +276,9 @@ export function Everything(props: { householdId: string; missing?: MissingDetail
         </>
       ) : (
         <ul className="flex flex-col gap-2">
+          {folded.map((g) => (
+            <FolderRow key={g.categoryId} folder={g} onOpen={() => openFolder(g)} />
+          ))}
           {rows.map((item) => (
             <ItemRow key={item.id} item={item} placeFrom={props.placeFrom} />
           ))}
@@ -259,7 +299,7 @@ export function Everything(props: { householdId: string; missing?: MissingDetail
         </div>
       )}
 
-      {total > PAGE && <Pager page={page} pages={Math.ceil(total / PAGE)} total={total} onPage={setPage} />}
+      {pageRows > PAGE && <Pager page={page} pages={Math.ceil(pageRows / PAGE)} total={total} onPage={setPage} />}
 
       {peek && table && <QuickView householdId={householdId} item={rows.find((r) => r.id === peek.id) ?? peek} onClose={() => setPeek(null)} />}
     </div>
@@ -451,6 +491,9 @@ const COLUMNS: { key: string; label: MessageDescriptor; sort?: ItemSort; firstDi
 /** The table: sortable headings, a tick box per row (and one for the page), a click opens the quick view. */
 function ItemTable(props: {
   householdId: string;
+  /** Big categories folded into one row each, before the things. */
+  folded: FoldedCategory[];
+  onFolder: (folder: FoldedCategory) => void;
   rows: ItemListing[];
   sort: { by: ItemSort; dir: "asc" | "desc" };
   onSort: (sort: { by: ItemSort; dir: "asc" | "desc" }) => void;
@@ -525,6 +568,27 @@ function ItemTable(props: {
           </tr>
         </thead>
         <tbody>
+          {props.folded.map((g) => (
+            <tr key={g.categoryId} className="cursor-pointer hover:bg-base-200" onClick={() => props.onFolder(g)}>
+              {canEdit && <td />}
+              <td>
+                <div className="flex items-center gap-3">
+                  <FolderThumb folder={g} className="size-10" />
+                  <div className="min-w-0">
+                    <button type="button" className="link link-hover font-medium text-base-content text-start" onClick={(e) => (e.stopPropagation(), props.onFolder(g))}>
+                      {g.name}
+                    </button>
+                    <p className="text-xs text-base-content/70">{plural(g.count, { one: "# thing", other: "# things" })}</p>
+                  </div>
+                </div>
+              </td>
+              <td />
+              <td className="max-w-48 truncate text-base-content/80 max-lg:hidden">{g.path}</td>
+              <td className="max-xl:hidden" />
+              <td className="text-end tabular-nums">{g.valueCents ? money(g.valueCents) : ""}</td>
+              <td className="max-lg:hidden" />
+            </tr>
+          ))}
           {rows.map((item) => (
             <tr
               key={item.id}
@@ -858,5 +922,41 @@ function QuickView(props: { householdId: string; item: ItemListing; onClose: () 
       </div>
     </aside>,
     document.body,
+  );
+}
+
+/** A folded category in the list: a few of its things' photos, its name, how many and what they're worth. */
+function FolderRow({ folder, onOpen }: { folder: FoldedCategory; onOpen: () => void }) {
+  return (
+    <li className="card">
+      <button type="button" onClick={onOpen} className="card-body flex-row items-center gap-3 rounded-box p-3 text-start focus-visible:outline-2 focus-visible:outline-primary">
+        <FolderThumb folder={folder} className="size-14" />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-medium">{folder.path}</span>
+          <span className="text-base-content/70 block truncate text-sm">
+            {[plural(folder.count, { one: "# thing", other: "# things" }), folder.valueCents ? money(folder.valueCents, true) : null].filter(Boolean).join(" · ")}
+          </span>
+        </span>
+        <span className="icon-[tabler--chevron-right] size-5 shrink-0 text-base-content/40" />
+      </button>
+    </li>
+  );
+}
+
+/** Up to four of a folded category's photos as a little grid, or a folders icon. */
+function FolderThumb({ folder, className }: { folder: FoldedCategory; className: string }) {
+  if (!folder.photoIds.length) {
+    return (
+      <span className={`rounded-box bg-base-200 text-base-content/40 flex shrink-0 items-center justify-center ${className}`}>
+        <span className="icon-[tabler--folders] size-6" />
+      </span>
+    );
+  }
+  return (
+    <span className={`rounded-box bg-base-300 grid shrink-0 grid-cols-2 grid-rows-2 gap-px overflow-hidden ${className}`}>
+      {folder.photoIds.slice(0, 4).map((id) => (
+        <img key={id} src={api.thumbnailUrl(id)} alt="" loading="lazy" className="size-full object-cover" />
+      ))}
+    </span>
   );
 }

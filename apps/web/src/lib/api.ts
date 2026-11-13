@@ -390,6 +390,8 @@ export const api = {
       /** Bought between these days (yyyy-mm-dd). */
       boughtFrom?: string;
       boughtTo?: string;
+      /** Lists only: fold every category with ten or more matching things into one row (`folded`). */
+      fold?: boolean;
       /** Lists only: the order (last changed first, unless asked). */
       sort?: ItemSort;
       dir?: "asc" | "desc";
@@ -417,6 +419,7 @@ export const api = {
     if (filter.notScannedSince) params.set("notScannedSince", filter.notScannedSince);
     if (filter.notSeenSince) params.set("notSeenSince", filter.notSeenSince);
     if (filter.misplaced) params.set("misplaced", "only");
+    if (filter.fold && !q) params.set("fold", "category");
     for (const k of ["minWorth", "maxWorth", "boughtFrom", "boughtTo"] as const) if (filter[k]) params.set(k, filter[k]!);
     return request<ItemSearch>(`/items${params.size ? `?${params}` : ""}`);
   },

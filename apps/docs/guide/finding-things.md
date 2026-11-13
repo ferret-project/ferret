@@ -83,6 +83,11 @@ On a computer or tablet, Everything is a **table** (switch to **List** at the to
 heading — Name, Value, Bought — to sort by it; click again to reverse. Click a row to see the thing **at a glance** beside
 the table (its photo and details) without leaving the list; its name opens its page.
 
+**Fold big categories** (at the top) shows each category with ten or more of the things in view as one row — a few of
+its photos, how many and what they're worth — before everything else, so a shelf of 60 filament spools or a coin
+collection doesn't take pages. Tap the row to see what's in it. Filtering by a category opens it, while categories
+inside it can still fold. Each device remembers the choice, and searches are never folded.
+
 ### Changing many things at once
 
 Tick the things in the table (the box in the heading ticks the whole page), then:
