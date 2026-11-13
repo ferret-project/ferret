@@ -3,15 +3,17 @@
  *
  *   #/collections            every collection: what's owned, the want list, what it's worth
  *   #/collection/<id>        one: what you have and what you're looking for (?show=wanted), as photo tiles or a table
- *                            whose columns are its template's fields; "+ Add" puts something in it (had or wanted)
+ *                            whose columns are its template's fields; "+ Add" puts something in it (had or wanted);
+ *                            100 at a time, and the tiles crop photos square or show them whole (per device)
  *
  * The want list is things not owned yet (`wanted`): the server leaves them out of totals, the insurance report and
  * search; "Got it" moves one into what you have.
  */
 import type { CollectionSummary, CustomFieldValues, ItemListing } from "@ferret/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { CustomFieldInputs } from "./Catalog";
+import { Pager } from "./Everything";
 import { HelpLink } from "./HelpLink";
 import { api } from "./lib/api";
 import { useCanEdit } from "./lib/auth";
@@ -27,6 +29,30 @@ import { Trans } from "@lingui/react/macro";
 export const collectionsKey = (householdId: string) => ["collections", householdId];
 export function useCollections(householdId: string) {
   return useQuery({ queryKey: collectionsKey(householdId), queryFn: async () => (await api.collections()).data });
+}
+
+/** A collection's things a page at a time (a big one — cards, coins — runs to thousands). */
+const COLLECTION_PAGE = 100;
+
+/** A per-device choice kept in localStorage (private windows: this visit only). */
+function useDeviceChoice<T extends string>(key: string, values: readonly T[], fallback: T) {
+  const [value, setValue] = useState<T>(() => {
+    try {
+      const v = localStorage.getItem(key);
+      return values.includes(v as T) ? (v as T) : fallback;
+    } catch {
+      return fallback;
+    }
+  });
+  const pick = (v: T) => {
+    setValue(v);
+    try {
+      localStorage.setItem(key, v);
+    } catch {
+      // this visit only
+    }
+  };
+  return [value, pick] as const;
 }
 
 const things = (n: number) => plural(n, { one: "# thing", other: "# things" });
@@ -137,25 +163,18 @@ export function CollectionScreen({ householdId, id, show }: { householdId: strin
   const canEdit = useCanEdit(householdId);
   const collection = useQuery({ queryKey: [...collectionsKey(householdId), id], queryFn: () => api.collection(id) });
   const templates = useTemplates(householdId);
+  const [page, setPage] = useState(0);
+  useEffect(() => setPage(0), [id, show]);
   const items = useQuery({
-    queryKey: ["items", householdId, "collection", id, show],
-    queryFn: () => api.listItems(undefined, { collectionId: id, wanted: show === "wanted" ? "only" : undefined, sort: "name", dir: "asc", limit: 200 }),
+    queryKey: ["items", householdId, "collection", id, show, page],
+    queryFn: () =>
+      api.listItems(undefined, { collectionId: id, wanted: show === "wanted" ? "only" : undefined, sort: "name", dir: "asc", limit: COLLECTION_PAGE, offset: page * COLLECTION_PAGE }),
+    placeholderData: (previous) => previous, // keep the page showing while the next one loads
   });
-  const [view, setView] = useState<"grid" | "table">(() => {
-    try {
-      return localStorage.getItem("ferret.collectionView") === "table" ? "table" : "grid";
-    } catch {
-      return "grid";
-    }
-  });
-  const pickView = (v: "grid" | "table") => {
-    setView(v);
-    try {
-      localStorage.setItem("ferret.collectionView", v);
-    } catch {
-      // this visit only
-    }
-  };
+  const total = items.data?.total ?? 0;
+  const [view, pickView] = useDeviceChoice("ferret.collectionView", ["grid", "table"] as const, "grid");
+  // Photo tiles: cropped square (tidy) or the whole photo fitted in the square (nothing cut off).
+  const [fit, pickFit] = useDeviceChoice("ferret.collectionPhotoFit", ["crop", "whole"] as const, "crop");
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
   const refresh = () => Promise.all([qc.invalidateQueries({ queryKey: collectionsKey(householdId) }), qc.invalidateQueries({ queryKey: ["items", householdId] })]);
@@ -221,13 +240,27 @@ export function CollectionScreen({ householdId, id, show }: { householdId: strin
               <Trans>Want list</Trans> {c ? `(${c.wanted})` : ""}
             </a>
           </div>
-          <div className="join" role="radiogroup" aria-label={t`View`}>
-            <button type="button" role="radio" aria-checked={view === "grid"} className={`btn join-item btn-sm ${view === "grid" ? "btn-primary" : "btn-soft"}`} onClick={() => pickView("grid")} aria-label={t`Photos`}>
-              <span className="icon-[tabler--layout-grid] size-4" />
-            </button>
-            <button type="button" role="radio" aria-checked={view === "table"} className={`btn join-item btn-sm ${view === "table" ? "btn-primary" : "btn-soft"}`} onClick={() => pickView("table")} aria-label={t`Table`}>
-              <span className="icon-[tabler--table] size-4" />
-            </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {view === "grid" && (
+              <button
+                type="button"
+                className={`btn btn-sm ${fit === "whole" ? "btn-primary" : "btn-soft"}`}
+                aria-pressed={fit === "whole"}
+                onClick={() => pickFit(fit === "whole" ? "crop" : "whole")}
+                title={fit === "whole" ? t`Showing whole photos — tap to crop them square` : t`Show whole photos, not cropped`}
+              >
+                <span className={`${fit === "whole" ? "icon-[tabler--arrows-minimize]" : "icon-[tabler--arrows-maximize]"} size-4`} />
+                <Trans>Whole photos</Trans>
+              </button>
+            )}
+            <div className="join" role="radiogroup" aria-label={t`View`}>
+              <button type="button" role="radio" aria-checked={view === "grid"} className={`btn join-item btn-sm ${view === "grid" ? "btn-primary" : "btn-soft"}`} onClick={() => pickView("grid")} aria-label={t`Photos`}>
+                <span className="icon-[tabler--layout-grid] size-4" />
+              </button>
+              <button type="button" role="radio" aria-checked={view === "table"} className={`btn join-item btn-sm ${view === "table" ? "btn-primary" : "btn-soft"}`} onClick={() => pickView("table")} aria-label={t`Table`}>
+                <span className="icon-[tabler--table] size-4" />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -243,7 +276,7 @@ export function CollectionScreen({ householdId, id, show }: { householdId: strin
               <li key={it.id} className="card overflow-hidden shadow-none">
                 <a href={itemHref(it.id)} className="block">
                   {it.photoId ? (
-                    <img src={api.thumbnailUrl(it.photoId)} alt="" className={`aspect-square w-full object-cover ${it.wanted ? "opacity-60 grayscale" : ""}`} />
+                    <img src={api.thumbnailUrl(it.photoId)} alt="" className={`aspect-square w-full ${fit === "whole" ? "bg-base-300 object-contain" : "object-cover"} ${it.wanted ? "opacity-60 grayscale" : ""}`} />
                   ) : (
                     <span className="flex aspect-square w-full items-center justify-center bg-base-300 text-base-content/40">
                       <span className={`${template ? templateIcon(template) : "icon-[tabler--photo]"} size-10`} />
@@ -305,6 +338,9 @@ export function CollectionScreen({ householdId, id, show }: { householdId: strin
               </tbody>
             </table>
           </div>
+        )}
+        {total > COLLECTION_PAGE && (
+          <Pager page={page} pages={Math.ceil(total / COLLECTION_PAGE)} total={total} onPage={setPage} size={COLLECTION_PAGE} />
         )}
       </main>
       {editing && c && <CollectionDialog householdId={householdId} collection={c} onClose={() => setEditing(false)} onSaved={() => (setEditing(false), void refresh())} />}

@@ -20,6 +20,9 @@ collection from its editor (**Collection**, and **On the want list**).
 
 - **Have** and **Want list** — what you own, and what you're after.
 - **Photos** or **Table** — the table has a column for each of the template's details.
+- **Whole photos** (with Photos) — show each photo whole instead of cropped to a square, so tall or wide things —
+  cards, figures in their boxes — aren't cut off. Remembered on each device.
+- A big collection shows 100 at a time; **Previous** and **Next** at the bottom go through the rest.
 - At the top: how many you have (and pieces, counting duplicates), what they're worth and what you paid, how many are
   wanted, and how complete it is.
 
