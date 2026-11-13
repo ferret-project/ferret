@@ -56,6 +56,7 @@ import * as claims from "../lib/claims";
 import { itemParts } from "../lib/parts";
 import { markMissing, markSeen } from "../lib/sightings";
 import * as reviews from "../lib/room-reviews";
+import { itemLifespan, replacementForecast } from "../lib/lifespans";
 import type { RoomReview } from "@ferret/shared";
 import { reviewOutcomes } from "@ferret/shared";
 import type { FileStore } from "../lib/files";
@@ -188,6 +189,8 @@ function buildServer(v: McpCaller) {
           label: listed?.labelCode ?? undefined,
           // When someone last saw it (scanned, "Still here", a room review); missingSince: nobody can find it.
           lastSeen: listed?.lastSeen ? compact({ at: listed.lastSeen.at, by: listed.lastSeen.by, how: listed.lastSeen.kind }) : undefined,
+          // How long it should last and when it's likely due — an estimate (its own, its category's or typical).
+          lifespan: await itemLifespan(v, it).then((l) => (l ? compact({ ...l, from: l.from ?? undefined }) : undefined)),
           warranties: warranties.map((w) =>
             compact({
               ...svc.withStatus({ ...w, householdId: undefined, itemId: undefined, deletedAt: undefined }),
@@ -571,6 +574,28 @@ function buildServer(v: McpCaller) {
           notSeenInAYear: tracking.notSeenYear,
           places: rooms.map((r) => compact({ locationId: r.locationId, place: r.path, things: r.items, lastReviewed: r.reviewedAt ?? "never", underWay: r.open ? { checked: r.open.done, since: r.open.startedAt } : undefined })),
         };
+      }),
+  );
+
+  server.registerTool(
+    "replacement_forecast",
+    {
+      title: "Replacement forecast",
+      description:
+        "What's likely to wear out and need replacing, by year — from each thing's lifespan (its own, its category's, or the typical life for its kind: a water heater ~10 years, a fridge ~13) counted from when it was bought (or added), with what replacing it might cost (replacement cost if set, else price paid, else value). Use it for \"what big expenses are coming up?\" or \"what's past its typical life?\". These are estimates — say so, and never tell the person to replace something just because it's old. A thing's or category's lifespan can be set with update_item / save_category lifespanYears.",
+      inputSchema: z.object({ years: z.number().int().min(1).max(30).default(10).describe("How many years ahead, from this one") }),
+      annotations: read,
+    },
+    async ({ years }) =>
+      run(async () => {
+        const f = await replacementForecast(v, { years });
+        const year = (y: { year: number; items: number; cents: number; unpriced: number }) => compact({ year: y.year, things: y.items, costCents: y.cents || undefined, unpriced: y.unpriced || undefined });
+        return compact({
+          pastTypicalLife: f.past.items ? compact({ things: f.past.items, costCents: f.past.cents || undefined, unpriced: f.past.unpriced || undefined }) : undefined,
+          byYear: f.years.filter((y) => y.items).map(year),
+          things: f.items.map((i) => compact({ id: i.id, name: i.name, place: i.place ?? undefined, lifespanYears: i.lifespan.years, from: i.lifespan.from ?? (i.lifespan.source === "item" ? "set on it" : undefined), since: i.lifespan.since, dueYear: i.lifespan.dueYear, past: i.lifespan.past || undefined, costCents: i.lifespan.costCents ?? undefined })),
+          noLifespanKnown: f.unknown || undefined,
+        });
       }),
   );
 
@@ -1084,6 +1109,7 @@ function buildServer(v: McpCaller) {
         id: idOf("category", "list_categories"),
         name: categoryInput.shape.name.optional(),
         parentId: categoryInput.shape.parentId,
+        lifespanYears: categoryInput.shape.lifespanYears,
       }),
       annotations: write,
     },

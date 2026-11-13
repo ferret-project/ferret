@@ -5,6 +5,7 @@
  */
 import { sightingsOf } from "./sightings";
 import { trackingSummary } from "./room-reviews";
+import { replacementForecast } from "./lifespans";
 import { PHOTO_ORDER } from "./photo-order";
 import { meaningSearchAllowed, recordUsage, requireAllowed, requireRoom } from "./plan";
 import {
@@ -907,6 +908,7 @@ async function describeChanges(
     if (a !== b) out.push(a == null ? `${label} set to ${dollars(b)}` : b == null ? `${label} removed` : `${label} ${dollars(a)} → ${dollars(b)}`);
   }
   if (was.quantity !== now.quantity) out.push(`quantity ${was.quantity} → ${now.quantity}`);
+  if ((was.lifespanYears ?? null) !== (now.lifespanYears ?? null)) out.push(now.lifespanYears == null ? "expected life back to typical" : `expected to last ${now.lifespanYears} years`);
   if ((was.minQuantity ?? null) !== (now.minQuantity ?? null)) out.push(now.minQuantity == null ? "no minimum kept" : `keep at least ${now.minQuantity}`);
   if ((was.usageUnit ?? null) !== (now.usageUnit ?? null)) out.push(now.usageUnit ? `counts ${now.usageUnit}` : "doesn't count use any more");
   if (was.isContainer !== now.isContainer) out.push(now.isContainer ? "now a box" : "no longer a box");
@@ -1147,6 +1149,7 @@ export async function overview(v: Caller): Promise<Overview> {
     activity: recent.map((a) => ({ ...a, createdAt: a.createdAt.toISOString() })),
     shopping: await shoppingList(v).then(({ items }) => ({ count: items.length, out: items.filter((i) => i.quantity === 0).length, next: items.slice(0, 5) })),
     tracking: await trackingSummary(v),
+    replacements: await replacementForecast(v, { years: 5, items: false }).then(({ past, years }) => ({ past, years })),
   };
 }
 

@@ -21,7 +21,7 @@ const TABS: Tab[] = [
     label: msg`More`,
     icon: "icon-[tabler--dots-circle-horizontal]",
     active: "icon-[tabler--dots-circle-horizontal]",
-    routes: ["more", "settings", "categories", "deleted", "shopping", "past", "donations", "heirs", "loans", "coverage", "warranties", "ai-filled", "duplicates", "reviews", "misplaced", "report", "labels", "import"],
+    routes: ["more", "settings", "categories", "deleted", "shopping", "past", "donations", "heirs", "loans", "coverage", "warranties", "ai-filled", "duplicates", "reviews", "misplaced", "replacements", "report", "labels", "import"],
   },
 ];
 

@@ -85,6 +85,8 @@ export const category = sqliteTable(
     name: text("name").notNull(),
     icon: text("icon"),
     fields: text("fields", { mode: "json" }).$type<CategoryField[]>(),
+    /** How long its things usually last, in years — overrides the built-in typical lifespans (lib/lifespans.ts). */
+    lifespanYears: integer("lifespan_years"),
     ...timestamps,
   },
   (t) => [index("category_household_idx").on(t.householdId), index("category_parent_idx").on(t.parentId)],
@@ -221,6 +223,8 @@ export const item = sqliteTable(
      * A field leaves this when a person confirms or edits it; Undo clears the field again.
      */
     aiFilled: text("ai_filled", { mode: "json" }).$type<Record<string, AiFill>>(),
+    /** How long this one should last, in years — overrides its category's and the typical lifespan (lib/lifespans.ts). */
+    lifespanYears: integer("lifespan_years"),
     /** What it would cost to replace today, in cents — set by a person (maybe from the AI's estimate). */
     replacementCents: integer("replacement_cents"),
     /** The AI's latest replacement-cost estimate (lib/replacement.ts): a suggestion until someone applies it. */

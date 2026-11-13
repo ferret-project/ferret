@@ -89,6 +89,8 @@ export function ItemEditor({ item, householdId, onClose }: { item: ItemListing; 
       purchasePriceCents: toCents(f.get("purchasePrice")),
       valueCents: toCents(f.get("value")),
       replacementCents: toCents(f.get("replacement")),
+      // Empty: its category's or the typical lifespan (lib/lifespans.ts).
+      lifespanYears: Math.min(100, Number.parseInt(String(f.get("lifespanYears") ?? ""), 10)) || null,
       // In a box, it's wherever the box is (the server keeps that in step).
       ...(box ? { containerItemId: box.id } : { containerItemId: null, locationId: text("locationId") }),
       isContainer: isBox,
@@ -173,6 +175,17 @@ export function ItemEditor({ item, householdId, onClose }: { item: ItemListing; 
             <Money label={t`Worth now`} name="value" cents={item.valueCents} />
             <Field label={t`Quantity`} name="quantity" type="number" min={0} defaultValue={String(item.quantity)} inputMode="numeric" />
             <Money label={t`To replace new`} name="replacement" cents={item.replacementCents} />
+            <Field
+              label={t`Lasts (years)`}
+              name="lifespanYears"
+              type="number"
+              min={1}
+              max={100}
+              inputMode="numeric"
+              defaultValue={item.lifespanYears != null ? String(item.lifespanYears) : null}
+              // What it lasts if left empty: its category's, or the typical life for its kind.
+              placeholder={item.lifespan && item.lifespan.source !== "item" ? t`${ph({ years: item.lifespan.years })} (typical)` : t`Typical`}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">

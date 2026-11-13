@@ -15,9 +15,10 @@ import { CLAIM_STATUS } from "./Claims";
 import { SetupChecklist } from "./Setup";
 import { dance, isFerretDay } from "./lib/dook";
 import side from "./assets/mascot/side.webp";
-import { MISPLACED_HREF, REVIEW_HREF, reviewHref, BY_VALUE_HREF, CATEGORIES_HREF, COLLECTIONS_HREF, categoryHref, collectionHref, ITEMS_HREF, REPORT_HREF, SHOPPING_HREF, WARRANTIES_HREF, itemHref, MAINTENANCE_HREF, missingHref, placeHref, tagHref } from "./lib/route";
+import { MISPLACED_HREF, REPLACEMENTS_HREF, REVIEW_HREF, reviewHref, BY_VALUE_HREF, CATEGORIES_HREF, COLLECTIONS_HREF, categoryHref, collectionHref, ITEMS_HREF, REPORT_HREF, SHOPPING_HREF, WARRANTIES_HREF, itemHref, MAINTENANCE_HREF, missingHref, placeHref, tagHref } from "./lib/route";
 import { useCollections } from "./Collections";
 import { reviewedText } from "./Tracking";
+import { ReplacementsCard } from "./Replacements";
 import { t, ph, plural, msg } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
@@ -118,6 +119,20 @@ export function OverviewSections({ householdId, places }: { householdId: string;
       {o.shopping.count > 0 && <ToBuy o={o} />}
       <Gaps o={o} />
       {o.total.items > 0 && o.tracking.nextRoom && <KeepingTrack o={o} />}
+      {(o.replacements.past.items > 0 || o.replacements.years.some((y) => y.items)) && (
+        <Section
+          icon="icon-[tabler--hourglass]"
+          title={t`Coming up for replacement`}
+          aside={
+            <a href={REPLACEMENTS_HREF} className="tap link link-primary link-hover text-sm">
+              <Trans>See all</Trans>
+            </a>
+          }
+        >
+          <ReplacementsCard past={o.replacements.past} years={o.replacements.years} />
+          <p className="text-xs text-base-content/70"><Trans>Estimates from how long things usually last.</Trans></p>
+        </Section>
+      )}
       {(o.warranties.length > 0 || o.openClaims.length > 0) && <Warranties o={o} />}
       <Collections householdId={householdId} />
       {o.byRoom.length > 0 && (

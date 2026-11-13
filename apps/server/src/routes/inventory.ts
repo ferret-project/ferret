@@ -44,6 +44,7 @@ import { sniffContentType } from "../lib/sniff";
 import { isServerAdmin } from "../lib/server-admin";
 import { itemHistory } from "../lib/history";
 import { markMissing, markSeen } from "../lib/sightings";
+import { itemLifespan, replacementForecast } from "../lib/lifespans";
 import { checkInReview, finishRoomReview, getRoomReview, roomsToReview, startRoomReview } from "../lib/room-reviews";
 import * as warranties from "../lib/warranties";
 
@@ -74,6 +75,7 @@ inventory.use("/attachments/*", requireUser, requireHousehold);
 inventory.use("/usage/*", requireUser, requireHousehold);
 inventory.use("/room-reviews/*", requireUser, requireHousehold);
 inventory.use("/room-reviews", requireUser, requireHousehold);
+inventory.use("/replacements", requireUser, requireHousehold);
 inventory.use("/warranties/*", requireUser, requireHousehold);
 inventory.use("/warranties", requireUser, requireHousehold);
 
@@ -216,6 +218,11 @@ inventory.post("/items/:id/missing", requireWriter, async (c) => {
   await markMissing(callerOf(c), c.req.param("id"));
   return c.body(null, 204);
 });
+/** The replacement forecast: things by the year they're likely due (estimates from lifespans — lib/lifespans.ts). */
+inventory.get("/replacements", async (c) => {
+  const { years } = z.object({ years: z.coerce.number().int().min(1).max(30).default(10) }).parse(c.req.query());
+  return c.json(await replacementForecast(callerOf(c), { years }));
+});
 inventory.get("/room-reviews", async (c) => c.json({ data: await roomsToReview(callerOf(c)) }));
 inventory.get("/room-reviews/:locationId", async (c) => c.json(await getRoomReview(callerOf(c), c.req.param("locationId"))));
 inventory.post("/room-reviews/:locationId", requireWriter, async (c) => c.json(await startRoomReview(callerOf(c), c.req.param("locationId"))));
@@ -235,7 +242,7 @@ inventory.get("/items/:id", async (c) => {
   const found = await svc.getItem(v, c.req.param("id"));
   const [listed] = await svc.asListing(v, [found]);
   const [by] = found.createdBy ? await c.var.db.select({ name: user.name }).from(user).where(eq(user.id, found.createdBy)) : [];
-  return c.json({ ...listed, addedBy: by?.name ?? null, ownLabels: await ownLabelsOf(v, found.id) });
+  return c.json({ ...listed, addedBy: by?.name ?? null, ownLabels: await ownLabelsOf(v, found.id), lifespan: await itemLifespan(v, found) });
 });
 
 /** One change to many things: move, category, tag, untag, delete (≤200 at a time). */

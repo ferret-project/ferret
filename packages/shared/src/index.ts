@@ -137,6 +137,7 @@ const categoryFields = z.object({
   parentId: z.string().min(1).nullable().describe("The category it's inside, from list_categories; null or left out: top level"),
   icon: optionalText(64).describe("An icon name for the app (optional)"),
   fields: z.array(categoryField).max(20).describe('Extra fields its items fill in, e.g. a TV\'s screen size: { key: "screen_size", label: "Screen size", type: "number", unit: "in" }'),
+  lifespanYears: z.number().int().min(1).max(100).optional().nullable().describe("How many years its things usually last (overrides the typical lifespans Ferret knows), for the replacement forecast"),
 });
 export const categoryInput = categoryFields.partial({ parentId: true, icon: true, fields: true });
 export type CategoryInput = z.infer<typeof categoryInput>;
@@ -151,6 +152,8 @@ export interface CategoryNode {
   path: string;
   /** Its own fields; an item also gets its ancestors' (see `inheritedFields`). */
   fields: CategoryField[];
+  /** How long its things usually last, if the household set it (else the typical lifespans apply). */
+  lifespanYears: number | null;
   /** Items in this category itself (not counting subcategories). */
   itemCount: number;
   /** A photo of something in it (or in a subcategory), for its tile. */
@@ -234,6 +237,7 @@ const itemFields = z.object({
   disposedTo: optionalText(200).describe("Who it went to: the charity or organisation for a donation"),
   disposalNote: optionalText(2000).describe("Who it went to, or what happened (for a lost or stolen claim)"),
   replacementCents: cents.describe("What it would cost to replace today, in cents (for the insurance report)"),
+  lifespanYears: z.number().int().min(1).max(100).optional().nullable().describe("How many years this one should last, if not its category's or the typical lifespan — for the replacement forecast"),
 });
 export const itemInput = itemFields.extend({
   origin: z.enum(appOrigins).optional().describe("Which of the app's ways added it; ignored for Claude and API keys (recorded by the server)"),
@@ -731,6 +735,8 @@ export interface ItemListing extends Item {
   loan: { direction: LoanDirection; person: string; since: string; dueOn: string | null } | null;
   /** When its QR label or barcode was last scanned to it, by whom (their name), and how. */
   lastScanned: { at: string; by: string | null; how: SightingHow } | null;
+  /** One item's page (GET /items/:id): how long it should last and when it's likely due (null: no lifespan known). */
+  lifespan?: ItemLifespan | null;
   /** When it was last seen at all (scanned, "Still here", a room review), by whom, which way — null if never. */
   lastSeen: { at: string; by: string | null; kind: SightingKind; how: SightingHow } | null;
 }
@@ -823,6 +829,51 @@ export interface Overview {
   shopping: { count: number; out: number; next: ShoppingItem[] };
   /** Keeping track (lib/room-reviews.ts): things not seen in a year, things nobody can find, and the room checked longest ago. */
   tracking: TrackingSummary;
+  /** Replacement forecast (lib/lifespans.ts): past their typical life, and the next five years. */
+  replacements: { past: ForecastYear; years: ForecastYear[] };
+}
+
+// ── Lifespans and the replacement forecast ──────────────────────────────────
+/**
+ * How long a thing should last and when it's likely due for replacement — an estimate, never advice to replace it.
+ * `source`: this thing's own lifespan, its category's (`from`: the category), or the typical one for its kind (`from`:
+ * "refrigerator").
+ */
+export interface ItemLifespan {
+  years: number;
+  source: "item" | "category" | "typical";
+  from: string | null;
+  /** For a typical lifespan: its key in TYPICAL_LIFESPANS ("refrigerator"). */
+  kind?: string;
+  /** When its life started: bought (purchaseDate) or, not knowing that, added to Ferret. */
+  since: string;
+  sinceFrom: "bought" | "added";
+  /** The year it's likely due: since + years. */
+  dueYear: number;
+  /** Already past its typical life. */
+  past: boolean;
+  /** What replacing it might cost (× quantity): today's replacement cost if set, else what was paid, else its value. */
+  costCents: number | null;
+  costFrom: "replacement" | "price" | "value" | null;
+}
+
+export interface ForecastYear {
+  year: number;
+  /** Things due (that year, or for `past`: already past their typical life). */
+  items: number;
+  /** What replacing them might cost, of those with a price. */
+  cents: number;
+  /** Of those, how many have no price to go by. */
+  unpriced: number;
+}
+
+/** GET /replacements: things with a lifespan, by the year they're likely due. */
+export interface ReplacementForecast {
+  past: ForecastYear;
+  years: ForecastYear[];
+  items: (Pick<ItemListing, "id" | "name" | "place" | "photoId" | "quantity"> & { lifespan: ItemLifespan })[];
+  /** Things Ferret has no lifespan for (no override, category or typical match), not counting boxes. */
+  unknown: number;
 }
 
 // ── Last seen, room reviews, can't find ─────────────────────────────────────

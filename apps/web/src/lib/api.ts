@@ -1,6 +1,7 @@
 import type {
   ItemParts,
   RoomReview,
+  ReplacementForecast,
   RoomToReview,
   ReviewOutcome,
   ServerCertificates,
@@ -426,6 +427,8 @@ export const api = {
   /** "Can't find it". */
   markMissing: (id: string) => request<void>(`/items/${id}/missing`, { method: "POST" }),
   roomsToReview: () => request<{ data: RoomToReview[] }>("/room-reviews"),
+  /** The replacement forecast, `years` ahead. */
+  replacements: (years = 10) => request<ReplacementForecast>(`/replacements?years=${years}`),
   roomReview: (locationId: string) => request<RoomReview>(`/room-reviews/${locationId}`),
   startRoomReview: (locationId: string) => request<RoomReview>(`/room-reviews/${locationId}`, { method: "POST" }),
   checkInReview: (locationId: string, itemId: string, outcome: ReviewOutcome, to?: string) =>

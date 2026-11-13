@@ -214,7 +214,7 @@ export async function householdData(v: Caller, root: string, householdName: stri
           checked: reviewEntries.filter((e) => e.reviewId === r.id && itemIds.has(e.itemId)).map((e) => ({ itemId: e.itemId, found: e.outcome, at: iso(e.at) })),
         })),
     })),
-    categories: liveCategories.map((c) => ({ id: c.id, parentId: c.parentId, name: c.name, path: categoryPath(c.id), fields: c.fields ?? [] })),
+    categories: liveCategories.map((c) => ({ id: c.id, parentId: c.parentId, name: c.name, path: categoryPath(c.id), fields: c.fields ?? [], lifespanYears: c.lifespanYears })),
     /** Kinds of thing with their own fields (a coin's year, mint mark…): items' templateId, values in customFields. */
     templates: templates.map((t) => ({ id: t.id, name: t.name, fields: t.fields, categoryId: t.categoryId, tags: t.tags })),
     /** Collections: items' collectionId; `wanted` items are its want list (not owned). */
@@ -246,6 +246,8 @@ export async function householdData(v: Caller, root: string, householdName: stri
       returnBy: i.returnBy,
       purchasePriceCents: i.purchasePriceCents,
       valueCents: i.valueCents,
+      /** Its own expected life in years, if set (else its category's or the typical one). */
+      lifespanYears: i.lifespanYears,
       notes: i.notes,
       favorite: i.favorite,
       heir: i.heir,

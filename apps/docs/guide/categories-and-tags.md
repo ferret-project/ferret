@@ -7,7 +7,8 @@ groups by category.
 
 **Categories & tags** in the menu lists them as a tree; new households can start from a starter set. A
 category can have **extra fields** its items fill in (a TV's screen size, a bike's frame size); subcategories get
-their parents' fields too.
+their parents' fields too. It can also say how long its things usually last, for the
+[replacement forecast](./replacements).
 
 A category's page lists what's in it, with its subcategories as tiles — each with a photo of something inside and how
 many things it holds (its own subcategories included).

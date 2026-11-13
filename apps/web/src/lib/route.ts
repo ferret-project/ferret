@@ -47,6 +47,7 @@ export type Route =
   | { name: "reviews" }
   | { name: "review"; locationId: string }
   | { name: "misplaced" }
+  | { name: "replacements" }
   | { name: "coverage" }
   | { name: "more" }
   | { name: "item"; id: string }
@@ -115,6 +116,8 @@ export const AI_FILLED_HREF = "#/ai-filled";
 /** Room reviews: places to check, the longest unchecked first (Tracking.tsx); one place's review. */
 export const REVIEW_HREF = "#/review";
 export const reviewHref = (locationId: string) => `${REVIEW_HREF}/${encodeURIComponent(locationId)}`;
+/** The replacement forecast: what's likely due, year by year (Replacements.tsx). */
+export const REPLACEMENTS_HREF = "#/replacements";
 /** Things nobody can find (Tracking.tsx). */
 export const MISPLACED_HREF = "#/misplaced";
 /** Things that may be the same thing twice, to merge (Duplicates.tsx). */

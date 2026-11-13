@@ -34,6 +34,7 @@ import {
   MAINTENANCE_HREF,
   PAST_HREF,
   REVIEW_HREF,
+  REPLACEMENTS_HREF,
   MISPLACED_HREF,
   PLACES_HREF,
   PROVIDERS_HREF,
@@ -99,6 +100,7 @@ export const NAV_GROUPS: { title: MessageDescriptor; links: Link[] }[] = [
       { href: COVERAGE_HREF, label: msg`Insurance coverage`, icon: "icon-[tabler--umbrella]" },
       { href: WARRANTIES_HREF, label: msg`Warranties`, icon: "icon-[tabler--shield-check]" },
       { href: HEIRS_HREF, label: msg`Personal property list`, icon: "icon-[tabler--users]" },
+      { href: REPLACEMENTS_HREF, label: msg`Coming up for replacement`, icon: "icon-[tabler--hourglass]" },
     ],
   },
   {

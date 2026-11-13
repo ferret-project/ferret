@@ -46,7 +46,7 @@ export async function categoryTree(v: Caller): Promise<CategoryNode[]> {
         const children = build(c.id, path);
         // Its own things' photo, else one from a subcategory.
         const photoId = photoIn.get(c.id) ?? children.find((k) => k.photoId)?.photoId ?? null;
-        return { id: c.id, name: c.name, icon: c.icon, path, fields: c.fields ?? [], itemCount: itemsIn.get(c.id) ?? 0, photoId, children };
+        return { id: c.id, name: c.name, icon: c.icon, path, fields: c.fields ?? [], lifespanYears: c.lifespanYears ?? null, itemCount: itemsIn.get(c.id) ?? 0, photoId, children };
       });
   return build(null, "");
 }
@@ -79,7 +79,7 @@ export async function createCategory(v: Caller, input: CategoryInput) {
   }
   const [row] = await v.db
     .insert(category)
-    .values({ householdId: v.householdId, name: input.name, parentId: input.parentId ?? null, icon: input.icon ?? null, fields: input.fields ?? [] })
+    .values({ householdId: v.householdId, name: input.name, parentId: input.parentId ?? null, icon: input.icon ?? null, fields: input.fields ?? [], lifespanYears: input.lifespanYears ?? null })
     .returning();
   await logActivity(v, "category.create", row!.id, `Added category ${row!.name}`);
   return row!;

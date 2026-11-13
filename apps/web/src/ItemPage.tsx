@@ -6,6 +6,7 @@
 import { ListingButton } from "./Listing";
 import { amazonSearchUrl, today } from "@ferret/shared/utils";
 import { MissingBanner, SeenLine } from "./Tracking";
+import { LifespanLine } from "./Replacements";
 import { UsageCard } from "./Usage";
 import { BarSearch } from "./Nav";
 import { ItemSearch } from "./ItemSearch";
@@ -301,6 +302,8 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
           )}
           {purchase && <p className="text-base-content/80 text-sm">{purchase}</p>}
           <ReturnLine returnBy={item.data.returnBy} gone={Boolean(item.data.disposition)} />
+          {/* How long it should last and when it's likely due — an estimate. */}
+          <LifespanLine lifespan={item.data.lifespan} />
           {item.data.partOfItemId && <PartOfLine partOfItemId={item.data.partOfItemId} householdId={householdId} />}
           {item.data.heir && <p className="text-base-content/80 text-sm"><Trans>Goes to {ph({ heir: item.data.heir })}</Trans></p>}
           <Classification

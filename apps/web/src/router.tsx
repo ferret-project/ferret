@@ -25,6 +25,7 @@ import { WarrantyList } from "./WarrantyList";
 import { AiFilled } from "./AiFill";
 import { Duplicates } from "./Duplicates";
 import { Misplaced, RoomReviewScreen, RoomsToReview } from "./Tracking";
+import { Replacements } from "./Replacements";
 import { Coverage } from "./PayOff";
 import { ItemPage } from "./ItemPage";
 import { LabelLanding, PrintLabels } from "./Labels";
@@ -394,6 +395,7 @@ const routeTree = rootRoute.addChildren([
     screen("duplicates", "duplicates", ({ householdId }) => <Duplicates householdId={householdId} />),
     screen("review", "reviews", ({ householdId }) => <RoomsToReview householdId={householdId} />),
     screen("misplaced", "misplaced", ({ householdId }) => <Misplaced householdId={householdId} />),
+    screen("replacements", "replacements", ({ householdId }) => <Replacements householdId={householdId} />),
     screen("ai-filled", "ai-filled", ({ householdId }) => <AiFilled householdId={householdId} />),
     screen("coverage", "coverage", ({ householdId }) => <Coverage householdId={householdId} />),
     screen("more", "more", ({ householdId }) => <MorePage householdId={householdId} />),

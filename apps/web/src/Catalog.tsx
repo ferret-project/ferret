@@ -414,7 +414,7 @@ function CategoryDialog(props: {
   const choices = flat.filter((c) => !inside.has(c.id)).map((c) => ({ id: c.id, label: c.name, detail: c.path }));
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   const save = useMutation({
-    mutationFn: (input: { name: string; parentId: string | null; fields: CategoryField[] }) =>
+    mutationFn: (input: { name: string; parentId: string | null; fields: CategoryField[]; lifespanYears: number | null }) =>
       category ? api.updateCategory(category.id, input) : api.createCategory(input),
     onSuccess: () => {
       props.onSaved();
@@ -423,8 +423,11 @@ function CategoryDialog(props: {
   });
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const name = String(new FormData(e.currentTarget).get("name")).trim();
-    save.mutate({ name, parentId: parent, fields: keyedFields(fields) });
+    const form = new FormData(e.currentTarget);
+    const name = String(form.get("name")).trim();
+    // Empty: the typical lifespans (or a parent category's) apply.
+    const lifespanYears = Math.min(100, Number.parseInt(String(form.get("lifespanYears") ?? ""), 10)) || null;
+    save.mutate({ name, parentId: parent, fields: keyedFields(fields), lifespanYears });
   }
   return (
     <Modal id="category-dialog" title={category ? t`Edit ${ph({ name: category.name })}` : t`New category`} onClose={onClose}>
@@ -447,6 +450,25 @@ function CategoryDialog(props: {
             choices={choices.filter((c) => words.every((w) => c.detail.toLowerCase().includes(w)))}
             onQuery={setQuery}
           />
+          <div>
+            <label className="label-text" htmlFor="category-lifespan">
+              <Trans>Things in it last (years)</Trans>
+            </label>
+            <input
+              id="category-lifespan"
+              name="lifespanYears"
+              type="number"
+              min={1}
+              max={100}
+              inputMode="numeric"
+              className="input max-w-40"
+              defaultValue={category?.lifespanYears ?? ""}
+              placeholder={t`Typical`}
+            />
+            <p className="mt-1 text-xs text-base-content/70">
+              <Trans>For the replacement forecast. Leave it empty and Ferret uses the typical life of each kind of thing (a fridge ~13 years). Subcategories get it too.</Trans>
+            </p>
+          </div>
           <FieldsEditor
             legend={t`Extra fields for its items`}
             hint={t`e.g. a TV's screen size, a painting's artist. Subcategories get these too.`}

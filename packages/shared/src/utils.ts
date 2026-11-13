@@ -314,6 +314,7 @@ export * from "./pairing";
 export * from "./import";
 export * from "./amazon";
 export * from "./money";
+export * from "./lifespans";
 
 /** The plan features that are simply on or off (PlanLimits in the shared schemas). */
 export type PlanFeature = "apiKeys" | "shareLinks" | "calendarFeeds";
