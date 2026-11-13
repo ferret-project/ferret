@@ -40,6 +40,18 @@ describe("last seen and can't find", () => {
     expect(await history(ann, lights.id)).toContain("Found Lights");
   });
 
+  it("a scan of something nobody could find says so, so the scanner can offer \"Found it\"", async () => {
+    const { user } = await setup();
+    const ann = await user("ann");
+    const filters = await ann.addItem({ name: "Filters", barcode: "036000291452", quantity: 2 });
+    await send(ann, "POST", `/api/v1/items/${filters.id}/missing`);
+    const used = await json<{ action: string; item: { missing?: boolean } }>(send(ann, "POST", "/api/v1/scan", { code: "036000291452", mode: "use" }));
+    expect(used).toMatchObject({ action: "adjusted", item: { missing: true } });
+    await send(ann, "POST", `/api/v1/items/${filters.id}/seen`);
+    const again = await json<{ item: { missing?: boolean } }>(send(ann, "POST", "/api/v1/scan", { code: "036000291452", mode: "use" }));
+    expect(again.item.missing).toBeUndefined();
+  });
+
   it("lost for good clears missing; viewers can't mark things", async () => {
     const { db, user } = await setup();
     const ann = await user("ann");

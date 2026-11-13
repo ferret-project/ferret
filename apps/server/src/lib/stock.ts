@@ -41,7 +41,7 @@ export function codeLabel(code: string) {
 }
 
 async function candidatesOf(v: Caller, rows: (typeof item.$inferSelect)[]): Promise<ScanCandidate[]> {
-  return (await asListing(v, rows)).map((r) => ({ id: r.id, name: r.name, place: r.place ?? null, quantity: r.quantity }));
+  return (await asListing(v, rows)).map((r) => ({ id: r.id, name: r.name, place: r.place ?? null, quantity: r.quantity, ...(r.missingSince ? { missing: true as const } : {}) }));
 }
 
 /** The household's things with this barcode (any UPC/EAN spelling), most recently changed first — "you have this". */

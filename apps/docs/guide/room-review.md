@@ -51,6 +51,9 @@ insurance report) until either:
 
 **Can't find** in the menu lists everything missing, with both buttons on each.
 
+Scanned it? Opening a missing thing by its label or barcode shows the same banner on its page, and the home scanner
+(Use up or Restock) asks *Found it?* under the count.
+
 ## On the dashboard and in the bell
 
 The dashboard's **Keeping track** card shows how many things nobody can find, how many haven't been seen in a year,
@@ -58,3 +61,9 @@ and the place to review next. The [bell](./attention) mentions both counts too, 
 they're not in the daily reminder.
 
 Viewers see when things were last seen but can't mark them or review rooms.
+
+## With Claude
+
+[Claude](./claude) can do the same: tell it *"found the passport"* or *"I can't find the ladder"*, ask *"which room
+should I check next?"*, or go through a room together (*"I'm in the garage: the drill's here, the saw's in the shed
+now"*). It's the same review as in the app, so you can start with Claude and finish on your phone.

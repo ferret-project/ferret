@@ -1113,6 +1113,8 @@ export interface ScanCandidate {
   name: string;
   place: string | null;
   quantity: number;
+  /** Marked "Can't find it": scanning it is a good moment to say it's found. */
+  missing?: true;
 }
 
 /** Something to buy: a tracked item that's run out, or is at or below what's kept. */

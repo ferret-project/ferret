@@ -54,6 +54,10 @@ import * as templates from "../lib/templates";
 import * as collections from "../lib/collections";
 import * as claims from "../lib/claims";
 import { itemParts } from "../lib/parts";
+import { markMissing, markSeen } from "../lib/sightings";
+import * as reviews from "../lib/room-reviews";
+import type { RoomReview } from "@ferret/shared";
+import { reviewOutcomes } from "@ferret/shared";
 import type { FileStore } from "../lib/files";
 import * as upkeep from "../lib/maintenance";
 import * as products from "../lib/products";
@@ -211,7 +215,7 @@ function buildServer(v: McpCaller) {
     {
       title: "List items",
       description:
-        "Lists items, most recently changed first, 50 at a time (offset for more), with where each is kept. Use it to browse rather than search: with locationId, everything in that place and the places inside it (\"what's in the garage?\"); containerItemId, what's directly in a box; categoryId, a category and its subcategories; tag, a tag's items (a tag can be a collection, e.g. \"Christmas decorations\"); origin, how they were added (\"claude\": what you added, to check your own work); collectionId (list_collections), a collection's things — wanted \"include\" adds its want list, \"only\" just that. To find a particular thing by name, use search_inventory.",
+        "Lists items, most recently changed first, 50 at a time (offset for more), with where each is kept. Use it to browse rather than search: with locationId, everything in that place and the places inside it (\"what's in the garage?\"); containerItemId, what's directly in a box; categoryId, a category and its subcategories; tag, a tag's items (a tag can be a collection, e.g. \"Christmas decorations\"); origin, how they were added (\"claude\": what you added, to check your own work); collectionId (list_collections), a collection's things — wanted \"include\" adds its want list, \"only\" just that; misplaced, the things nobody can find (marked \"can't find it\"); notSeenSince, what nobody has seen (scanned, confirmed still here, checked in a room review) since a day, longest unseen first. To find a particular thing by name, use search_inventory.",
       inputSchema: z.object({
         locationId: z.string().min(1).optional().describe("Only what's in this place and the places inside it, from list_locations"),
         containerItemId: z.string().min(1).optional().describe("Only what's directly inside this box (an item with isContainer)"),
@@ -220,18 +224,24 @@ function buildServer(v: McpCaller) {
         origin: z.enum(itemOrigins).optional().describe("Only things added this way: app, photos, walkthrough, roomscan, scan, label, spreadsheet, homeassistant, claude, api"),
         collectionId: z.string().min(1).optional().describe("Only this collection's things, from list_collections"),
         wanted: z.enum(["include", "only"]).optional().describe("The want list (things not owned yet): left out unless asked for"),
+        misplaced: z.boolean().optional().describe("true: only things marked \"can't find it\" (each has missingSince)"),
+        notSeenSince: z.iso.date().optional().describe("Only things not seen since this day (yyyy-mm-dd) and added before it — \"what haven't we seen in a year?\""),
         limit: z.number().int().min(1).max(200).default(50).describe("How many items in this page"),
         offset: z.number().int().min(0).default(0).describe("How many to skip, for the next page (total says how many there are)"),
       }),
       annotations: read,
     },
-    async ({ locationId, containerItemId, categoryId, tag, origin, collectionId, wanted, limit, offset }) =>
+    async ({ locationId, containerItemId, categoryId, tag, origin, collectionId, wanted, misplaced, notSeenSince, limit, offset }) =>
       run(async () => {
         const locationIds = locationId ? await svc.descendants(v, locationId) : undefined;
         const categoryIds = categoryId ? await catalog.categoryDescendants(v, categoryId) : undefined;
         const tagged = tag ? await catalog.findTag(v, tag) : undefined;
         if (tag && !tagged) return { total: 0, offset, items: [] };
-        const page = await svc.listItems(v, { locationIds, containerItemId, categoryIds, tagId: tagged?.id, origin, collectionId, wanted }, { limit, offset });
+        const page = await svc.listItems(
+          v,
+          { locationIds, containerItemId, categoryIds, tagId: tagged?.id, origin, collectionId, wanted, misplaced: misplaced ? "only" : undefined, notSeenSince },
+          notSeenSince ? { limit, offset, sort: "seen", dir: "asc" } : { limit, offset },
+        );
         const paths = await svc.locationPaths(v);
         return { total: page.total, offset, items: page.data.map((it) => itemView(it, paths)) };
       }),
@@ -544,7 +554,110 @@ function buildServer(v: McpCaller) {
       run(async () => ({ templates: (await templates.listTemplates(v)).map((tpl) => compact({ ...tpl, icon: undefined, tags: tpl.tags.length ? tpl.tags : undefined })) })),
   );
 
+  server.registerTool(
+    "rooms_to_review",
+    {
+      title: "Places to review",
+      description:
+        "The household's places with things in them, the next to check first: room reviews under way (with how many things they've checked), then places never reviewed (fullest first), then the longest since their last review — plus how many things nobody can find and how many haven't been seen in a year. Use it when the person wants to check their inventory is still right, or asks which room to go through next; then room_review walks one place.",
+      inputSchema: z.object({}),
+      annotations: read,
+    },
+    async () =>
+      run(async () => {
+        const [rooms, tracking] = await Promise.all([reviews.roomsToReview(v), reviews.trackingSummary(v)]);
+        return {
+          cantFind: tracking.misplaced,
+          notSeenInAYear: tracking.notSeenYear,
+          places: rooms.map((r) => compact({ locationId: r.locationId, place: r.path, things: r.items, lastReviewed: r.reviewedAt ?? "never", underWay: r.open ? { checked: r.open.done, since: r.open.startedAt } : undefined })),
+        };
+      }),
+  );
+
   if (v.readOnly) return server;
+
+  server.registerTool(
+    "mark_seen",
+    {
+      title: "Still here / can't find it",
+      description:
+        "Records what the person says about where a thing is. status \"here\": they've just seen it (\"the drill's in the garage\", \"found the passport!\") — it's marked as seen now, a box with everything in it, and if it was missing it's found again. status \"missing\": they can't find it — it goes on the can't-find list (list_items misplaced) but still counts as owned; for something lost for good, use update_item with disposition \"lost\" instead. If it's been moved, change its locationId with update_item too. Returns the thing's name and what changed.",
+      inputSchema: z.object({
+        id: z.string().min(1).describe("The item's id, from search_inventory or list_items"),
+        status: z.enum(["here", "missing"]).describe("\"here\": seen just now (or found); \"missing\": nobody can find it"),
+      }),
+      annotations: write,
+    },
+    async ({ id, status }) =>
+      run(async () => {
+        const before = await svc.getItem(v, id);
+        if (status === "missing") {
+          await markMissing(v, id);
+          return { name: before.name, missing: true };
+        }
+        const confirmed = await markSeen(v, id);
+        return compact({ name: before.name, seen: true, found: before.missingSince ? true : undefined, alsoSeenInside: confirmed > 1 ? confirmed - 1 : undefined });
+      }),
+  );
+
+  const reviewView = (r: RoomReview) =>
+    compact({
+      place: r.path,
+      underWay: r.review ? true : undefined,
+      lastReviewed: r.reviewedAt ?? (r.review ? undefined : "never"),
+      toCheck: r.toCheck.map((it) => compact({ id: it.id, name: it.name, box: it.isContainer ? { contents: it.contents } : undefined, lastSeen: it.lastSeen?.at })),
+      checked: r.checked.length ? r.checked.map((it) => ({ id: it.id, name: it.name, found: it.outcome })) : undefined,
+      placesInside: r.inside.length ? r.inside.map((p) => ({ locationId: p.locationId, name: p.name, things: p.items })) : undefined,
+    });
+
+  server.registerTool(
+    "room_review",
+    {
+      title: "Review a room",
+      description:
+        "Walks one place with the person, checking each thing kept there is still right — the same room review as the app's, so they can carry it on there. Call it with just locationId to start (or carry on) the review and get what's to check (a box counts for everything in it; places inside are reviewed on their own). Then, as the person tells you, pass checks: found \"here\" (still there), \"moved\" (with locationId: where it is now), \"missing\" (can't find it), or \"gone\" (only after update_item has set its disposition — sold, given away, thrown out). A check can be changed by checking it again. finish: true when they're done (it's then the place's last review, even with things left unchecked). Returns what's still to check and what's been checked.",
+      inputSchema: z.object({
+        locationId: z.string().min(1).describe("The place, from rooms_to_review or list_locations"),
+        checks: z
+          .array(
+            z.object({
+              id: z.string().min(1).describe("A thing's id, from toCheck"),
+              found: z.enum(reviewOutcomes).describe("here, moved, missing or gone"),
+              locationId: z.string().min(1).optional().describe("For moved: where it is now"),
+            }),
+          )
+          .max(100)
+          .optional()
+          .describe("What the person found, one entry per thing"),
+        finish: z.boolean().optional().describe("true: the review is done"),
+      }),
+      annotations: write,
+    },
+    async ({ locationId, checks, finish }) =>
+      run(async () => {
+        let r = await reviews.startRoomReview(v, locationId);
+        const problems: string[] = [];
+        for (const c of checks ?? []) {
+          try {
+            r = await reviews.checkInReview(v, locationId, c.id, c.found, c.locationId);
+          } catch (err) {
+            problems.push(`${c.id}: ${err instanceof HTTPException ? err.message : "failed"}`);
+          }
+        }
+        if (finish) {
+          // What it found, before finishing clears the review under way.
+          const done = await reviews.finishRoomReview(v, locationId);
+          return compact({
+            place: done.path,
+            finished: true,
+            checked: r.checked.map((it) => ({ id: it.id, name: it.name, found: it.outcome })),
+            leftUnchecked: r.toCheck.length || undefined,
+            problems: problems.length ? problems : undefined,
+          });
+        }
+        return compact({ ...reviewView(r), problems: problems.length ? problems : undefined });
+      }),
+  );
 
   const photoData = {
     data: z.string().min(16).describe("The image (or PDF, for a document) as base64; no data: prefix"),

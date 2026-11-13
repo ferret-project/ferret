@@ -232,3 +232,37 @@ describe("MCP: photos", () => {
     expect((await call("get_photo", { id: theirs.id })).text).toBe("Photo not found");
   });
 });
+
+describe("MCP: keeping track", () => {
+  it("marks things seen or missing, lists what can't be found, and walks a room review", async () => {
+    const { ann, call } = await start();
+    const json = async <T>(r: Response | Promise<Response>) => (await (await r).json()) as T;
+    const home = await json<{ id: string }>(ann.as("/api/v1/properties", { method: "POST", body: JSON.stringify({ name: "Home" }) }));
+    const garage = await json<{ id: string }>(ann.as("/api/v1/locations", { method: "POST", body: JSON.stringify({ name: "Garage", propertyId: home.id }) }));
+    const shed = await json<{ id: string }>(ann.as("/api/v1/locations", { method: "POST", body: JSON.stringify({ name: "Shed", propertyId: home.id }) }));
+    const drill = await ann.addItem({ name: "Drill", locationId: garage.id });
+    const saw = await ann.addItem({ name: "Saw", locationId: garage.id });
+    const ladder = await ann.addItem({ name: "Ladder", locationId: garage.id });
+
+    expect((await call("mark_seen", { id: drill.id, status: "missing" })).json()).toEqual({ name: "Drill", missing: true });
+    const lost = (await call("list_items", { misplaced: true })).json();
+    expect(lost.items.map((i: { name: string }) => i.name)).toEqual(["Drill"]);
+    expect(lost.items[0].missingSince).toBeTruthy();
+    expect((await call("mark_seen", { id: drill.id, status: "here" })).json()).toEqual({ name: "Drill", seen: true, found: true });
+    expect((await call("get_item", { id: drill.id })).json().lastSeen).toMatchObject({ how: "confirmed" });
+    expect((await call("list_items", { misplaced: true })).json().items).toEqual([]);
+
+    const rooms = (await call("rooms_to_review")).json();
+    expect(rooms.places[0]).toMatchObject({ place: "Home › Garage", things: 3, lastReviewed: "never" });
+
+    const started = (await call("room_review", { locationId: garage.id })).json();
+    expect(started.toCheck.map((i: { name: string }) => i.name)).toEqual(["Drill", "Ladder", "Saw"]);
+    const mid = (await call("room_review", { locationId: garage.id, checks: [{ id: drill.id, found: "here" }, { id: saw.id, found: "moved", locationId: shed.id }, { id: ladder.id, found: "gone" }] })).json();
+    expect(mid.problems).toEqual([`${ladder.id}: Say what happened to it first`]);
+    expect(mid.toCheck.map((i: { name: string }) => i.name)).toEqual(["Ladder"]);
+    const done = (await call("room_review", { locationId: garage.id, checks: [{ id: ladder.id, found: "missing" }], finish: true })).json();
+    expect(done).toMatchObject({ place: "Home › Garage", finished: true });
+    expect(done.checked.map((c: { name: string; found: string }) => `${c.name}:${c.found}`).sort()).toEqual(["Drill:here", "Ladder:missing", "Saw:moved"]);
+    expect(done).not.toHaveProperty("leftUnchecked");
+  });
+});

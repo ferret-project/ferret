@@ -37,7 +37,7 @@ function savedMode(): ScanMode {
 type Panel =
   | { kind: "pairing"; code: string; type: "homekit" | "matter"; category: string | null }
   | { kind: "saved"; name: string }
-  | { kind: "done"; item: ScanCandidate; applied: number; asked: number; movementId: string | null; undone?: boolean }
+  | { kind: "done"; item: ScanCandidate; applied: number; asked: number; movementId: string | null; undone?: boolean; found?: boolean }
   | { kind: "choose"; code: string; behaviour: string; step: number; items: ScanCandidate[] }
   | { kind: "ask"; code: string; item: ScanCandidate; step: number }
   | { kind: "have"; code: string; step: number; items: ScanCandidate[] }
@@ -153,6 +153,18 @@ export function ScanSession({
     }
   }
 
+  /** Scanned something nobody could find: it's found. */
+  async function found(p: Extract<Panel, { kind: "done" }>) {
+    try {
+      await api.markSeen(p.item.id);
+      setPanel({ ...p, found: true });
+      changed();
+      for (const key of ["misplaced", "room-review", "room-reviews"]) void qc.invalidateQueries({ queryKey: [key] });
+    } catch (err) {
+      setPanel({ kind: "error", message: (err as Error).message });
+    }
+  }
+
   async function undo(p: Extract<Panel, { kind: "done" }>) {
     if (!p.movementId) return;
     try {
@@ -207,6 +219,7 @@ export function ScanSession({
             panel={panel}
             mode={mode}
             onUndo={undo}
+            onFound={found}
             onFollow={follow}
             onDismiss={() => setPanel(null)}
             onOpen={(id) => (onClose(), navigateTo(itemHref(id)))}
@@ -222,6 +235,7 @@ function PanelView({
   panel,
   mode,
   onUndo,
+  onFound,
   onFollow,
   onDismiss,
   onOpen,
@@ -230,6 +244,7 @@ function PanelView({
   panel: Panel;
   mode: ScanMode;
   onUndo: (p: Extract<Panel, { kind: "done" }>) => void;
+  onFound: (p: Extract<Panel, { kind: "done" }>) => void;
   onFollow: (code: string, itemId: string, mode: ScanMode) => void;
   onDismiss: () => void;
   onOpen: (itemId: string) => void;
@@ -314,7 +329,8 @@ function PanelView({
   if (panel.kind === "done") {
     const none = panel.applied === 0;
     return (
-      <div className={`${card} flex items-center gap-3`} role="status" aria-live="polite">
+      <div className={card} role="status" aria-live="polite">
+      <div className="flex items-center gap-3">
         <span className={`${none ? "icon-[tabler--alert-circle] text-warning" : panel.undone ? "icon-[tabler--arrow-back-up] text-base-content/70" : "icon-[tabler--circle-check] text-success"} size-7 shrink-0`} />
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium">{panel.item.name}</p>
@@ -331,6 +347,19 @@ function PanelView({
             <Trans>Undo</Trans>
           </button>
         )}
+      </div>
+      {/* It was marked "Can't find it" — and here it is. */}
+      {panel.item.missing && (
+        <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-base-300 pt-2">
+          <span className="icon-[tabler--map-pin-question] size-5 shrink-0 text-warning" />
+          <p className="min-w-0 flex-1 text-sm">{panel.found ? t`Marked as found` : t`This was marked "Can't find it". Found it?`}</p>
+          {!panel.found && (
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => onFound(panel)}>
+              <Trans>Found it</Trans>
+            </button>
+          )}
+        </div>
+      )}
       </div>
     );
   }
