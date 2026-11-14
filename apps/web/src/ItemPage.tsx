@@ -371,6 +371,7 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
 
 
       {attachments.isError && <div className="alert alert-soft alert-error">{attachments.error.message}</div>}
+      {reanalyze.isError && <div className="alert alert-soft alert-error">{reanalyze.error.message}</div>}
 
       {/* ③ Photos */}
       <section id="item-photos" className="flex scroll-mt-20 flex-col gap-3">
@@ -564,11 +565,12 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
                       {d.analysisStatus === "failed" && t` · Couldn't read it`}
                     </span>
                   </a>
-                  {canEdit && d.analysisStatus === "failed" && (
+                  {canEdit && (d.analysisStatus === "failed" || (d.analysisStatus === "done" && !d.originalRemoved)) && (
                     <button
                       type="button"
                       className="btn btn-circle btn-text btn-sm"
-                      aria-label={t`Try reading ${ph({ filename: d.filename })} again`}
+                      aria-label={t`Read ${ph({ filename: d.filename })} again`}
+                      title={t`Read it again`}
                       onClick={() => reanalyze.mutate(d.id)}
                     >
                       <span className="icon-[tabler--refresh] size-4" />
@@ -828,6 +830,20 @@ function AnalysisBadge({ attachment, onRetry }: { attachment: Attachment; onRetr
       >
         <span className="icon-[tabler--refresh] size-3.5" />
         <Trans>Retry</Trans>
+      </button>
+    );
+  }
+  // Read already: the model can look again (a better model since, or it got it wrong). Not with only the small copy left.
+  if (attachment.analysisStatus === "done" && onRetry && !attachment.originalRemoved) {
+    return (
+      <button
+        type="button"
+        className="btn btn-circle btn-sm absolute start-1.5 bottom-1.5 border-0 bg-base-100/85"
+        onClick={onRetry}
+        aria-label={t`Analyze ${ph({ filename: attachment.filename })} again`}
+        title={t`Analyze again`}
+      >
+        <span className="icon-[tabler--sparkles] size-4" />
       </button>
     );
   }

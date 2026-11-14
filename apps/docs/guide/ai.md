@@ -7,6 +7,13 @@ action on a hosted Ferret ([Plan and usage](./plan-and-usage)).
 The rule throughout: **the AI suggests, you decide.** The one exception is filling in empty fields, and only if your
 household switches it on.
 
+## Reading a photo or document again
+
+If the AI got a photo wrong, or your server has a better model now, tap the sparkles in the corner of the photo on the
+thing's page (**Analyze again**); a document has a refresh button (**Read it again**). Its suggestions come back fresh,
+even ones you dismissed, and it counts as an AI action again. Files whose original was removed to save space (only the
+small copy is kept) can't be read again.
+
 ## Let AI fill in
 
 Normally what the AI reads from a photo or receipt waits on the thing's page as a suggestion, for you to apply. Under
