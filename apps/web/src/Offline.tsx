@@ -195,7 +195,7 @@ export function OfflineCapture({ home }: { home: OfflineHome }) {
                     <Thumb blob={p.kind === "photo" ? p.blob : undefined} />
                     <button
                       type="button"
-                      className="btn btn-circle btn-xs absolute end-1 top-1 border-0 bg-base-100/85"
+                      className="btn btn-circle btn-xs absolute end-1 top-1 border-0 bg-base-100/85 text-base-content shadow-sm"
                       aria-label={t`Don't upload this photo`}
                       onClick={() => window.confirm(t`Don't upload this photo?`) && void removeCapture(p.id)}
                     >

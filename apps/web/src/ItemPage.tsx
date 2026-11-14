@@ -432,7 +432,7 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
                 {canEdit && (
                   <button
                     type="button"
-                    className="btn btn-circle btn-sm absolute end-1.5 top-1.5 border-0 bg-base-100/85"
+                    className="btn btn-circle btn-sm absolute end-1.5 top-1.5 border-0 bg-base-100/85 text-base-content shadow-sm"
                     aria-label={t`Remove ${ph({ filename: p.filename })}`}
                     onClick={() => confirmRemove(p)}
                   >
@@ -442,7 +442,7 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
                 {canEdit && (
                   <button
                     type="button"
-                    className="btn btn-circle btn-sm absolute start-1.5 top-1.5 border-0 bg-base-100/85"
+                    className="btn btn-circle btn-sm absolute start-1.5 top-1.5 border-0 bg-base-100/85 text-base-content shadow-sm"
                     aria-label={i === 0 ? t`Crop ${ph({ filename: p.filename })}` : t`Crop ${ph({ filename: p.filename })}, or make it the main photo`}
                     title={t`Crop, or make it the main photo`}
                     onClick={() => setCropping(p)}
@@ -838,7 +838,7 @@ function AnalysisBadge({ attachment, onRetry }: { attachment: Attachment; onRetr
     return (
       <button
         type="button"
-        className="btn btn-circle btn-sm absolute start-1.5 bottom-1.5 border-0 bg-base-100/85"
+        className="btn btn-circle btn-sm absolute start-1.5 bottom-1.5 border-0 bg-base-100/85 text-base-content shadow-sm"
         onClick={onRetry}
         aria-label={t`Analyze ${ph({ filename: attachment.filename })} again`}
         title={t`Analyze again`}
