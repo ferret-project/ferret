@@ -61,6 +61,7 @@ import { t, ph, plural } from "@lingui/core/macro";
 import { conditionPhrase } from "./lib/words";
 import { Trans } from "@lingui/react/macro";
 import { randomId } from "./lib/secure-context";
+import { wasJustScanned } from "./lib/scanned";
 
 /**
  * Types offered by the pickers. HEIC is left out on purpose: iPhone Safari then
@@ -134,6 +135,10 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
   });
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [editing, setEditing] = useState(false);
+  // "Add another like this" (the editor's copy mode): from the page, or from the note after a barcode scan opened it.
+  const [copying, setCopying] = useState<"app" | "scan" | null>(null);
+  const [scannedHere, setScannedHere] = useState(() => wasJustScanned(itemId));
+  useEffect(() => setScannedHere(wasJustScanned(itemId)), [itemId]);
   // Search inside this item (ItemSearch.tsx): from the top bar's search, `/` or ⌘K; closed when another item opens.
   const [searching, setSearching] = useState(false);
   useEffect(() => {
@@ -285,6 +290,7 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
       }
     >
       {editing && <ItemEditor item={item.data} householdId={householdId} onClose={() => setEditing(false)} />}
+      {copying && <ItemEditor item={item.data} householdId={householdId} copy={{ origin: copying }} onClose={() => setCopying(null)} />}
       {/* Search inside this item: its documents, photos' text, warranties, notes — and asking about it. */}
       {searching && <ItemSearch itemId={itemId} itemName={item.data.name} householdId={householdId} onClose={() => setSearching(false)} />}
       {/* ① Details */}
@@ -292,6 +298,20 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
       <GoneBanner item={item.data} householdId={householdId} />
       {/* Nobody can find it: Found it / It's lost. */}
       <MissingBanner item={item.data} householdId={householdId} />
+      {/* Opened by scanning its barcode: several of the same share it, so the scan may have meant a new one. */}
+      {scannedHere && editable && (
+        <div className="alert alert-soft alert-info flex flex-wrap items-center gap-x-3 gap-y-2 py-2 text-sm" role="status">
+          <span className="icon-[tabler--barcode] size-5 shrink-0" />
+          <span className="grow"><Trans>Scanned. Is this a different one?</Trans></span>
+          <button type="button" className="btn btn-primary btn-sm btn-wrap" onClick={() => (setScannedHere(false), setCopying("scan"))}>
+            <span className="icon-[tabler--copy-plus] size-4" />
+            <Trans>Add another</Trans>
+          </button>
+          <button type="button" className="btn btn-text btn-square btn-sm" aria-label={t`Dismiss`} onClick={() => setScannedHere(false)}>
+            <span className="icon-[tabler--x] size-4" />
+          </button>
+        </div>
+      )}
       {/* On a wide screen: the photos beside the details, as a product page shows them. */}
       <div className={`grid gap-6 ${photos.length ? "lg:grid-cols-2" : ""}`}>
       {photos.length > 0 && (
@@ -351,6 +371,12 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
             return (item.data.links?.length || search) ? <ItemLinks links={item.data.links ?? []} search={search} /> : null;
           })()}
           <AddedLine item={item.data} />
+          {editable && !item.data.wanted && (
+            <button type="button" className="tap link link-hover text-primary flex items-center gap-1 self-start text-sm" onClick={() => setCopying("app")}>
+              <span className="icon-[tabler--copy-plus] size-4 shrink-0" />
+              <Trans>Have another one? Add another like this</Trans>
+            </button>
+          )}
           <SeenLine item={item.data} householdId={householdId} />
           <div className="mt-2 flex flex-col gap-2">
             <CollectionBanner householdId={householdId} item={item.data} />

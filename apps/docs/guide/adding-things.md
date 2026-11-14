@@ -59,6 +59,16 @@ If you **already have it**, Ferret says so instead of making a second one: **Add
 count of the thing you have (it shows in its history), and **Add as a separate item** makes a new one — say, the same
 drill for the cabin. If several of your things have that code, pick which one to add to.
 
+## Several of the same
+
+Bought three of something, like a TV box for each room? Usually each should be its own thing, with its own serial
+number, place, label and pairing code. On the first one's page, tap **Add another like this**. The editor opens with
+the same name, brand, model, barcode, category, tags, price and purchase details. Serial number, place, notes, photos
+and labels start empty. Fill in what's different and tap **Add it**.
+
+When the barcode button next to the search box opens a thing you already have, its page asks **Is this a different
+one?** and has the same **Add another** button.
+
 ## Where it came from
 
 Each thing's page says when it was added, by whom, and how: in the app, with **Add from photos**, on a

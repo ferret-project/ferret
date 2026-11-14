@@ -13,6 +13,7 @@ import { itemHref } from "./lib/route";
 import { type Choice, ItemPicker } from "./Combobox";
 import { Scanner } from "./Scanner";
 import { navigateTo } from "./lib/navigate";
+import { markScanned } from "./lib/scanned";
 import { t, ph, msg } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
@@ -109,6 +110,8 @@ export function ScanSession({
   function handle(result: ScanResult, code: string): boolean {
     switch (result.action) {
       case "open":
+        // A product barcode (not a QR label or pairing code): its page offers to add another of the same.
+        if (result.item && /^\d{8,14}$/.test(code.trim())) markScanned(result.item.id);
         onClose();
         navigateTo(result.label ? `#/l/${result.label}` : itemHref(result.item!.id));
         return false;

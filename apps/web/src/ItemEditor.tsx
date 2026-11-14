@@ -2,6 +2,9 @@
  * Edit an item: every field, and where it's kept. Layout adapted from FlyonUI Pro
  * "Dashboard Modal 10" (update product): header bar, two-column field grid,
  * description, and Delete on the left of the footer.
+ *
+ * With `copy`, it adds another thing like this one instead (several of the same bought at once: each its own thing,
+ * with its own serial number, place and photos) — the same details, minus what belongs to the one thing.
  */
 import type { CustomFieldValues, ItemListing, ItemPatch } from "@ferret/shared";
 import { itemConditions } from "@ferret/shared/utils";
@@ -18,14 +21,36 @@ import { DialogActions, Modal } from "./Modal";
 import { type LinkDraft, LinksInput, linksToSave } from "./Links";
 import { GoneDialog } from "./Gone";
 import { navigateTo } from "./lib/navigate";
+import { itemHref } from "./lib/route";
 import { currencySymbol, toCents, centsToInput } from "./lib/money";
 import { t, ph } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 
-export function ItemEditor({ item, householdId, onClose }: { item: ItemListing; householdId: string; onClose: () => void }) {
+export function ItemEditor({
+  item,
+  householdId,
+  onClose,
+  copy,
+}: {
+  item: ItemListing;
+  householdId: string;
+  onClose: () => void;
+  /** Add another like this one, saying how it was reached (its page, or a scan of its barcode). */
+  copy?: { origin: "app" | "scan" };
+}) {
   const qc = useQueryClient();
   const places = usePlaces(householdId);
-  const save = useMutation({
+  const add = useMutation({
+    // What isn't in the form comes along too: what it's a part for, what its counter measures.
+    mutationFn: (patch: ItemPatch) =>
+      api.createItem({ ...patch, name: patch.name!, partOfItemId: item.partOfItemId ?? null, usageUnit: item.usageUnit ?? null, origin: copy!.origin }),
+    onSuccess: (created) => {
+      for (const key of ["items", "places", "categories", "tags", "overview", "attention"]) void qc.invalidateQueries({ queryKey: [key, householdId] });
+      onClose();
+      navigateTo(itemHref(created.id));
+    },
+  });
+  const update = useMutation({
     mutationFn: (patch: ItemPatch) => api.updateItem(item.id, patch),
     onSuccess: async () => {
       await Promise.all([
@@ -40,6 +65,7 @@ export function ItemEditor({ item, householdId, onClose }: { item: ItemListing; 
       onClose();
     },
   });
+  const save = copy ? add : update;
   const remove = useMutation({
     mutationFn: () => api.deleteItem(item.id),
     onSuccess: () => {
@@ -51,8 +77,9 @@ export function ItemEditor({ item, householdId, onClose }: { item: ItemListing; 
   });
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [going, setGoing] = useState(false);
-  const [keptIn, setKeptIn] = useState<string | null>(item.locationId ?? null);
-  const [box, setBox] = useState<Choice | null>(item.container ? { id: item.container.id, label: item.container.name } : null);
+  // Another one is usually somewhere else: its place starts empty.
+  const [keptIn, setKeptIn] = useState<string | null>(copy ? null : (item.locationId ?? null));
+  const [box, setBox] = useState<Choice | null>(!copy && item.container ? { id: item.container.id, label: item.container.name } : null);
   const [isBox, setIsBox] = useState(item.isContainer);
   const [categoryId, setCategoryId] = useState<string | null>(item.categoryId ?? null);
   const [tags, setTags] = useState<string[]>(item.tags ?? []);
@@ -110,9 +137,14 @@ export function ItemEditor({ item, householdId, onClose }: { item: ItemListing; 
 
   const busy = save.isPending || remove.isPending;
   return (
-    <Modal id="edit-item" title={t`Edit ${ph({ name: item.name })}`} onClose={onClose}>
+    <Modal id="edit-item" title={copy ? t`Add another ${ph({ name: item.name })}` : t`Edit ${ph({ name: item.name })}`} onClose={onClose}>
       <form className="flex flex-col gap-6" onSubmit={onSubmit}>
         <div className="space-y-4">
+          {copy && (
+            <p className="text-sm text-base-content/70">
+              <Trans>A new thing with the same details. Its serial number, place, notes, photos and labels start empty.</Trans>
+            </p>
+          )}
           <Field label={t`Name`} name="name" defaultValue={item.name} required autoFocus maxLength={200} />
 
           <ItemPicker
@@ -165,7 +197,7 @@ export function ItemEditor({ item, householdId, onClose }: { item: ItemListing; 
           <div className="grid grid-cols-2 gap-4">
             <Field label={t`Brand`} name="brand" defaultValue={item.brand} maxLength={120} />
             <Field label={t`Model`} name="model" defaultValue={item.model} maxLength={120} />
-            <Field label={t`Serial number`} name="serialNumber" defaultValue={item.serialNumber} maxLength={120} />
+            <Field label={t`Serial number`} name="serialNumber" defaultValue={copy ? null : item.serialNumber} maxLength={120} />
             <Field label={t`Barcode`} name="barcode" defaultValue={item.barcode} maxLength={64} inputMode="numeric" />
           </div>
 
@@ -173,7 +205,7 @@ export function ItemEditor({ item, householdId, onClose }: { item: ItemListing; 
             <Field label={t`Bought on`} name="purchaseDate" type="date" defaultValue={item.purchaseDate} />
             <Money label={t`Paid`} name="purchasePrice" cents={item.purchasePriceCents} />
             <Money label={t`Worth now`} name="value" cents={item.valueCents} />
-            <Field label={t`Quantity`} name="quantity" type="number" min={0} defaultValue={String(item.quantity)} inputMode="numeric" />
+            <Field label={t`Quantity`} name="quantity" type="number" min={0} defaultValue={copy ? "1" : String(item.quantity)} inputMode="numeric" />
             <Money label={t`To replace new`} name="replacement" cents={item.replacementCents} />
             <Field
               label={t`Lasts (years)`}
@@ -202,7 +234,7 @@ export function ItemEditor({ item, householdId, onClose }: { item: ItemListing; 
                 ))}
               </select>
             </div>
-            <Field label={t`Goes to (heir)`} name="heir" defaultValue={item.heir} maxLength={120} placeholder={t`e.g. Sam`} />
+            <Field label={t`Goes to (heir)`} name="heir" defaultValue={copy ? null : item.heir} maxLength={120} placeholder={t`e.g. Sam`} />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -220,7 +252,7 @@ export function ItemEditor({ item, householdId, onClose }: { item: ItemListing; 
             <label className="label-text" htmlFor="item-notes">
               <Trans>Notes</Trans>
             </label>
-            <textarea id="item-notes" name="notes" className="textarea" rows={3} defaultValue={item.notes ?? ""} maxLength={10000} />
+            <textarea id="item-notes" name="notes" className="textarea" rows={3} defaultValue={copy ? "" : (item.notes ?? "")} maxLength={10000} />
           </div>
           <div>
             <LinksInput value={links} onChange={setLinks} />
@@ -228,7 +260,7 @@ export function ItemEditor({ item, householdId, onClose }: { item: ItemListing; 
           </div>
 
           <label className="flex min-h-11 items-center gap-3">
-            <input type="checkbox" name="favorite" className="switch switch-primary" defaultChecked={item.favorite} />
+            <input type="checkbox" name="favorite" className="switch switch-primary" defaultChecked={!copy && item.favorite} />
             <Trans><span className="label-text text-base">Favourite</span></Trans>
           </label>
           <label className="flex min-h-11 items-start gap-3">
@@ -245,7 +277,7 @@ export function ItemEditor({ item, householdId, onClose }: { item: ItemListing; 
         )}
 
         {/* Removing is kept apart from Save, at the end of the form. */}
-        <div className="flex flex-wrap items-center gap-3 border-t border-base-300 pt-4">
+        {!copy && <div className="flex flex-wrap items-center gap-3 border-t border-base-300 pt-4">
           {confirmDelete ? (
             <>
               <Trans><span className="text-sm text-base-content/80">Remove it? (Kept 30 days in Recently deleted.)</span></Trans>
@@ -270,7 +302,7 @@ export function ItemEditor({ item, householdId, onClose }: { item: ItemListing; 
               </button>
             </>
           )}
-        </div>
+        </div>}
         {going && <GoneDialog item={item} householdId={householdId} onClose={() => setGoing(false)} onDone={onClose} />}
 
         <DialogActions>
@@ -279,7 +311,7 @@ export function ItemEditor({ item, householdId, onClose }: { item: ItemListing; 
           </button>
           <button type="submit" className="btn btn-primary" disabled={busy}>
             {save.isPending && <span className="loading loading-spinner loading-sm" />}
-            <Trans>Save</Trans>
+            {copy ? <Trans>Add it</Trans> : <Trans>Save</Trans>}
           </button>
         </DialogActions>
       </form>
