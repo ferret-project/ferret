@@ -45,10 +45,12 @@ export function AskFerret({ question, itemId }: { question: string; itemId?: str
             {ask.data.citations.length > 0 && (
               <ul className="flex flex-wrap gap-2">
                 {ask.data.citations.map((c) => (
-                  <li key={`${c.itemId}:${c.attachmentId ?? ""}`}>
+                  <li key={`${c.itemId ?? c.of?.id}:${c.attachmentId ?? ""}`}>
                     <a
-                      href={c.attachmentId ? api.attachmentUrl(c.attachmentId) : itemHref(c.itemId)}
+                      href={c.attachmentId ? api.attachmentUrl(c.attachmentId) : itemHref(c.itemId!)}
                       {...(c.attachmentId ? { target: "_blank", rel: "noreferrer" } : {})}
+                      // A house's, room's or task's own document: whose it is, on hover.
+                      title={c.of?.name}
                       className="badge badge-soft badge-primary gap-1"
                     >
                       <span className={`${c.attachmentId ? "icon-[tabler--file-text]" : "icon-[tabler--box]"} size-3.5`} />

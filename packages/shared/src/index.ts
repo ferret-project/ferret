@@ -769,8 +769,10 @@ export const askInput = z.object({ question: z.string().trim().min(3).max(500) }
 export type AskInput = z.infer<typeof askInput>;
 
 export interface AskCitation {
-  itemId: string;
-  itemName: string;
+  /** The thing it's about — or, for a property's, a place's or a task's own document, `of` instead. */
+  itemId?: string;
+  itemName?: string;
+  of?: FileHit["of"];
   /** Set when the answer came from inside a document. */
   attachmentId?: string;
   filename?: string;

@@ -54,6 +54,10 @@ Ask a question in plain words — *"when does the dishwasher warranty end?"*, *"
 Ferret answers from your inventory and its documents, with the items it used. (Needs the AI features; see
 [AI features](../hosting/ai).)
 
+It also reads the [documents of your house, rooms and maintenance](./places-and-boxes#files) — *"how old is the water
+heater?"* can be answered from the inspection report. Those are found by the words in your question, so use the words
+the document would: *water heater*, not *the thing that makes hot water*.
+
 ## Searching one thing
 
 On a thing's page, the search at the top (or <kbd>/</kbd>, <kbd>⌘K</kbd>) searches **inside that thing** rather than

@@ -37,6 +37,38 @@ describe("Ask Ferret", () => {
     expect(prompt).toContain("One year from the date of purchase");
   });
 
+  it("answers from the house's own documents too, by the question's words, and cites them with whose they are", async () => {
+    const report = "Home inspection 2026\n\nThe water heater is 14 years old and near the end of its life. The sump pump works.";
+    // Docling reads the report (no model: it's the house's, read for its words); the model only answers.
+    const ai = new FakeAi([{ answer: "It's 14 years old.", found: true, sources: [1] }]);
+    const env = await setup({ ai, documents: new FakeDocuments([report]) });
+    const pat = await env.user("pat");
+    const house = (await (await pat.as("/api/v1/properties", { method: "POST", body: JSON.stringify({ name: "Our house" }) })).json()) as { id: string };
+    const form = new FormData();
+    form.set("file", new File([pdf("inspection")], "inspection.pdf"));
+    form.set("kind", "document");
+    form.set("propertyId", house.id);
+    const file = (await (await pat.as("/api/v1/attachments", { method: "POST", body: form })).json()) as { id: string };
+    await env.jobs.drain();
+    expect(ai.calls).toHaveLength(0);
+
+    const res = await pat.as("/api/v1/ask", { method: "POST", body: JSON.stringify({ question: "how old is the water heater?" }) });
+    expect(await res.json()).toEqual({
+      answer: "It's 14 years old.",
+      found: true,
+      citations: [{ of: { kind: "property", id: house.id, name: "Our house" }, attachmentId: file.id, filename: "inspection.pdf" }],
+    });
+    const prompt = ai.calls.at(-1)!.prompt;
+    expect(prompt).toContain("[1] inspection.pdf (a document of the property Our house)\n");
+    expect(prompt).toContain("14 years old");
+    // Another household's question never sees it.
+    const bob = await env.user("bob");
+    const before = ai.calls.length;
+    const bobs = await bob.as("/api/v1/ask", { method: "POST", body: JSON.stringify({ question: "how old is the water heater?" }) });
+    expect(await bobs.json()).toMatchObject({ found: false, citations: [] });
+    expect(ai.calls).toHaveLength(before); // nothing of his matched; Ann's report never reached the model
+  });
+
   it("says so when the inventory doesn't know, without citations", async () => {
     const { ask } = await askSetup({ answer: "Your documents don't say.", found: false, sources: [1] });
     const { body } = await ask("what color is the kitchenaid?");

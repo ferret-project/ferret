@@ -3,7 +3,7 @@
  * tools (mcp/tools.ts) both do, so the app and Claude always agree. Every
  * function acts for one caller in one household and filters by its householdId.
  */
-import { analyzeUnread, removeFilesOf } from "./attachments";
+import { analyzeUnread, removeFilesOf, searchFiles } from "./attachments";
 import { sightingsOf } from "./sightings";
 import { trackingSummary } from "./room-reviews";
 import { replacementForecast } from "./lifespans";
@@ -39,7 +39,7 @@ import { activity, attachment, category, collection, item, itemSighting, itemTag
 import { INDEX_JOB } from "../jobs/index-item";
 import type { Db, Deps } from "../ports";
 import { countEvent } from "./analytics";
-import { ASK_ITEMS, askAboutItem, askInventory } from "./ask";
+import { ASK_FILES, ASK_ITEMS, askAboutItem, askInventory } from "./ask";
 import { findInItem } from "./item-search";
 import { loadSearchDoc } from "./search-text";
 import { categoryInfo, setItemTags, tagsOf } from "./catalog";
@@ -684,9 +684,11 @@ export async function ask(v: Caller, question: string) {
   const plan = await requireAllowed(v, "ai.ask"); // in the plan, and within its AI actions (lib/plan.ts)
   countEvent(v.deps, "ask");
   const results = await searchItems(v, question, {}, ASK_ITEMS);
+  // The house's, rooms' and tasks' own documents, by the question's words (they have no meaning search yet).
+  const files = await searchFiles(v, question, ASK_FILES);
   try {
     const onModel = () => recordUsage(v, "ai.ask", 1, plan); // counted only when the model is asked
-    return await askInventory({ db: v.db, model, timeZone: v.timeZone, onModel }, v.householdId, question, results);
+    return await askInventory({ db: v.db, model, timeZone: v.timeZone, onModel }, v.householdId, question, results, files);
   } catch (err) {
     console.warn(`Ask Ferret failed: ${String(err)}`);
     throw new HTTPException(503, { message: "Ferret couldn't answer right now — try again in a moment" });
