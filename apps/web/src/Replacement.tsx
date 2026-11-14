@@ -13,7 +13,24 @@ import { money } from "./lib/money";
 import { t, ph } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 
-export function ReplacementCard({ item, householdId }: { item: ItemListing; householdId: string }) {
+/**
+ * `place`: the item page shows it in two places — "top" once there's a cost or an estimate to show, "bottom" until then
+ * (the button to ask, and what came of asking from there, so the answer appears where it was asked: `onAsk`).
+ */
+export function ReplacementCard({
+  item,
+  householdId,
+  place,
+  askedHere,
+  onAsk,
+}: {
+  item: ItemListing;
+  householdId: string;
+  place: "top" | "bottom";
+  /** Asked from the bottom in this visit: the bottom one keeps showing it, the top one stays out of the way. */
+  askedHere: boolean;
+  onAsk?: () => void;
+}) {
   const qc = useQueryClient();
   const canEdit = useCanEdit(householdId);
   const features = useFeatures();
@@ -22,7 +39,10 @@ export function ReplacementCard({ item, householdId }: { item: ItemListing; hous
   const refresh = () => qc.invalidateQueries({ queryKey: ["item", householdId, item.id] });
   const ask = useMutation({
     mutationFn: () => api.estimateReplacement(item.id),
-    onSuccess: () => setWaitingSince(estimate?.at ?? ""),
+    onSuccess: () => {
+      setWaitingSince(estimate?.at ?? "");
+      onAsk?.();
+    },
   });
   const apply = useMutation({
     mutationFn: (cents: number) => api.updateItem(item.id, { replacementCents: cents }),
@@ -39,6 +59,8 @@ export function ReplacementCard({ item, householdId }: { item: ItemListing; hous
 
   const offer = canEdit && features?.textAi && !item.isContainer;
   if (item.replacementCents == null && !estimate && !offer) return null;
+  const hasSome = item.replacementCents != null || Boolean(estimate);
+  if (place === "top" ? !hasSome || askedHere : hasSome && !askedHere) return null;
   if (item.replacementCents == null && !estimate && !waiting) {
     return (
       <div className="flex flex-wrap items-center gap-2 text-sm">

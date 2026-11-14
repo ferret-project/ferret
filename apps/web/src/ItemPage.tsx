@@ -124,6 +124,9 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
   const isOpen = (section: OptionalSection) => opened.itemId === itemId && opened.sections.includes(section);
   const open = (section: OptionalSection) =>
     setOpened((o) => ({ itemId, sections: [...(o.itemId === itemId ? o.sections : []), section] }));
+  // "Estimate replacement cost" asked from the bottom of the page: its answer stays there for this visit.
+  const [estimatedHere, setEstimatedHere] = useState(false);
+  useEffect(() => setEstimatedHere(false), [itemId]);
   const addTask = useMutation({
     mutationFn: (input: MaintenanceInput) => api.createMaintenance(input),
     onSuccess: () => qc.invalidateQueries({ queryKey: maintenanceKey(householdId) }),
@@ -357,8 +360,7 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
 
       {/* What the AI filled in by itself: until someone checks it. */}
       <AiFilledCard item={item.data} householdId={householdId} />
-      <ReplacementCard item={item.data} householdId={householdId} />
-      {!item.data.disposition && <ListingButton item={item.data} householdId={householdId} className="btn btn-text btn-sm self-start" />}
+      <ReplacementCard item={item.data} householdId={householdId} place="top" askedHere={estimatedHere} />
       {/* A recall that matches it: before anything else. */}
       <RecallCard itemId={itemId} householdId={householdId} />
       <JumpLinks
@@ -656,6 +658,12 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
 
       <div id="item-history" className="scroll-mt-20">
         <ItemHistory itemId={itemId} householdId={householdId} />
+      </div>
+
+      {/* Now and then: an estimate of what replacing it costs, a listing to sell it. */}
+      <div className="flex flex-col items-start gap-2 [&>section]:w-full">
+        <ReplacementCard item={item.data} householdId={householdId} place="bottom" askedHere={estimatedHere} onAsk={() => setEstimatedHere(true)} />
+        {!item.data.disposition && <ListingButton item={item.data} householdId={householdId} className="btn btn-text btn-sm" />}
       </div>
     </Shell>
   );
