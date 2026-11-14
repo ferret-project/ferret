@@ -41,7 +41,7 @@ export function PhotoCrop(props: { photo: Attachment; itemId: string; isMain: bo
     mutationFn: async () => {
       const crop = await cut(api.attachmentUrl(photo.id), box);
       const name = photo.filename.replace(/\.[^.]+$/, "");
-      return api.uploadCrop(itemId, crop, { filename: `${name} (cropped).jpg`, main });
+      return api.uploadCrop(itemId, crop, { filename: `${name} (cropped).jpg`, main, croppedFrom: photo.id });
     },
     onSuccess: () => {
       refresh();

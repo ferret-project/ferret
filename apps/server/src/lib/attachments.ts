@@ -263,7 +263,16 @@ export async function addAttachment(
   v: Caller,
   files: FileStore,
   to: FileOwner,
-  upload: { bytes: Uint8Array; filename: string; kind: AttachmentKind; made?: MadeCopies; analyze?: boolean; repairId?: string | null },
+  upload: {
+    bytes: Uint8Array;
+    filename: string;
+    kind: AttachmentKind;
+    made?: MadeCopies;
+    analyze?: boolean;
+    repairId?: string | null;
+    /** A crop of this photo of the same thing (PhotoCrop.tsx). */
+    croppedFrom?: string;
+  },
 ) {
   const owner = await resolveOwner(v, to);
   // The public demo's admin can stop uploads (lib/demo-switches.ts); never set on a home Ferret.
@@ -291,8 +300,21 @@ export async function addAttachment(
   // household's plan has AI and some left (lib/plan.ts; counted by the job, once it's done). Without, it's just kept.
   // A property's, a place's or a task's are read for their words only (to find them by): no suggestions, nothing to
   // put them on — jobs/analyze.ts.
+  // A crop of one of the thing's photos takes what was read in it along (no second AI action), so removing the
+  // original loses nothing. Not read yet (still being read, failed, never asked): the crop is read itself.
+  const source =
+    upload.croppedFrom && owner.itemId
+      ? (
+          await v.db
+            .select({ analysisStatus: attachment.analysisStatus, analysis: attachment.analysis, analyzedAt: attachment.analyzedAt, suggestionsDismissedAt: attachment.suggestionsDismissedAt })
+            .from(attachment)
+            .where(and(eq(attachment.id, upload.croppedFrom), eq(attachment.householdId, v.householdId), eq(attachment.itemId, owner.itemId), isNull(attachment.deletedAt)))
+        )[0]
+      : undefined;
+  const reading = source?.analysisStatus === "done" && source.analysis ? source : null;
+  const wanted = upload.croppedFrom ? !reading : upload.analyze !== false;
   const job = analysisJob(v.deps, kind, contentType);
-  const analyze = job && upload.analyze !== false && (await allow(v, kind === "photo" ? "ai.photo" : "ai.document")).ok ? job : null;
+  const analyze = job && wanted && (await allow(v, kind === "photo" ? "ai.photo" : "ai.document")).ok ? job : null;
   const [row] = await v.db
     .insert(attachment)
     .values({
@@ -305,7 +327,8 @@ export async function addAttachment(
       size: bytes.length,
       blobKey,
       thumbnailKey,
-      analysisStatus: analyze ? "pending" : null,
+      analysisStatus: reading ? "done" : analyze ? "pending" : null,
+      ...(reading ? { analysis: reading.analysis, analyzedAt: reading.analyzedAt, suggestionsDismissedAt: reading.suggestionsDismissedAt } : {}),
       createdBy: v.userId,
       repairId: upload.repairId ?? null,
     })

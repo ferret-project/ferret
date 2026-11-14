@@ -506,7 +506,7 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
                 {i === 0 && photos.length > 1 && (
                   <span className="badge badge-sm pointer-events-none absolute end-1.5 bottom-1.5 border-0 bg-base-100/90 text-base-content"><Trans>Main</Trans></span>
                 )}
-                <AnalysisBadge attachment={p} onRetry={canEdit ? () => reanalyze.mutate(p.id) : undefined} />
+                <AnalysisBadge attachment={p} canRead={Boolean(features?.photoAi)} onRetry={canEdit ? () => reanalyze.mutate(p.id) : undefined} />
               </figure>
             ))}
           </div>
@@ -907,7 +907,7 @@ function PhotoHero({ photos, name, onOpen }: { photos: Attachment[]; name: strin
 }
 
 /** Overlay on a photo tile while the vision model works on it, or if it couldn't. */
-function AnalysisBadge({ attachment, onRetry }: { attachment: Attachment; onRetry?: () => void }) {
+function AnalysisBadge({ attachment, onRetry, canRead }: { attachment: Attachment; onRetry?: () => void; canRead?: boolean }) {
   if (attachment.analysisStatus === "pending") {
     return (
       <span className="badge badge-soft badge-primary pointer-events-none absolute start-1.5 bottom-1.5 gap-1 bg-base-100/90">
@@ -929,15 +929,16 @@ function AnalysisBadge({ attachment, onRetry }: { attachment: Attachment; onRetr
       </button>
     );
   }
-  // Read already: the model can look again (a better model since, or it got it wrong). Not with only the small copy left.
-  if (attachment.analysisStatus === "done" && onRetry && !attachment.originalRemoved) {
+  // Read already (the model can look again: a better model since, or it got it wrong), or never read (added while AI
+  // wasn't set up or the plan had none left). Not with only the small copy left.
+  if ((attachment.analysisStatus === "done" || (!attachment.analysisStatus && canRead)) && onRetry && !attachment.originalRemoved) {
     return (
       <button
         type="button"
         className="btn btn-circle btn-sm absolute start-1.5 bottom-1.5 border-0 bg-base-100/85 text-base-content shadow-sm"
         onClick={onRetry}
-        aria-label={t`Analyze ${ph({ filename: attachment.filename })} again`}
-        title={t`Analyze again`}
+        aria-label={attachment.analysisStatus ? t`Analyze ${ph({ filename: attachment.filename })} again` : t`Analyze ${ph({ filename: attachment.filename })}`}
+        title={attachment.analysisStatus ? t`Analyze again` : t`Analyze`}
       >
         <span className="icon-[tabler--sparkles] size-4" />
       </button>

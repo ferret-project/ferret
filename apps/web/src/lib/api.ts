@@ -236,12 +236,14 @@ async function startRoomScan(photos: File[], at: { locationId?: string; containe
  * A photo cut from another — a room scan's box, or one of the item's own photos cropped (PhotoCrop.tsx): not read again
  * by the model; with `main`, the item's picture from now on (the original is kept).
  */
-async function uploadCrop(itemId: string, crop: Blob, opts: { filename?: string; main?: boolean } = {}) {
+async function uploadCrop(itemId: string, crop: Blob, opts: { filename?: string; main?: boolean; croppedFrom?: string } = {}) {
   const copies = await photoCopies(crop);
   const form = new FormData();
   form.set("file", crop, opts.filename ?? "from-room-scan.jpg");
   form.set("kind", "photo");
-  form.set("analyze", "false");
+  // A crop of one of its photos takes that photo's reading along (or is read, if that wasn't); a room scan's isn't read.
+  if (opts.croppedFrom) form.set("croppedFrom", opts.croppedFrom);
+  else form.set("analyze", "false");
   if (opts.main) form.set("main", "true");
   if (copies.thumbnail) form.set("thumbnail", copies.thumbnail, "thumbnail");
   if (copies.preview) form.set("preview", copies.preview, "preview");
@@ -289,7 +291,7 @@ export const api = {
     request<StockRule>(`/items/${itemId}/stock-rules`, { method: "PUT", body: JSON.stringify(rule) }),
   deleteStockRule: (itemId: string, ruleId: string) => request<void>(`/items/${itemId}/stock-rules/${ruleId}`, { method: "DELETE" }),
   /** Whether you're the server admin (who sees Settings → Server). */
-  me: () => request<{ serverAdmin: boolean; features: { fromWeb: boolean; homeAssistant: boolean; roomScan: boolean; textAi: boolean; speech: boolean } }>("/me"),
+  me: () => request<{ serverAdmin: boolean; features: { fromWeb: boolean; homeAssistant: boolean; roomScan: boolean; textAi: boolean; speech: boolean; photoAi?: boolean } }>("/me"),
   backupStatus: () => request<BackupStatus>("/backup"),
   serverSecrets: () => request<ServerSecrets>("/server/secrets"),
   serverAddress: () => request<ServerAddress>("/server/address"),

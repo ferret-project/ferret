@@ -55,6 +55,38 @@ describe("photo analysis", () => {
     });
   });
 
+  it("a crop takes its photo's reading along; a crop of a photo not read yet is read itself", async () => {
+    const ai = new FakeAi([drillReply, drillReply]);
+    const { jobs, user } = await setup({ ai });
+    const pat = await user("pat");
+    const { id: itemId } = await pat.addItem({ name: "Drill" });
+    const crop = async (from: string) => {
+      const form = new FormData();
+      form.set("file", new File([await photo()], "drill (cropped).jpg"));
+      form.set("kind", "photo");
+      form.set("croppedFrom", from);
+      const up = await pat.as(`/api/v1/items/${itemId}/attachments`, { method: "POST", body: form });
+      expect(up.status).toBe(201);
+      return (await up.json()) as { id: string; analysisStatus: string | null; analysis: { suggestions?: { serialNumber?: string } } | null };
+    };
+
+    // Read: the crop has the same reading at once, and the model isn't asked again.
+    const read = await pat.upload(itemId, await photo(), "drill.jpg");
+    await jobs.drain();
+    const copied = await crop(read.id);
+    expect(copied).toMatchObject({ analysisStatus: "done", analysis: { suggestions: { serialNumber: "2024 18 4417 AB" } } });
+    await jobs.drain();
+    expect(ai.calls).toHaveLength(1);
+
+    // Still being read, and removed straight after cropping: the crop is read itself, so nothing is lost.
+    const reading = await pat.upload(itemId, await photo(), "label.jpg");
+    const second = await crop(reading.id);
+    expect(second.analysisStatus).toBe("pending");
+    expect((await pat.as(`/api/v1/attachments/${reading.id}`, { method: "DELETE" })).status).toBe(204);
+    await jobs.drain();
+    expect((await pat.attachments(itemId)).find((a) => a.id === second.id)).toMatchObject({ analysisStatus: "done", analysis: { suggestions: { serialNumber: "2024 18 4417 AB" } } });
+  });
+
   it("uses the browser's own thumbnail and vision copy, so the server resizes nothing", async () => {
     const ai = new FakeAi([drillReply]);
     const { jobs, user, files, db } = await setup({ ai });

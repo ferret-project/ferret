@@ -60,6 +60,8 @@ inventory.get("/me", requireUser, async (c) =>
       // The AI helpers that read words (sorting imports, filters from words, estimates, typical upkeep), and speech to text.
       textAi: Boolean(c.var.deps.chat ?? c.var.deps.ai),
       speech: Boolean(c.var.deps.speech),
+      // Photos read by the vision model (an unread one offers "Analyze").
+      photoAi: Boolean(c.var.deps.ai && c.var.deps.images && c.var.deps.jobs),
     },
   }),
 );
@@ -338,7 +340,9 @@ inventory.post("/items/:id/attachments", requireWriter, uploadLimit, async (c) =
   const repairId = typeof form.repairId === "string" && form.repairId ? await repairs.repairOfItem(callerOf(c), c.req.param("id"), form.repairId) : null;
   // analyze=false: nothing to read in it (a room scan's crop of something already named) — no AI action spent.
   const analyze = form.analyze !== "false" && !repairId;
-  const row = await addAttachment(callerOf(c), c.var.files, c.req.param("id"), { bytes, filename: file.name, kind: kind.data, made, analyze, repairId });
+  // croppedFrom: a crop of one of its photos — it takes that photo's reading along (lib/attachments.ts).
+  const croppedFrom = typeof form.croppedFrom === "string" && form.croppedFrom && !repairId ? form.croppedFrom : undefined;
+  const row = await addAttachment(callerOf(c), c.var.files, c.req.param("id"), { bytes, filename: file.name, kind: kind.data, made, analyze, repairId, croppedFrom });
   // main=true: it's the item's picture from now on (a crop of one of its photos).
   if (form.main === "true" && kind.data === "photo") await setMainPhoto(callerOf(c), row.id);
   return c.json(row, 201);
