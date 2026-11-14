@@ -301,6 +301,10 @@ export function analyzeAttachment(deps: {
       .from(attachment)
       .where(and(eq(attachment.id, attachmentId), isNull(attachment.deletedAt)));
     if (!row || row.analysisStatus !== "pending") return; // deleted, or already handled
+    // Only a thing's files are read for now: their suggestions go on the thing. (A property's, a place's or a task's
+    // aren't queued — lib/attachments.ts — this is for one queued before it moved.)
+    const itemId = row.itemId;
+    if (!itemId) return void (await deps.db.update(attachment).set({ analysisStatus: null }).where(eq(attachment.id, row.id)));
     const kind = row.kind as AttachmentKind;
 
     const save = async (analysis: AttachmentAnalysis | null) => {
@@ -364,11 +368,11 @@ export function analyzeAttachment(deps: {
       await save(analysis);
       // Schedules read from a manual: into Suggested maintenance, for a person to add.
       if (analysis.suggestions.maintenance?.length) {
-        await suggestTasks(deps.db, { householdId: row.householdId, itemId: row.itemId, attachmentId: row.id, source: "manual" }, analysis.suggestions.maintenance);
+        await suggestTasks(deps.db, { householdId: row.householdId, itemId, attachmentId: row.id, source: "manual" }, analysis.suggestions.maintenance);
       }
-      if (deps.full) await autoFill(deps.full, row, analysis).catch((err) => console.warn(`Filling in from ${row.id} failed: ${String(err)}`));
+      if (deps.full) await autoFill(deps.full, { ...row, itemId }, analysis).catch((err) => console.warn(`Filling in from ${row.id} failed: ${String(err)}`));
       if (preview) await deps.files.delete(previewKey(row.blobKey)).catch(() => {});
-      await deps.onItemChanged?.(row.itemId); // new text to search
+      await deps.onItemChanged?.(itemId); // new text to search
     } catch (err) {
       if (lastAttempt) {
         await save(null);

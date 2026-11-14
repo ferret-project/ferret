@@ -8,7 +8,7 @@
  *                                    claims, maintenance and its history, stock and its history, HomeKit/Matter
  *                                    pairing codes, providers, categories, tags, labels
  *     items.csv                      the insurance list, for a spreadsheet
- *     files/<item>/<filename>        the photos and documents, decrypted, as they were uploaded
+ *     files/<owner>/<filename>       the photos and documents (a folder per item, property, place or task), decrypted
  *
  * It's streamed as it's made — one file decrypted at a time, nothing written on the server — so a decrypted copy
  * never sits anywhere but the download. Deleted things (Recently deleted) are left out.
@@ -159,30 +159,55 @@ export async function householdData(v: Caller, root: string, householdName: stri
   const tagName = new Map(tags.map((t) => [t.id, t.name]));
   const labelFor = (key: "itemId" | "locationId", id: string) => labels.find((l) => l[key] === id)?.code ?? null;
 
-  // A folder per item that has files (its name, made unique), a file per upload (its name, made unique in the folder).
+  // A folder per thing, property, place or maintenance task that has files (its name, made unique), a file per upload
+  // (its name, made unique in the folder). Files of something deleted aren't included.
+  const liveTasks = tasks.filter((t) => !t.itemId || itemIds.has(t.itemId));
+  const taskById = new Map(liveTasks.map((t) => [t.id, t]));
+  const itemName = new Map(items.map((i) => [i.id, i.name]));
+  const ownerOf = (f: (typeof files)[number]): { key: string; name: string } | null => {
+    if (f.itemId) return itemIds.has(f.itemId) ? { key: f.itemId, name: safeName(itemName.get(f.itemId)!, "item") } : null;
+    if (f.propertyId) return propertyName.has(f.propertyId) ? { key: f.propertyId, name: safeName(propertyName.get(f.propertyId)!, "property") } : null;
+    if (f.locationId) return placeById.has(f.locationId) ? { key: f.locationId, name: safeName((placePath(f.locationId) ?? "place").replaceAll(" › ", " - "), "place") } : null;
+    const task = f.taskId ? taskById.get(f.taskId) : undefined;
+    return task ? { key: task.id, name: safeName(`Maintenance - ${task.title}`, "maintenance") } : null;
+  };
   const folders = new Map<string, string>();
   const usedFolders = new Set<string>();
-  const withFiles = new Set(files.map((f) => f.itemId));
-  for (const i of items.filter((i) => withFiles.has(i.id))) {
-    let folder = safeName(i.name, "item");
-    if (usedFolders.has(folder.toLowerCase())) folder = `${folder} (${i.id.slice(0, 8)})`;
-    usedFolders.add(folder.toLowerCase());
-    folders.set(i.id, folder);
-  }
   const used = new Set<string>();
   const filePaths = new Map<string, string>();
   for (const f of files) {
-    if (!itemIds.has(f.itemId)) continue;
+    const owner = ownerOf(f);
+    if (!owner) continue;
+    let folder = folders.get(owner.key);
+    if (!folder) {
+      folder = usedFolders.has(owner.name.toLowerCase()) ? `${owner.name} (${owner.key.slice(0, 8)})` : owner.name;
+      usedFolders.add(folder.toLowerCase());
+      folders.set(owner.key, folder);
+    }
     const name = safeName(f.filename);
     const dot = name.lastIndexOf(".");
-    let path = `${root}/files/${folders.get(f.itemId)}/${name}`;
+    let path = `${root}/files/${folder}/${name}`;
     for (let n = 2; used.has(path.toLowerCase()); n++) {
-      path = `${root}/files/${folders.get(f.itemId)}/${dot > 0 ? `${name.slice(0, dot)} (${n})${name.slice(dot)}` : `${name} (${n})`}`;
+      path = `${root}/files/${folder}/${dot > 0 ? `${name.slice(0, dot)} (${n})${name.slice(dot)}` : `${name} (${n})`}`;
     }
     used.add(path.toLowerCase());
     filePaths.set(f.id, path);
   }
   const inZip = (path: string | undefined) => (path ? path.slice(root.length + 1) : null);
+  /** A file as ferret.json lists it, under whatever it belongs to. */
+  const fileEntry = (f: (typeof files)[number]) => ({
+    id: f.id,
+    kind: f.kind,
+    filename: f.filename,
+    contentType: f.contentType,
+    size: f.size,
+    file: inZip(filePaths.get(f.id)),
+    addedAt: iso(f.createdAt),
+    /** What the photo shows / the document says, as read by Ferret (empty if never read). */
+    description: f.analysis?.description || null,
+    text: f.analysis?.text || null,
+  });
+  const filesOf = (pick: (f: (typeof files)[number]) => boolean) => files.filter((f) => filePaths.has(f.id) && pick(f)).map(fileEntry);
 
   const data = {
     ...EXPORT_FORMAT,
@@ -197,6 +222,8 @@ export async function householdData(v: Caller, root: string, householdName: stri
       yearBuilt: p.yearBuilt,
       valueCents: p.valueCents,
       notes: p.notes,
+      /** Its own photos and documents (a deed, the insurance policy, an inspection report). */
+      files: filesOf((f) => f.propertyId === p.id),
     })),
     places: livePlaces.map((p) => ({
       id: p.id,
@@ -206,6 +233,7 @@ export async function householdData(v: Caller, root: string, householdName: stri
       path: placePath(p.id),
       notes: p.notes,
       label: labelFor("locationId", p.id),
+      files: filesOf((f) => f.locationId === p.id),
       /** Room reviews of it: when, by whom, and what each thing checked turned out to be (here, moved, gone, missing). */
       reviews: reviews
         .filter((r) => r.locationId === p.id)
@@ -315,20 +343,7 @@ export async function householdData(v: Caller, root: string, householdName: stri
       /** How it was added (app, photos, walkthrough, scan, label, spreadsheet, homeassistant, claude, api) and the file's or key's name. */
       addedFrom: i.origin ? { how: i.origin, detail: i.originDetail } : null,
       updatedAt: iso(i.updatedAt),
-      files: files
-        .filter((f) => f.itemId === i.id)
-        .map((f) => ({
-          id: f.id,
-          kind: f.kind,
-          filename: f.filename,
-          contentType: f.contentType,
-          size: f.size,
-          file: inZip(filePaths.get(f.id)),
-          addedAt: iso(f.createdAt),
-          /** What the photo shows / the document says, as read by Ferret (empty if never read). */
-          description: f.analysis?.description || null,
-          text: f.analysis?.text || null,
-        })),
+      files: filesOf((f) => f.itemId === i.id),
       warranties: warranties
         .filter((w) => w.itemId === i.id)
         .map((w) => ({
@@ -354,8 +369,7 @@ export async function householdData(v: Caller, root: string, householdName: stri
             })),
         })),
     })),
-    maintenance: tasks
-      .filter((t) => !t.itemId || itemIds.has(t.itemId))
+    maintenance: liveTasks
       .map((t) => ({
         id: t.id,
         title: t.title,
@@ -369,6 +383,8 @@ export async function householdData(v: Caller, root: string, householdName: stri
         lastDoneOn: t.lastDoneOn,
         usuallyDoneBy: t.providerId ? (providerName.get(t.providerId) ?? null) : null,
         manualId: t.attachmentId,
+        /** A house-wide task's own files (a thing's task keeps them with the thing). */
+        files: filesOf((f) => f.taskId === t.id),
         history: logs
           .filter((l) => l.taskId === t.id)
           .map((l) => ({
@@ -377,6 +393,8 @@ export async function householdData(v: Caller, root: string, householdName: stri
             provider: l.providerId ? (providerName.get(l.providerId) ?? null) : null,
             note: l.note,
             costCents: l.costCents,
+            /** Its invoice or photos (files' ids, listed with whatever they belong to). */
+            files: files.filter((f) => f.doneId === l.id && filePaths.has(f.id)).map((f) => f.id),
           })),
       })),
   };
@@ -390,7 +408,7 @@ ferret.json   Everything: properties and places, items (with their warranties an
               custom fields and links), maintenance and its history, service providers, categories.
               Money is in hundredths of ${currency} (12900 = ${formatMoney(12900, currency, { exact: true, locale: "en-US" })}); dates are yyyy-mm-dd.
 items.csv     The insurance list (one row per item, as in Ferret's report) — opens in any spreadsheet.
-files/        Every photo and document, in a folder per item, as they were uploaded.
+files/        Every photo and document, in a folder per item, property, place or maintenance task, as they were uploaded.
 
 These files are not encrypted: keep this somewhere safe.
 `;

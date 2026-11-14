@@ -673,10 +673,30 @@ export interface SuggestedPartReading {
 /** null = not analysed (not configured, or not an image). */
 export type AnalysisStatus = "pending" | "done" | "failed" | null;
 
+/**
+ * Whose files to list or add to, besides a thing's (its own route): exactly one of a property, a place, a maintenance
+ * task (its own files and its done records') or one done record.
+ */
+export const fileOwnerQuery = z
+  .object({
+    propertyId: z.string().min(1).optional(),
+    locationId: z.string().min(1).optional(),
+    taskId: z.string().min(1).optional(),
+    doneId: z.string().min(1).optional(),
+  })
+  .refine((o) => [o.propertyId, o.locationId, o.taskId, o.doneId].filter(Boolean).length === 1, { message: "Give one of propertyId, locationId, taskId or doneId" });
+export type FileOwnerQuery = z.infer<typeof fileOwnerQuery>;
+
 export interface Attachment {
   id: string;
   householdId: string;
-  itemId: string;
+  /** What it belongs to: exactly one of a thing, a property, a place, or a (house-wide) maintenance task. */
+  itemId: string | null;
+  propertyId: string | null;
+  locationId: string | null;
+  taskId: string | null;
+  /** A done record's invoice or photos: shown with the record too. */
+  doneId: string | null;
   kind: AttachmentKind;
   filename: string;
   contentType: string;

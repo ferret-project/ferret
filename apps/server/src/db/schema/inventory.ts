@@ -4,7 +4,7 @@
  * SQLite dialect.
  */
 import { sql } from "drizzle-orm";
-import { index, integer, primaryKey, real, sqliteTable, text, uniqueIndex, type AnySQLiteColumn } from "drizzle-orm/sqlite-core";
+import { check, index, integer, primaryKey, real, sqliteTable, text, uniqueIndex, type AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import type { SightingHow, SightingKind } from "@ferret/shared/utils";
 import type { AiFill, AiFillSwitches, AnalysisStatus, AttachmentAnalysis, CategoryField, CustomFieldValues, HaSnapshot, ItemLink, ItemOrigin, ProductInfo, ReviewOutcome, RoomScanCandidate, RoomScanStatus } from "@ferret/shared";
 import { invitation, organization, user } from "./auth";
@@ -344,9 +344,15 @@ export const attachment = sqliteTable(
   {
     id: id(),
     householdId: householdId(),
-    itemId: text("item_id")
-      .notNull()
-      .references(() => item.id, { onDelete: "cascade" }),
+    /**
+     * What it belongs to: exactly one of a thing, a property, a room/place, or a maintenance task (house-wide ones have
+     * no thing) — the check below. Its files go with it (soft-deleted with a thing; a place or task with files is
+     * cleared first: lib/attachments.ts `removeFilesOf`).
+     */
+    itemId: text("item_id").references(() => item.id, { onDelete: "cascade" }),
+    propertyId: text("property_id").references((): AnySQLiteColumn => property.id, { onDelete: "cascade" }),
+    locationId: text("location_id").references((): AnySQLiteColumn => location.id, { onDelete: "cascade" }),
+    taskId: text("task_id").references((): AnySQLiteColumn => maintenanceTask.id, { onDelete: "cascade" }),
     kind: text("kind").notNull(), // "photo" | "document"
     filename: text("filename").notNull(),
     contentType: text("content_type").notNull(),
@@ -372,10 +378,21 @@ export const attachment = sqliteTable(
     mainAt: integer("main_at", { mode: "timestamp_ms" }),
     /** A repair's before/after photo or invoice (lib/repairs.ts): still its item's, shown with the repair too. */
     repairId: text("repair_id").references((): AnySQLiteColumn => repair.id, { onDelete: "set null" }),
+    /** A done record's invoice or photos (its task's thing's, or the task's for a house-wide one), shown with it too. */
+    doneId: text("done_id").references((): AnySQLiteColumn => maintenanceLog.id, { onDelete: "set null" }),
     createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
     ...timestamps,
   },
-  (t) => [index("attachment_item_idx").on(t.householdId, t.itemId)],
+  (t) => [
+    index("attachment_item_idx").on(t.householdId, t.itemId),
+    index("attachment_property_idx").on(t.householdId, t.propertyId),
+    index("attachment_location_idx").on(t.householdId, t.locationId),
+    index("attachment_task_idx").on(t.householdId, t.taskId),
+    check(
+      "attachment_one_owner",
+      sql`(${t.itemId} is not null) + (${t.propertyId} is not null) + (${t.locationId} is not null) + (${t.taskId} is not null) = 1`,
+    ),
+  ],
 );
 
 /** A warranty on an item: when it ends, who provides it, and the document it came from. */

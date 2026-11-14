@@ -33,3 +33,27 @@ export async function testDb(): Promise<{ db: Db }> {
   await migrate(db, { migrationsFolder: migrations });
   return { db: db as unknown as Db };
 }
+
+/**
+ * A database migrated up to (not including) migration `tag` — to put rows in as they were — and `finish()` to run the
+ * rest. For testing a migration that changes rows (test/migrations.test.ts).
+ */
+export async function testDbBefore(tag: string): Promise<{ db: Db; finish(): Promise<void> }> {
+  const { mkdtempSync, readFileSync, writeFileSync, mkdirSync, copyFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const journal = JSON.parse(readFileSync(path.join(migrations, "meta/_journal.json"), "utf8")) as { entries: { tag: string }[] };
+  const upTo = journal.entries.findIndex((e) => e.tag === tag);
+  if (upTo < 0) throw new Error(`No migration ${tag}`);
+  const folder = mkdtempSync(path.join(tmpdir(), "ferret-migrations-"));
+  mkdirSync(path.join(folder, "meta"));
+  for (const e of journal.entries.slice(0, upTo)) copyFileSync(path.join(migrations, `${e.tag}.sql`), path.join(folder, `${e.tag}.sql`));
+  writeFileSync(path.join(folder, "meta/_journal.json"), JSON.stringify({ ...journal, entries: journal.entries.slice(0, upTo) }));
+  if (!provider) {
+    const { db } = createLocalDb(":memory:");
+    await runMigrations(db, folder);
+    return { db, finish: () => runMigrations(db, migrations) };
+  }
+  const db = drizzle((await provider.nextDatabase()) as never, { schema });
+  await migrate(db, { migrationsFolder: folder });
+  return { db: db as unknown as Db, finish: () => migrate(db, { migrationsFolder: migrations }) };
+}

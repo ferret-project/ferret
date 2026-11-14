@@ -97,7 +97,7 @@ describe("download everything", () => {
     expect(box.isBox).toBe(true);
     expect(drill.warranties).toEqual([expect.objectContaining({ endsOn: "2029-05-01", claims: [expect.objectContaining({ problem: "Chuck slips", status: "filed" })] })]);
     expect(data.maintenance).toEqual([
-      expect.objectContaining({ title: "Oil the chuck", repeats: { every: 6, unit: "month" }, history: [{ doneOn: "2026-01-20", by: "ann", provider: "Ace Repairs", note: null, costCents: 2500 }] }),
+      expect.objectContaining({ title: "Oil the chuck", repeats: { every: 6, unit: "month" }, history: [{ doneOn: "2026-01-20", by: "ann", provider: "Ace Repairs", note: null, costCents: 2500, files: [] }] }),
     ]);
 
     const csv = new TextDecoder().decode(file("items.csv"));

@@ -14,7 +14,7 @@
 import { and, count, eq, gte, isNotNull, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { member, organization } from "../db/schema/auth";
-import { aiRun, attachment, backupRun, category, item, job, location, pendingDownload, roomScan } from "../db/schema";
+import { aiRun, attachment, backupRun, category, item, job, location, maintenanceTask, pendingDownload, property, roomScan } from "../db/schema";
 import type { Blobs, Db } from "../ports";
 import type { FileStore } from "./files";
 
@@ -150,12 +150,27 @@ export async function runServerCheck({ db, blobs, files, now = new Date() }: Dep
     .innerJoin(parent, eq(parent.id, location.parentId))
     .where(and(isNull(location.deletedAt), or(isNotNull(parent.deletedAt), ne(parent.householdId, location.householdId))));
   add({ kind: "locations.parent", level: "problem", rows: orphanRooms.map((r) => where(r.householdId, r.parent, r.name)), text: "Places inside a place that's been deleted — they can't be reached in Places." });
+  // A file's owner (a thing, property, place or task: exactly one — the table's check) must be there and the same household's.
+  const ownerTask = alias(maintenanceTask, "owner_task");
   const homeless = await db
     .select({ householdId: attachment.householdId, filename: attachment.filename })
     .from(attachment)
     .leftJoin(item, eq(item.id, attachment.itemId))
-    .where(and(isNull(attachment.deletedAt), or(isNull(item.id), ne(item.householdId, attachment.householdId))));
-  add({ kind: "attachments.item", level: "problem", rows: homeless.map((r) => where(r.householdId, r.filename)), text: "Photos or documents whose thing is missing or in another household." });
+    .leftJoin(property, eq(property.id, attachment.propertyId))
+    .leftJoin(location, eq(location.id, attachment.locationId))
+    .leftJoin(ownerTask, eq(ownerTask.id, attachment.taskId))
+    .where(
+      and(
+        isNull(attachment.deletedAt),
+        or(
+          and(isNotNull(attachment.itemId), or(isNull(item.id), ne(item.householdId, attachment.householdId))),
+          and(isNotNull(attachment.propertyId), or(isNull(property.id), ne(property.householdId, attachment.householdId))),
+          and(isNotNull(attachment.locationId), or(isNull(location.id), ne(location.householdId, attachment.householdId))),
+          and(isNotNull(attachment.taskId), or(isNull(ownerTask.id), ne(ownerTask.householdId, attachment.householdId))),
+        ),
+      ),
+    );
+  add({ kind: "attachments.item", level: "problem", rows: homeless.map((r) => where(r.householdId, r.filename)), text: "Photos or documents whose thing, property, place or task is missing or in another household." });
   const noHousehold = await db
     .select({ name: item.name, householdId: item.householdId })
     .from(item)

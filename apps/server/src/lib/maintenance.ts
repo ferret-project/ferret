@@ -34,6 +34,7 @@ import { currentReading, readingsOf } from "./usage";
 import { todayFor } from "./household-time";
 import { inList } from "./sql";
 import { markSuggestionAdded } from "./suggested-tasks";
+import { removeFilesOf } from "./attachments";
 
 const taskIn = (v: Pick<Caller, "householdId">, id: string) =>
   and(eq(maintenanceTask.id, id), eq(maintenanceTask.householdId, v.householdId), isNull(maintenanceTask.deletedAt));
@@ -237,12 +238,14 @@ export async function updateTask(v: Caller, id: string, input: MaintenancePatch)
 }
 
 export async function deleteTask(v: Caller, id: string) {
+  const now = new Date();
   const [row] = await v.db
     .update(maintenanceTask)
-    .set({ deletedAt: new Date() })
+    .set({ deletedAt: now })
     .where(taskIn(v, id))
     .returning({ id: maintenanceTask.id, title: maintenanceTask.title, itemId: maintenanceTask.itemId });
   if (!row) throw notFound("Maintenance task");
+  await removeFilesOf(v, { taskId: row.id }, now);
   await logActivity(v, "maintenance.delete", row.id, `Removed maintenance: ${row.title}`, row.itemId);
   return row;
 }

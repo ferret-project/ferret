@@ -3,7 +3,7 @@
  * tools (mcp/tools.ts) both do, so the app and Claude always agree. Every
  * function acts for one caller in one household and filters by its householdId.
  */
-import { analyzeUnread } from "./attachments";
+import { analyzeUnread, removeFilesOf } from "./attachments";
 import { sightingsOf } from "./sightings";
 import { trackingSummary } from "./room-reviews";
 import { replacementForecast } from "./lifespans";
@@ -147,7 +147,9 @@ export async function deleteProperty(v: Caller, id: string) {
       .update(location)
       .set({ deletedAt: now })
       .where(and(eq(location.householdId, v.householdId), inList(location.id, inside.map((l) => l.id))));
+    await removeFilesOf(v, { locationIds: inside.map((l) => l.id) }, now);
   }
+  await removeFilesOf(v, { propertyId: id }, now);
   await v.db.update(property).set({ deletedAt: now }).where(propertyIn(v, id));
   await logActivity(v, "property.delete", id, `Removed ${current.name}`);
 }
@@ -205,9 +207,11 @@ export async function deleteLocation(v: Caller, id: string) {
   if (!current) throw notFound("Location");
   const subtree = await descendants(v, id);
   await refuseIfHoldsItems(v, subtree, current.name);
+  const now = new Date();
+  await removeFilesOf(v, { locationIds: subtree }, now);
   await v.db
     .update(location)
-    .set({ deletedAt: new Date() })
+    .set({ deletedAt: now })
     .where(and(eq(location.householdId, v.householdId), inList(location.id, subtree)));
   await logActivity(v, "location.delete", id, `Removed ${current.name}`);
 }
@@ -537,7 +541,7 @@ async function folderPhotos(v: Caller, scope: SQL | undefined, categoryIds: stri
   await Promise.all(
     categoryIds.map(async (id) => {
       const photos = await v.db
-        .select({ id: attachment.id, itemId: attachment.itemId })
+        .select({ id: attachment.id, itemId: item.id })
         .from(attachment)
         .innerJoin(item, eq(item.id, attachment.itemId))
         .where(and(scope, eq(item.categoryId, id), eq(attachment.householdId, v.householdId), eq(attachment.kind, "photo"), isNull(attachment.deletedAt)))
@@ -598,7 +602,7 @@ export async function asListing<T extends typeof item.$inferSelect>(
   const contentCount = new Map(inside.map((c) => [c.boxId, c.n]));
   const codeOf = new Map(labels.map((l) => [l.itemId, l.code]));
   const firstPhoto = new Map<string, string>();
-  for (const p of photos) if (!firstPhoto.has(p.itemId)) firstPhoto.set(p.itemId, p.id);
+  for (const p of photos) if (p.itemId && !firstPhoto.has(p.itemId)) firstPhoto.set(p.itemId, p.id);
   return rows.map((r) => ({
     ...r,
     photoId: firstPhoto.get(r.id) ?? null,

@@ -177,7 +177,7 @@ export async function sharedView(v: Caller, r: Row, seen: { ipAddress: string | 
       .from(attachment)
       .where(and(eq(attachment.householdId, v.householdId), inList(attachment.itemId, rows.map((x) => x.id)), isNull(attachment.deletedAt)))
       .orderBy(...PHOTO_ORDER);
-    for (const f of found) (files[f.itemId] ??= []).push({ id: f.id, kind: f.kind as "photo" | "document", filename: f.filename, contentType: f.contentType });
+    for (const f of found) if (f.itemId) (files[f.itemId] ??= []).push({ id: f.id, kind: f.kind as "photo" | "document", filename: f.filename, contentType: f.contentType });
   }
   const [[household], [by], properties] = await Promise.all([
     v.db.select({ name: organization.name }).from(organization).where(eq(organization.id, v.householdId)),
@@ -216,7 +216,8 @@ export async function sharedFile(v: Caller, r: Row, attachmentId: string) {
     .from(attachment)
     .where(and(eq(attachment.id, attachmentId), eq(attachment.householdId, v.householdId), isNull(attachment.deletedAt)));
   if (!file) throw new HTTPException(404, { message: "Not shared" });
-  if (!(await sharedItemIds(v, r)).has(file.itemId)) throw new HTTPException(404, { message: "Not shared" });
+  // Only a shared thing's files: never a property's, a place's or a task's.
+  if (!file.itemId || !(await sharedItemIds(v, r)).has(file.itemId)) throw new HTTPException(404, { message: "Not shared" });
   return file;
 }
 

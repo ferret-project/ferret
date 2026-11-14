@@ -6,7 +6,7 @@
 import { householdSummary } from "../lib/summary";
 import { PHOTO_ORDER } from "../lib/photo-order";
 import * as usage from "../lib/usage";
-import { usageReadingInput, itemsBulk, reviewItemBody, repairInput, repairPatch,
+import { fileOwnerQuery, usageReadingInput, itemsBulk, reviewItemBody, repairInput, repairPatch,
   askInput,
   dismissPartInput,
   itemFindQuery,
@@ -37,7 +37,7 @@ import { ownLabelsOf } from "../lib/own-labels";
 import { roomScansAvailable } from "../lib/room-scans";
 import { itemChanged, logActivity, withStatus } from "../lib/inventory";
 import { categoryDescendants, findTag } from "../lib/catalog";
-import { addAttachment, analyzeAgain, attachmentFields, setMainPhoto } from "../lib/attachments";
+import { addAttachment, analyzeAgain, attachmentFields, listFiles, setMainPhoto } from "../lib/attachments";
 import { sniffContentType } from "../lib/sniff";
 import { isServerAdmin } from "../lib/server-admin";
 import { itemHistory } from "../lib/history";
@@ -344,6 +344,41 @@ inventory.post("/items/:id/attachments", requireWriter, uploadLimit, async (c) =
   return c.json(row, 201);
 });
 
+/** A property's, a place's, a maintenance task's or a done record's photos and documents (`?propertyId=`…: one). */
+inventory.get("/attachments", async (c) => {
+  const of = fileOwnerQuery.safeParse(c.req.query());
+  if (!of.success) throw new HTTPException(422, { message: of.error.issues[0]?.message ?? "Give one of propertyId, locationId, taskId or doneId" });
+  return c.json({ data: await listFiles(callerOf(c), of.data) });
+});
+
+/**
+ * A photo or document for a property, a place, a maintenance task or a done record (multipart: `file`, `kind`, and one
+ * of `propertyId`, `locationId`, `taskId`, `doneId`). Not read by the AI; a thing's task or done record keeps it with
+ * the thing.
+ */
+inventory.post("/attachments", requireWriter, uploadLimit, async (c) => {
+  const form = await c.req.parseBody().catch(() => {
+    throw new HTTPException(400, { message: "Body must be multipart/form-data" });
+  });
+  const file = form.file;
+  if (!(file instanceof File)) throw new HTTPException(400, { message: 'Send the upload in a "file" field' });
+  const kind = z.enum(attachmentKinds).default("photo").safeParse(form.kind ?? undefined);
+  if (!kind.success) throw new HTTPException(422, { message: "kind must be photo or document" });
+  const text = (v: unknown) => (typeof v === "string" && v ? v : undefined);
+  const of = fileOwnerQuery.safeParse({ propertyId: text(form.propertyId), locationId: text(form.locationId), taskId: text(form.taskId), doneId: text(form.doneId) });
+  if (!of.success) throw new HTTPException(422, { message: of.error.issues[0]?.message ?? "Give one of propertyId, locationId, taskId or doneId" });
+  const o = of.data;
+  const to = o.propertyId ? { propertyId: o.propertyId } : o.locationId ? { locationId: o.locationId } : o.taskId ? { taskId: o.taskId } : { doneId: o.doneId! };
+  const copy = async (part: unknown) => (part instanceof File ? new Uint8Array(await part.arrayBuffer()) : undefined);
+  const row = await addAttachment(callerOf(c), c.var.files, to, {
+    bytes: new Uint8Array(await file.arrayBuffer()),
+    filename: file.name,
+    kind: kind.data,
+    made: { thumbnail: await copy(form.thumbnail) },
+  });
+  return c.json(row, 201);
+});
+
 /** Makes a photo its item's main photo: its picture in lists, first on its page. */
 inventory.post("/attachments/:id/main", requireWriter, async (c) => c.json(await setMainPhoto(callerOf(c), c.req.param("id"))));
 
@@ -399,7 +434,7 @@ inventory.delete("/attachments/:id", requireWriter, async (c) => {
     )
     .returning({ id: attachment.id, kind: attachment.kind, itemId: attachment.itemId });
   if (!row) throw new HTTPException(404, { message: "Attachment not found" });
-  await logActivity(callerOf(c), "attachment.delete", row.id, `Removed a ${row.kind}`, row.itemId);
-  await itemChanged(c.var, row.itemId);
+  await logActivity(callerOf(c), "attachment.delete", row.id, `Removed a ${row.kind}`, row.itemId ?? undefined);
+  if (row.itemId) await itemChanged(c.var, row.itemId);
   return c.body(null, 204);
 });

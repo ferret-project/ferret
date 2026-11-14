@@ -162,6 +162,20 @@ export async function purgeDeleted(p: Purger, now = Date.now()) {
   // Dismissed room scans: their photos, then the rows (items found in them keep their place, just not the link).
   const roomScans = await purgeRoomScans(p, cutoff);
 
+  // Files of the tasks, places and properties about to go (removing them takes their files along — lib/attachments.ts
+  // removeFilesOf — but anything left would be dropped by the foreign key below, its encrypted file left behind).
+  for (const [table, column] of [
+    [maintenanceTask, attachment.taskId],
+    [location, attachment.locationId],
+    [property, attachment.propertyId],
+  ] as const) {
+    const owners = (await p.db.select({ id: table.id }).from(table).where(old(table))).map((r) => r.id);
+    if (!owners.length) continue;
+    const left = await p.db.select({ id: attachment.id, blobKey: attachment.blobKey, thumbnailKey: attachment.thumbnailKey }).from(attachment).where(inList(column, owners));
+    await deleteFiles(p, left);
+    if (left.length) await p.db.delete(attachment).where(inList(attachment.id, left.map((f) => f.id)));
+  }
+
   // The rest: rows only (foreign keys clear what pointed at them).
   const counts: Record<string, number> = { items: items.length, files: files.length, "room scans": roomScans };
   for (const [name, table] of [

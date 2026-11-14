@@ -66,6 +66,15 @@ async function annHousehold() {
     partItemId: filters.id,
   });
   await make("POST", `/api/v1/maintenance/${task.id}/done`, { note: `${SECRET} done note` });
+  // Files of her house, garage and a house-wide task (lib/attachments.ts FileOwner).
+  const chores = await make("POST", "/api/v1/maintenance", { title: `${SECRET} gutters` });
+  for (const [field, owner] of [["propertyId", property.id], ["locationId", garage.id], ["taskId", chores.id]] as const) {
+    const form = new FormData();
+    form.set("file", new File([pdf(`${SECRET} ${field}`)], `${SECRET}-${field}.pdf`));
+    form.set("kind", "document");
+    form.set(field, owner);
+    expect((await ann.as("/api/v1/attachments", { method: "POST", body: form })).status).toBe(201);
+  }
   const loan = await make("POST", `/api/v1/items/${drill.id}/loans`, { direction: "lent", person: `${SECRET} Sam` });
   const reading = await make("POST", `/api/v1/items/${drill.id}/usage`, { value: 12, note: `${SECRET} reading` });
   const fix = await make("POST", `/api/v1/items/${drill.id}/repairs`, { repairedOn: "2026-01-02", work: `${SECRET} new chuck`, problem: `${SECRET} wobble`, costCents: 4500, warrantyEndsOn: "2027-01-02" });

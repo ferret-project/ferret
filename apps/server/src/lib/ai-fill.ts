@@ -106,7 +106,7 @@ export async function setHouseholdAiFill(db: Db, householdId: string, input: Par
  */
 export async function autoFill(
   deps: Deps,
-  file: Pick<typeof attachment.$inferSelect, "id" | "householdId" | "itemId" | "filename" | "createdAt">,
+  file: Pick<typeof attachment.$inferSelect, "id" | "householdId" | "filename" | "createdAt"> & { itemId: string },
   analysis: AttachmentAnalysis,
 ): Promise<string[]> {
   const db = deps.db;
