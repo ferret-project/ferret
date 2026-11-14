@@ -63,8 +63,10 @@ describe("let AI fill in", () => {
     expect(history.map((h) => h.summary)).toContain("Filled in by AI from receipt.pdf: brand DEWALT; bought on 2026-03-14; price paid $129.00; return by 2099-04-13");
 
     // The list, then: confirm one, undo two.
-    const list = ((await (await pat.as("/api/v1/ai-fills")).json()) as { data: { field: string }[] }).data;
+    const list = ((await (await pat.as("/api/v1/ai-fills")).json()) as { data: { field: string; from: string; attachmentId: string }[] }).data;
     expect(list).toHaveLength(5);
+    const [receiptFile] = (await pat.attachments(id)) as { id: string }[];
+    expect(list.find((e) => e.field === "brand")).toMatchObject({ from: "receipt.pdf", attachmentId: receiptFile!.id });
     await pat.as(`/api/v1/items/${id}/ai-fills/brand/confirm`, { method: "POST" });
     await pat.as(`/api/v1/items/${id}/ai-fills/purchasePriceCents/undo`, { method: "POST" });
     await pat.as(`/api/v1/items/${id}/ai-fills/warranty/undo`, { method: "POST" });

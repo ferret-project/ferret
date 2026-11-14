@@ -1,7 +1,7 @@
 /** "Needs attention": the bell's list. */
 import { type AttentionItem, addDays, today } from "@ferret/shared";
 import { describe, expect, it } from "vitest";
-import { setup } from "./helpers";
+import { photo, setup } from "./helpers";
 
 type User = Awaited<ReturnType<Awaited<ReturnType<typeof setup>>["user"]>>;
 const send = (u: User, method: string, url: string, data?: object) =>
@@ -60,6 +60,12 @@ describe("needs attention", () => {
       ["review", "soon", "A new item to name"],
     ]);
     expect(list[0]).toMatchObject({ detail: "2 days overdue", itemId: furnace.id });
+    expect(list.find((a) => a.kind === "review")!.photoId).toBeUndefined();
+
+    // A new item from a photo shows that photo beside it.
+    const fresh = list.find((a) => a.kind === "review")!;
+    const pic = await ann.upload(fresh.itemId!, await photo(), "IMG_9200.jpg");
+    expect((await attention(ann)).find((a) => a.kind === "review")).toMatchObject({ photoId: pic.id });
 
     // Done → gone.
     await send(ann, "POST", `/api/v1/maintenance/${overdue.id}/done`, {});

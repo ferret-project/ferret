@@ -15,7 +15,8 @@ it's worth, notes.
 Ferret reads every photo in the background: what it shows, any text on it (a label, a model number), and suggests a
 name and details. Those wait in the bell (**Needs attention**) until you confirm them.
 
-Nothing Ferret suggests is saved until you tap it.
+Nothing Ferret suggests is saved until you tap it. Each suggestion shows a small picture of the photo or document it
+was read from — tap it to see it bigger — so you can tell which photo was which, whatever the phone named it.
 
 ## Photos and documents on an item
 

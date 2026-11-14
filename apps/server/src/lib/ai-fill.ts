@@ -224,6 +224,7 @@ export async function aiFillEntries(v: Caller): Promise<AiFillEntry[]> {
         label: AI_FIELD_LABELS[field] ?? field,
         value: f.value,
         from: f.from,
+        attachmentId: f.attachmentId ?? null,
         at: f.at,
       })),
     )

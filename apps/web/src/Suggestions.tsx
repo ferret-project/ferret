@@ -6,6 +6,7 @@
 import type { Attachment, Item, ItemPatch, MaintenanceInput, MaintenanceTask, Warranty, WarrantyInput } from "@ferret/shared";
 import { addDays, addMonths, today } from "@ferret/shared/utils";
 import { money } from "./lib/money";
+import { FileThumb } from "./FileThumb";
 import { t, ph, plural, msg } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
@@ -30,26 +31,28 @@ export function pendingSuggestions(item: Item, attachments: Attachment[], warran
   const sources = attachments
     .filter((a) => a.analysisStatus === "done" && a.analysis && !a.suggestionsDismissedAt)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  const rows: { key: Field; label: string; value: string | number; display: string }[] = [];
+  // Each with the file it was read from, shown beside it.
+  const rows: { key: Field; label: string; value: string | number; display: string; source?: Attachment }[] = [];
   for (const field of fields) {
     const source = sources.find((a) => a.analysis!.suggestions[field.key] != null);
     const value = source?.analysis!.suggestions[field.key];
     if (value == null || same(item[field.key], value)) continue;
-    rows.push({ key: field.key, label: t(field.label), value, display: field.format?.(value) ?? String(value) });
+    rows.push({ key: field.key, label: t(field.label), value, display: field.format?.(value) ?? String(value), source });
   }
 
   // A return window from a receipt: the date it prints, else its days from the purchase date — while it's still open.
-  const printed = sources.find((a) => a.analysis!.suggestions.returnBy)?.analysis!.suggestions.returnBy;
+  const printedIn = sources.find((a) => a.analysis!.suggestions.returnBy);
+  const printed = printedIn?.analysis!.suggestions.returnBy;
   const window = sources.find((a) => a.analysis!.suggestions.returnDays);
   const boughtOn = item.purchaseDate ?? sources.find((a) => a.analysis!.suggestions.purchaseDate)?.analysis!.suggestions.purchaseDate;
   const returnBy = printed ?? (window && boughtOn ? addDays(boughtOn, window.analysis!.suggestions.returnDays!) : undefined);
   if (returnBy && returnBy >= today() && returnBy !== item.returnBy) {
-    rows.push({ key: "returnBy", label: t`Return by`, value: returnBy, display: new Date(`${returnBy}T00:00:00`).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) });
+    rows.push({ key: "returnBy", label: t`Return by`, value: returnBy, display: new Date(`${returnBy}T00:00:00`).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }), source: printed ? printedIn : window });
   }
 
   // Warranty terms run from the purchase date: the item's, or one read from a receipt.
   const terms = sources.find((a) => a.analysis!.suggestions.warrantyMonths);
-  let warranty: { input?: WarrantyInput; display: string; needsDate: boolean } | undefined;
+  let warranty: { input?: WarrantyInput; display: string; needsDate: boolean; source?: Attachment } | undefined;
   if (terms) {
     const { warrantyMonths: months, warrantyProvider: provider } = terms.analysis!.suggestions;
     const purchased = item.purchaseDate ?? sources.find((a) => a.analysis!.suggestions.purchaseDate)?.analysis!.suggestions.purchaseDate;
@@ -62,10 +65,11 @@ export function pendingSuggestions(item: Item, attachments: Attachment[], warran
           input: { provider, startsOn: purchased, endsOn, attachmentId: terms.id },
           display: provider ? t`${ph({ length })} (${ph({ provider })}) — until ${ph({ endsOn })}` : t`${ph({ length })} — until ${ph({ endsOn })}`,
           needsDate: false,
+          source: terms,
         };
       }
     } else {
-      warranty = { display: `${length}${provider ? ` (${provider})` : ""}`, needsDate: true };
+      warranty = { display: `${length}${provider ? ` (${provider})` : ""}`, needsDate: true, source: terms };
     }
   }
   return { rows, warranty, sources };
@@ -97,6 +101,7 @@ export function Suggestions(props: {
           {rows.map((r) => (
             <li key={r.key} className="flex items-center gap-3 py-2">
               <span className="text-base-content/70 w-20 shrink-0 text-sm">{r.label}</span>
+              {r.source && <FileThumb attachmentId={r.source.id} filename={r.source.filename} />}
               <span className="text-base-content min-w-0 flex-1 truncate font-medium">{r.display}</span>
               <button
                 type="button"
@@ -112,6 +117,7 @@ export function Suggestions(props: {
           {warranty && (
             <li className="flex items-center gap-3 py-2">
               <Trans><span className="text-base-content/70 w-20 shrink-0 text-sm">Warranty</span></Trans>
+              {warranty.source && <FileThumb attachmentId={warranty.source.id} filename={warranty.source.filename} />}
               <span className="min-w-0 flex-1">
                 <span className="text-base-content block truncate font-medium">{warranty.display}</span>
                 {warranty.needsDate && (

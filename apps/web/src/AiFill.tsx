@@ -13,6 +13,7 @@ import { useCanEdit } from "./lib/auth";
 import { money } from "./lib/money";
 import { itemHref } from "./lib/route";
 import { BarSearch } from "./Nav";
+import { FileThumb } from "./FileThumb";
 import { t, ph, plural, msg } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
@@ -161,6 +162,7 @@ export function AiFilledCard({ item, householdId }: { item: ItemListing; househo
           {fills.map(([field, f]) => (
             <li key={field} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
               <span className="w-28 shrink-0 text-sm text-base-content/70">{label(field)}</span>
+              {f.attachmentId && <FileThumb attachmentId={f.attachmentId} filename={f.from} />}
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-medium">{show(field, f.value)}</span>
                 {f.from && <span className="block truncate text-xs text-base-content/70"><Trans>from {ph({ from: f.from })}</Trans></span>}
@@ -232,6 +234,7 @@ export function AiFilled({ householdId }: { householdId: string }) {
                 {entries.map((e) => (
                   <li key={e.field} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
                     <span className="w-28 shrink-0 text-sm text-base-content/70">{e.field in LABELS ? label(e.field) : e.label}</span>
+                    {e.attachmentId && <FileThumb attachmentId={e.attachmentId} filename={e.from} />}
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-medium">{show(e.field, e.value)}</span>
                       <span className="block truncate text-xs text-base-content/70">

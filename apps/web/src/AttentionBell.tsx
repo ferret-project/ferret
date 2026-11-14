@@ -103,11 +103,16 @@ export function AttentionBell({ householdId }: { householdId: string }) {
               {list.map((a) => (
                 <li key={`${a.kind}-${a.id}`}>
                   <a href={hrefFor(a)} className="dropdown-item items-start gap-3 px-4 py-2.5" role="menuitem" onClick={() => setOpen(false)}>
-                    <span
-                      className={`mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full ${a.severity === "urgent" ? "bg-error/10 text-error" : "bg-primary/10 text-primary"}`}
-                    >
-                      <span className={`${KIND[a.kind].icon} size-4`} />
-                    </span>
+                    {a.photoId ? (
+                      // The photo it came from, in place of the icon: several taken in a row told apart at a glance.
+                      <img src={api.thumbnailUrl(a.photoId)} alt="" loading="lazy" className="mt-0.5 size-10 shrink-0 rounded-field bg-base-200 object-cover" />
+                    ) : (
+                      <span
+                        className={`mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full ${a.severity === "urgent" ? "bg-error/10 text-error" : "bg-primary/10 text-primary"}`}
+                      >
+                        <span className={`${KIND[a.kind].icon} size-4`} />
+                      </span>
+                    )}
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium text-base-content">{a.title}</span>
                       <span className={`line-clamp-2 whitespace-normal text-xs ${a.severity === "urgent" ? "text-error" : "text-base-content/70"}`}>{a.detail}</span>

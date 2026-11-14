@@ -1161,6 +1161,8 @@ export interface AttentionItem {
   date: string | null;
   /** Where in the app it's dealt with, when that isn't the item or its kind's screen (`#/…`). */
   href?: string;
+  /** A photo to show beside it (a new item from a photo: the photo it was made from). */
+  photoId?: string;
 }
 
 // ── Room scans: photograph a room, the vision model lists what's in it ──────
@@ -2153,6 +2155,8 @@ export interface AiFillEntry {
   label: string;
   value: string | number;
   from: string | null;
+  /** The file it was read from (it may have been removed since). */
+  attachmentId: string | null;
   at: string;
 }
 

@@ -8,7 +8,7 @@
  * entry goes away when the thing is done, so the count means "things to do".
  */
 import { type AttentionItem, addDays } from "@ferret/shared";
-import { and, count, desc, eq, gte, lte } from "drizzle-orm";
+import { and, count, desc, eq, gte, isNull, lte } from "drizzle-orm";
 import { attachment, backupRun, item } from "../db/schema";
 import { listClaims } from "./claims";
 import { isServerAdmin } from "./server-admin";
@@ -51,9 +51,9 @@ export async function needsAttention(v: Caller): Promise<AttentionItem[]> {
     listWarranties(v, "expiring"),
     listClaims(v, { open: true }),
     v.db
-      .select({ id: item.id, analysis: attachment.analysis })
+      .select({ id: item.id, analysis: attachment.analysis, photoId: attachment.id })
       .from(item)
-      .leftJoin(attachment, and(eq(attachment.itemId, item.id), eq(attachment.kind, "photo")))
+      .leftJoin(attachment, and(eq(attachment.itemId, item.id), eq(attachment.kind, "photo"), isNull(attachment.deletedAt)))
       .where(and(itemScope(v), eq(item.name, PLACEHOLDER))),
     listLoans(v),
     listRecalls(v),
@@ -177,7 +177,10 @@ export async function needsAttention(v: Caller): Promise<AttentionItem[]> {
   const seen = new Set<string>();
   for (const u of unnamed) {
     if (seen.has(u.id)) continue;
-    const named = unnamed.find((x) => x.id === u.id && x.analysis?.suggestions.name)?.analysis?.suggestions.name;
+    const read = unnamed.find((x) => x.id === u.id && x.analysis?.suggestions.name);
+    const named = read?.analysis?.suggestions.name;
+    // The photo it was made from, shown beside it: several taken in a row are told apart by the picture.
+    const photoId = read?.photoId ?? unnamed.find((x) => x.id === u.id && x.photoId)?.photoId;
     seen.add(u.id);
     out.push({
       kind: "review",
@@ -187,6 +190,7 @@ export async function needsAttention(v: Caller): Promise<AttentionItem[]> {
       detail: named ? "Added from a photo — confirm what it is" : "Added from a photo, still being read",
       itemId: u.id,
       date: null,
+      ...(photoId ? { photoId } : {}),
     });
   }
 
