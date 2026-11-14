@@ -37,6 +37,12 @@ const MAX_TEXT = 200_000;
 const THIN_BELOW = 400;
 /** Room for the reasoning and the short JSON reply when reading a document's text (about 700 tokens on a receipt). */
 const DOCUMENT_REPLY_TOKENS = 4000;
+/**
+ * A photo's (or a scanned page's) reply, transcription included (a busy label ≈ 2,300 tokens on qwen3-vl). Now and then
+ * the vision model repeats itself until stopped: capped, it stops in a few minutes instead of at the timeout, and the
+ * second, less strict try (adapters' jsonReply) follows straight away in the same job.
+ */
+const VISION_REPLY_TOKENS = 6000;
 /** What's left of docling's Markdown once its placeholders (`<!-- image -->`), markup and spaces are gone. */
 const readableLength = (markdown: string) => markdown.replace(/<!--[\s\S]*?-->/g, "").replace(/[\s#*_|>`-]/g, "").length;
 const PROMPT_TEXT = 12_000;
@@ -337,13 +343,13 @@ export function analyzeAttachment(deps: {
       const preview = row.contentType.startsWith("image/") ? await deps.files.get(row.householdId, previewKey(row.blobKey)).catch(() => null) : null;
       if (scanned) {
         asked = true;
-        analysis = toAnalysis(await deps.ai!.json({ prompt: imagePrompt(kind, await householdCurrency(deps.db, row.householdId)), schema: replySchema, image: { data: scanned, contentType: "image/jpeg" } }));
+        analysis = toAnalysis(await deps.ai!.json({ prompt: imagePrompt(kind, await householdCurrency(deps.db, row.householdId)), schema: replySchema, image: { data: scanned, contentType: "image/jpeg" }, maxTokens: VISION_REPLY_TOKENS }));
       } else if (row.contentType.startsWith("image/") && deps.ai && (preview || deps.images)) {
         const image = preview ?? (await deps.images!.resize(bytes, VISION_PX, "jpeg"));
         if (image) {
           asked = true;
           const contentType = preview ? (sniffContentType(preview) ?? "image/jpeg") : "image/jpeg";
-          analysis = toAnalysis(await deps.ai.json({ prompt: imagePrompt(kind, await householdCurrency(deps.db, row.householdId)), schema: replySchema, image: { data: image, contentType } }));
+          analysis = toAnalysis(await deps.ai.json({ prompt: imagePrompt(kind, await householdCurrency(deps.db, row.householdId)), schema: replySchema, image: { data: image, contentType }, maxTokens: VISION_REPLY_TOKENS }));
         }
       } else if (markdown && (deps.chat ?? deps.ai)) {
         asked = true;
