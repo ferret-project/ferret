@@ -24,6 +24,8 @@ import { ITEMS_HREF, addedHref, itemHref, missingHref } from "./lib/route";
 import { navigateTo } from "./lib/navigate";
 import { Mascot } from "./Mascot";
 import { t, ph, plural, msg } from "@lingui/core/macro";
+import { useFeatures } from "./lib/features";
+import { usePlan } from "./PlanUsage";
 import { Trans } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
 
@@ -253,9 +255,17 @@ export function Everything(props: { householdId: string; missing?: MissingDetail
           )}
           {result && (
         <div className={`alert alert-soft ${result.failed.length ? "alert-warning" : "alert-success"} text-sm`} role="status">
+          {result.queued !== undefined
+            ? result.queued > 0
+              ? plural(result.queued, { one: "# file queued for the AI to read", other: "# files queued for the AI to read" })
+              : t`Nothing there was waiting to be read`
+            : null}
+          {result.queued !== undefined && result.failed.length > 0 && " · "}
           {result.failed.length > 0
-            ? t`${ph({ done: result.done })} changed · ${ph({ failed: result.failed.length })} couldn't be: ${ph({ reasons: [...new Set(result.failed.map((f) => f.reason))].join("; ") })}`
-            : t`${ph({ done: result.done })} changed`}
+            ? result.queued !== undefined
+              ? t`${ph({ failed: result.failed.length })} couldn't be: ${ph({ reasons: [...new Set(result.failed.map((f) => f.reason))].join("; ") })}`
+              : t`${ph({ done: result.done })} changed · ${ph({ failed: result.failed.length })} couldn't be: ${ph({ reasons: [...new Set(result.failed.map((f) => f.reason))].join("; ") })}`
+            : result.queued === undefined && t`${ph({ done: result.done })} changed`}
           <button type="button" className="btn btn-text btn-xs ms-auto" onClick={() => setResult(null)} aria-label={t`Dismiss`}>
             <span className="icon-[tabler--x] size-4" />
           </button>
@@ -680,12 +690,16 @@ export function Pager(props: { page: number; pages: number; total: number; onPag
   );
 }
 
-type BulkAction = "move" | "category" | "tag" | "untag" | "delete";
+type BulkAction = "move" | "category" | "tag" | "untag" | "analyze" | "delete";
 
 /** What to do with the ticked things. */
 function BulkBar(props: { householdId: string; ids: string[]; rows: ItemListing[]; onClear: () => void; onDone: (r: ItemsBulkResult) => void }) {
   const [action, setAction] = useState<BulkAction | null>(null);
   const n = props.ids.length;
+  // The AI can read what they hold: a model on this server, and AI in the household's plan.
+  const features = useFeatures();
+  const plan = usePlan(props.householdId);
+  const aiOn = Boolean(features?.textAi) && (plan.data?.plan?.limits.ai ?? true);
   return (
     <>
       <div className="sticky top-18 z-[5] flex flex-wrap items-center gap-2 rounded-box border border-primary/30 bg-base-100 p-2 shadow-sm" role="region" aria-label={t`Selected`}>
@@ -708,6 +722,12 @@ function BulkBar(props: { householdId: string; ids: string[]; rows: ItemListing[
           <span className="icon-[tabler--tag-off] size-4" />
           <Trans>Remove tag</Trans>
         </button>
+        {aiOn && (
+          <button type="button" className="btn btn-soft btn-primary btn-sm" onClick={() => setAction("analyze")}>
+            <span className="icon-[tabler--sparkles] size-4" />
+            <Trans>Analyze</Trans>
+          </button>
+        )}
         <button type="button" className="btn btn-soft btn-error btn-sm" onClick={() => setAction("delete")}>
           <span className="icon-[tabler--trash] size-4" />
           <Trans>Delete</Trans>
@@ -738,6 +758,7 @@ const BULK_TITLES: Record<BulkAction, MessageDescriptor> = {
   category: msg`Set the category`,
   tag: msg`Add a tag`,
   untag: msg`Remove a tag`,
+  analyze: msg`Analyze their photos and documents?`,
   delete: msg`Delete these?`,
 };
 
@@ -766,8 +787,8 @@ function BulkDialog(props: {
           ? { action: "move", ids, locationId: place }
           : props.action === "category"
             ? { action: "category", ids, categoryId: category }
-            : props.action === "delete"
-              ? { action: "delete", ids }
+            : props.action === "delete" || props.action === "analyze"
+              ? { action: props.action, ids }
               : { action: props.action, ids, tag: tag.trim() };
       return api.bulkItems(input);
     },
@@ -777,6 +798,8 @@ function BulkDialog(props: {
         qc.invalidateQueries({ queryKey: ["places", props.householdId] }),
         qc.invalidateQueries({ queryKey: ["overview", props.householdId] }),
         qc.invalidateQueries({ queryKey: ["tags"] }),
+        qc.invalidateQueries({ queryKey: ["attachments", props.householdId] }),
+        qc.invalidateQueries({ queryKey: ["plan", props.householdId] }),
       ]);
       props.onDone(r);
     },
@@ -827,6 +850,14 @@ function BulkDialog(props: {
             {onThem.length === 0 && <p className="mt-1 text-sm text-base-content/70"><Trans>None of them has a tag.</Trans></p>}
           </div>
         )}
+        {props.action === "analyze" && (
+          <p className="text-base-content/80">
+            <Trans>
+              For {things}, the AI reads each photo and document it hasn't read yet, or couldn't read before, one at a time in
+              the background. What it finds waits on each thing's page as suggestions. Each file counts as an AI action.
+            </Trans>
+          </p>
+        )}
         {props.action === "delete" && (
           <p className="text-base-content/80">
             <Trans>{things} go to <a className="link link-primary" href="#/deleted">Recently deleted</a>, where they can be brought back for 30 days.</Trans>
@@ -839,7 +870,7 @@ function BulkDialog(props: {
           </button>
           <button className={`btn ${props.action === "delete" ? "btn-error" : "btn-primary"}`} disabled={!ready || run.isPending}>
             {run.isPending && <span className="loading loading-spinner loading-xs" />}
-            {props.action === "delete" ? t`Delete ${things}` : props.action === "move" ? t`Move ${things}` : t`Save`}
+            {props.action === "delete" ? t`Delete ${things}` : props.action === "move" ? t`Move ${things}` : props.action === "analyze" ? t`Analyze` : t`Save`}
           </button>
         </DialogActions>
       </form>

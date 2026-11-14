@@ -179,6 +179,48 @@ describe("photo analysis", () => {
   });
 });
 
+describe("analyzing many things at once (bulk analyze)", () => {
+  it("queues only what hasn't been read: never asked or failed, not read, not only a small copy", async () => {
+    const ai = new FakeAi([drillReply, drillReply, drillReply, drillReply, drillReply]);
+    const { db, jobs, user } = await setup({ ai });
+    const pat = await user("pat");
+    const drill = await pat.addItem({ name: "Drill" });
+    const empty = await pat.addItem({ name: "Nothing attached" });
+    const read = await pat.upload(drill.id, await photo(), "read.jpg");
+    const never = await pat.upload(drill.id, await photo(), "never.jpg");
+    const failed = await pat.upload(drill.id, await photo(), "failed.jpg");
+    const small = await pat.upload(drill.id, await photo(), "small.jpg");
+    await jobs.drain();
+    expect(ai.calls).toHaveLength(4);
+    await db.update(attachment).set({ analysisStatus: null }).where(eq(attachment.id, never.id));
+    await db.update(attachment).set({ analysisStatus: "failed" }).where(eq(attachment.id, failed.id));
+    await db.update(attachment).set({ analysisStatus: null, originalRemovedAt: new Date() }).where(eq(attachment.id, small.id));
+
+    const res = await pat.as("/api/v1/items/bulk", { method: "POST", body: JSON.stringify({ action: "analyze", ids: [drill.id, empty.id, "made-up"] }) });
+    expect(res.status).toBe(200);
+    const out = (await res.json()) as { done: number; queued: number; failed: { id: string }[] };
+    expect(out).toMatchObject({ done: 2, queued: 2 });
+    expect(out.failed.map((f) => f.id)).toEqual(["made-up"]);
+    const status = Object.fromEntries((await pat.attachments(drill.id)).map((a) => [a.id, a.analysisStatus]));
+    expect(status).toEqual({ [read.id]: "done", [never.id]: "pending", [failed.id]: "pending", [small.id]: null });
+
+    await jobs.drain();
+    expect(ai.calls).toHaveLength(6);
+    // Read now: asking again queues nothing.
+    const again = await pat.as("/api/v1/items/bulk", { method: "POST", body: JSON.stringify({ action: "analyze", ids: [drill.id] }) });
+    expect(await again.json()).toMatchObject({ done: 1, queued: 0 });
+  });
+
+  it("queues nothing where analysis isn't set up", async () => {
+    const env = await setup();
+    const sam = await env.user("sam");
+    const drill = await sam.addItem({ name: "Drill" });
+    await sam.upload(drill.id, await photo(), "drill.jpg");
+    const res = await sam.as("/api/v1/items/bulk", { method: "POST", body: JSON.stringify({ action: "analyze", ids: [drill.id] }) });
+    expect(await res.json()).toMatchObject({ done: 1, queued: 0, failed: [] });
+  });
+});
+
 describe("document analysis (docling)", () => {
   it("transcribes a PDF with docling, then reads suggestions from the text", async () => {
     const ai = new FakeAi([receiptReply]);

@@ -145,7 +145,7 @@ export const OPERATIONS: Operation[] = [
   { method: "get", path: "/items/{id}/usage", tag: "Maintenance", summary: "Maintenance by use: what the item counts (miles, hours…), its readings (newest first), the latest, and how fast it goes up per day", returns: "UsageSummary" },
   { method: "post", path: "/items/{id}/usage", tag: "Maintenance", summary: "Log a reading (odometer, hour meter): its maintenance by use is rescheduled from it", body: usageReadingInput, writes: true, returns: "UsageReading" },
   { method: "delete", path: "/usage/{id}", tag: "Maintenance", summary: "Remove a reading (a typo)", writes: true },
-  { method: "post", path: "/items/bulk", tag: "Items", summary: "One change to up to 200 things: move (locationId), category (categoryId), tag, untag (tag) or delete", body: itemsBulk, writes: true, returns: "ItemsBulkResult" },
+  { method: "post", path: "/items/bulk", tag: "Items", summary: "One change to up to 200 things: move (locationId), category (categoryId), tag, untag (tag), delete, or analyze (queue the AI for their unread photos and documents)", body: itemsBulk, writes: true, returns: "ItemsBulkResult" },
   {
     method: "patch",
     path: "/items/{id}",

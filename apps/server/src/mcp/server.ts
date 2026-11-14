@@ -888,9 +888,9 @@ function buildServer(v: McpCaller) {
     {
       title: "Change many things at once",
       description:
-        "Makes one change to up to 200 items in one go: move them to a location (action move, locationId; null: no location), give them a category (category, categoryId; null: none), or add or remove a tag (tag / untag, tag). Use it for \"move everything on the garage shelf to the basement\" — get the ids from list_items or search_inventory first, and say what you're about to change before doing it. Things inside a box move with the box; move the box itself. Returns how many were changed and which failed, and why. To delete items use remove, one at a time.",
+        "Makes one change to up to 200 items in one go: move them to a location (action move, locationId; null: no location), give them a category (category, categoryId; null: none), add or remove a tag (tag / untag, tag), or have the AI read their photos and documents that haven't been read yet (analyze: never read, or it failed; each counts as an AI action; their suggestions then show on each item). Use it for \"move everything on the garage shelf to the basement\" — get the ids from list_items or search_inventory first, and say what you're about to change before doing it. Things inside a box move with the box; move the box itself. Returns how many were changed (for analyze, how many files were queued) and which failed, and why. To delete items use remove, one at a time.",
       inputSchema: z.object({
-        action: z.enum(["move", "category", "tag", "untag"]).describe("What to do to every one of them"),
+        action: z.enum(["move", "category", "tag", "untag", "analyze"]).describe("What to do to every one of them"),
         ids: z.array(z.string().min(1)).min(1).max(200).describe("The items' ids, from list_items or search_inventory"),
         locationId: z.string().min(1).nullable().optional().describe("For move: where to, from list_locations; null: no location"),
         categoryId: z.string().min(1).nullable().optional().describe("For category: the category, from list_categories; null: none"),
@@ -902,7 +902,7 @@ function buildServer(v: McpCaller) {
       run(async () => {
         const parsed = itemsBulk.safeParse(input);
         if (!parsed.success) {
-          const need = { move: "locationId", category: "categoryId", tag: "tag", untag: "tag" }[input.action];
+          const need = { move: "locationId", category: "categoryId", tag: "tag", untag: "tag", analyze: "ids" }[input.action];
           throw new HTTPException(422, { message: `${input.action} needs ${need}` });
         }
         return svc.bulkItems(v, parsed.data);

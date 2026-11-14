@@ -13,7 +13,7 @@ import { PDF_THUMB_JOB } from "../jobs/pdf-thumbnail";
 import { isOff } from "./demo-switches";
 import type { FileStore } from "./files";
 import { type Caller, itemChanged, logActivity } from "./inventory";
-import { allow, requireRoom } from "./plan";
+import { allow, requireAllowed, requireRoom } from "./plan";
 import { sniffContentType } from "./sniff";
 
 export const attachmentFields = {
@@ -33,6 +33,58 @@ export const attachmentFields = {
   mainAt: attachment.mainAt,
   repairId: attachment.repairId,
 };
+
+/**
+ * Asks the model to read a photo or document again (after a failure, a better model, or never read at all): checks it
+ * can be (not only the small copy kept, analysis set up for its kind, the plan's AI allowance) and queues it.
+ */
+export async function analyzeAgain(v: Caller, attachmentId: string) {
+  const where = and(eq(attachment.id, attachmentId), eq(attachment.householdId, v.householdId), isNull(attachment.deletedAt));
+  const [found] = await v.db
+    .select({ kind: attachment.kind, contentType: attachment.contentType, originalRemovedAt: attachment.originalRemovedAt })
+    .from(attachment)
+    .where(where);
+  if (!found) throw new HTTPException(404, { message: "Attachment not found" });
+  if (found.originalRemovedAt) throw new HTTPException(409, { message: "Only a small copy of this is kept, so it can't be read again" });
+  const job = analysisJob(v.deps, found.kind as AttachmentKind, found.contentType);
+  if (!job) throw new HTTPException(409, { message: "Analysis for this kind of file isn't set up on this server" });
+  await requireAllowed(v, found.kind === "photo" ? "ai.photo" : "ai.document");
+  const [row] = await v.db.update(attachment).set({ analysisStatus: "pending", suggestionsDismissedAt: null }).where(where).returning(attachmentFields);
+  await v.deps.jobs!.enqueue(job, { attachmentId: row!.id });
+  return row!;
+}
+
+/**
+ * Queues every photo and document of an item that hasn't been read — never asked (added before AI was set up, or while
+ * the plan had none left) or failed — leaving alone what's read or being read, and files only kept as a small copy.
+ * Bulk "Analyze" (Everything's bar). Returns how many were queued; a 402 (allowance used up) stops it there.
+ */
+export async function analyzeUnread(v: Caller, itemId: string) {
+  const [found] = await v.db
+    .select({ id: item.id })
+    .from(item)
+    .where(and(eq(item.id, itemId), eq(item.householdId, v.householdId), isNull(item.deletedAt)));
+  if (!found) throw new HTTPException(404, { message: "Item not found" });
+  const unread = await v.db
+    .select({ id: attachment.id, kind: attachment.kind, contentType: attachment.contentType })
+    .from(attachment)
+    .where(
+      and(
+        eq(attachment.itemId, itemId),
+        eq(attachment.householdId, v.householdId),
+        isNull(attachment.deletedAt),
+        isNull(attachment.originalRemovedAt),
+        sql`coalesce(${attachment.analysisStatus}, 'failed') = 'failed'`,
+      ),
+    );
+  let queued = 0;
+  for (const a of unread) {
+    if (!analysisJob(v.deps, a.kind as AttachmentKind, a.contentType)) continue; // e.g. a document with no reader here
+    await analyzeAgain(v, a.id);
+    queued++;
+  }
+  return queued;
+}
 
 /** Makes a photo its item's main photo — its picture in lists, first on its page. */
 export async function setMainPhoto(v: Caller, attachmentId: string) {

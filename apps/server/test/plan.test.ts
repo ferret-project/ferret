@@ -159,6 +159,24 @@ describe("a plan's limits", () => {
     expect(ai.calls).toHaveLength(1);
   });
 
+  it("bulk analyze stops once the AI allowance is used up, saying so for the rest", async () => {
+    const { entitlements } = plans({ aiActions: 2 });
+    const ai = new FakeAi([describePhoto]);
+    const env = await setup({ ai, entitlements });
+    const pat = await env.user("pat");
+    const drill = await pat.addItem({ name: "Drill" });
+    const saw = await pat.addItem({ name: "Saw" });
+    await pat.upload(drill.id, await photo(), "a.jpg");
+    await env.jobs.drain(); // a photo is 2 actions: all of them
+    const unread = await pat.upload(saw.id, await photo(), "b.jpg");
+    expect(unread.analysisStatus).toBeNull();
+    const res = await pat.as("/api/v1/items/bulk", { method: "POST", body: JSON.stringify({ action: "analyze", ids: [saw.id, drill.id] }) });
+    const out = (await res.json()) as { done: number; queued: number; failed: { id: string; reason: string }[] };
+    expect(out).toMatchObject({ done: 0, queued: 0 });
+    expect(out.failed.map((f) => f.id)).toEqual([saw.id, drill.id]);
+    expect(out.failed[0]!.reason).toMatch(/used up/);
+  });
+
   it("shows the service's billing pages and links only to the owner", async () => {
     const { entitlements } = plans();
     const env = await setup({ entitlements });

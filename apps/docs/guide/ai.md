@@ -14,6 +14,9 @@ thing's page (**Analyze again**); a document has a refresh button (**Read it aga
 even ones you dismissed, and it counts as an AI action again. Files whose original was removed to save space (only the
 small copy is kept) can't be read again.
 
+For many at once, tick them in **Everything**'s table and choose **Analyze**: it reads only what hasn't been read yet
+(or couldn't be), and leaves the rest alone ([Changing many things at once](./finding-things#changing-many-things-at-once)).
+
 ## Let AI fill in
 
 Normally what the AI reads from a photo or receipt waits on the thing's page as a suggestion, for you to apply. Under

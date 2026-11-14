@@ -29,17 +29,15 @@ import { createMiddleware } from "hono/factory";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import { attachment, item, user, warranty } from "../db/schema";
-import { analysisJob } from "../jobs/analyze";
 import { dismissSuggestedPart, itemParts } from "../lib/parts";
 import { countEvent } from "../lib/analytics";
 import { type AppEnv, body, callerOf, requireHousehold, requireUser, requireWriter } from "../lib/context";
 import * as svc from "../lib/inventory";
 import { ownLabelsOf } from "../lib/own-labels";
-import { requireAllowed } from "../lib/plan";
 import { roomScansAvailable } from "../lib/room-scans";
 import { itemChanged, logActivity, withStatus } from "../lib/inventory";
 import { categoryDescendants, findTag } from "../lib/catalog";
-import { addAttachment, attachmentFields, setMainPhoto } from "../lib/attachments";
+import { addAttachment, analyzeAgain, attachmentFields, setMainPhoto } from "../lib/attachments";
 import { sniffContentType } from "../lib/sniff";
 import { isServerAdmin } from "../lib/server-admin";
 import { itemHistory } from "../lib/history";
@@ -376,30 +374,8 @@ async function serveAttachment(c: Context<AppEnv>, variant: "original" | "thumbn
   });
 }
 
-/** Analyses an attachment again (e.g. after a failure). */
-inventory.post("/attachments/:id/analyze", requireWriter, async (c) => {
-  const where = and(
-    eq(attachment.id, c.req.param("id")),
-    eq(attachment.householdId, c.var.householdId),
-    isNull(attachment.deletedAt),
-  );
-  const [found] = await c.var.db
-    .select({ kind: attachment.kind, contentType: attachment.contentType, originalRemovedAt: attachment.originalRemovedAt })
-    .from(attachment)
-    .where(where);
-  if (!found) throw new HTTPException(404, { message: "Attachment not found" });
-  if (found.originalRemovedAt) throw new HTTPException(409, { message: "Only a small copy of this is kept, so it can't be read again" });
-  const job = analysisJob(c.var.deps, found.kind as AttachmentKind, found.contentType);
-  if (!job) throw new HTTPException(409, { message: "Analysis for this kind of file isn't set up on this server" });
-  await requireAllowed(callerOf(c), found.kind === "photo" ? "ai.photo" : "ai.document");
-  const [row] = await c.var.db
-    .update(attachment)
-    .set({ analysisStatus: "pending", suggestionsDismissedAt: null })
-    .where(where)
-    .returning(attachmentFields);
-  await c.var.deps.jobs!.enqueue(job, { attachmentId: row!.id });
-  return c.json(row, 202);
-});
+/** Analyses an attachment again (after a failure, or to have it read afresh). */
+inventory.post("/attachments/:id/analyze", requireWriter, async (c) => c.json(await analyzeAgain(callerOf(c), c.req.param("id")), 202));
 
 inventory.post("/attachments/:id/dismiss-suggestions", requireWriter, async (c) => {
   const [row] = await c.var.db

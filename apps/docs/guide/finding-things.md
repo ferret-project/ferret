@@ -95,6 +95,9 @@ Tick the things in the table (the box in the heading ticks the whole page), then
 - **Move** — to another place. Things in a box come out of it; a box takes its contents along.
 - **Category** — give them all one category.
 - **Tag** / **Remove tag**.
+- **Analyze** — the AI reads their photos and documents it hasn't read yet: ones added before the AI was set up, or
+  that it couldn't read. They go one at a time in the background, and the suggestions wait on each thing's page. Shown
+  when your server has AI ([AI helpers](./ai#reading-a-photo-or-document-again)).
 - **Delete** — they go to Recently deleted, where they can be brought back for 30 days.
 
 Each thing's history records the change. Viewers see the table without the tick boxes.

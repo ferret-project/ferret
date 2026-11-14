@@ -3,6 +3,7 @@
  * tools (mcp/tools.ts) both do, so the app and Claude always agree. Every
  * function acts for one caller in one household and filters by its householdId.
  */
+import { analyzeUnread } from "./attachments";
 import { sightingsOf } from "./sightings";
 import { trackingSummary } from "./room-reviews";
 import { replacementForecast } from "./lifespans";
@@ -1049,14 +1050,17 @@ export async function deleteItem(v: Caller, id: string) {
 }
 
 /**
- * One change to many things (the table view): move them, set their category, add or remove a tag, or delete them —
- * each through the same path as one at a time (placement checks, history, search), so a box moved takes its contents.
+ * One change to many things (the table view): move them, set their category, add or remove a tag, delete them, or have
+ * the AI read their unread photos and documents — each through the same path as one at a time (placement checks,
+ * history, search, the AI allowance), so a box moved takes its contents.
  */
 export async function bulkItems(v: Caller, input: ItemsBulk): Promise<ItemsBulkResult> {
-  const out: ItemsBulkResult = { done: 0, failed: [] };
-  for (const id of [...new Set(input.ids)]) {
+  const out: ItemsBulkResult = { done: 0, failed: [], ...(input.action === "analyze" ? { queued: 0 } : {}) };
+  const ids = [...new Set(input.ids)];
+  for (const [i, id] of ids.entries()) {
     try {
       if (input.action === "delete") await deleteItem(v, id);
+      else if (input.action === "analyze") out.queued! += await analyzeUnread(v, id);
       else if (input.action === "move") await updateItem(v, id, { locationId: input.locationId, containerItemId: null });
       else if (input.action === "category") await updateItem(v, id, { categoryId: input.categoryId });
       else {
@@ -1070,6 +1074,11 @@ export async function bulkItems(v: Caller, input: ItemsBulk): Promise<ItemsBulkR
       out.done++;
     } catch (err) {
       out.failed.push({ id, reason: err instanceof HTTPException ? err.message : "Couldn't be changed" });
+      // The AI allowance is used up: the rest would only say so again.
+      if (err instanceof HTTPException && err.status === 402) {
+        for (const rest of ids.slice(i + 1)) out.failed.push({ id: rest, reason: err.message });
+        break;
+      }
     }
   }
   return out;

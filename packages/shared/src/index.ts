@@ -1925,11 +1925,15 @@ export const itemsBulk = z.discriminatedUnion("action", [
   z.object({ action: z.literal("tag"), ids: z.array(z.string().min(1)).min(1).max(200), tag: tagName }),
   z.object({ action: z.literal("untag"), ids: z.array(z.string().min(1)).min(1).max(200), tag: tagName }),
   z.object({ action: z.literal("delete"), ids: z.array(z.string().min(1)).min(1).max(200) }),
+  /** Queue the AI for their photos and documents that haven't been read (never, or it failed). */
+  z.object({ action: z.literal("analyze"), ids: z.array(z.string().min(1)).min(1).max(200) }),
 ]);
 export type ItemsBulk = z.infer<typeof itemsBulk>;
 export interface ItemsBulkResult {
   done: number;
   failed: { id: string; reason: string }[];
+  /** analyze: how many photos and documents were queued (things with nothing unread count as done, with none). */
+  queued?: number;
 }
 
 // ── Household settings ──────────────────────────────────────────────────────
