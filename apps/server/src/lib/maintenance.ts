@@ -259,15 +259,18 @@ export async function markDone(v: Caller, id: string, input: MaintenanceDone) {
   const providerId = input.providerId !== undefined ? input.providerId : task.providerId;
   await checkProvider(v, providerId);
   if (doneOn > todayFor(v)) throw new HTTPException(422, { message: "That's in the future — mark it done once it's done" });
-  await v.db.insert(maintenanceLog).values({
-    householdId: v.householdId,
-    taskId: id,
-    doneOn,
-    doneBy: v.userId,
-    providerId: providerId ?? null,
-    note: input.note ?? null,
-    costCents: input.costCents ?? null,
-  });
+  const [log] = await v.db
+    .insert(maintenanceLog)
+    .values({
+      householdId: v.householdId,
+      taskId: id,
+      doneOn,
+      doneBy: v.userId,
+      providerId: providerId ?? null,
+      note: input.note ?? null,
+      costCents: input.costCents ?? null,
+    })
+    .returning({ id: maintenanceLog.id });
   const repeats = task.intervalCount && task.intervalUnit;
   const lastDoneOn = !task.lastDoneOn || doneOn > task.lastDoneOn ? doneOn : task.lastDoneOn;
   const timeDueOn = repeats ? nextDue(lastDoneOn, task.intervalCount!, task.intervalUnit!) : null;
@@ -291,7 +294,8 @@ export async function markDone(v: Caller, id: string, input: MaintenanceDone) {
     const [stillThere] = await v.db.select({ id: item.id }).from(item).where(and(eq(item.id, task.partItemId), itemScope(v)));
     if (stillThere) await adjustStock(v, task.partItemId, -task.partQuantity, "maintenance", `For ${task.title}`);
   }
-  return getTask(v, id);
+  // The record just made (its invoice or photos can be added to it: POST /attachments with doneId).
+  return { ...(await getTask(v, id)), doneId: log!.id };
 }
 
 /** When a task was done, newest first. */

@@ -23,6 +23,7 @@ import { HouseholdContext, useHousehold } from "./lib/household";
 import { type Choice, ItemPicker } from "./Combobox";
 import { Outlet, useSearch } from "@tanstack/react-router";
 import { Breadcrumbs, PlaceTiles, PropertyCards, PropertyHeader } from "./Browse";
+import { FilesSection } from "./Files";
 import { MISSING_LABELS, OverviewSections } from "./Overview";
 import { ReviewRoomLink } from "./Tracking";
 import { CategoryTiles, categoryIcon, flattenCategories, useCategories } from "./Catalog";
@@ -1161,6 +1162,8 @@ export function Home({ householdName, householdId, view }: { householdName: stri
                   <Trans>No rooms yet.</Trans>{canEdit && <> <Trans>Add them under <a className="link link-primary" href={PLACES_HREF}>Places</a></Trans>.</>}
                 </p>
               )}
+              {/* The house's own papers: deed, insurance policy, inspection report… */}
+              <FilesSection key={property.id} of={{ propertyId: property.id }} householdId={householdId} title={t`Documents & photos`} />
             </>
           ) : (
             places.data && <NotFound what="property" wrap={false} />
@@ -1187,6 +1190,8 @@ export function Home({ householdName, householdId, view }: { householdName: stri
             {/* "Review this room" — and when it last was (Tracking.tsx). */}
             <ReviewRoomLink locationId={view.locationId} householdId={householdId} />
             {place && place.node.children.length > 0 && <PlaceTiles nodes={place.node.children} title={t`Inside ${ph({ name: place.node.name })}`} />}
+            {/* The room's own: an inspection report, before/after photos of work done in it… */}
+            <FilesSection key={view.locationId} of={{ locationId: view.locationId }} householdId={householdId} title={t`Documents & photos`} />
           </>
         )}
 

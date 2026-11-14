@@ -16,6 +16,15 @@ Open a property or a room to see what's in it, with the places inside it as tile
 in the places inside it — *12 things (3 here)* means 3 are kept in the room itself and 9 on its shelves, in its closets
 and so on. **Places** shows the same counts beside each place.
 
+### Documents and photos of a place {#files}
+
+Some papers belong to the house rather than to a thing in it: the deed, the insurance policy, a home inspection report,
+the paint colours, photos of the wiring before the wall was closed up. Open the property or the room and tap **Add a
+document or photo** (or **Add** beside **Documents & photos** once it has some). They're kept encrypted like a thing's
+files and come with [Download everything](./download-everything). Removing a place or a property takes its files to
+[Recently deleted](./recently-deleted) with it. Ferret's AI doesn't read these: only a thing's photos and documents
+become suggestions.
+
 ## Boxes
 
 A box, bin or case is an item marked **This is a box, bin or case**. Things go *in* a box rather than in a room, and

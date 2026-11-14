@@ -25,6 +25,14 @@ or pick one of its places for them.
 Tap **Done** when it's done: say when, who did it and what it cost. The next due date moves on from the day it was
 actually done — so a job done late doesn't come due again too soon. A one-off is finished once it's done.
 
+**Invoice or photos** in the same dialog keeps the paperwork with that time it was done: the plumber's invoice, a
+photo of the new filter's size. For a thing's maintenance they're on the thing's page too. To add one later, open the
+task and tap the paperclip beside that day under **Done before**. A task for the whole house (*Clean the gutters*) can
+have documents of its own as well — a quote, the how-to — under **Add a document or photo** in the task.
+
+An inspection is just this: a task (*Home inspection*, every few years, or once), done, with the report and photos
+added.
+
 Each task keeps its history, and the item's page shows its maintenance.
 
 ## By the month {#month}

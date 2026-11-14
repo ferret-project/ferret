@@ -66,6 +66,7 @@ import type {
   ExportRow,
   Attachment,
   AttachmentKind,
+  FileOwnerQuery,
   Item,
   ItemInput,
   ItemListing,
@@ -199,6 +200,20 @@ async function upload(itemId: string, file: File, kind: AttachmentKind, onProgre
     if (copies.preview) form.set("preview", copies.preview, "preview");
     xhr.send(form);
   });
+}
+
+/** A photo or document for a property, a place, a maintenance task or a done record (not read by the AI). */
+async function uploadFile(of: FileOwnerQuery, file: File, kind: AttachmentKind) {
+  const form = new FormData();
+  form.set("file", file);
+  form.set("kind", kind);
+  for (const [k, v] of Object.entries(of)) if (v) form.set(k, v);
+  const thumbnail = (await photoCopies(file)).thumbnail;
+  if (thumbnail) form.set("thumbnail", thumbnail, "thumbnail");
+  const res = await fetch("/api/v1/attachments", { method: "POST", body: form, credentials: "include" });
+  const json = (await res.json().catch(() => null)) as Attachment | ApiError | null;
+  if (!res.ok) throw Object.assign(new Error((json as ApiError | null)?.error?.message ?? t`Upload failed (${ph({ status: res.status })})`), { status: res.status });
+  return json as Attachment;
 }
 
 /** A room scan's photos: the browser's 1600 px copy when it can make one (what the server would keep anyway). */
@@ -562,7 +577,7 @@ export const api = {
     request<MaintenanceTask>(`/maintenance/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
   deleteMaintenance: (id: string) => request<void>(`/maintenance/${id}`, { method: "DELETE" }),
   maintenanceDone: (id: string, input: MaintenanceDone) =>
-    request<MaintenanceTask>(`/maintenance/${id}/done`, { method: "POST", body: JSON.stringify(input) }),
+    request<MaintenanceTask & { doneId: string }>(`/maintenance/${id}/done`, { method: "POST", body: JSON.stringify(input) }),
   maintenanceHistory: (id: string) => request<{ data: MaintenanceLogEntry[] }>(`/maintenance/${id}/history`),
   calendarStatus: () =>
     request<{ active: boolean; createdAt: string | null; url: string | null; webcal: string | null }>("/calendar"),
@@ -597,6 +612,9 @@ export const api = {
   dismissDownload: (id: string) => request<void>(`/downloads/${id}`, { method: "DELETE" }),
   listAttachments: (itemId: string) => request<{ data: Attachment[] }>(`/items/${itemId}/attachments`),
   uploadAttachment: upload,
+  /** A property's, a place's, a maintenance task's or a done record's files (one of them). */
+  listFiles: (of: FileOwnerQuery) => request<{ data: Attachment[] }>(`/attachments?${new URLSearchParams(of as Record<string, string>)}`),
+  uploadFile: uploadFile,
   deleteAttachment: (id: string) => request<void>(`/attachments/${id}`, { method: "DELETE" }),
   analyzeAttachment: (id: string) => request<Attachment>(`/attachments/${id}/analyze`, { method: "POST" }),
   dismissSuggestions: (id: string) => request<void>(`/attachments/${id}/dismiss-suggestions`, { method: "POST" }),

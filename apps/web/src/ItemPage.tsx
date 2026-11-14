@@ -39,6 +39,7 @@ import { money } from "./lib/money";
 import { CollectionBadge, CollectionBanner } from "./Collections";
 import { ItemMaintenance, maintenanceKey } from "./Maintenance";
 import { suggestedKey } from "./SuggestedMaintenance";
+import { FileIcon, formatSize } from "./Files";
 import { AiFilledCard } from "./AiFill";
 import { ReplacementCard } from "./Replacement";
 import { ClaimDialog } from "./Claims";
@@ -1077,17 +1078,4 @@ function UploadRow({ upload, onRetry, onDismiss }: { upload: Upload; onRetry: ()
   );
 }
 
-function FileIcon({ contentType }: { contentType: string }) {
-  const icon = contentType === "application/pdf" ? "icon-[tabler--file-type-pdf]" : "icon-[tabler--photo]";
-  return (
-    <span className="rounded-box border-base-content/20 text-base-content/80 flex size-9 shrink-0 items-center justify-center border">
-      <span className={`${icon} size-5`} />
-    </span>
-  );
-}
 
-function formatSize(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}

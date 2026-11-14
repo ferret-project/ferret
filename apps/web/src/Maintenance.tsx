@@ -10,7 +10,8 @@ import type { MaintenanceInput, MaintenanceTask } from "@ferret/shared";
 import { type IntervalUnit, addDays, intervalUnits, today } from "@ferret/shared/utils";
 import { everyText, spanText, usageText } from "./lib/words";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useState } from "react";
+import { type ChangeEvent, type FormEvent, useState } from "react";
+import { ACCEPT, DoneFiles, FilesSection, filesKey } from "./Files";
 import { api } from "./lib/api";
 import { useCanEdit } from "./lib/auth";
 import { type Choice, ItemPicker, PlacePicker } from "./Combobox";
@@ -311,14 +312,26 @@ const formatDate = (iso: string) =>
 /** Done: when (today by default), with an optional note and cost. */
 function DoneModal({ task, householdId, onClose }: { task: MaintenanceTask; householdId: string; onClose: () => void }) {
   const refresh = useRefresh(householdId);
+  const qc = useQueryClient();
   const [doneBy, setDoneBy] = useState<string | null>(task.providerId);
   const [usePart, setUsePart] = useState(true);
+  // The invoice or photos, added to the record once it's made (a thing's task: they go on the thing's page too).
+  const [picked, setPicked] = useState<File[]>([]);
+  const [filesFailed, setFilesFailed] = useState<string | null>(null);
   const done = useMutation({
-    mutationFn: (input: { doneOn: string; note: string | null; costCents: number | null; providerId: string | null; usePart: boolean; reading?: number }) =>
-      api.maintenanceDone(task.id, input),
-    onSuccess: async () => {
-      await refresh();
-      onClose();
+    mutationFn: async (input: { doneOn: string; note: string | null; costCents: number | null; providerId: string | null; usePart: boolean; reading?: number }) => {
+      const record = await api.maintenanceDone(task.id, input);
+      try {
+        for (const f of picked) await api.uploadFile({ doneId: record.doneId }, f, f.type.startsWith("image/") ? "photo" : "document");
+        return true;
+      } catch (err) {
+        setFilesFailed(err instanceof Error ? err.message : String(err));
+        return false;
+      }
+    },
+    onSuccess: async (filesAdded) => {
+      await Promise.all([refresh(), qc.invalidateQueries({ queryKey: filesKey(householdId) }), qc.invalidateQueries({ queryKey: ["attachments", householdId] })]);
+      if (filesAdded) onClose();
     },
   });
   function onSubmit(e: FormEvent<HTMLFormElement>) {
@@ -390,6 +403,22 @@ function DoneModal({ task, householdId, onClose }: { task: MaintenanceTask; hous
           </div>
         </div>
         <ProviderPicker householdId={householdId} id="done-by" label={t`Who did it`} value={doneBy} onChange={setDoneBy} noneLabel={t`We did`} />
+        <div>
+          <label className="label-text" htmlFor="done-files">
+            <Trans>Invoice or photos</Trans>
+          </label>
+          <input
+            id="done-files"
+            type="file"
+            className="input"
+            multiple
+            accept={ACCEPT}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setPicked(e.target.files ? [...e.target.files] : [])}
+          />
+          <p className="mt-1 text-sm text-base-content/70">
+            {task.itemId ? t`Optional. Kept with this record, and on ${ph({ name: task.itemName ?? t`the thing` })}'s page.` : t`Optional. Kept with this record.`}
+          </p>
+        </div>
         {task.part && (
           <label className="flex min-h-11 items-start gap-3">
             <input type="checkbox" className="checkbox checkbox-primary mt-0.5" checked={usePart} onChange={(e) => setUsePart(e.target.checked)} />
@@ -404,11 +433,16 @@ function DoneModal({ task, householdId, onClose }: { task: MaintenanceTask; hous
           </label>
         )}
         {done.isError && <div className="alert alert-soft alert-error">{done.error.message}</div>}
+        {filesFailed && (
+          <div className="alert alert-soft alert-warning">
+            <Trans>Marked done, but the files couldn't be added ({ph({ reason: filesFailed })}). Add them from the task's Done before list.</Trans>
+          </div>
+        )}
         <div className="flex flex-wrap items-center justify-end gap-4">
           <button type="button" className="btn btn-secondary btn-soft" onClick={onClose}>
-            <Trans>Cancel</Trans>
+            {filesFailed ? t`Close` : t`Cancel`}
           </button>
-          <button type="submit" className="btn btn-success" disabled={done.isPending}>
+          <button type="submit" className="btn btn-success" disabled={done.isPending || Boolean(filesFailed)}>
             {done.isPending && <span className="loading loading-spinner loading-sm" />}
             <Trans>Mark done</Trans>
           </button>
@@ -438,6 +472,8 @@ export function TaskModal(props: {
   const [providerId, setProviderId] = useState<string | null>(task?.providerId ?? null);
   const [part, setPart] = useState<Choice | null>(task?.part ? { id: task.part.itemId, label: task.part.name, detail: `${task.part.left} left` } : null);
   const history = useQuery({ queryKey: [...maintenanceKey(householdId), "history", task?.id], queryFn: () => api.maintenanceHistory(task!.id), enabled: Boolean(task) });
+  // Its files: a house-wide task's own, and every done record's (a thing's task keeps its own on the thing's page).
+  const taskFiles = useQuery({ queryKey: filesKey(householdId, { taskId: task?.id ?? "" }), queryFn: () => api.listFiles({ taskId: task!.id }), enabled: Boolean(task) });
   const initial = { ...props.initial, ...task };
   const [repeats, setRepeats] = useState(task ? Boolean(task.intervalCount) : props.initial ? Boolean(props.initial.intervalCount) : true);
   // By use: needs the item to count something (and a reading to count from — asked for here if there's none).
@@ -610,6 +646,10 @@ export function TaskModal(props: {
           </div>
         </fieldset>
 
+        {task && !task.itemId && (
+          <FilesSection of={{ taskId: task.id }} householdId={householdId} title={t`Documents & photos`} only={(f) => !f.doneId} />
+        )}
+
         {task && history.data && history.data.data.length > 0 && (
           <div className="space-y-2">
             <h4 className="text-sm font-medium text-base-content/70"><Trans>Done before</Trans></h4>
@@ -619,6 +659,7 @@ export function TaskModal(props: {
                   <span className="w-28 shrink-0 text-base-content/70">{formatDate(h.doneOn)}</span>
                   <span className="min-w-0 flex-1 text-base-content/80">
                     {[h.doneByName, h.note, h.costCents != null ? money(h.costCents, true) : null].filter(Boolean).join(" · ")}
+                    <DoneFiles householdId={householdId} taskId={task.id} doneId={h.id} files={taskFiles.data?.data ?? []} />
                   </span>
                 </li>
               ))}

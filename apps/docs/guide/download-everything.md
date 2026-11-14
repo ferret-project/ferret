@@ -10,7 +10,7 @@ opens without Ferret — to keep a copy of your own, to hand to someone, or to m
 |---|---|
 | `ferret.json` | Everything: properties and places, items with their warranties, claims, files, tags, custom fields and links, maintenance and its history, service providers, categories |
 | `items.csv` | The [insurance list](./insurance-report), for a spreadsheet |
-| `files/` | Every photo and document, in a folder per item, as uploaded |
+| `files/` | Every photo and document, in a folder per item, property, place or maintenance task, as uploaded |
 | `README.txt` | What's what |
 
 Things in [Recently deleted](./recently-deleted) are left out, and so are secrets (API keys, notification addresses).
