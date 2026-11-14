@@ -159,6 +159,9 @@ export async function purgeDeleted(p: Purger, now = Date.now()) {
     await p.db.update(maintenanceTask).set({ providerId: null }).where(inList(maintenanceTask.providerId, goneProviders));
   }
 
+  // Search rows of files no longer there (properties', places' and tasks' files are indexed on their own).
+  await p.db.run(sql`DELETE FROM file_search WHERE attachment_id NOT IN (SELECT id FROM attachment WHERE deleted_at IS NULL)`);
+
   // Dismissed room scans: their photos, then the rows (items found in them keep their place, just not the link).
   const roomScans = await purgeRoomScans(p, cutoff);
 

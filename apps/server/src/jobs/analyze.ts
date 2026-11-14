@@ -18,6 +18,7 @@ import { householdCurrency } from "../lib/household-time";
 import { suggestTasks } from "../lib/suggested-tasks";
 import { autoFill } from "../lib/ai-fill";
 import { MAX_TEXT_PAGES, withMissedPages } from "../lib/pdf-text";
+import { refreshFileSearch } from "../lib/fulltext";
 
 /** Separate job types so a long PDF never holds up photos (each type is its own lane). */
 export const PHOTO_JOB = "attachment.analyze";
@@ -301,10 +302,10 @@ export function analyzeAttachment(deps: {
       .from(attachment)
       .where(and(eq(attachment.id, attachmentId), isNull(attachment.deletedAt)));
     if (!row || row.analysisStatus !== "pending") return; // deleted, or already handled
-    // Only a thing's files are read for now: their suggestions go on the thing. (A property's, a place's or a task's
-    // aren't queued — lib/attachments.ts — this is for one queued before it moved.)
+    // A thing's files give suggestions for it; a property's, a place's or a task's are read for their words only
+    // (its description and text, to find it by): no suggestions, and no text model asked for them.
     const itemId = row.itemId;
-    if (!itemId) return void (await deps.db.update(attachment).set({ analysisStatus: null }).where(eq(attachment.id, row.id)));
+    const wordsOnly = !itemId;
     const kind = row.kind as AttachmentKind;
 
     const save = async (analysis: AttachmentAnalysis | null) => {
@@ -339,8 +340,10 @@ export function analyzeAttachment(deps: {
       let analysis: AttachmentAnalysis | undefined;
       // A scanned PDF (a picture of a receipt or a warranty card), or one docling mostly took for a picture: the vision
       // model reads its first page instead.
+      // Read for its words only (not a thing's): any text docling found will do; the vision model only for a real scan.
+      const thin = markdown === undefined || readableLength(markdown) < (wordsOnly ? 1 : THIN_BELOW);
       const scanned =
-        row.contentType === "application/pdf" && (markdown === undefined || readableLength(markdown) < THIN_BELOW) && deps.pdfPages && deps.ai && deps.images
+        row.contentType === "application/pdf" && thin && deps.pdfPages && deps.ai && deps.images
           ? await deps.pdfPages.firstPage(bytes, VISION_PX).then((page) => (page ? deps.images!.resize(page, VISION_PX, "jpeg") : null))
           : null;
       // The browser's vision copy if it sent one (lib/attachments.ts), else made here.
@@ -355,7 +358,7 @@ export function analyzeAttachment(deps: {
           const contentType = preview ? (sniffContentType(preview) ?? "image/jpeg") : "image/jpeg";
           analysis = toAnalysis(await deps.ai.json({ prompt: imagePrompt(kind, await householdCurrency(deps.db, row.householdId)), schema: replySchema, image: { data: image, contentType }, maxTokens: VISION_REPLY_TOKENS }));
         }
-      } else if (markdown && (deps.chat ?? deps.ai)) {
+      } else if (markdown && !wordsOnly && (deps.chat ?? deps.ai)) {
         asked = true;
         // Capped: the reply is short (the text is already stored), so a model stuck repeating itself stops in seconds, not at the timeout.
         analysis = toAnalysis(await (deps.chat ?? deps.ai)!.json({ prompt: textPrompt(markdown, await householdCurrency(deps.db, row.householdId)), schema: replySchema, maxTokens: DOCUMENT_REPLY_TOKENS }));
@@ -365,14 +368,20 @@ export function analyzeAttachment(deps: {
       // The fuller transcription is kept: docling's, unless the vision model read more of a thin page.
       if (markdown && !(scanned && readableLength(analysis.text) > readableLength(markdown))) analysis.text = markdown;
 
+      if (wordsOnly) {
+        await save({ ...analysis, suggestions: {} });
+        await refreshFileSearch(deps.db, row.id);
+        if (preview) await deps.files.delete(previewKey(row.blobKey)).catch(() => {});
+        return;
+      }
       await save(analysis);
       // Schedules read from a manual: into Suggested maintenance, for a person to add.
       if (analysis.suggestions.maintenance?.length) {
-        await suggestTasks(deps.db, { householdId: row.householdId, itemId, attachmentId: row.id, source: "manual" }, analysis.suggestions.maintenance);
+        await suggestTasks(deps.db, { householdId: row.householdId, itemId: itemId!, attachmentId: row.id, source: "manual" }, analysis.suggestions.maintenance);
       }
-      if (deps.full) await autoFill(deps.full, { ...row, itemId }, analysis).catch((err) => console.warn(`Filling in from ${row.id} failed: ${String(err)}`));
+      if (deps.full) await autoFill(deps.full, { ...row, itemId: itemId! }, analysis).catch((err) => console.warn(`Filling in from ${row.id} failed: ${String(err)}`));
       if (preview) await deps.files.delete(previewKey(row.blobKey)).catch(() => {});
-      await deps.onItemChanged?.(itemId); // new text to search
+      await deps.onItemChanged?.(itemId!); // new text to search
     } catch (err) {
       if (lastAttempt) {
         await save(null);

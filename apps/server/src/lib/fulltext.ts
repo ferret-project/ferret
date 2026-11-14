@@ -4,8 +4,8 @@
  * serial and model numbers ("1234567" finds "W1234567"). Kept in sync from the
  * app whenever an item, its attachments or its location change.
  */
-import { count, isNull, sql } from "drizzle-orm";
-import { item } from "../db/schema";
+import { and, count, eq, isNull, sql } from "drizzle-orm";
+import { attachment, item } from "../db/schema";
 import type { Db } from "../ports";
 import { itemFields, loadSearchDoc } from "./search-text";
 
@@ -47,9 +47,47 @@ export async function refreshFullText(db: Db, itemId: string) {
 export async function ensureFullText(db: Db) {
   const [indexed] = await db.all<{ n: number }>(sql`SELECT count(*) AS n FROM item_search`);
   const [items] = await db.select({ n: count() }).from(item).where(isNull(item.deletedAt));
-  if ((indexed?.n ?? 0) > 0 || !items?.n) return;
-  const all = await db.select({ id: item.id }).from(item).where(isNull(item.deletedAt));
-  for (const { id } of all) await refreshFullText(db, id);
+  if (!(indexed?.n ?? 0) && items?.n) {
+    const all = await db.select({ id: item.id }).from(item).where(isNull(item.deletedAt));
+    for (const { id } of all) await refreshFullText(db, id);
+  }
+  // The files of properties, places and tasks.
+  const [filesIndexed] = await db.all<{ n: number }>(sql`SELECT count(*) AS n FROM file_search`);
+  if (filesIndexed?.n) return;
+  const files = await db.select({ id: attachment.id }).from(attachment).where(and(isNull(attachment.itemId), isNull(attachment.deletedAt)));
+  for (const { id } of files) await refreshFileSearch(db, id);
+}
+
+/**
+ * Rewrites a property's, a place's or a task's file in `file_search`: its name, and what was read in it (a photo's
+ * description, a document's text). Gone, or a thing's (indexed with the thing): no row.
+ */
+export async function refreshFileSearch(db: Db, attachmentId: string) {
+  await db.run(sql`DELETE FROM file_search WHERE attachment_id = ${attachmentId}`);
+  const [f] = await db
+    .select({ householdId: attachment.householdId, filename: attachment.filename, analysis: attachment.analysis })
+    .from(attachment)
+    .where(and(eq(attachment.id, attachmentId), isNull(attachment.itemId), isNull(attachment.deletedAt)));
+  if (!f) return;
+  const title = [f.filename, f.analysis?.description].filter(Boolean).join(" — ");
+  await db.run(sql`INSERT INTO file_search (attachment_id, household_id, title, body) VALUES (${attachmentId}, ${f.householdId}, ${title}, ${f.analysis?.text ?? ""})`);
+}
+
+export interface FileTextHit {
+  attachmentId: string;
+  snippet?: string;
+}
+
+/** Files of properties, places and tasks whose name or text has every word of the query (best first). */
+export async function fileTextSearch(db: Db, householdId: string, query: string, limit: number): Promise<FileTextHit[]> {
+  const terms = (query.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []).filter((t) => !STOPWORDS.has(t)).slice(0, 8);
+  if (terms.length === 0) return [];
+  const rows = await db.all<{ attachment_id: string; snippet: string }>(sql`
+    SELECT f.attachment_id, snippet(file_search, 3, '', '', '…', 24) AS snippet
+    FROM file_search f JOIN attachment a ON a.id = f.attachment_id
+    WHERE file_search MATCH ${terms.map((t) => `"${t}"*`).join(" ")} AND f.household_id = ${householdId} AND a.deleted_at IS NULL
+    ORDER BY bm25(file_search, 0, 0, 8.0, 1.0) LIMIT ${limit}`);
+  return rows.map((r) => ({ attachmentId: r.attachment_id, snippet: r.snippet || undefined }));
 }
 
 /** Small words that would make every word required ("where is the drill") fail to match. */

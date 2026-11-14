@@ -67,6 +67,7 @@ import type {
   Attachment,
   AttachmentKind,
   FileOwnerQuery,
+  FileHit,
   Item,
   ItemInput,
   ItemListing,
@@ -615,6 +616,8 @@ export const api = {
   /** A property's, a place's, a maintenance task's or a done record's files (one of them). */
   listFiles: (of: FileOwnerQuery) => request<{ data: Attachment[] }>(`/attachments?${new URLSearchParams(of as Record<string, string>)}`),
   uploadFile: uploadFile,
+  /** Properties', places' and tasks' files matching words (a thing's are found with the thing). */
+  searchFiles: (q: string) => request<{ data: FileHit[] }>(`/attachments/search?q=${encodeURIComponent(q)}`),
   deleteAttachment: (id: string) => request<void>(`/attachments/${id}`, { method: "DELETE" }),
   analyzeAttachment: (id: string) => request<Attachment>(`/attachments/${id}/analyze`, { method: "POST" }),
   dismissSuggestions: (id: string) => request<void>(`/attachments/${id}/dismiss-suggestions`, { method: "POST" }),

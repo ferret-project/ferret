@@ -4,7 +4,8 @@
  * a done record. Hidden while empty — whoever can edit gets a small "Add a document or photo" button instead (like the
  * item page's empty sections). Not read by the AI: only a thing's files are.
  */
-import type { Attachment, FileOwnerQuery } from "@ferret/shared";
+import type { Attachment, FileHit, FileOwnerQuery } from "@ferret/shared";
+import { MAINTENANCE_HREF, placeHref, propertyHref } from "./lib/route";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ChangeEvent, useRef, useState } from "react";
 import { api } from "./lib/api";
@@ -225,6 +226,44 @@ export function DoneFiles({ householdId, taskId, doneId, files }: { householdId:
       )}
       {add.isError && <span className="text-error">{add.error.message}</span>}
     </span>
+  );
+}
+
+/**
+ * Search's "In documents": a property's, a room's or a task's own files whose name or text matched — each opens the
+ * file, with what it belongs to beside it (`data-result`: ↑/↓ reach them like the things above).
+ */
+export function FileMatches({ files }: { files: FileHit[] }) {
+  const where = (f: FileHit) => (f.of.kind === "property" ? propertyHref(f.of.id) : f.of.kind === "place" ? placeHref(f.of.id) : MAINTENANCE_HREF);
+  return (
+    <section className="mt-4 flex flex-col gap-2" aria-labelledby="file-matches">
+      <h2 id="file-matches" className="flex items-center gap-2 text-sm font-medium text-base-content/70">
+        <span className="icon-[tabler--files] size-4" />
+        <Trans>In documents</Trans>
+      </h2>
+      <ul className="flex flex-col gap-2">
+        {files.map((f) => (
+          <li key={f.id} className="card">
+            <div className="card-body flex-row items-center gap-3 p-3">
+              {f.hasThumbnail ? (
+                <img src={api.thumbnailUrl(f.id)} alt="" loading="lazy" className="h-12 w-10 shrink-0 rounded-field border border-base-content/10 bg-white object-cover object-top" />
+              ) : (
+                <FileIcon contentType={f.contentType} />
+              )}
+              <div className="min-w-0 flex-1">
+                <a href={api.attachmentUrl(f.id)} target="_blank" rel="noreferrer" data-result className="link link-hover block truncate text-sm font-medium text-base-content/80">
+                  {f.filename}
+                </a>
+                <a href={where(f)} className="link link-primary tap text-xs">
+                  {f.of.name}
+                </a>
+                {f.snippet && <p className="line-clamp-2 text-xs text-base-content/70">{f.snippet}</p>}
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

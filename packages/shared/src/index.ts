@@ -687,6 +687,13 @@ export const fileOwnerQuery = z
   .refine((o) => [o.propertyId, o.locationId, o.taskId, o.doneId].filter(Boolean).length === 1, { message: "Give one of propertyId, locationId, taskId or doneId" });
 export type FileOwnerQuery = z.infer<typeof fileOwnerQuery>;
 
+/** A property's, a place's or a task's file found by search (GET /attachments/search), with what it belongs to. */
+export interface FileHit extends Attachment {
+  of: { kind: "property" | "place" | "task"; id: string; name: string };
+  /** The words around the match in its text, if it matched there. */
+  snippet: string | null;
+}
+
 export interface Attachment {
   id: string;
   householdId: string;

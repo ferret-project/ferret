@@ -36,6 +36,7 @@ import {
   collectionInput,
   collectionPatch,
   TRASH_DAYS,
+  fileOwnerQuery,
 } from "@ferret/shared";
 import { amazonCartUrl } from "@ferret/shared/utils";
 import { type AuthInfo, createMcpHandler, McpServer } from "@modelcontextprotocol/server";
@@ -48,7 +49,7 @@ import type { CategoryNode } from "@ferret/shared";
 import type { Caller } from "../lib/inventory";
 import { needsAttention } from "../lib/attention";
 import { listDeleted, restoreItem } from "../lib/trash";
-import { addAttachment } from "../lib/attachments";
+import { addAttachment, type FileOwner, listFiles, removeFile, searchFiles } from "../lib/attachments";
 import * as catalog from "../lib/catalog";
 import * as templates from "../lib/templates";
 import * as collections from "../lib/collections";
@@ -117,7 +118,7 @@ function buildServer(v: McpCaller) {
     {
       title: "Search the inventory",
       description:
-        "Finds items by words (names, brands, serial numbers, text read from receipts and manuals) and by meaning (\"something to make holes\" finds a drill), best matches first, each with where it's kept; a box's 6-character QR label code finds the box. Start here whenever the person mentions a thing — to answer \"where is…\", and before create_item so you don't add a duplicate. For questions answered from documents (\"what filter does the furnace take?\") use ask_inventory; to browse a room, category or tag use list_items. Leaves out things that are gone or only wanted. Returns items, each with its id, fields, location path and what matched.",
+        "Finds items by words (names, brands, serial numbers, text read from receipts and manuals) and by meaning (\"something to make holes\" finds a drill), best matches first, each with where it's kept; a box's 6-character QR label code finds the box. Also files: documents and photos of a property, a place or a maintenance task (the deed, an inspection report) whose name or text matches. Start here whenever the person mentions a thing — to answer \"where is…\", and before create_item so you don't add a duplicate. For questions answered from documents (\"what filter does the furnace take?\") use ask_inventory; to browse a room, category or tag use list_items. Leaves out things that are gone or only wanted. Returns items, each with its id, fields, location path and what matched.",
       inputSchema: z.object({
         query: z.string().trim().min(1).max(200).describe('What to look for, in the person\'s words: "drill", "something to make holes", a serial number or a box\'s label code'),
         limit: z.number().int().min(1).max(50).default(10).describe("How many matches at most"),
@@ -132,9 +133,12 @@ function buildServer(v: McpCaller) {
       run(async () => {
         const results = await svc.searchItems(v, query, {}, limit, "now", { documents: documents ? "include" : "exclude" });
         const paths = await svc.locationPaths(v);
-        return {
+        const files = await searchFiles(v, query, 5);
+        return compact({
           items: results.data.map((it) => ({ ...itemView(it, paths), matched: compact(results.hits[it.id]) })),
-        };
+          // Properties', places' and tasks' own documents and photos that match (an item's are found with the item).
+          files: files.map((f) => compact({ id: f.id, kind: f.kind, filename: f.filename, of: `${f.of.kind} ${f.of.name}`, [`${f.of.kind === "place" ? "location" : f.of.kind}Id`]: f.of.id, snippet: f.snippet })),
+        });
       }),
   );
 
@@ -533,6 +537,33 @@ function buildServer(v: McpCaller) {
   );
 
   server.registerTool(
+    "list_files",
+    {
+      title: "List a property's, place's or task's files",
+      description:
+        "The documents and photos kept with a property (the deed, the insurance policy), a place (a room's inspection report), a maintenance task (a quote, and the invoices of the times it was done) or one time it was done — each with what was read in it. Give exactly one id. An item's files are in get_item; to find files by words use search_inventory; to see one use get_photo. Changes nothing.",
+      inputSchema: z.object({
+        propertyId: z.string().min(1).optional().describe("A property's id, from list_locations"),
+        locationId: z.string().min(1).optional().describe("Or a place's id, from list_locations"),
+        taskId: z.string().min(1).optional().describe("Or a maintenance task's id, from list_maintenance"),
+        doneId: z.string().min(1).optional().describe("Or one time a task was done (doneId from complete_maintenance)"),
+      }),
+      annotations: read,
+    },
+    async (of) =>
+      run(async () => {
+        const parsed = fileOwnerQuery.safeParse(of);
+        if (!parsed.success) throw new HTTPException(422, { message: "Give exactly one of propertyId, locationId, taskId or doneId" });
+        const files = await listFiles(v, parsed.data);
+        return {
+          files: files.map((f) =>
+            compact({ id: f.id, kind: f.kind, filename: f.filename, addedAt: f.createdAt, doneId: f.doneId, description: f.analysis?.description || undefined, text: f.analysis?.text?.slice(0, 2000) || undefined }),
+          ),
+        };
+      }),
+  );
+
+  server.registerTool(
     "list_recalls",
     {
       title: "Product recalls",
@@ -697,20 +728,26 @@ function buildServer(v: McpCaller) {
   server.registerTool(
     "add_photo",
     {
-      title: "Add a photo or document to an item",
+      title: "Add a photo or document",
       description:
-        "Attaches a photo — or a receipt, manual or warranty card as kind \"document\" — to an item that already exists. The vision model reads it in the background; about 20 seconds later get_item shows what it saw and any suggested fields: confirm them with the person before applying them with update_item. To add a new thing from its photo use add_item_from_photo instead. Counts as AI actions when the AI is on.",
+        "Attaches a photo — or a receipt, manual or warranty card as kind \"document\" — to an item that already exists (itemId), or to what isn't one thing: a property (the deed, the insurance policy), a place (a room's inspection report), a house-wide maintenance task (a quote), or one time a task was done (doneId, from complete_maintenance: the invoice). Give exactly one of them. An item's is read by the vision model in the background; about 20 seconds later get_item shows what it saw and any suggested fields: confirm them with the person before applying them with update_item. The others are read for their words only (to find them by: search_inventory's files). To add a new thing from its photo use add_item_from_photo instead. Counts as AI actions when the AI is on.",
       inputSchema: z.object({
-        itemId: z.string().min(1).describe("The item's id, from search_inventory"),
-        kind: z.enum(["photo", "document"]).default("photo").describe("photo: a picture of the thing; document: a receipt, manual or warranty card (photo or PDF)"),
+        itemId: z.string().min(1).optional().describe("The item's id, from search_inventory"),
+        propertyId: z.string().min(1).optional().describe("Or a property's id, from list_locations"),
+        locationId: z.string().min(1).optional().describe("Or a place's id, from list_locations"),
+        taskId: z.string().min(1).optional().describe("Or a maintenance task's id, from list_maintenance (an item's task keeps it on the item)"),
+        doneId: z.string().min(1).optional().describe("Or the time a task was done: doneId from complete_maintenance"),
+        kind: z.enum(["photo", "document"]).default("photo").describe("photo: a picture of the thing; document: a receipt, manual, report or warranty card (photo or PDF)"),
         ...photoData,
       }),
       annotations: write,
     },
-    async ({ itemId, kind, data, filename }) =>
+    async ({ itemId, propertyId, locationId, taskId, doneId, kind, data, filename }) =>
       run(async () => {
-        const added = await addAttachment(v, v.files, itemId, { bytes: decode(data, v.maxUploadBytes), filename, kind });
-        return compact({ attachment: added.id, kind: added.kind, analysis: added.analysisStatus ?? "not analysed (no vision model)" });
+        const owners = [itemId && { itemId }, propertyId && { propertyId }, locationId && { locationId }, taskId && { taskId }, doneId && { doneId }].filter(Boolean);
+        if (owners.length !== 1) throw new HTTPException(422, { message: "Give exactly one of itemId, propertyId, locationId, taskId or doneId" });
+        const added = await addAttachment(v, v.files, owners[0] as FileOwner, { bytes: decode(data, v.maxUploadBytes), filename, kind });
+        return compact({ attachment: added.id, kind: added.kind, item: added.itemId, analysis: added.analysisStatus ?? "not read (the AI isn't on)" });
       }),
   );
 
@@ -875,7 +912,7 @@ function buildServer(v: McpCaller) {
     {
       title: "Mark maintenance done",
       description:
-        "Records that a task was done (today, or doneOn), with an optional note and cost in cents — use it whenever the person says they did one (\"changed the furnace filter\"); the id comes from list_maintenance. Credited to the task's usual provider unless providerId says otherwise (null: the household did it), and its part, if it has one, comes out of stock. A repeating task is then due again one interval after that day; a one-off is finished. For maintenance by use, give reading (what the odometer or hour meter says now): the next is due usageEvery after it. Returns the task with its new due date.",
+        "Records that a task was done (today, or doneOn), with an optional note and cost in cents — use it whenever the person says they did one (\"changed the furnace filter\"); the id comes from list_maintenance Returns doneId, the record just made: its invoice or photos go to add_photo with doneId. Credited to the task's usual provider unless providerId says otherwise (null: the household did it), and its part, if it has one, comes out of stock. A repeating task is then due again one interval after that day; a one-off is finished. For maintenance by use, give reading (what the odometer or hour meter says now): the next is due usageEvery after it. Returns the task with its new due date.",
       inputSchema: maintenanceDone.extend({ id: z.string().min(1).describe("The task's id, from list_maintenance") }),
       annotations: write,
     },
@@ -1188,11 +1225,12 @@ function buildServer(v: McpCaller) {
 - warranty: one added by mistake or twice (an ended warranty stays on record as expired); its claims go with it. claim: a warranty claim filed by mistake.
 - maintenance: a task no longer needed — not one just done (that's complete_maintenance); its past times done stay in the item's history. repair: one logged by mistake (its photos and warranty stay the item's).
 - property / location: only when empty (no things anywhere in it, empty rooms inside go with it); otherwise refused — move the things first with bulk_update_items.
+- file: a photo or document (an item's from get_item, a property's, place's or task's from list_files).
 - category: its things and subcategories move up to its parent. provider: their past visits stay, without the name. collection: its owned things stay (out of the collection); its want-list entries go. coverage_limit: a limit that no longer applies.
 Only remove (item) can be undone. Returns what was removed.`,
       inputSchema: z.object({
         kind: z
-          .enum(["item", "warranty", "claim", "maintenance", "repair", "property", "location", "category", "provider", "collection", "coverage_limit"])
+          .enum(["item", "file", "warranty", "claim", "maintenance", "repair", "property", "location", "category", "provider", "collection", "coverage_limit"])
           .describe("What it is"),
         id: z.string().min(1).describe("Its id, from the tool that lists that kind (search_inventory, get_item, list_maintenance, list_locations…)"),
       }),
@@ -1202,6 +1240,7 @@ Only remove (item) can be undone. Returns what was removed.`,
       run(async () => {
         const remove: Record<typeof kind, () => Promise<unknown>> = {
           item: () => svc.deleteItem(v, id),
+          file: () => removeFile(v, id),
           warranty: () => warranties.deleteWarranty(v, id),
           claim: () => claims.deleteClaim(v, id),
           maintenance: () => upkeep.deleteTask(v, id),

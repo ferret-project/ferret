@@ -266,3 +266,32 @@ describe("MCP: keeping track", () => {
     expect(done).not.toHaveProperty("leftUnchecked");
   });
 });
+
+describe("MCP: files of properties, places and tasks", () => {
+  it("adds, lists, finds and removes them; an invoice goes on the time a task was done", async () => {
+    const { ann, call } = await start();
+    const house = (await (await ann.as("/api/v1/properties", { method: "POST", body: JSON.stringify({ name: "Our house" }) })).json()) as { id: string };
+    const data = Buffer.from(await photo()).toString("base64");
+    const deed = await call("add_photo", { propertyId: house.id, kind: "document", data, filename: "deed-scan.jpg" });
+    expect(deed.isError).toBe(false);
+    const deedId = deed.json().attachment as string;
+    expect((await call("add_photo", { data, filename: "x.jpg" })).isError).toBe(true); // no owner
+    expect((await call("add_photo", { propertyId: house.id, itemId: "x", data, filename: "x.jpg" })).isError).toBe(true); // two
+
+    const listed = (await call("list_files", { propertyId: house.id })).json() as { files: { id: string; filename: string }[] };
+    expect(listed.files.map((f) => f.filename)).toEqual(["deed-scan.jpg"]);
+    const found = (await call("search_inventory", { query: "deed" })).json() as { files?: { id: string; of: string; propertyId: string }[] };
+    expect(found.files).toEqual([expect.objectContaining({ id: deedId, of: "property Our house", propertyId: house.id })]);
+
+    // Done, with the invoice on that time.
+    const task = (await call("save_maintenance", { title: "Clean the gutters", dueOn: "2026-10-01" })).json() as { id: string };
+    const done = (await call("complete_maintenance", { id: task.id })).json() as { doneId: string };
+    expect(done.doneId).toEqual(expect.any(String));
+    expect((await call("add_photo", { doneId: done.doneId, kind: "document", data, filename: "invoice.jpg" })).isError).toBe(false);
+    const invoices = (await call("list_files", { doneId: done.doneId })).json() as { files: { filename: string; doneId: string }[] };
+    expect(invoices.files).toEqual([expect.objectContaining({ filename: "invoice.jpg", doneId: done.doneId })]);
+
+    expect((await call("remove", { kind: "file", id: deedId })).json()).toMatchObject({ removed: "file", name: "deed-scan.jpg" });
+    expect(((await call("list_files", { propertyId: house.id })).json() as { files: unknown[] }).files).toEqual([]);
+  });
+});

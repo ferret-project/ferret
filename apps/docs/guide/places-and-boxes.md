@@ -22,8 +22,12 @@ Some papers belong to the house rather than to a thing in it: the deed, the insu
 the paint colours, photos of the wiring before the wall was closed up. Open the property or the room and tap **Add a
 document or photo** (or **Add** beside **Documents & photos** once it has some). They're kept encrypted like a thing's
 files and come with [Download everything](./download-everything). Removing a place or a property takes its files to
-[Recently deleted](./recently-deleted) with it. Ferret's AI doesn't read these: only a thing's photos and documents
-become suggestions.
+[Recently deleted](./recently-deleted) with it.
+
+Ferret reads them for their words, so search finds them: *sump pump* finds the inspection report that mentions it,
+under **In documents** below the things. A document's text is read without the AI where it can be (it doesn't count
+as an AI action); a photo, or a scan with no text in it, is read by the AI. Nothing is suggested from them — they
+aren't about one thing.
 
 ## Boxes
 

@@ -207,6 +207,15 @@ export const OPERATIONS: Operation[] = [
   },
   {
     method: "get",
+    path: "/attachments/search",
+    tag: "Photos & documents",
+    summary: "Find properties', places' and maintenance tasks' files by words",
+    description: "Their names, and what was read in them (a photo's description, a document's text). Each with `of`: what it belongs to. A thing's files are found with the thing (GET /items?q=).",
+    query: z.object({ q: z.string() }),
+    returns: "{ data: FileHit[] }",
+  },
+  {
+    method: "get",
     path: "/attachments",
     tag: "Photos & documents",
     summary: "A property's, a place's, a maintenance task's or a done record's photos and documents",

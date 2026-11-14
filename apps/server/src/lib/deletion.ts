@@ -49,6 +49,7 @@ export async function deleteHouseholds(p: { deps: Pick<Deps, "db" | "vectors">; 
     await vectors?.deleteWhere({ householdId: id });
     await db.run(sql`DELETE FROM item_search WHERE household_id = ${id}`);
     await db.run(sql`DELETE FROM item_search_trigram WHERE household_id = ${id}`);
+    await db.run(sql`DELETE FROM file_search WHERE household_id = ${id}`);
   }
   const keys = await keysOf(db, new Set(ids));
   if (keys.length) await db.delete(apikey).where(inList(apikey.id, keys));

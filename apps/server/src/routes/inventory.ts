@@ -37,7 +37,7 @@ import { ownLabelsOf } from "../lib/own-labels";
 import { roomScansAvailable } from "../lib/room-scans";
 import { itemChanged, logActivity, withStatus } from "../lib/inventory";
 import { categoryDescendants, findTag } from "../lib/catalog";
-import { addAttachment, analyzeAgain, attachmentFields, listFiles, setMainPhoto } from "../lib/attachments";
+import { addAttachment, analyzeAgain, attachmentFields, listFiles, removeFile, searchFiles, setMainPhoto } from "../lib/attachments";
 import { sniffContentType } from "../lib/sniff";
 import { isServerAdmin } from "../lib/server-admin";
 import { itemHistory } from "../lib/history";
@@ -344,6 +344,12 @@ inventory.post("/items/:id/attachments", requireWriter, uploadLimit, async (c) =
   return c.json(row, 201);
 });
 
+/** Files of properties, places and tasks matching `q` (a thing's are found with the thing: GET /items?q=). */
+inventory.get("/attachments/search", async (c) => {
+  const q = (c.req.query("q") ?? "").trim().slice(0, 200);
+  return c.json({ data: q ? await searchFiles(callerOf(c), q) : [] });
+});
+
 /** A property's, a place's, a maintenance task's or a done record's photos and documents (`?propertyId=`…: one). */
 inventory.get("/attachments", async (c) => {
   const of = fileOwnerQuery.safeParse(c.req.query());
@@ -425,16 +431,6 @@ inventory.post("/attachments/:id/dismiss-suggestions", requireWriter, async (c) 
 });
 
 inventory.delete("/attachments/:id", requireWriter, async (c) => {
-  // Soft delete like everything else; the encrypted blob stays until a later purge.
-  const [row] = await c.var.db
-    .update(attachment)
-    .set({ deletedAt: new Date() })
-    .where(
-      and(eq(attachment.id, c.req.param("id")), eq(attachment.householdId, c.var.householdId), isNull(attachment.deletedAt)),
-    )
-    .returning({ id: attachment.id, kind: attachment.kind, itemId: attachment.itemId });
-  if (!row) throw new HTTPException(404, { message: "Attachment not found" });
-  await logActivity(callerOf(c), "attachment.delete", row.id, `Removed a ${row.kind}`, row.itemId ?? undefined);
-  if (row.itemId) await itemChanged(c.var, row.itemId);
+  await removeFile(callerOf(c), c.req.param("id"));
   return c.body(null, 204);
 });

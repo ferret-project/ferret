@@ -23,7 +23,7 @@ import { HouseholdContext, useHousehold } from "./lib/household";
 import { type Choice, ItemPicker } from "./Combobox";
 import { Outlet, useSearch } from "@tanstack/react-router";
 import { Breadcrumbs, PlaceTiles, PropertyCards, PropertyHeader } from "./Browse";
-import { FilesSection } from "./Files";
+import { FileMatches, FilesSection, filesKey } from "./Files";
 import { MISSING_LABELS, OverviewSections } from "./Overview";
 import { ReviewRoomLink } from "./Tracking";
 import { CategoryTiles, categoryIcon, flattenCategories, useCategories } from "./Catalog";
@@ -1041,6 +1041,13 @@ export function Home({ householdName, householdId, view }: { householdName: stri
     enabled: listing && checking,
   });
   const items = checking && checked.data ? checked : first;
+  // A house's, a room's or a task's own documents that match: searching everywhere, with manuals & receipts counted.
+  const fileMatches = useQuery({
+    queryKey: [...filesKey(householdId), "search", query],
+    queryFn: () => api.searchFiles(query),
+    enabled: Boolean(query) && withDocuments && !locationId && !categoryId && !tag && !missing && !origin,
+  });
+  const foundFiles = (query && fileMatches.data?.data) || [];
   const stillChecking = checking && !checked.data && !checked.isError;
   const property = view.name === "property" ? places.data?.properties.find((p) => p.id === view.id) : undefined;
   // New things go where you're looking.
@@ -1282,7 +1289,7 @@ export function Home({ householdName, householdId, view }: { householdName: stri
             {query && items.data && !(stillChecking && items.data.total === 0) && (
               <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm text-base-content/70" aria-live="polite">
                 <span>
-                  {items.data.total === 0 ? t`No matches` : plural(items.data.total, { one: "# match", other: "# matches" })}
+                  {items.data.total === 0 ? (foundFiles.length ? t`No things match` : t`No matches`) : plural(items.data.total, { one: "# match", other: "# matches" })}
                   {place ? t` in ${ph({ name: place.node.name })}` : kind ? t` in ${ph({ name: kind.name })}` : tag ? t` tagged ${tag}` : ""}
                 </span>
                 <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -1328,9 +1335,10 @@ export function Home({ householdName, householdId, view }: { householdName: stri
                 />
               ))}
             </ul>
+            {foundFiles.length > 0 && <FileMatches files={foundFiles} />}
             </div>
 
-            {items.data && items.data.total === 0 && !stillChecking && (
+            {items.data && items.data.total === 0 && !stillChecking && !foundFiles.length && (
               <div className="flex flex-col items-center gap-4 py-12 text-center text-base-content/70">
                 {query ? <Mascot pose="searching" /> : !origin && !locationId && (missing ? <Mascot pose="asleep" /> : <Mascot pose="box" />)}
                 {query

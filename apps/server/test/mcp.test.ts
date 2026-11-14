@@ -261,6 +261,7 @@ describe("MCP server", () => {
       "list_templates",
       "list_categories",
       "list_collections",
+      "list_files",
       "room_scan_results",
       "list_items",
       "item_history",

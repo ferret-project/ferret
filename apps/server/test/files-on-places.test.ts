@@ -4,7 +4,7 @@ import { unzipSync } from "fflate";
 import { describe, expect, it } from "vitest";
 import { attachment } from "../src/db/schema";
 import { purgeDeleted } from "../src/lib/trash";
-import { FakeAi, pdf, photo, setup } from "./helpers";
+import { FakeAi, FakeDocuments, pdf, photo, setup } from "./helpers";
 
 type File = { id: string; itemId: string | null; propertyId: string | null; locationId: string | null; taskId: string | null; doneId: string | null; analysisStatus: string | null; filename: string };
 
@@ -42,7 +42,7 @@ describe("files on properties, places and maintenance", () => {
   it("adds and lists them by what they belong to; a thing's task keeps its files with the thing", async () => {
     const { ann, add, list, house, kitchen, furnace, gutters, filter, gutterDone, filterDone, jobs, ai } = await household();
     const deed = (await (await add(ann, { propertyId: house.id }, "deed.pdf")).json()) as File;
-    expect(deed).toMatchObject({ propertyId: house.id, itemId: null, analysisStatus: null });
+    expect(deed).toMatchObject({ propertyId: house.id, itemId: null });
     const tiles = (await (await add(ann, { locationId: kitchen.id }, "tiles.jpg", "photo")).json()) as File;
     expect(tiles.locationId).toBe(kitchen.id);
     const quote = (await (await add(ann, { taskId: gutters.id }, "quote.pdf")).json()) as File;
@@ -67,10 +67,51 @@ describe("files on properties, places and maintenance", () => {
     // Opened like any file.
     expect((await ann.as(`/api/v1/attachments/${deed.id}/content`)).status).toBe(200);
 
-    // Only a thing's files are read by the AI.
-    await jobs.drain();
-    expect(ai.calls).toHaveLength(0);
-    expect((await ann.as(`/api/v1/attachments/${deed.id}/analyze`, { method: "POST" })).status).toBe(409);
+  });
+
+  it("reads them for their words only — no suggestions, no text model for a document — and search finds them", async () => {
+    const reply = { description: "A survey of the roof.", text: "ROOF INSPECTION shingles worn", name: "Roof", brand: "Acme", model: null, serialNumber: null, barcode: null, purchaseDate: null, purchasePrice: 900, warrantyMonths: 12 };
+    const ai = new FakeAi([reply]);
+    const documents = new FakeDocuments(["# Home inspection\n\nThe water heater is 14 years old; the sump pump works."]);
+    const t = await setup({ ai, documents });
+    const ann = await t.user("ann");
+    const house = (await (await ann.as("/api/v1/properties", { method: "POST", body: JSON.stringify({ name: "Our house" }) })).json()) as { id: string };
+    const send = async (name: string, kind: string, bytes: Uint8Array<ArrayBuffer>) => {
+      const form = new FormData();
+      form.set("file", new File([bytes], name));
+      form.set("kind", kind);
+      form.set("propertyId", house.id);
+      return (await (await ann.as("/api/v1/attachments", { method: "POST", body: form })).json()) as File;
+    };
+    const report = await send("inspection.pdf", "document", pdf("Home inspection"));
+    const roof = await send("roof.jpg", "photo", await photo());
+    expect(report.analysisStatus).toBe("pending");
+    // Found by name straight away.
+    const find = async (q: string) => ((await (await ann.as(`/api/v1/attachments/search?q=${encodeURIComponent(q)}`)).json()) as { data: (File & { of: { kind: string; id: string; name: string }; snippet: string | null })[] }).data;
+    expect((await find("inspection")).map((f) => f.filename)).toEqual(["inspection.pdf"]);
+
+    await t.jobs.drain();
+    const files = ((await (await ann.as(`/api/v1/attachments?propertyId=${house.id}`)).json()) as { data: (File & { analysis: { text: string; description: string; suggestions: object } })[] }).data;
+    const read = new Map(files.map((f) => [f.filename, f]));
+    expect(read.get("inspection.pdf")!.analysis.text).toContain("sump pump");
+    expect(read.get("inspection.pdf")!.analysis.suggestions).toEqual({});
+    expect(read.get("roof.jpg")!.analysis).toMatchObject({ description: "A survey of the roof.", suggestions: {} });
+    // The document needed no model (docling read it); the photo asked the vision model once.
+    expect(ai.calls).toHaveLength(1);
+    const plan = (await (await ann.as("/api/v1/plan")).json()) as { aiActions: { used: number } };
+    expect(plan.aiActions.used).toBe(2); // the photo (2); the document wasn't asked about
+
+    const pump = await find("sump pump");
+    expect(pump).toMatchObject([{ id: report.id, of: { kind: "property", id: house.id, name: "Our house" } }]);
+    expect(pump[0]!.snippet).toContain("sump pump");
+    expect((await find("shingles")).map((f) => f.id)).toEqual([roof.id]);
+    // Removed: not found any more. Nothing found in another household.
+    await ann.as(`/api/v1/attachments/${roof.id}`, { method: "DELETE" });
+    expect(await find("shingles")).toEqual([]);
+    const bob = await t.user("bob");
+    expect(((await (await bob.as("/api/v1/attachments/search?q=pump")).json()) as { data: unknown[] }).data).toEqual([]);
+    // Read again by hand works for them too.
+    expect((await ann.as(`/api/v1/attachments/${report.id}/analyze`, { method: "POST" })).status).toBe(202);
   });
 
   it("needs exactly one owner", async () => {

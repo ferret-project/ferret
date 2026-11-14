@@ -3,7 +3,7 @@
  * encrypted, make a thumbnail, and queue the analysis. Shared by the upload
  * route and the MCP photo tools.
  */
-import { type AttachmentKind, type FileOwnerQuery, uploadTypes } from "@ferret/shared";
+import { type AttachmentKind, type FileHit, type FileOwnerQuery, uploadTypes } from "@ferret/shared";
 import { and, eq, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { attachment, item, location, maintenanceLog, maintenanceTask, property } from "../db/schema";
@@ -17,6 +17,7 @@ import { allow, requireAllowed, requireRoom } from "./plan";
 import { PHOTO_ORDER } from "./photo-order";
 import { sniffContentType } from "./sniff";
 import { inList } from "./sql";
+import { fileTextSearch, refreshFileSearch } from "./fulltext";
 
 export const attachmentFields = {
   id: attachment.id,
@@ -51,7 +52,6 @@ export async function analyzeAgain(v: Caller, attachmentId: string) {
     .from(attachment)
     .where(where);
   if (!found) throw new HTTPException(404, { message: "Attachment not found" });
-  if (!found.itemId) throw new HTTPException(409, { message: "Only a thing's photos and documents are read by the AI" });
   if (found.originalRemovedAt) throw new HTTPException(409, { message: "Only a small copy of this is kept, so it can't be read again" });
   const job = analysisJob(v.deps, found.kind as AttachmentKind, found.contentType);
   if (!job) throw new HTTPException(409, { message: "Analysis for this kind of file isn't set up on this server" });
@@ -108,6 +108,47 @@ export async function listFiles(v: Caller, of: FileOwnerQuery) {
     which = or(eq(attachment.taskId, of.taskId!), logs.length ? inList(attachment.doneId, logs.map((l) => l.id)) : undefined);
   }
   return v.db.select(attachmentFields).from(attachment).where(and(mine, which)).orderBy(...PHOTO_ORDER);
+}
+
+/** Removes a photo or document (to the purge's 30 days; the encrypted file stays until then). */
+export async function removeFile(v: Caller, attachmentId: string) {
+  const [row] = await v.db
+    .update(attachment)
+    .set({ deletedAt: new Date() })
+    .where(and(eq(attachment.id, attachmentId), eq(attachment.householdId, v.householdId), isNull(attachment.deletedAt)))
+    .returning({ id: attachment.id, kind: attachment.kind, filename: attachment.filename, itemId: attachment.itemId });
+  if (!row) throw new HTTPException(404, { message: "Attachment not found" });
+  await logActivity(v, "attachment.delete", row.id, `Removed a ${row.kind}`, row.itemId);
+  if (row.itemId) await itemChanged(v, row.itemId);
+  else await refreshFileSearch(v.db, row.id);
+  return { id: row.id, name: row.filename };
+}
+
+/**
+ * Files of properties, places and maintenance tasks matching words (their names, and what was read in them), each with
+ * what it belongs to — for search, beside the things found. A thing's files are found with the thing.
+ */
+export async function searchFiles(v: Caller, query: string, limit = 10) {
+  const hits = await fileTextSearch(v.db, v.householdId, query, limit);
+  if (!hits.length) return [];
+  const rows = await v.db
+    .select({ file: attachmentFields, propertyName: property.name, locationName: location.name, taskTitle: maintenanceTask.title })
+    .from(attachment)
+    .leftJoin(property, eq(property.id, attachment.propertyId))
+    .leftJoin(location, eq(location.id, attachment.locationId))
+    .leftJoin(maintenanceTask, eq(maintenanceTask.id, attachment.taskId))
+    .where(and(eq(attachment.householdId, v.householdId), inList(attachment.id, hits.map((h) => h.attachmentId)), isNull(attachment.deletedAt)));
+  const byId = new Map(rows.map((r) => [r.file.id, r]));
+  return hits.flatMap((h) => {
+    const r = byId.get(h.attachmentId);
+    if (!r) return [];
+    const of: FileHit["of"] = r.file.propertyId
+      ? { kind: "property", id: r.file.propertyId, name: r.propertyName ?? "" }
+      : r.file.locationId
+        ? { kind: "place", id: r.file.locationId, name: r.locationName ?? "" }
+        : { kind: "task", id: r.file.taskId!, name: r.taskTitle ?? "" };
+    return [{ ...r.file, of, snippet: h.snippet ?? null }];
+  });
 }
 
 /**
@@ -248,8 +289,9 @@ export async function addAttachment(
   if (thumb && thumbnailKey) await files.put(v.householdId, thumbnailKey, thumb);
   // Photos (vision model) and documents (docling) are analysed in the background (see jobs/analyze.ts) — when the
   // household's plan has AI and some left (lib/plan.ts; counted by the job, once it's done). Without, it's just kept.
-  // Only a thing's for now: what's read becomes suggestions on it; a property's or a task's would have nowhere to go.
-  const job = owner.itemId ? analysisJob(v.deps, kind, contentType) : null;
+  // A property's, a place's or a task's are read for their words only (to find them by): no suggestions, nothing to
+  // put them on — jobs/analyze.ts.
+  const job = analysisJob(v.deps, kind, contentType);
   const analyze = job && upload.analyze !== false && (await allow(v, kind === "photo" ? "ai.photo" : "ai.document")).ok ? job : null;
   const [row] = await v.db
     .insert(attachment)
@@ -280,7 +322,9 @@ export async function addAttachment(
   if (analyze) await v.deps.jobs!.enqueue(analyze, { attachmentId: id });
   // A PDF's thumbnail is its first page, drawn in the background.
   if (isPdf && !thumb && v.deps.pdfPages && v.deps.jobs) await v.deps.jobs.enqueue(PDF_THUMB_JOB, { attachmentId: id });
-  if (owner.itemId) await itemChanged(v, owner.itemId); // its file name is searchable right away
+  // Its file name is searchable right away.
+  if (owner.itemId) await itemChanged(v, owner.itemId);
+  else await refreshFileSearch(v.db, id);
   await logActivity(v, "attachment.create", id, `Added a ${kind} to ${owner.name}`, owner.itemId);
   return row!;
 }

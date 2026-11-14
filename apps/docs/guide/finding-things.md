@@ -17,6 +17,10 @@ photos). This device remembers the choice.
 
 Searching from a room, a category or a tag looks only in there — **Search everywhere** under the box widens it.
 
+Documents and photos of a property, a room or a maintenance task — the inspection report, the insurance policy — show
+under **In documents** below the things when their name or text matches (searching everywhere, with manuals & receipts
+on). See [Documents and photos of a place](./places-and-boxes#files).
+
 ### Getting around quickly
 
 | | |
