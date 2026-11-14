@@ -36,7 +36,12 @@ read off it.
 the box onto it and its corners to fit (tick **Square** for how photos show in lists), and **Save crop**. The crop is
 added as a new photo and, unless you untick it, becomes the **main photo** — the thing's picture in lists, marked
 **Main** on its page. The original stays. To make any photo the main one as it is, open the same button and tap **Use as
-main photo, uncropped**.
+main photo, uncropped**. A crop keeps what Ferret read in the original, so removing the original afterwards loses
+nothing.
+
+After **Take photo** or **Scan document**, Ferret shows the photo before adding it: **Use photo** as it is, drag the
+corners in and **Use crop** to keep just part of it, or **Retake**. A photo that was never read (added before AI was set
+up, say) has a ✨ button to have Ferret read it.
 
 Uploads are encrypted on the server.
 

@@ -26,7 +26,7 @@ import type {
   WarrantyInput,
 } from "@ferret/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type ChangeEvent, type DragEvent, type ReactNode, useEffect, useRef, useState } from "react";
+import { type ChangeEvent, type DragEvent, type ReactNode, type RefObject, useEffect, useRef, useState } from "react";
 import { ItemEditor } from "./ItemEditor";
 import { api } from "./lib/api";
 import { useCanEdit } from "./lib/auth";
@@ -56,7 +56,7 @@ import { ItemHistory } from "./History";
 import { LoanCard } from "./Loans";
 import { RecallCard } from "./PayOff";
 import { GoneBanner } from "./Gone";
-import { PhotoCrop } from "./PhotoCrop";
+import { CapturedPhoto, PhotoCrop } from "./PhotoCrop";
 import { t, ph, plural } from "@lingui/core/macro";
 import { conditionPhrase } from "./lib/words";
 import { Trans } from "@lingui/react/macro";
@@ -197,6 +197,16 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
 
   const [viewing, setViewing] = useState<number | null>(null); // the photo shown full screen
   const [cropping, setCropping] = useState<Attachment | null>(null); // the photo being cropped (PhotoCrop.tsx)
+  // A photo just taken with the camera, shown to use, crop or retake before it's added (CapturedPhoto).
+  const [taken, setTaken] = useState<{ file: File; kind: AttachmentKind } | null>(null);
+  const cameraInput = useRef<HTMLInputElement>(null);
+  const scanInput = useRef<HTMLInputElement>(null);
+  const reviewTaken = (kind: AttachmentKind) => (files: FileList) => {
+    const [file] = files;
+    // One image to look at; anything else (several picked, a PDF) goes straight up.
+    if (files.length === 1 && file?.type.startsWith("image/")) setTaken({ file, kind });
+    else addFiles(files, kind);
+  };
 
   if (item.isError && (item.error as Error & { status?: number }).status === 404) {
     // Merged into another thing (Possible duplicates): that one is where it lives now.
@@ -441,16 +451,32 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
         {canEdit && showUploader && (
           <section className="flex flex-col gap-3" aria-label={t`Add photos and documents`}>
             <div className="grid grid-cols-2 gap-2">
-              <PickerButton icon="icon-[tabler--camera]" label={t`Take photo`} accept="image/*" capture onFiles={(f) => addFiles(f, "photo")} />
+              <PickerButton icon="icon-[tabler--camera]" label={t`Take photo`} accept="image/*" capture inputRef={cameraInput} onFiles={reviewTaken("photo")} />
               <PickerButton
                 icon="icon-[tabler--receipt]"
                 label={t`Scan document`}
                 accept="image/*"
                 capture
-                onFiles={(f) => addFiles(f, "document")}
+                inputRef={scanInput}
+                onFiles={reviewTaken("document")}
               />
             </div>
             <DropZone onFiles={(f) => addFiles(f)} />
+            {taken && (
+              <CapturedPhoto
+                file={taken.file}
+                onUse={(file) => {
+                  addFiles([file], taken.kind);
+                  setTaken(null);
+                }}
+                onRetake={() => {
+                  const input = taken.kind === "photo" ? cameraInput : scanInput;
+                  setTaken(null);
+                  input.current?.click();
+                }}
+                onClose={() => setTaken(null)}
+              />
+            )}
             {features?.fromWeb && <FromWeb itemId={itemId} householdId={householdId} onArrived={refreshAttachments} />}
             {uploads.length > 0 && (
               <ul className="flex flex-col gap-2">
@@ -979,8 +1005,11 @@ function PickerButton(props: {
   accept: string;
   capture?: boolean;
   onFiles: (files: FileList) => void;
+  /** To open it again from elsewhere ("Retake"). */
+  inputRef?: RefObject<HTMLInputElement | null>;
 }) {
-  const input = useRef<HTMLInputElement>(null);
+  const own = useRef<HTMLInputElement>(null);
+  const input = props.inputRef ?? own;
   return (
     <>
       <button type="button" className="btn btn-soft btn-primary max-sm:h-auto max-sm:flex-col max-sm:gap-1 max-sm:py-3" onClick={() => input.current?.click()}>
