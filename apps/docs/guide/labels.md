@@ -33,6 +33,10 @@ computer; if a label comes out sideways, switch Landscape/Portrait.)
 Scan a blank label and Ferret asks **What did you stick it on?** — pick the box or place, and from then on it opens it.
 A label can be taken off and reused.
 
+Blank labels are kept until they're stuck on something, so a sheet that jammed or a print that failed isn't lost:
+**QR labels** → **Print the unused blank labels again** prints every one not used yet (the history's *Made 12 blank
+labels* line leads there too).
+
 ## Labels you already have
 
 Already have asset tags, or QR stickers from another app? Open the label badge on a thing or box → **Use a label you

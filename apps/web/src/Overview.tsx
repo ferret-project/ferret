@@ -15,7 +15,7 @@ import { CLAIM_STATUS } from "./Claims";
 import { SetupChecklist } from "./Setup";
 import { dance, isFerretDay } from "./lib/dook";
 import side from "./assets/mascot/side.webp";
-import { MISPLACED_HREF, REPLACEMENTS_HREF, REVIEW_HREF, reviewHref, BY_VALUE_HREF, CATEGORIES_HREF, COLLECTIONS_HREF, categoryHref, collectionHref, ITEMS_HREF, REPORT_HREF, SHOPPING_HREF, WARRANTIES_HREF, itemHref, MAINTENANCE_HREF, missingHref, placeHref, tagHref } from "./lib/route";
+import { MISPLACED_HREF, REPLACEMENTS_HREF, REVIEW_HREF, reviewHref, BY_VALUE_HREF, CATEGORIES_HREF, COLLECTIONS_HREF, categoryHref, collectionHref, ITEMS_HREF, REPORT_HREF, SHOPPING_HREF, WARRANTIES_HREF, itemHref, MAINTENANCE_HREF, missingHref, placeHref, tagHref, LABELS_HREF } from "./lib/route";
 import { useCollections } from "./Collections";
 import { reviewedText } from "./Tracking";
 import { ReplacementsCard } from "./Replacements";
@@ -621,8 +621,9 @@ function Activity({ o }: { o: OverviewData }) {
                 </span>
               </span>
               <span className="min-w-0 flex-1">
-                {a.itemId ? (
-                  <a href={itemHref(a.itemId)} className="tap link link-hover block text-sm text-base-content">
+                {a.itemId || a.action === "label.create" ? (
+                  // Blank labels made: the labels page, where unused ones can be printed again.
+                  <a href={a.itemId ? itemHref(a.itemId) : LABELS_HREF} className="tap link link-hover block text-sm text-base-content">
                     {a.summary}
                   </a>
                 ) : (

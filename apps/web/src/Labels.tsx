@@ -140,6 +140,8 @@ export function PrintLabels({ householdName, householdId, codes }: { householdNa
   const [skip, setSkip] = useState(0); // labels already used on a part-used sheet
   const [count, setCount] = useState(10);
   const all = useQuery({ queryKey: ["labels", householdId], queryFn: () => api.labels() });
+  // Blank ones not stuck on anything yet: print them again (a sheet that jammed, a print that failed).
+  const unused = (all.data?.data ?? []).filter((l) => !l.item && !l.location).map((l) => l.code);
   const make = useMutation({
     mutationFn: () => api.blankLabels(count),
     onSuccess: async ({ codes: made }) => {
@@ -258,6 +260,12 @@ export function PrintLabels({ householdName, householdId, codes }: { householdNa
                   </div>
                   {!roll && <p className="text-xs text-base-content/70"><Trans>Tip: a full sheet of 5163 is 10, of 5160 is 30, of 22806 is 12, of 22805 is 24.</Trans></p>}
                   {make.isError && <div className="alert alert-soft alert-error">{make.error.message}</div>}
+                  {unused.length > 0 && (
+                    <a href={printLabelsHref(unused)} className="btn btn-wrap btn-soft btn-primary">
+                      <span className="icon-[tabler--printer] size-5" />
+                      {plural(unused.length, { one: "Print the # unused blank label again", other: "Print the # unused blank labels again" })}
+                    </a>
+                  )}
                 </div>
               ) : (
                 <p className="text-sm text-base-content/70"><Trans>Open a box or place to print its label.</Trans></p>
