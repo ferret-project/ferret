@@ -26,7 +26,7 @@ import type {
   WarrantyInput,
 } from "@ferret/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type ChangeEvent, type DragEvent, useEffect, useRef, useState } from "react";
+import { type ChangeEvent, type DragEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { ItemEditor } from "./ItemEditor";
 import { api } from "./lib/api";
 import { useCanEdit } from "./lib/auth";
@@ -38,6 +38,7 @@ import { mergeFields, useTemplates } from "./Templates";
 import { money } from "./lib/money";
 import { CollectionBadge, CollectionBanner } from "./Collections";
 import { ItemMaintenance, maintenanceKey } from "./Maintenance";
+import { suggestedKey } from "./SuggestedMaintenance";
 import { AiFilledCard } from "./AiFill";
 import { ReplacementCard } from "./Replacement";
 import { ClaimDialog } from "./Claims";
@@ -115,6 +116,14 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
     queryKey: [...maintenanceKey(householdId), "item", itemId],
     queryFn: () => api.listMaintenance({ itemId, status: "all" }),
   });
+  // What's in the sections that hide while empty (below): the same queries as the sections, so one fetch each.
+  const repairs = useQuery({ queryKey: ["item", householdId, itemId, "repairs"], queryFn: () => api.listRepairs(itemId) });
+  const suggestedTasks = useQuery({ queryKey: [...suggestedKey(householdId), itemId], queryFn: () => api.suggestedTasks(itemId) });
+  // Empty sections a chip opened ("Add a warranty"…): shown until another item opens.
+  const [opened, setOpened] = useState<{ itemId: string; sections: OptionalSection[] }>({ itemId, sections: [] });
+  const isOpen = (section: OptionalSection) => opened.itemId === itemId && opened.sections.includes(section);
+  const open = (section: OptionalSection) =>
+    setOpened((o) => ({ itemId, sections: [...(o.itemId === itemId ? o.sections : []), section] }));
   const addTask = useMutation({
     mutationFn: (input: MaintenanceInput) => api.createMaintenance(input),
     onSuccess: () => qc.invalidateQueries({ queryKey: maintenanceKey(householdId) }),
@@ -223,6 +232,21 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
 
   const photos = attachments.data?.data.filter((a) => a.kind === "photo") ?? [];
   const documents = attachments.data?.data.filter((a) => a.kind === "document") ?? [];
+  // Warranties, maintenance, repairs and documents show once there's something in them (or a chip opened one); until
+  // then whoever can edit gets a chip in the row of small buttons, and viewers see nothing.
+  const show = {
+    warranties: (warranties.data?.data.length ?? 0) > 0 || isOpen("warranties"),
+    maintenance: (tasks.data?.data.length ?? 0) > 0 || (canEdit && (suggestedTasks.data?.data.length ?? 0) > 0) || isOpen("maintenance"),
+    repairs: (repairs.data?.data.length ?? 0) > 0 || isOpen("repairs"),
+    documents: documents.length > 0,
+  };
+  const editable = canEdit && !item.data.disposition;
+  const offer = {
+    warranties: editable && Boolean(warranties.data) && !show.warranties,
+    maintenance: editable && Boolean(tasks.data && suggestedTasks.data) && !show.maintenance,
+    repairs: editable && Boolean(repairs.data) && !show.repairs,
+    documents: editable && Boolean(attachments.data) && !show.documents,
+  };
   const details = [
     item.data.brand,
     item.data.model,
@@ -339,12 +363,12 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
       <RecallCard itemId={itemId} householdId={householdId} />
       <JumpLinks
         sections={[
-          ["item-photos", t`Photos`, photos.length],
-          ["item-warranties", t`Warranties`, warranties.data?.data.length ?? 0],
-          ["item-maintenance", t`Maintenance`, tasks.data?.data.length ?? 0],
-          ["item-repairs", t`Repairs`, 0],
-          ["item-documents", t`Documents`, documents.length],
-          ["item-history", t`History`, 0],
+          ["item-photos", t`Photos`, photos.length, true],
+          ["item-warranties", t`Warranties`, warranties.data?.data.length ?? 0, show.warranties],
+          ["item-maintenance", t`Maintenance`, tasks.data?.data.length ?? 0, show.maintenance],
+          ["item-repairs", t`Repairs`, repairs.data?.data.length ?? 0, show.repairs],
+          ["item-documents", t`Documents`, documents.length, show.documents],
+          ["item-history", t`History`, 0, true],
         ]}
       />
 
@@ -483,6 +507,33 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
       {/* Small "Track stock / Add code / Lend…" buttons share a row (scrolling sideways if they must); any of them
           that's in use is a full-width card. */}
       <div className="flex flex-wrap gap-2 [&>section]:w-full">
+      {/* Sections with nothing in them yet start here as chips (the section opens on tap). */}
+      {offer.warranties && (
+        <ChipButton icon="icon-[tabler--shield-check]" onClick={() => open("warranties")}>
+          <Trans>Add a warranty</Trans>
+        </ChipButton>
+      )}
+      {offer.maintenance && (
+        <ChipButton icon="icon-[tabler--tool]" onClick={() => open("maintenance")}>
+          <Trans>Maintenance</Trans>
+        </ChipButton>
+      )}
+      {offer.repairs && (
+        <ChipButton icon="icon-[tabler--hammer]" onClick={() => open("repairs")}>
+          <Trans>Log a repair</Trans>
+        </ChipButton>
+      )}
+      {offer.documents && (
+        <ChipButton
+          icon="icon-[tabler--files]"
+          onClick={() => {
+            setAddingFiles(true);
+            document.getElementById("item-photos")?.scrollIntoView({ behavior: "smooth" });
+          }}
+        >
+          <Trans>Add a document</Trans>
+        </ChipButton>
+      )}
       <StockCard item={item.data} householdId={householdId} canEdit={canEdit && !item.data.disposition} />
       {/* Its bags, filters…: things of their own, with stock and where to buy them; and the ones its manual lists. */}
       <PartsCard item={item.data} householdId={householdId} canEdit={canEdit && !item.data.disposition} />
@@ -495,8 +546,10 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
       {claimDialog && (
         <ClaimDialog householdId={householdId} itemId={itemId} {...claimDialog} canEdit={canEdit} onClose={() => setClaimDialog(null)} />
       )}
+      {show.warranties && (
       <div id="item-warranties" className="scroll-mt-20">
       <Warranties
+        startAdding={isOpen("warranties")}
         warranties={warranties.data?.data ?? []}
         claims={claims.data?.data ?? []}
         onFileClaim={canEdit ? (warranty) => setClaimDialog({ warranty }) : undefined}
@@ -508,18 +561,24 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
         error={addWarranty.error?.message ?? removeWarranty.error?.message}
       />
       </div>
+      )}
 
-      <div id="item-maintenance" className="scroll-mt-20">
-        <ItemMaintenance itemId={itemId} householdId={householdId} />
-      </div>
+      {show.maintenance && (
+        <div id="item-maintenance" className="scroll-mt-20">
+          <ItemMaintenance itemId={itemId} householdId={householdId} />
+        </div>
+      )}
 
-      <div id="item-repairs" className="flex scroll-mt-20 flex-col gap-3">
-        <ItemRepairs item={item.data} householdId={householdId} />
-        {/* Paid + maintenance + repairs − what it sold for, per year. */}
-        <OwnershipCard itemId={itemId} householdId={householdId} lifespan={item.data.lifespan} />
-      </div>
+      {show.repairs && (
+        <div id="item-repairs" className="scroll-mt-20">
+          <ItemRepairs item={item.data} householdId={householdId} startAdding={isOpen("repairs")} />
+        </div>
+      )}
+      {/* Paid + maintenance + repairs − what it sold for, per year. */}
+      <OwnershipCard itemId={itemId} householdId={householdId} lifespan={item.data.lifespan} />
 
       {/* ④ Documents */}
+      {show.documents && (
       <section id="item-documents" className="flex scroll-mt-20 flex-col gap-3">
         <div className="flex items-center justify-between gap-2">
           <SectionTitle icon="icon-[tabler--files]" title={t`Documents`} count={documents.length} />
@@ -593,6 +652,8 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
         )}
       </section>
 
+      )}
+
       <div id="item-history" className="scroll-mt-20">
         <ItemHistory itemId={itemId} householdId={householdId} />
       </div>
@@ -648,10 +709,10 @@ function ReturnLine({ returnBy, gone }: { returnBy: string | null | undefined; g
 }
 
 /** A row of links down a long item page: Photos 3 · Warranties · Maintenance 1 · Documents 2 · History. */
-function JumpLinks({ sections }: { sections: [id: string, label: string, count: number][] }) {
+function JumpLinks({ sections }: { sections: [id: string, label: string, count: number, shown: boolean][] }) {
   return (
     <nav aria-label={t`On this page`} className="-mx-1 flex gap-1 overflow-x-auto px-1">
-      {sections.map(([id, label, count]) => (
+      {sections.filter(([, , , shown]) => shown).map(([id, label, count]) => (
         <button
           key={id}
           type="button"
@@ -848,6 +909,21 @@ function AnalysisBadge({ attachment, onRetry }: { attachment: Attachment; onRetr
     );
   }
   return null;
+}
+
+/** The item page's sections that hide while empty. */
+type OptionalSection = "warranties" | "maintenance" | "repairs";
+
+/** A small button in the row of optional cards (like "Track stock"). */
+function ChipButton({ icon, onClick, children }: { icon: string; onClick: () => void; children: ReactNode }) {
+  return (
+    <div>
+      <button type="button" className="btn btn-soft btn-secondary btn-sm" onClick={onClick}>
+        <span className={`${icon} size-4`} />
+        {children}
+      </button>
+    </div>
+  );
 }
 
 function SectionTitle({ icon, title, count }: { icon: string; title: string; count: number }) {

@@ -76,11 +76,11 @@ export function OwnershipCard({ itemId, householdId, lifespan }: { itemId: strin
 }
 
 /** The item page's Repairs section. */
-export function ItemRepairs({ item, householdId }: { item: ItemListing; householdId: string }) {
+export function ItemRepairs({ item, householdId, startAdding }: { item: ItemListing; householdId: string; /** Open on a new repair (the item page's chip). */ startAdding?: boolean }) {
   const canEdit = useCanEdit(householdId);
   const key = ["item", householdId, item.id, "repairs"];
   const repairs = useQuery({ queryKey: key, queryFn: () => api.listRepairs(item.id) });
-  const [editing, setEditing] = useState<Repair | "new" | null>(null);
+  const [editing, setEditing] = useState<Repair | "new" | null>(startAdding ? "new" : null);
   const list = repairs.data?.data ?? [];
   return (
     <section className="flex flex-col gap-3">

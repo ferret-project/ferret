@@ -35,8 +35,10 @@ export function Warranties(props: {
   onOpenClaim?: (c: WarrantyClaim) => void;
   busy: boolean;
   error?: string;
+  /** Open with the add form showing (the item page's "Add a warranty" chip). */
+  startAdding?: boolean;
 }) {
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState(props.startAdding ?? false);
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

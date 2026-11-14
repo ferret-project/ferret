@@ -2,7 +2,7 @@
 
 ## Logging a repair
 
-When something gets fixed, open its page and tap **Repairs → Log a repair**:
+When something gets fixed, open its page and tap **Log a repair** (under **Repairs**, or among the small buttons below the photos until it has one):
 
 - **What was done** (*Replaced the drain pump*) and **what went wrong** (*Wouldn't drain, error E21*),
 - **when**, **what it cost**, and **who did it**: one of your [service providers](./maintenance#service-providers),

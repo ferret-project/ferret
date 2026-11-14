@@ -49,7 +49,7 @@ thing's page. **Add** opens the task filled in, so you can adjust it first. **No
 
 **Suggest typical upkeep for my things** asks the AI what things like yours usually need: a furnace's filter, a water
 heater's flush, a dryer's vent. Most things need none. These say *typical for things like it*: check the manual. Each
-thing is only asked about once; a thing's page has **Suggest typical upkeep** too. See [Maintenance](./maintenance).
+thing is only asked about once; a thing's page has **Suggest typical upkeep** too, under **Maintenance** (tap **Maintenance** below the photos if it has none yet). See [Maintenance](./maintenance).
 
 ## Suggested parts
 
