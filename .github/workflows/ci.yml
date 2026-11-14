@@ -104,13 +104,18 @@ jobs:
             type=raw,value=main,enable=${{ github.ref == 'refs/heads/main' }}
             type=sha,format=short
             type=raw,value=${{ steps.version.outputs.version }},enable=${{ startsWith(github.ref, 'refs/tags/') && !contains(steps.version.outputs.version, '-g') }}
+      # The translations repo's newest commit: passed to the build, so new translations aren't hidden by the build cache.
+      - id: translations
+        run: echo "ref=$(git ls-remote https://github.com/ferret-project/ferret-translations.git refs/heads/main | cut -f1)" >> "$GITHUB_OUTPUT"
       - uses: docker/build-push-action@v7
         with:
           context: .
           push: true
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
-          build-args: FERRET_VERSION=${{ steps.version.outputs.version }}
+          build-args: |
+            FERRET_VERSION=${{ steps.version.outputs.version }}
+            FERRET_TRANSLATIONS_REF=${{ steps.translations.outputs.ref || 'main' }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

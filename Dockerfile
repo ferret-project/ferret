@@ -11,6 +11,9 @@ COPY apps/docs/package.json apps/docs/
 COPY packages/shared/package.json packages/shared/
 RUN pnpm install --frozen-lockfile
 COPY . .
+# The translations are fetched from their own repo during the build (apps/web/scripts/translations.mjs). CI passes the
+# commit it should take, so new translations make a new build instead of a cached one from the same Ferret commit.
+ARG FERRET_TRANSLATIONS_REF=main
 RUN pnpm build
 
 # What the bundled server keeps outside it (the native bits — libSQL, sharp, the canvas PDFs are drawn on — and pdf.js,
