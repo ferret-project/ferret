@@ -270,7 +270,6 @@ function ConnectedApps({ householdName, householdId }: { householdName: string; 
   const grantsKey = ["oauth-grants", householdId];
   const grants = useQuery({ queryKey: grantsKey, queryFn: api.oauthGrants });
   const revoke = useMutation({ mutationFn: api.deleteOAuthGrant, onSuccess: () => qc.invalidateQueries({ queryKey: grantsKey }) });
-  if (!grants.data?.data.length && !grants.isError) return null;
   return (
     <section className="card" aria-labelledby="connected-apps-title">
       <div className="card-body gap-4">
@@ -285,7 +284,13 @@ function ConnectedApps({ householdName, householdId }: { householdName: string; 
         </div>
         {grants.isError && <div className="alert alert-soft alert-error">{grants.error.message}</div>}
         {revoke.isError && <div className="alert alert-soft alert-error">{revoke.error.message}</div>}
-        {grants.data && (
+        {grants.isPending && <span className="loading loading-spinner text-primary" />}
+        {grants.data && grants.data.data.length === 0 && (
+          <div className="rounded-box border border-dashed border-base-content/20 p-6 text-center text-sm text-base-content/70">
+            <Trans>No apps connected to {householdName}. An app you connect is listed under the household you picked for it.</Trans>
+          </div>
+        )}
+        {grants.data && grants.data.data.length > 0 && (
           <ul className="space-y-2 *:flex *:flex-wrap *:items-center *:gap-3 *:rounded-box *:p-2 *:hover:bg-neutral/10">
             {grants.data.data.map((grant) => (
               <GrantRow key={grant.id} grant={grant} onRevoke={() => revoke.mutate(grant.id)} busy={revoke.isPending} />
