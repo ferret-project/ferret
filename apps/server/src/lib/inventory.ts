@@ -50,6 +50,7 @@ import { listMaintenance } from "./maintenance";
 import { openLoansFor } from "./loans";
 import { RECALL_CHECK_JOB } from "../jobs/recalls";
 import { queueVinLookup } from "./vehicles";
+import { queueGuideLookup } from "./repair-guides";
 import { fullTextSearch, refreshFullText } from "./fulltext";
 import { SEARCH_PROFILES, fuse, semanticSearch } from "./search";
 import { moneyText, startOfDayIn, todayFor } from "./household-time";
@@ -861,6 +862,7 @@ export async function createItem(v: Caller, given: ItemInput, found?: { roomScan
   await emitEvent(v, "item.created", async () => ({ item: await itemData(v, row!) }));
   if (row!.brand || row!.barcode) await queueRecallCheck(v);
   await queueVinLookup(v, row!);
+  await queueGuideLookup(v, row!);
   await itemChanged(v, row!.id);
   await rememberBarcode(v, row!);
   await queueProductLookup(v, row!.barcode);
@@ -927,6 +929,7 @@ export async function updateItem(v: Caller, id: string, input: ItemPatch, summar
   if (row.barcode !== current.barcode) await queueProductLookup(v, row.barcode);
   if (row.brand !== current.brand || row.model !== current.model || row.barcode !== current.barcode || row.name !== current.name) await queueRecallCheck(v);
   await queueVinLookup(v, row);
+  if (row.brand !== current.brand || row.model !== current.model) await queueGuideLookup(v, row);
   const line = summary?.(row.name) ?? disposal.summary?.(row.name) ?? (await describeChanges(v, current, row, tags ? { before: tagsBefore, after: tags } : undefined));
   await logActivity(v, "item.update", row.id, line);
   await itemChanged(v, row.id);

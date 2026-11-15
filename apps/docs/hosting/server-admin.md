@@ -32,6 +32,13 @@ It's off until you switch it on, because it sends each **VIN** to NHTSA's decode
 vehicle's **make, model and year** to its recall search (api.nhtsa.gov) at most once a week — nothing else. Switching
 it on reads the VINs already in Ferret straight away.
 
+## Repair guides
+
+**Settings → Server → Repair guides** switches on [links to iFixit](../guide/repairs#repair-guides) for things whose
+brand and model iFixit knows. It's off until you switch it on, because it sends a thing's **brand and model** (a
+vehicle's make, model and year) to iFixit's public search — nothing else — each at most once a month, for every
+household together. Ferret only links to iFixit; it never copies its guides.
+
 ## Service errors
 
 **Settings → Server → Service errors** lists every failed call to a service Ferret uses — the AI models (Ollama, the

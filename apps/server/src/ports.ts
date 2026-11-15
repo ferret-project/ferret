@@ -237,6 +237,12 @@ export interface VehicleData {
   recalls(make: string, model: string, year: number): Promise<RawVehicleRecall[]>;
 }
 
+/** iFixit's public device search (switched on by the server admin: Settings → Server). Throws on network trouble. */
+export interface RepairGuides {
+  /** Devices iFixit has guides for, best match first: their title and their page (always on www.ifixit.com). */
+  searchDevices(query: string): Promise<{ title: string; url: string }[]>;
+}
+
 /** Home Assistant's registries as its WebSocket API returns them (the fields an import reads). */
 export interface HaRegistry {
   floors: { floor_id: string; name: string; level?: number | null }[];
@@ -487,6 +493,8 @@ export interface Deps {
   recalls?: Recalls;
   /** NHTSA: VINs decoded and vehicle recalls (switched on by the server admin: Settings → Server). */
   vehicles?: VehicleData;
+  /** iFixit: a "Repair guides" link for things whose brand and model it knows (switched on in Settings → Server). */
+  repairGuides?: RepairGuides;
   /** Search's cut-offs for these models (default: "home", lib/search.ts). */
   searchProfile?: SearchProfile;
   /** "Are you a person?" before sign-up (a Turnstile widget, lib/turnstile.ts). */

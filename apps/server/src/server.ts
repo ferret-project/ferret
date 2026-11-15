@@ -26,6 +26,7 @@ import { AppleMapSnapshots } from "./adapters/local/apple-maps";
 import { HomeAssistantWebSocket } from "./adapters/local/home-assistant";
 import { CpscRecalls } from "./adapters/local/cpsc";
 import { NhtsaVehicles } from "./adapters/local/nhtsa";
+import { IfixitGuides } from "./adapters/local/ifixit";
 import { QdrantVectors } from "./adapters/local/qdrant";
 import { VllmReranker } from "./adapters/local/reranker";
 import { OpenAiSpeech } from "./adapters/local/speech";
@@ -114,6 +115,8 @@ const products = config.BARCODE_LOOKUP === "upcitemdb" ? new UpcItemDb(config.UP
 const recalls = new CpscRecalls();
 // VINs decoded and vehicle recalls, from NHTSA: also off until the server admin switches them on.
 const vehicles = new NhtsaVehicles();
+// "Repair guides on iFixit" links: off until the server admin switches them on.
+const repairGuides = new IfixitGuides();
 const maps =
   config.APPLE_MAPS_TEAM_ID && config.APPLE_MAPS_KEY_ID && config.APPLE_MAPS_PRIVATE_KEY
     ? new AppleMapSnapshots(config.APPLE_MAPS_TEAM_ID, config.APPLE_MAPS_KEY_ID, config.APPLE_MAPS_PRIVATE_KEY)
@@ -146,6 +149,7 @@ const deps = {
   homeAssistant: new HomeAssistantWebSocket(),
   recalls: watched(db, "recalls", recalls),
   vehicles: watched(db, "vehicles", vehicles),
+  repairGuides: watched(db, "repair guides", repairGuides),
   tls: new NodeTls(),
   secrets: { sources: secrets.sources, file: path.join(dataDir, SECRETS_FILE), filesKeyId: keys.set },
 };
@@ -206,6 +210,7 @@ serve(
   console.log(`   Reranking:      ${on(vectors && reranker, `${config.RERANK_MODEL} at ${config.RERANK_URL}`, "set RERANK_URL")}`);
   console.log(`   Speech to text: ${on(speech, `${config.SPEECH_MODEL} at ${config.SPEECH_URL}`, "set SPEECH_URL")}`);
   console.log("   Recalls:        the US CPSC's recalls, if the server admin switches them on (Settings → Server)");
+  console.log("   Repair guides:  iFixit links for things' brand and model, if the server admin switches them on (Settings → Server)");
   console.log("   Vehicles:       NHTSA's VIN decoding and vehicle recalls, if the server admin switches them on (Settings → Server)");
   console.log(`   Barcode lookup: ${on(products, `UPCitemdb${config.UPCITEMDB_KEY ? " (paid key)" : " (free: 100 a day)"}`, "set BARCODE_LOOKUP=upcitemdb")} + Ferret's own barcode book`);
   console.log(`   Push reminders: ${on(push, `daily from ${config.REMIND_HOUR}:00 (TZ ${process.env.TZ ?? "system"})`, "set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY")}`);

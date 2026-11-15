@@ -39,3 +39,14 @@ on the new one.
 
 [Claude](./claude) can log repairs too (*"the plumber replaced the water heater's thermostat today, $180"*), and
 tell you what something has cost so far.
+
+## Repair guides
+
+When whoever runs your Ferret has switched on [repair guides](../hosting/server-admin#repair-guides), a thing whose
+**brand and model** match a device on [iFixit](https://www.ifixit.com) gets a **Repair guides on iFixit** link under its
+details — iFixit's page for that exact model, with its repair guides, parts and troubleshooting. A car with a
+[decoded VIN](./recalls#vehicles) links to the page for its make, model and years.
+
+Only a sure match gets a link: the model has to be in iFixit's device name (and have a digit in it — "DCD771C2",
+"iPhone 12", not just "Classic"), along with the brand. If a thing has none, either iFixit doesn't have it or its
+model is written differently — check the model on its label.

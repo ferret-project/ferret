@@ -27,6 +27,7 @@ import { BACKFILL_JOB, INDEX_JOB, backfillIndex, indexItem } from "./index-item"
 import { PDF_BACKFILL_JOB, PDF_THUMB_JOB, pdfThumbnail, pdfThumbnailBackfill } from "./pdf-thumbnail";
 import { PURGE_JOB, purgeJob } from "./purge";
 import { RECALL_CHECK_JOB, RECALL_SYNC_JOB, recallCheckJob, recallSyncJob } from "./recalls";
+import { REPAIR_GUIDE_JOB, repairGuideJob } from "../lib/repair-guides";
 import { VIN_BACKFILL_JOB, VIN_JOB, vinBackfillJob, vinLookupJob } from "../lib/vehicles";
 import { REMIND_JOB, sendReminders } from "./remind";
 import {
@@ -122,6 +123,7 @@ export function jobSchedule({
     [RECALL_CHECK_JOB]: recallCheckJob(deps),
     [VIN_JOB]: vinLookupJob(deps),
     [VIN_BACKFILL_JOB]: vinBackfillJob(deps),
+    [REPAIR_GUIDE_JOB]: repairGuideJob(deps),
     [PURGE_JOB]: purgeJob({ ...deps, files }),
   };
   if (deps.pdfPages && deps.images) {

@@ -9,6 +9,7 @@ import { serverAdmin, setServerAdmin } from "../lib/server-admin";
 import { z } from "zod";
 import { RECALL_SYNC_JOB } from "../jobs/recalls";
 import { recallStatus, setRecallsEnabled } from "../lib/recalls";
+import { repairGuideStatus, setRepairGuidesEnabled } from "../lib/repair-guides";
 import { setVehiclesEnabled, VIN_BACKFILL_JOB, vehicleStatus } from "../lib/vehicles";
 import { serverAiFillDefaults, setServerAiFillDefaults } from "../lib/ai-fill";
 import { aiFillKinds } from "@ferret/shared";
@@ -120,6 +121,16 @@ server.get("/ai-fill", async (c) => c.json(await serverAiFillDefaults(c.var.db))
 server.put("/ai-fill", async (c) => {
   const input = await body(c.req.raw, z.partialRecord(z.enum(aiFillKinds), z.boolean()));
   return c.json(await setServerAiFillDefaults(c.var.db, input));
+});
+
+/** Repair guide links (iFixit): whether they're on, brands + models asked about and matched. */
+server.get("/repair-guides", async (c) => c.json(await repairGuideStatus(c.var.deps)));
+
+/** Switch repair guide links on or off (things are asked about as they're saved, or their pages opened). */
+server.put("/repair-guides", async (c) => {
+  const { enabled } = await body(c.req.raw, z.object({ enabled: z.boolean() }));
+  await setRepairGuidesEnabled(c.var.db, enabled);
+  return c.json(await repairGuideStatus(c.var.deps));
 });
 
 /** Vehicle look-ups (NHTSA): whether they're on, how many vehicles decoded and their recalls kept. */

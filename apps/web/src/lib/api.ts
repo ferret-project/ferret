@@ -135,7 +135,7 @@ import type {
   ImportTriageInput,
   ImportTriageRow,
   MergeInput,
-  SuggestedTask, OAuthConnectInput, OAuthConnectRequest, OAuthGrantSummary, VehicleLookupStatus } from "@ferret/shared";
+  SuggestedTask, OAuthConnectInput, OAuthConnectRequest, OAuthGrantSummary, VehicleLookupStatus, RepairGuideStatus } from "@ferret/shared";
 import { photoCopies } from "./photo-copies";
 import { t, ph } from "@lingui/core/macro";
 
@@ -305,6 +305,8 @@ export const api = {
   checkBackup: (name: string) => request<{ ok: boolean; summary: string }>(`/backup/snapshots/${encodeURIComponent(name)}/check`, { method: "POST" }),
   serverAdmin: () => request<{ id: string; name: string; email: string }>("/server/admin"),
   recallStatus: () => request<RecallStatus>("/server/recalls"),
+  repairGuideStatus: () => request<RepairGuideStatus>("/server/repair-guides"),
+  setRepairGuides: (enabled: boolean) => request<RepairGuideStatus>("/server/repair-guides", { method: "PUT", body: JSON.stringify({ enabled }) }),
   vehicleLookupStatus: () => request<VehicleLookupStatus>("/server/vehicles"),
   setVehicleLookups: (enabled: boolean) => request<VehicleLookupStatus>("/server/vehicles", { method: "PUT", body: JSON.stringify({ enabled }) }),
   barcodeLookupStatus: () => request<BarcodeLookupStatus>("/server/barcode-lookups"),

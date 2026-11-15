@@ -470,6 +470,13 @@
       "when": 1794769053955,
       "tag": "0066_item_vehicle",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "6",
+      "when": 1794769553463,
+      "tag": "0067_repair_guide",
+      "breakpoints": true
     }
   ]
 }

@@ -853,6 +853,8 @@ export interface ItemListing extends Item {
   lastScanned: { at: string; by: string | null; how: SightingHow } | null;
   /** One item's page (GET /items/:id), for a thing imported from Home Assistant: its device page there. */
   homeAssistantUrl?: string | null;
+  /** One item's page (GET /items/:id): iFixit's page for it, when its brand and model surely match one (repair guides on). */
+  repairGuide?: { title: string; url: string } | null;
   /** One item's page (GET /items/:id): what replaced it, and what it replaced. */
   replacedBy?: { id: string; name: string } | null;
   replaces?: { id: string; name: string }[];
@@ -2052,6 +2054,15 @@ export interface WeeklyDigestSetting {
 }
 
 /** Recall checks, for the server admin (Settings → Server). */
+/** Repair guide links (iFixit) for Settings → Server. */
+export interface RepairGuideStatus {
+  available: boolean;
+  enabled: boolean;
+  /** Brands + models asked about, and those with a sure match. */
+  asked: number;
+  found: number;
+}
+
 /** Vehicle look-ups (NHTSA: VINs decoded, vehicle recalls) for Settings → Server. */
 export interface VehicleLookupStatus {
   available: boolean;

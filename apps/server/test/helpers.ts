@@ -26,7 +26,7 @@ import type { Speech } from "../src/ports";
 import { IMPORT_TRIAGE_JOB, importTriageJob } from "../src/lib/ai-runs";
 import { REPLACEMENT_JOB, replacementJob } from "../src/lib/replacement";
 import { TYPICAL_UPKEEP_JOB, typicalUpkeepJob } from "../src/lib/typical-upkeep";
-import type { Ai, Analytics, AnalyticsCount, Db, Deps, Documents, Downloader, WebhookSender, Entitlements, HomeAssistant, HumanCheck, Recalls, MapImages, Notifier, ProductInfo, ProductLookup, Push, PushTarget, Reranker, VectorPoint, Vectors, VehicleData } from "../src/ports";
+import type { Ai, Analytics, AnalyticsCount, Db, Deps, Documents, Downloader, WebhookSender, Entitlements, HomeAssistant, HumanCheck, Recalls, MapImages, Notifier, ProductInfo, ProductLookup, Push, PushTarget, Reranker, VectorPoint, Vectors, VehicleData, RepairGuides } from "../src/ports";
 import { testDb } from "./db";
 
 export const config = loadConfig({
@@ -251,6 +251,8 @@ export async function setup(
     recalls?: Recalls;
     /** NHTSA: VINs decoded and vehicle recalls (lib/vehicles.ts). */
     vehicles?: VehicleData;
+    /** iFixit's device search (lib/repair-guides.ts). */
+    repairGuides?: RepairGuides;
     /** PDF thumbnails (their first page). */
     pdfPages?: PdfPages;
     /** A fresh nonce in each response's CSP (a proxy's injected script). */
@@ -300,13 +302,13 @@ export async function setup(
     ...(opts.demo && { DEMO: true, DEMO_ADMIN_EMAIL: "admin@demo.test", DEMO_ADMIN_PASSWORD: "demo-admin-password", ...opts.demo }),
     ...opts.config,
   };
-  const { app, files, auth } = createApp({ db, blobs, images, pdfPages, jobs, ai, chat, documents, vectors, reranker, push, notifier, downloader, webhooks: opts.webhooks, products, maps, backups, homeAssistant, recalls, vehicles: opts.vehicles, humanCheck: opts.humanCheck, analytics: opts.analytics, entitlements, backupElsewhere: opts.backupElsewhere, hostingUsage: opts.hostingUsage, tls: opts.tls, secrets: opts.secrets, speech: opts.speech }, appConfig, { cspNonce: opts.cspNonce, extensions: opts.extensions });
+  const { app, files, auth } = createApp({ db, blobs, images, pdfPages, jobs, ai, chat, documents, vectors, reranker, push, notifier, downloader, webhooks: opts.webhooks, products, maps, backups, homeAssistant, recalls, vehicles: opts.vehicles, repairGuides: opts.repairGuides, humanCheck: opts.humanCheck, analytics: opts.analytics, entitlements, backupElsewhere: opts.backupElsewhere, hostingUsage: opts.hostingUsage, tls: opts.tls, secrets: opts.secrets, speech: opts.speech }, appConfig, { cspNonce: opts.cspNonce, extensions: opts.extensions });
   if (backups) jobs.register({ [BACKUP_JOB]: backupJob({ db, blobs, ...backups, filesKey: config.FILES_KEY, keep: appConfig.BACKUP_KEEP }) });
   const onItemChanged = async (itemId: string) => {
     await refreshFullText(db, itemId);
     if (vectors) await jobs.enqueue(INDEX_JOB, { itemId });
   };
-  const full = { db, blobs, images, jobs, ai, chat, documents, vectors, reranker, products, recalls, vehicles: opts.vehicles, entitlements } as Deps;
+  const full = { db, blobs, images, jobs, ai, chat, documents, vectors, reranker, products, recalls, vehicles: opts.vehicles, repairGuides: opts.repairGuides, entitlements } as Deps;
   const analyze = analyzeAttachment({ db, files, ai, chat, images, documents, pdfPages, entitlements, onItemChanged, full });
   jobs.register({ [PHOTO_JOB]: analyze, [DOCUMENT_JOB]: analyze, [ROOM_SCAN_JOB]: analyzeRoomScan({ db, files, ai, entitlements }) });
   if (chat ?? ai) jobs.register({ [IMPORT_TRIAGE_JOB]: importTriageJob(full), [REPLACEMENT_JOB]: replacementJob(full), [TYPICAL_UPKEEP_JOB]: typicalUpkeepJob(full) });
@@ -364,7 +366,7 @@ export async function setup(
       [WEBHOOK_STATES_JOB]: webhookStatesJob({ ...full, webhooks: opts.webhooks }),
     });
   }
-  return { app, auth, db, jobs, files, user, config: appConfig, deps: { db, blobs, images, jobs, ai, chat, documents, vectors, reranker, push, notifier, downloader, webhooks: opts.webhooks, products, backups, recalls, vehicles: opts.vehicles } };
+  return { app, auth, db, jobs, files, user, config: appConfig, deps: { db, blobs, images, jobs, ai, chat, documents, vectors, reranker, push, notifier, downloader, webhooks: opts.webhooks, products, backups, recalls, vehicles: opts.vehicles, repairGuides: opts.repairGuides } };
 }
 
 export const photo = async () =>

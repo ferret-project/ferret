@@ -387,6 +387,13 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
               <Trans>Open in Home Assistant</Trans>
             </a>
           )}
+          {item.data.repairGuide && (
+            // iFixit's page for its exact model: guides, parts, troubleshooting — Ferret only links there.
+            <a href={item.data.repairGuide.url} target="_blank" rel="noreferrer" className="tap link link-hover text-primary flex items-center gap-1 self-start text-sm">
+              <span className="icon-[tabler--tools] size-4 shrink-0" />
+              <Trans>Repair guides on iFixit: {ph({ device: item.data.repairGuide.title })}</Trans>
+            </a>
+          )}
           <AddedLine item={item.data} />
           {editable && !item.data.wanted && (
             <button type="button" className="tap link link-hover text-primary flex items-center gap-1 self-start text-sm" onClick={() => setCopying("app")}>

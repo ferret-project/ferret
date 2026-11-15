@@ -1313,6 +1313,17 @@ export const recallBrand = sqliteTable("recall_brand", {
 });
 
 /**
+ * iFixit device pages found for a brand and model (lib/repair-guides.ts), for every household — only what iFixit said:
+ * the key is the normalised brand + model (+ a vehicle's year); `url` null when it had nothing sure. Kept 30 days.
+ */
+export const repairGuide = sqliteTable("repair_guide", {
+  key: text("key").primaryKey(),
+  title: text("title"),
+  url: text("url"),
+  checkedAt: integer("checked_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+/**
  * Failed calls to the services Ferret depends on (lib/service-errors.ts) — the AI models, the vector store, docling,
  * Apprise, push, the barcode and recall databases, maps — one row per service and message, counted. For the server
  * admin: Settings → Server, the bell, and an alert when a service starts failing.
