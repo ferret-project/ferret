@@ -77,6 +77,23 @@ Signed in as the [server admin](../hosting/server-admin), **Settings → Server*
 Ferret uses (AI models, email, push…) and jobs that gave up, each with **Copy details** — paste that into a question on
 Discord or GitHub. The container's log (`docker compose logs ferret`) says at start what's switched on.
 
+### Some photos aren't read: "ran out of room" or "reply wasn't JSON (finished: length)"
+
+The vision model stopped before it answered. Most often it ran out of room. Thinking models (`qwen3-vl:8b` is
+`qwen3-vl:8b-thinking`) write out their reasoning before the answer, and a model server gives each request a limited
+**context window** — Ollama's default is 4,096 tokens, and a photo's prompt already takes about 2,700 of them. Service
+errors then say *"the model server's context window (4,096 tokens) filled up"*. It isn't the GPU: an 8 GB card runs an
+8B model fine.
+
+- **Use the version that doesn't think** — same size, faster, and it fits the window: pull `qwen3-vl:8b-instruct` in
+  Ollama and set `VISION_MODEL=qwen3-vl:8b-instruct`, then restart Ferret.
+- **Or give the model server a bigger window**: Ollama's `OLLAMA_CONTEXT_LENGTH=8192` (an environment variable on the
+  Ollama container; llama.cpp: `--ctx-size 8192`). It takes a little more of the GPU's memory.
+
+Then **Clear all** in Service errors, and read the photos that failed again with the ✨ button on their thing's page.
+If it says *finished: length* without the window, the reply hit Ferret's own limit — a model that wanders on; try
+another model.
+
 ### Links in emails point to `localhost`, passkeys or single sign-on don't work
 
 Set `PUBLIC_URL` to the address people use ([Settings](../hosting/configuration#the-address-public-url)) and restart.

@@ -43,6 +43,10 @@ AI_API_KEY=…                        # optional: for servers started with an AP
 - `CHAT_URL`, `RERANK_URL` and `SPEECH_URL` can each be a different server again.
 - `AI_API_KEY` is sent as `Authorization: Bearer …` to all of them (llama-server's `--api-key`, LM Studio, vLLM's
   `--api-key`).
+- **Thinking models need room.** `qwen3-vl:8b` is the thinking build; on a home GPU with Ollama's default 4,096-token
+  window it can run out before answering a photo. `qwen3-vl:8b-instruct` (same size) doesn't think and is faster, or
+  raise the window (`OLLAMA_CONTEXT_LENGTH=8192`) — see
+  [Troubleshooting](../guide/troubleshooting#some-photos-aren-t-read-ran-out-of-room-or-reply-wasn-t-json-finished-length).
 - Older setups name `VISION_URL` **`OLLAMA_URL`** — it still works, for any server, and `VISION_URL` wins if both are set.
 - Smart search's cut-offs were tuned on `qwen3-embedding`. Another embedding model works, but matches by meaning may be
   a little stricter or looser.

@@ -43,6 +43,25 @@ export async function jsonReply(model: string, request: JsonRequest, ask: (tempe
   }
   const each = (f: (r: ModelReply) => unknown) => replies.map((r) => f(r) ?? "?").join(", ");
   const last = replies.at(-1)!.text;
+  const window = filledWindow(replies, request.maxTokens);
+  if (window) {
+    throw new ServiceFailure(
+      `${model} ran out of room: the model server's context window (${window.toLocaleString("en-US")} tokens) filled up before it answered — ` +
+        "give the model server a bigger window (Ollama: OLLAMA_CONTEXT_LENGTH), or use a model that doesn't think first (e.g. an -instruct one)",
+      {
+        model,
+        contextWindow: window,
+        promptTokens: each((r) => r.usage?.prompt_tokens),
+        replyTokens: each((r) => r.usage?.completion_tokens),
+        maxTokens: request.maxTokens ?? "model's default",
+        promptChars: request.prompt.length,
+        imageBytes: request.image?.data.length,
+        seconds: Math.round((Date.now() - started) / 100) / 10,
+        ...replyShape(last),
+        ...extra,
+      },
+    );
+  }
   throw new ServiceFailure(`${model} reply wasn't JSON, twice (finished: ${each((r) => r.finishReason)})`, {
     model,
     attempts: replies.length,
@@ -56,6 +75,29 @@ export async function jsonReply(model: string, request: JsonRequest, ask: (tempe
     ...replyShape(last),
     ...extra,
   });
+}
+
+/** Context windows model servers come with (Ollama's default is 4,096; llama.cpp's and others' are powers of two too). */
+const WINDOWS = [2048, 4096, 8192, 16384, 32768];
+
+/**
+ * The model server's context window, when that's what every reply ran into: each stopped at "length" before the
+ * reply's own limit, with prompt + reply adding up to a usual window size (Ollama counts a few tokens either way).
+ * Null otherwise — then it's the reply limit, or something else.
+ */
+export function filledWindow(replies: ModelReply[], maxTokens?: number) {
+  let window: number | null = null;
+  for (const r of replies) {
+    const prompt = r.usage?.prompt_tokens;
+    const reply = r.usage?.completion_tokens;
+    if (r.finishReason !== "length" || prompt == null || reply == null) return null;
+    if (maxTokens != null && reply >= maxTokens) return null;
+    const total = prompt + reply;
+    const near = WINDOWS.find((w) => total >= w - 8 && total <= w);
+    if (!near || (window !== null && near !== window)) return null;
+    window = near;
+  }
+  return window;
 }
 
 /** A reply described without keeping it: its length, how much is blank space, and its first and last words (folded). */
