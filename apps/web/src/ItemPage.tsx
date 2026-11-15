@@ -380,6 +380,13 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
             const search = item.data.minQuantity != null && !item.data.disposition && amazonSite ? amazonSearchUrl(item.data, amazonSite) : null;
             return (item.data.links?.length || search) ? <ItemLinks links={item.data.links ?? []} search={search} /> : null;
           })()}
+          {item.data.homeAssistantUrl && (
+            // Its device page in Home Assistant: controls, history, battery — Ferret only links there.
+            <a href={item.data.homeAssistantUrl} target="_blank" rel="noreferrer" className="tap link link-hover text-primary flex items-center gap-1 self-start text-sm">
+              <span className="icon-[tabler--smart-home] size-4 shrink-0" />
+              <Trans>Open in Home Assistant</Trans>
+            </a>
+          )}
           <AddedLine item={item.data} />
           {editable && !item.data.wanted && (
             <button type="button" className="tap link link-hover text-primary flex items-center gap-1 self-start text-sm" onClick={() => setCopying("app")}>

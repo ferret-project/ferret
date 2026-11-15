@@ -7,7 +7,7 @@
  */
 import type { HaChange, HaDevice, HaRegistryView, HaSnapshot } from "@ferret/shared";
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
-import { item, location } from "../db/schema";
+import { householdSetting, item, location } from "../db/schema";
 import type { HaRegistry } from "../ports";
 import { type Caller, locationPaths } from "./inventory";
 
@@ -166,6 +166,12 @@ export function tidyRegistry(reg: HaRegistry, known: HaKnown = NOTHING_KNOWN): H
 export async function homeAssistantDevices(v: Caller, url: string, token: string): Promise<HaRegistryView> {
   if (!v.deps.homeAssistant) throw new Error("Home Assistant import isn't available on this server");
   const reg = await v.deps.homeAssistant.registry(url, token);
+  // It answered: remember where it is (the address only) for "Open in Home Assistant" on what's imported from it.
+  const origin = new URL(url).origin;
+  await v.db
+    .insert(householdSetting)
+    .values({ householdId: v.householdId, homeAssistantUrl: origin })
+    .onConflictDoUpdate({ target: householdSetting.householdId, set: { homeAssistantUrl: origin } });
   const [rows, places, paths] = await Promise.all([
     v.db
       .select({ id: item.id, ha: item.haDeviceId, name: item.name, brand: item.brand, model: item.model, serialNumber: item.serialNumber, locationId: item.locationId, haSnapshot: item.haSnapshot })
@@ -182,4 +188,14 @@ export async function homeAssistantDevices(v: Caller, url: string, token: string
     places: new Map(places.map((p) => [p.ha!, { id: p.id, propertyId: p.propertyId }])),
     paths,
   });
+}
+
+/**
+ * "Open in Home Assistant" for a thing imported from it: its device page there, where Home Assistant shows controls,
+ * history, battery and firmware. Null when it didn't come from Home Assistant, or no import has said where that is.
+ */
+export async function homeAssistantLink(v: Pick<Caller, "db" | "householdId">, row: { haDeviceId: string | null }) {
+  if (!row.haDeviceId) return null;
+  const [s] = await v.db.select({ url: householdSetting.homeAssistantUrl }).from(householdSetting).where(eq(householdSetting.householdId, v.householdId));
+  return s?.url ? `${s.url}/config/devices/device/${encodeURIComponent(row.haDeviceId)}` : null;
 }

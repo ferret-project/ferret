@@ -66,6 +66,9 @@ appliances, TVs, speakers, thermostats, cameras and network gear, with their mak
    Ferret folds those together. Software, services and integrations are tucked under *Probably not things*. Untick
    anything you don't want, then **Import**.
 
+A thing that came from Home Assistant has **Open in Home Assistant** on its page. It goes to the device's page there,
+with its controls, history and battery. Ferret remembers only Home Assistant's address for this, never the token.
+
 ### Importing again later
 
 Run it again whenever Home Assistant has changed — Ferret remembers which room and device each place and thing came

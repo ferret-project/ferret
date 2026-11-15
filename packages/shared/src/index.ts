@@ -833,6 +833,8 @@ export interface ItemListing extends Item {
   loan: { direction: LoanDirection; person: string; since: string; dueOn: string | null } | null;
   /** When its QR label or barcode was last scanned to it, by whom (their name), and how. */
   lastScanned: { at: string; by: string | null; how: SightingHow } | null;
+  /** One item's page (GET /items/:id), for a thing imported from Home Assistant: its device page there. */
+  homeAssistantUrl?: string | null;
   /** One item's page (GET /items/:id): what replaced it, and what it replaced. */
   replacedBy?: { id: string; name: string } | null;
   replaces?: { id: string; name: string }[];

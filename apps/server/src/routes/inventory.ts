@@ -44,6 +44,7 @@ import { itemHistory } from "../lib/history";
 import { markMissing, markSeen } from "../lib/sightings";
 import { itemLifespan, replacementForecast } from "../lib/lifespans";
 import * as repairs from "../lib/repairs";
+import { homeAssistantLink } from "../lib/home-assistant";
 import { checkInReview, finishRoomReview, getRoomReview, roomsToReview, startRoomReview } from "../lib/room-reviews";
 import * as warranties from "../lib/warranties";
 
@@ -254,7 +255,7 @@ inventory.get("/items/:id", async (c) => {
   const found = await svc.getItem(v, c.req.param("id"));
   const [listed] = await svc.asListing(v, [found]);
   const [by] = found.createdBy ? await c.var.db.select({ name: user.name }).from(user).where(eq(user.id, found.createdBy)) : [];
-  return c.json({ ...listed, addedBy: by?.name ?? null, ownLabels: await ownLabelsOf(v, found.id), lifespan: await itemLifespan(v, found), ...(await repairs.replacementsOf(v, found)) });
+  return c.json({ ...listed, addedBy: by?.name ?? null, ownLabels: await ownLabelsOf(v, found.id), lifespan: await itemLifespan(v, found), homeAssistantUrl: await homeAssistantLink(v, found), ...(await repairs.replacementsOf(v, found)) });
 });
 
 /** One change to many things: move, category, tag, untag, delete (≤200 at a time). */

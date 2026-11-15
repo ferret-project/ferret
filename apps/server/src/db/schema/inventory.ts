@@ -326,6 +326,11 @@ export const householdSetting = sqliteTable("household_setting", {
   aiFill: text("ai_fill", { mode: "json" }).$type<AiFillSwitches>(),
   /** The last day (UTC, yyyy-mm-dd) anyone in it used Ferret — written at most once a day (lib/plan.ts markActive). */
   lastActiveOn: text("last_active_on"),
+  /**
+   * Its Home Assistant's address (origin only, never a token), remembered from the last import that read it — for
+   * "Open in Home Assistant" on things imported from there (lib/home-assistant.ts). The browser follows the link.
+   */
+  homeAssistantUrl: text("home_assistant_url"),
   updatedAt: timestamps.updatedAt,
 });
 

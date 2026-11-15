@@ -1,0 +1,1 @@
+ALTER TABLE `household_setting` ADD `home_assistant_url` text;

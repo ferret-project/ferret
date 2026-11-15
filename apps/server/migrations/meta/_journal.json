@@ -442,6 +442,13 @@
       "when": 1794721921200,
       "tag": "0062_webhooks",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "6",
+      "when": 1794722920067,
+      "tag": "0063_home_assistant_url",
+      "breakpoints": true
     }
   ]
 }

@@ -310,6 +310,12 @@ describe("Home Assistant", () => {
     expect(again).toMatchObject({ created: 0, skipped: [{ index: 0, reason: "Already in Ferret" }] });
     const after = await json<{ devices: { id: string; itemId: string | null }[] }>(send(ann, "POST", "/api/v1/import/home-assistant/devices", { url: "http://homeassistant.local:8123", token }));
     expect(after.devices.find((d) => d.id === "d1")!.itemId).toBeTruthy();
+
+    // Its page links to the device in Home Assistant (the address remembered from the read, never the token).
+    const page = await json<{ homeAssistantUrl: string | null }>(ann.as(`/api/v1/items/${after.devices.find((d) => d.id === "d1")!.itemId}`));
+    expect(page.homeAssistantUrl).toBe("http://homeassistant.local:8123/config/devices/device/d1");
+    const plain = await ann.addItem({ name: "Toaster" });
+    expect((await json<{ homeAssistantUrl: string | null }>(ann.as(`/api/v1/items/${plain.id}`))).homeAssistantUrl).toBeNull();
   });
 
   it("makes rooms without things, under their floor or in their own property, and finds them again", async () => {
