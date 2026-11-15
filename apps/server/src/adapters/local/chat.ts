@@ -77,6 +77,24 @@ export async function jsonReply(model: string, request: JsonRequest, ask: (tempe
   });
 }
 
+/**
+ * JSON Schema keywords the grammar engines behind structured output often refuse — vLLM's xgrammar answers
+ * `Grammar error: Unimplemented keys: ["uniqueItems"]` and reads nothing — so they're left out of what's sent.
+ * They only tighten a reply Ferret checks again anyway (each job parses it with zod).
+ */
+const UNPORTABLE = new Set(["uniqueItems", "contains", "minContains", "maxContains", "propertyNames", "dependentRequired", "dependentSchemas", "if", "then", "else", "not", "$comment"]);
+
+/** The schema without UNPORTABLE keywords, at any depth (a property *named* like one is kept). */
+export function portableSchema(schema: unknown, isProperties = false): unknown {
+  if (Array.isArray(schema)) return schema.map((s) => portableSchema(s));
+  if (!schema || typeof schema !== "object") return schema;
+  return Object.fromEntries(
+    Object.entries(schema as Record<string, unknown>)
+      .filter(([key]) => isProperties || !UNPORTABLE.has(key))
+      .map(([key, value]) => [key, portableSchema(value, !isProperties && (key === "properties" || key === "$defs" || key === "definitions"))]),
+  );
+}
+
 /** Context windows model servers come with (Ollama's default is 4,096; llama.cpp's and others' are powers of two too). */
 const WINDOWS = [2048, 4096, 8192, 16384, 32768];
 
@@ -144,7 +162,7 @@ export class OpenAiChat implements TextModel {
           model: this.model,
           temperature,
           messages: [{ role: "user", content: image ? content : prompt }],
-          response_format: { type: "json_schema", json_schema: { name: "reply", schema } },
+          response_format: { type: "json_schema", json_schema: { name: "reply", schema: portableSchema(schema) } },
           ...(this.opts.reasoningEffort ? { reasoning_effort: this.opts.reasoningEffort } : {}),
           ...(maxTokens ? { max_tokens: maxTokens } : {}),
         }),

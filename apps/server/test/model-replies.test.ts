@@ -23,3 +23,22 @@ describe("a model that runs out of room", () => {
     expect((err as ServiceFailure).detail).toMatchObject({ contextWindow: 4096, promptTokens: "2660, 2660", replyTokens: "1436, 1436" });
   });
 });
+
+describe("schemas sent to a model server", () => {
+  it("leave out keywords grammar engines refuse (vLLM: uniqueItems), keeping properties that happen to share their names", async () => {
+    const { portableSchema } = await import("../src/adapters/local/chat");
+    const schema = {
+      type: "object",
+      properties: {
+        sure: { type: "array", items: { type: "string", enum: ["brand"] }, uniqueItems: true, maxItems: 1 },
+        not: { type: "string" }, // a field called "not"
+      },
+      required: ["sure", "not"],
+    };
+    expect(portableSchema(schema)).toEqual({
+      type: "object",
+      properties: { sure: { type: "array", items: { type: "string", enum: ["brand"] }, maxItems: 1 }, not: { type: "string" } },
+      required: ["sure", "not"],
+    });
+  });
+});
