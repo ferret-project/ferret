@@ -33,6 +33,7 @@ export function Server() {
       <ServiceErrors />
       <BarcodeLookups />
       <RecallChecks />
+      <VehicleLookups />
       <ServerAiFillCard />
       {!demo && <Certificates />}
       <ServerAdmin />
@@ -313,6 +314,48 @@ function RecallChecks() {
           <p className="text-sm text-base-content/70">
             {plural(s.brands, { one: "# brand checked", other: "# brands checked" })}, {plural(s.recalls, { one: "# recall kept", other: "# recalls kept" })}
             {s.lastCheckedAt ? t` · last asked ${ph({ when: new Date(s.lastCheckedAt).toLocaleString() })}` : t` · checking now`}.
+          </p>
+        )}
+        {toggle.isError && <div className="alert alert-soft alert-error">{toggle.error.message}</div>}
+      </div>
+    </section>
+  );
+}
+
+/** Vehicle look-ups (NHTSA): off until switched on, because they send VINs, and makes, models and years, to NHTSA. */
+function VehicleLookups() {
+  const qc = useQueryClient();
+  const status = useQuery({ queryKey: ["server-vehicles"], queryFn: api.vehicleLookupStatus });
+  const toggle = useMutation({
+    mutationFn: api.setVehicleLookups,
+    onSuccess: (data) => {
+      qc.setQueryData(["server-vehicles"], data);
+      void qc.invalidateQueries({ queryKey: ["recalls"] });
+    },
+  });
+  const s = status.data;
+  if (!s) return null;
+  return (
+    <section className="card" aria-labelledby="vehicles-title">
+      <div className="card-body gap-3">
+        <h2 id="vehicles-title" className="card-title flex items-center gap-2">
+          <span className="icon-[tabler--car] size-5 text-primary" />
+          <Trans>Vehicle look-ups</Trans>
+          <HelpLink page="guide/recalls.html#vehicles" label={t`Vehicle look-ups`} />
+        </h2>
+        <p className="text-sm text-base-content/70">
+          <Trans>Reads a vehicle's VIN — a Vehicles category's VIN field, or a serial number that is one — with the US National Highway
+          Traffic Safety Administration's decoder, and offers its make, model and year on the thing's page. Vehicles are also checked
+          against NHTSA's recalls, which the product recall checks don't cover. To do that, the VIN and the make, model and year are
+          sent to NHTSA (nhtsa.gov); nothing else is.</Trans>
+        </p>
+        <label className="flex cursor-pointer items-center gap-3">
+          <input type="checkbox" className="switch switch-primary" checked={s.enabled} disabled={toggle.isPending || !s.available} onChange={(e) => toggle.mutate(e.target.checked)} />
+          <span>{s.enabled ? t`On` : t`Off`}</span>
+        </label>
+        {s.enabled && (
+          <p className="text-sm text-base-content/70">
+            {plural(s.vehicles, { one: "# vehicle read", other: "# vehicles read" })}, {plural(s.recalls, { one: "# vehicle recall kept", other: "# vehicle recalls kept" })}.
           </p>
         )}
         {toggle.isError && <div className="alert alert-soft alert-error">{toggle.error.message}</div>}

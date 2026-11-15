@@ -27,6 +27,7 @@ import { BACKFILL_JOB, INDEX_JOB, backfillIndex, indexItem } from "./index-item"
 import { PDF_BACKFILL_JOB, PDF_THUMB_JOB, pdfThumbnail, pdfThumbnailBackfill } from "./pdf-thumbnail";
 import { PURGE_JOB, purgeJob } from "./purge";
 import { RECALL_CHECK_JOB, RECALL_SYNC_JOB, recallCheckJob, recallSyncJob } from "./recalls";
+import { VIN_BACKFILL_JOB, VIN_JOB, vinBackfillJob, vinLookupJob } from "../lib/vehicles";
 import { REMIND_JOB, sendReminders } from "./remind";
 import {
   APP_CONNECTED_JOB,
@@ -119,6 +120,8 @@ export function jobSchedule({
     [SERVICE_ALERT_JOB]: async () => void (await alertServiceErrors({ ...deps, files, appUrl, about: aboutServer(config, deps), mailUrl, adminWebhook: config.ADMIN_WEBHOOK_URL })),
     [RECALL_SYNC_JOB]: recallSyncJob(deps),
     [RECALL_CHECK_JOB]: recallCheckJob(deps),
+    [VIN_JOB]: vinLookupJob(deps),
+    [VIN_BACKFILL_JOB]: vinBackfillJob(deps),
     [PURGE_JOB]: purgeJob({ ...deps, files }),
   };
   if (deps.pdfPages && deps.images) {

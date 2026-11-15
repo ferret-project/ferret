@@ -83,8 +83,9 @@ If it doesn't show up:
   `"NODE_EXTRA_CA_CERTS": "/path/to/your-ca.pem"` to `env`.
 - **Settings → Developer** shows whether Ferret is running, and opens its log.
 
-Claude's **Connectors** (Settings → Connectors → Add custom connector) need a sign-in Ferret doesn't offer yet; use
-the config file above.
+Claude Desktop's **Connectors** (Settings → Connectors → Add custom connector) work too, without the bridge, when your
+Ferret has an `https://` address Claude's servers can reach — see
+[apps that sign in](#claude-ai-and-other-apps-that-sign-in) above.
 
 ### What Claude can do
 

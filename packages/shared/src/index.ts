@@ -742,6 +742,24 @@ export interface Item extends Omit<ItemInput, "origin"> {
   replacementEstimate?: { cents: number; reasoning: string; at: string } | null;
   /** Since when nobody can find it ("Can't find it"): cleared when it's found, or given up as lost. */
   missingSince?: string | null;
+  /** What NHTSA says about its VIN (a Vehicles field, or a serial number that is one) — suggestions, applied by tapping. */
+  vehicle?: VehicleInfo | null;
+}
+
+/** A VIN decoded by NHTSA's vPIC (the server admin switches vehicle look-ups on in Settings → Server). */
+export interface VehicleInfo {
+  vin: string;
+  /** "pending" while it's being looked up; "found", or "unknown" when NHTSA couldn't decode it. */
+  status: "pending" | "found" | "unknown";
+  make: string | null;
+  model: string | null;
+  year: number | null;
+  trim: string | null;
+  body: string | null;
+  /** e.g. "3.0 L V6, gasoline". */
+  engine: string | null;
+  drive: string | null;
+  decodedAt: string | null;
 }
 
 export interface Paged<T> {
@@ -2034,6 +2052,16 @@ export interface WeeklyDigestSetting {
 }
 
 /** Recall checks, for the server admin (Settings → Server). */
+/** Vehicle look-ups (NHTSA: VINs decoded, vehicle recalls) for Settings → Server. */
+export interface VehicleLookupStatus {
+  available: boolean;
+  enabled: boolean;
+  /** Things with a decoded VIN, on this server. */
+  vehicles: number;
+  /** Vehicle recalls kept. */
+  recalls: number;
+}
+
 export interface RecallStatus {
   /** This server can reach a recall list at all. */
   available: boolean;

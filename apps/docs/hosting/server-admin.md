@@ -24,6 +24,14 @@ Commission's recalls ([what people see](../guide/recalls)). It's off until you s
 saferproducts.gov, each brand at most once a week. The answers are kept on the server and every household is checked
 against them daily. Switching it off stops the asking; recalls already found stay on the things they were found for.
 
+## Vehicle look-ups
+
+**Settings → Server → Vehicle look-ups** switches on reading vehicles' VINs with the US National Highway Traffic Safety
+Administration's decoder, and checking vehicles against NHTSA's recalls ([what people see](../guide/recalls#vehicles)).
+It's off until you switch it on, because it sends each **VIN** to NHTSA's decoder (vpic.nhtsa.dot.gov), and each
+vehicle's **make, model and year** to its recall search (api.nhtsa.gov) at most once a week — nothing else. Switching
+it on reads the VINs already in Ferret straight away.
+
 ## Service errors
 
 **Settings → Server → Service errors** lists every failed call to a service Ferret uses — the AI models (Ollama, the

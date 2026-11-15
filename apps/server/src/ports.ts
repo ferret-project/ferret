@@ -203,6 +203,40 @@ export interface Recalls {
   forBrand(brand: string): Promise<RawRecall[]>;
 }
 
+/** A VIN as NHTSA's vPIC decodes it (empty values left out). */
+export interface RawVinDecode {
+  make: string | null;
+  model: string | null;
+  year: number | null;
+  trim: string | null;
+  body: string | null;
+  displacementL: number | null;
+  cylinders: number | null;
+  fuel: string | null;
+  drive: string | null;
+}
+
+/** One NHTSA recall campaign for a make, model and year. */
+export interface RawVehicleRecall {
+  campaign: string;
+  /** yyyy-mm-dd. */
+  reportedOn: string;
+  manufacturer: string | null;
+  component: string | null;
+  summary: string | null;
+  consequence: string | null;
+  remedy: string | null;
+  notes: string | null;
+}
+
+/** NHTSA's public vehicle data (switched on by the server admin: Settings → Server). Throws on network trouble. */
+export interface VehicleData {
+  /** What a VIN says (make, model, year…), or null when NHTSA can't decode it. */
+  decodeVin(vin: string): Promise<RawVinDecode | null>;
+  /** Every recall campaign for this make, model and model year. */
+  recalls(make: string, model: string, year: number): Promise<RawVehicleRecall[]>;
+}
+
 /** Home Assistant's registries as its WebSocket API returns them (the fields an import reads). */
 export interface HaRegistry {
   floors: { floor_id: string; name: string; level?: number | null }[];
@@ -451,6 +485,8 @@ export interface Deps {
   homeAssistant?: HomeAssistant;
   /** Product recalls to check things against (switched on by the server admin: Settings → Server). */
   recalls?: Recalls;
+  /** NHTSA: VINs decoded and vehicle recalls (switched on by the server admin: Settings → Server). */
+  vehicles?: VehicleData;
   /** Search's cut-offs for these models (default: "home", lib/search.ts). */
   searchProfile?: SearchProfile;
   /** "Are you a person?" before sign-up (a Turnstile widget, lib/turnstile.ts). */

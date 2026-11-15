@@ -335,3 +335,4 @@ export const AI_FILL_KIND_NAMES: Record<AiFillKind, { label: string; hint: strin
   warranty: { label: "Warranties", hint: "From a receipt or warranty card, when the purchase date is known" },
 };
 
+export * from "./vin";

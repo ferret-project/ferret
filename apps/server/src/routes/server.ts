@@ -9,6 +9,7 @@ import { serverAdmin, setServerAdmin } from "../lib/server-admin";
 import { z } from "zod";
 import { RECALL_SYNC_JOB } from "../jobs/recalls";
 import { recallStatus, setRecallsEnabled } from "../lib/recalls";
+import { setVehiclesEnabled, VIN_BACKFILL_JOB, vehicleStatus } from "../lib/vehicles";
 import { serverAiFillDefaults, setServerAiFillDefaults } from "../lib/ai-fill";
 import { aiFillKinds } from "@ferret/shared";
 import { demoReport } from "../lib/demo";
@@ -119,6 +120,17 @@ server.get("/ai-fill", async (c) => c.json(await serverAiFillDefaults(c.var.db))
 server.put("/ai-fill", async (c) => {
   const input = await body(c.req.raw, z.partialRecord(z.enum(aiFillKinds), z.boolean()));
   return c.json(await setServerAiFillDefaults(c.var.db, input));
+});
+
+/** Vehicle look-ups (NHTSA): whether they're on, how many vehicles decoded and their recalls kept. */
+server.get("/vehicles", async (c) => c.json(await vehicleStatus(c.var.deps)));
+
+/** Switch vehicle look-ups on (VINs already in Ferret are looked up, then every household checked for recalls) or off. */
+server.put("/vehicles", async (c) => {
+  const { enabled } = await body(c.req.raw, z.object({ enabled: z.boolean() }));
+  await setVehiclesEnabled(c.var.db, enabled);
+  if (enabled) await c.var.deps.jobs?.enqueue(VIN_BACKFILL_JOB, {});
+  return c.json(await vehicleStatus(c.var.deps));
 });
 
 /** Recall checks: whether they're on, how many brands asked about and recalls kept. */

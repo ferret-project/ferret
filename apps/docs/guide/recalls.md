@@ -23,3 +23,19 @@ a repair, replacement or refund), with a link to the full notice. Then:
 - **Dealt with it** — repaired, replaced or refunded: it goes away.
 
 Either way the thing's [history](./finding-things#a-thing-s-history) keeps it.
+
+## Vehicles
+
+The CPSC doesn't cover cars, trucks or motorcycles, so vehicles are checked against the US National Highway Traffic
+Safety Administration's recalls instead (when whoever runs your Ferret has switched on
+[vehicle look-ups](../hosting/server-admin#vehicle-look-ups)).
+
+Give the vehicle its **VIN** — the **VIN** field of the **Vehicles** category, or its serial number (Ferret only reads
+a serial number as a VIN when it's unmistakably one). Ferret then reads the VIN with NHTSA's decoder, and the thing's
+page shows **From the VIN**: its year, make, model and trim (*2003 Honda Accord EX-V6*), the body and engine, and
+**Apply** beside the name, brand and model — nothing changes until you tap. A VIN NHTSA can't read says so: check it
+for a typo.
+
+Each make, model and year is then checked against NHTSA's recalls (at most once a week), and every recall for it shows
+as **Recalled**, like any other, with NHTSA's notice and campaign number. A recall for a model year usually covers only
+some of those vehicles: the notice says how to check yours (NHTSA's VIN look-up at nhtsa.gov/recalls, or the maker).

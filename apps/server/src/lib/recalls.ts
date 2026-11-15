@@ -15,11 +15,12 @@
  */
 import type { ItemRecall, RecallStatus } from "@ferret/shared";
 import { barcodeVariants } from "@ferret/shared";
-import { and, count, desc, eq, gt, isNotNull, isNull, max, or } from "drizzle-orm";
+import { and, count, desc, eq, gt, isNotNull, isNull, max, notLike, or } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { item, itemRecall, recall, recallBrand, serverSetting } from "../db/schema";
 import type { Db, Deps, RawRecall } from "../ports";
 import { type Caller, logActivity, notFound } from "./inventory";
+import { checkVehicles, notVehicleRecall } from "./vehicles";
 
 const ENABLED_KEY = "recalls.enabled";
 /** A brand's answer is kept this long. */
@@ -40,8 +41,8 @@ export async function setRecallsEnabled(db: Db, enabled: boolean) {
 /** For Settings → Server. */
 export async function recallStatus(deps: Pick<Deps, "db" | "recalls">): Promise<RecallStatus> {
   const [[brands], [kept]] = await Promise.all([
-    deps.db.select({ n: count(), last: max(recallBrand.checkedAt) }).from(recallBrand),
-    deps.db.select({ n: count() }).from(recall),
+    deps.db.select({ n: count(), last: max(recallBrand.checkedAt) }).from(recallBrand).where(notLike(recallBrand.brand, "vehicle:%")),
+    deps.db.select({ n: count() }).from(recall).where(notVehicleRecall),
   ]);
   return { available: Boolean(deps.recalls), enabled: await recallsEnabled(deps.db), brands: brands?.n ?? 0, recalls: kept?.n ?? 0, lastCheckedAt: brands?.last?.toISOString() ?? null };
 }
@@ -177,7 +178,9 @@ export function matchItem(thing: Thing, idx: ReturnType<typeof indexRecalls>): {
 
 /** Checks one household's things (or just some) against every recall; adds new matches. Returns how many. */
 export async function checkHousehold(v: Caller, itemIds?: string[]) {
-  if (!v.deps.recalls || !(await recallsEnabled(v.db))) return 0;
+  // Vehicles from NHTSA (lib/vehicles.ts) have their own switch.
+  const vehicles = await checkVehicles(v);
+  if (!v.deps.recalls || !(await recallsEnabled(v.db))) return vehicles;
   const owned = await v.db
     .selectDistinct({ brand: item.brand })
     .from(item)
@@ -185,8 +188,9 @@ export async function checkHousehold(v: Caller, itemIds?: string[]) {
   await refreshBrands(v.deps, owned.map((b) => brandKey(b.brand)));
   const recalls = await v.db
     .select({ id: recall.id, title: recall.title, companies: recall.companies, upcs: recall.upcs, searchText: recall.searchText, products: recall.products, recalledOn: recall.recalledOn })
-    .from(recall);
-  if (!recalls.length) return 0;
+    .from(recall)
+    .where(notVehicleRecall);
+  if (!recalls.length) return vehicles;
   const idx = indexRecalls(recalls);
   const things = (
     await v.db
@@ -199,7 +203,7 @@ export async function checkHousehold(v: Caller, itemIds?: string[]) {
       (r) => `${r.itemId}:${r.recallId}`,
     ),
   );
-  let added = 0;
+  let added = vehicles;
   for (const t of things) {
     for (const m of matchItem(t, idx)) {
       if (known.has(`${t.id}:${m.recall.id}`)) continue;

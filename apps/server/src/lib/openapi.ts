@@ -508,6 +508,8 @@ export const OPERATIONS: Operation[] = [
   { method: "get", path: "/server/barcode-lookups", tag: "Server", summary: "Online barcode lookups: on or off, and what's left of the database's daily allowance as of the last lookup (server admin)", returns: "BarcodeLookupStatus" },
   { method: "get", path: "/server/ai-fill", tag: "Server", summary: "Let AI fill in: which kinds are on by default for this server's households (server admin)", returns: "Record<AiFillKind, boolean>" },
   { method: "put", path: "/server/ai-fill", tag: "Server", summary: "Turn kinds of AI filling-in on or off by default for households that haven't chosen (server admin)", writes: true, returns: "Record<AiFillKind, boolean>" },
+  { method: "get", path: "/server/vehicles", tag: "Server", summary: "Vehicle look-ups (NHTSA): on or off, vehicles decoded, vehicle recalls kept (server admin)", returns: "VehicleLookupStatus" },
+  { method: "put", path: "/server/vehicles", tag: "Server", summary: "Switch vehicle look-ups on (VINs are sent to NHTSA to decode, and makes/models/years for recalls) or off: { enabled } (server admin)", writes: true, returns: "VehicleLookupStatus" },
   { method: "get", path: "/server/recalls", tag: "Server", summary: "Recall checks: on or off, brands asked about, recalls kept (server admin)", returns: "RecallStatus" },
   { method: "put", path: "/server/recalls", tag: "Server", summary: "Switch recall checks on (each household's brands are sent to the CPSC) or off: { enabled } (server admin)", writes: true, returns: "RecallStatus" },
   { method: "get", path: "/server/address", tag: "Server", summary: "PUBLIC_URL, and whether it was set (server admin)", returns: "ServerAddress" },

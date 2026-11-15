@@ -43,7 +43,7 @@ import { FileIcon, formatSize } from "./Files";
 import { AiFilledCard } from "./AiFill";
 import { ReplacementCard } from "./Replacement";
 import { ClaimDialog } from "./Claims";
-import { ProductSuggestions } from "./Product";
+import { ProductSuggestions, VehicleSuggestions } from "./Product";
 import { Suggestions } from "./Suggestions";
 import { Warranties } from "./Warranties";
 import { ItemLinks } from "./Links";
@@ -419,6 +419,7 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
       />
 
       {canEdit && <ProductSuggestions item={item.data} householdId={householdId} />}
+      {canEdit && <VehicleSuggestions item={item.data} householdId={householdId} />}
       {canEdit && attachments.data && (
         <Suggestions
           item={item.data}

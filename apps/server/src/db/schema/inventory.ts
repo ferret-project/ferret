@@ -6,7 +6,7 @@
 import { sql } from "drizzle-orm";
 import { check, index, integer, primaryKey, real, sqliteTable, text, uniqueIndex, type AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import type { SightingHow, SightingKind } from "@ferret/shared/utils";
-import type { AiFill, AiFillSwitches, AnalysisStatus, AttachmentAnalysis, CategoryField, CustomFieldValues, HaSnapshot, ItemLink, ItemOrigin, ProductInfo, ReviewOutcome, RoomScanCandidate, RoomScanStatus } from "@ferret/shared";
+import type { VehicleInfo, AiFill, AiFillSwitches, AnalysisStatus, AttachmentAnalysis, CategoryField, CustomFieldValues, HaSnapshot, ItemLink, ItemOrigin, ProductInfo, ReviewOutcome, RoomScanCandidate, RoomScanStatus } from "@ferret/shared";
 import { invitation, organization, session, user } from "./auth";
 
 const id = () =>
@@ -211,6 +211,8 @@ export const item = sqliteTable(
     importBatchId: text("import_batch_id").references((): AnySQLiteColumn => importBatch.id, { onDelete: "set null" }),
     /** Home Assistant's device id, for things imported from it: the same device isn't imported twice. */
     haDeviceId: text("ha_device_id"),
+    /** What NHTSA said about its VIN (lib/vehicles.ts): offered as suggestions on its page, and used for vehicle recalls. */
+    vehicle: text("vehicle", { mode: "json" }).$type<VehicleInfo>(),
     /**
      * What a spreadsheet said this line was ("amazon:<order>:<ASIN>:<n>", n for the same product shipped twice in one
      * order), so importing a newer copy of the file skips what's already here (lib/imports.ts).
