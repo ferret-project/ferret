@@ -49,6 +49,8 @@ export function FilesSection({
     onSettled: refresh,
   });
   const remove = useMutation({ mutationFn: api.deleteAttachment, onSuccess: refresh });
+  // Read for its words again (a reading that failed, or a better model since).
+  const reread = useMutation({ mutationFn: api.analyzeAttachment, onSuccess: refresh });
 
   const list = (files.data?.data ?? []).filter(only ?? (() => true));
   const photos = list.filter((f) => f.kind === "photo");
@@ -76,6 +78,7 @@ export function FilesSection({
       )}
       {add.isError && <div className="alert alert-soft alert-error text-sm">{add.error.message}</div>}
       {remove.isError && <div className="alert alert-soft alert-error text-sm">{remove.error.message}</div>}
+      {reread.isError && <div className="alert alert-soft alert-error text-sm">{reread.error.message}</div>}
     </>
   );
   const confirmRemove = (f: Attachment) => window.confirm(t`Remove ${ph({ filename: f.filename })}?`) && remove.mutate(f.id);
@@ -152,8 +155,24 @@ export function FilesSection({
                 )}
                 <a href={api.attachmentUrl(d.id)} target="_blank" rel="noreferrer" className="link link-hover min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium text-base-content/80">{d.filename}</span>
-                  <span className="text-xs text-base-content/70">{d.originalRemoved ? t`Small copy only` : formatSize(d.size)}</span>
+                  <span className="text-xs text-base-content/70">
+                    {d.originalRemoved ? t`Small copy only` : formatSize(d.size)}
+                    {d.analysisStatus === "pending" && t` · Reading…`}
+                    {d.analysisStatus === "failed" && t` · Couldn't read it`}
+                  </span>
                 </a>
+                {canEdit && (d.analysisStatus === "failed" || (d.analysisStatus === "done" && !d.originalRemoved)) && (
+                  <button
+                    type="button"
+                    className="btn btn-circle btn-text btn-sm"
+                    aria-label={t`Read ${ph({ filename: d.filename })} again`}
+                    title={t`Read it again`}
+                    disabled={reread.isPending && reread.variables === d.id}
+                    onClick={() => reread.mutate(d.id)}
+                  >
+                    <span className="icon-[tabler--refresh] size-4" />
+                  </button>
+                )}
                 {canEdit && (
                   <button type="button" className="btn btn-circle btn-text btn-sm" aria-label={t`Remove ${ph({ filename: d.filename })}`} onClick={() => confirmRemove(d)}>
                     <span className="icon-[tabler--trash] size-4" />
