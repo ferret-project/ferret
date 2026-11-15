@@ -5,7 +5,7 @@
  * admin only — Server (backups).
  *
  * Claude & API: keys let Claude (over MCP) and scripts use this
- * household's inventory. The key list is adapted from FlyonUI Pro "Dashboard
+ * household's inventory; webhooks (Webhooks.tsx) tell other apps what happens in it. The key list is adapted from FlyonUI Pro "Dashboard
  * Modal 15" (member rows), the new-key dialog from "Dashboard Modal 14" and the
  * one-time reveal from "Dashboard Modal 7"; behaviour is plain React.
  */
@@ -18,6 +18,7 @@ import { CopyField } from "./CopyField";
 import { DataExport } from "./DataExport";
 import { DeleteHousehold } from "./DeleteForGood";
 import { ShareLinks } from "./Shares";
+import { Webhooks } from "./Webhooks";
 import { WeeklySummary } from "./PayOff";
 import { Household } from "./Household";
 import { Notifications } from "./Notifications";
@@ -107,6 +108,7 @@ export function Settings(props: { section: SettingsSection; householdName: strin
           <>
             <ApiKeys householdName={householdName} householdId={householdId} />
             <ConnectClaude />
+            <Webhooks canManage={role === "owner" || role === "admin"} />
           </>
         )}
       </main>

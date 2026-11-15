@@ -40,6 +40,7 @@ import {
 } from "./security-alert";
 import { NEW_ACCOUNT_JOB, newAccountAlert } from "./new-account";
 import { UNLOCK_JOB, sendUnlockLink } from "./unlock";
+import { WEBHOOK_JOB, WEBHOOK_STATES_JOB, deliverWebhookJob, webhookStatesJob } from "../lib/webhooks";
 
 const SERVICE_ALERT_JOB = "service-errors.alert";
 
@@ -132,6 +133,10 @@ export function jobSchedule({
     handlers[INDEX_JOB] = indexItem({ db, ai: deps.ai!, vectors: deps.vectors!, profile: deps.searchProfile });
     handlers[BACKFILL_JOB] = backfillIndex({ db, jobs });
   }
+  if (deps.webhooks) {
+    handlers[WEBHOOK_JOB] = deliverWebhookJob({ db, webhooks: deps.webhooks, files, appUrl });
+    handlers[WEBHOOK_STATES_JOB] = webhookStatesJob(deps);
+  }
   if (reminders) handlers[REMIND_JOB] = sendReminders({ ...deps, files, appUrl, remindHour: config.REMIND_HOUR, mailUrl });
   if (deps.backups) handlers[BACKUP_JOB] = backupJob({ db, blobs: deps.blobs, ...deps.backups, filesKey: config.FILES_KEY, keep: config.BACKUP_KEEP });
   const extra = extensions?.jobs?.({ deps, files, auth, config, jobs });
@@ -153,6 +158,7 @@ export function jobSchedule({
   const enqueue = (type: string) => jobs.enqueue(type, {}).catch((err) => console.warn(`Couldn't queue ${type}: ${String(err)}`));
   const hourly = async () => {
     if (reminders) await enqueue(REMIND_JOB);
+    if (deps.webhooks) await enqueue(WEBHOOK_STATES_JOB); // what newly needs attention, to the webhooks that listen
     if (deps.backups) {
       // One a day from BACKUP_HOUR; a failed one is tried again the next hour.
       const due = await backupDue(db, config.BACKUP_HOUR).catch((err) => console.warn(`Backup check failed: ${String(err)}`));

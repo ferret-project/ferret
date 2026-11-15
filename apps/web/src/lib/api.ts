@@ -116,6 +116,12 @@ import type {
   PendingDownload,
   DownloadInput,
   NotificationChannelInput,
+  WebhookDelivery,
+  WebhookEvent,
+  WebhookInput,
+  WebhookPatch,
+  WebhookSecret,
+  WebhookSummary,
   SessionSummary,
   SignInEntry,
   Warranty,
@@ -607,6 +613,17 @@ export const api = {
   revokeOtherSessions: () => request<{ signedOut: number }>("/security/sessions/revoke-others", { method: "POST" }),
   listSignIns: () => request<{ data: SignInEntry[] }>("/security/sign-ins"),
   testNotification: (id: string) => request<{ sent: true }>(`/notifications/${id}/test`, { method: "POST" }),
+
+  /** The household's webhooks (owners/admins, a real sign-in). */
+  listWebhooks: () => request<{ enabled: boolean; local: boolean; events: WebhookEvent[]; data: WebhookSummary[] }>("/webhooks"),
+  addWebhook: (input: WebhookInput) => request<WebhookSummary & WebhookSecret>("/webhooks", { method: "POST", body: JSON.stringify(input) }),
+  updateWebhook: (id: string, input: WebhookPatch) => request<WebhookSummary>(`/webhooks/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
+  deleteWebhook: (id: string) => request<void>(`/webhooks/${id}`, { method: "DELETE" }),
+  testWebhook: (id: string) => request<{ delivered: boolean; status: number | null; error: string | null }>(`/webhooks/${id}/test`, { method: "POST" }),
+  webhookSecret: (id: string) => request<WebhookSecret>(`/webhooks/${id}/secret`, { method: "POST" }),
+  rotateWebhookSecret: (id: string) => request<WebhookSecret>(`/webhooks/${id}/rotate`, { method: "POST" }),
+  webhookDeliveries: (id: string) => request<{ data: WebhookDelivery[] }>(`/webhooks/${id}/deliveries`),
+  retryWebhookDelivery: (id: string, deliveryId: string) => request<WebhookDelivery>(`/webhooks/${id}/deliveries/${deliveryId}/retry`, { method: "POST" }),
 
   /** Add from a web address: the server downloads it (public internet, photos and PDFs only). */
   addFromWeb: (itemId: string, input: DownloadInput) =>

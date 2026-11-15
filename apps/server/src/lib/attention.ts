@@ -28,6 +28,7 @@ import { suggestedTaskCount } from "./suggested-tasks";
 import { aiFillEntries } from "./ai-fill";
 import { duplicateCount } from "./duplicates";
 import { trackingSummary } from "./room-reviews";
+import { switchedOff } from "./webhooks";
 
 const MAINTENANCE_DAYS = 7;
 const WARRANTY_DAYS = 30;
@@ -268,6 +269,19 @@ export async function needsAttention(v: Caller): Promise<AttentionItem[]> {
 
   const backup = await backupTrouble(v);
   if (backup) out.push(backup);
+  // Webhooks Ferret switched off after their deliveries kept failing — for the household's owner and admins.
+  for (const w of await switchedOff(v)) {
+    out.push({
+      kind: "service",
+      severity: "soon",
+      id: `webhook:${w.id}`,
+      title: `Webhook “${w.name}” was switched off`,
+      detail: `Its deliveries kept failing${w.lastError ? ` (${w.lastError})` : ""} — fix the address, then turn it on again`,
+      itemId: null,
+      date: w.disabledAt ? todayFor(v, w.disabledAt) : null,
+      href: "#/settings/api",
+    });
+  }
   // Services Ferret depends on, failing in the last day — for the server admin.
   if (await isServerAdmin(v.db, v.userId)) {
     for (const t of await serviceTrouble(v.db)) {

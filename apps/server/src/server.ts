@@ -20,6 +20,7 @@ import { DbJobs } from "./adapters/local/jobs";
 import { WebCryptoPush } from "./lib/web-push";
 import { SafeDownloader } from "./adapters/local/download";
 import { AppriseNotifier } from "./adapters/local/apprise";
+import { NodeWebhookSender } from "./adapters/local/webhooks";
 import { UpcItemDb } from "./adapters/local/upcitemdb";
 import { AppleMapSnapshots } from "./adapters/local/apple-maps";
 import { HomeAssistantWebSocket } from "./adapters/local/home-assistant";
@@ -133,6 +134,8 @@ const deps = {
   maps: watched(db, "maps", maps),
   backups,
   downloader: new SafeDownloader(),
+  // Not watched either: a webhook fails on the address a household gave (its delivery log says why).
+  webhooks: new NodeWebhookSender(),
   homeAssistant: new HomeAssistantWebSocket(),
   recalls: watched(db, "recalls", recalls),
   tls: new NodeTls(),

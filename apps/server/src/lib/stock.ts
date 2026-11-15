@@ -20,6 +20,7 @@ import { productCode } from "./products";
 import { householdAmazon, todayFor } from "./household-time";
 import { inList } from "./sql";
 import { listMaintenance } from "./maintenance";
+import { stockChanged } from "./webhooks";
 
 /** How a movement came about. */
 type Reason = StockMovement["reason"];
@@ -77,6 +78,7 @@ export async function adjustStock(v: Caller, itemId: string, delta: number, reas
     if (!row) continue; // someone else changed it in between
     const movementId = await recordMovement(v, itemId, applied, next, reason, note, clientId);
     await logActivity(v, "item.stock", itemId, `${applied < 0 ? `Used ${-applied}` : `Added ${applied}`} ${current.name} (${next} left)`);
+    if (applied < 0) await stockChanged(v, itemId, current.quantity, next);
     return { quantity: next, applied, movementId };
   }
   throw new HTTPException(409, { message: "The count kept changing — try again" });

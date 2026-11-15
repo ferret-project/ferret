@@ -11,6 +11,7 @@ import { HTTPException } from "hono/http-exception";
 import { category, importBatch, item, location, property, user, warranty } from "../db/schema";
 import { setItemTags } from "./catalog";
 import { type Caller, deleteItem, itemChanged, logActivity, notFound, updateItem } from "./inventory";
+import { emitEvent } from "./webhooks";
 import { rememberBarcode } from "./products";
 import { inList } from "./sql";
 
@@ -263,6 +264,8 @@ export async function importItems(v: Caller, input: ImportInput): Promise<Import
   }
   if (result.created) {
     await logActivity(v, "import.items", batchId, `Imported ${result.created} ${result.created === 1 ? "thing" : "things"} from ${input.name}`);
+    // One event per request (≤ 100 rows), not one per thing: an import of thousands mustn't flood the receiver.
+    await emitEvent(v, "items.imported", () => ({ import: { batchId, source: input.source, name: input.name, created: result.created, url: "/#/import" } }));
   }
   return result;
 }

@@ -55,6 +55,7 @@ import { moneyText, startOfDayIn, todayFor } from "./household-time";
 import { inList } from "./sql";
 import { marksAfterEdit } from "./ai-fill";
 import { mergedInto } from "./duplicates";
+import { emitEvent, itemData, stockChanged } from "./webhooks";
 
 /** Who is acting, where, and through which client (recorded in the activity log). */
 export interface Caller {
@@ -856,6 +857,7 @@ export async function createItem(v: Caller, given: ItemInput, found?: { roomScan
   if (tags.length) await setItemTags(v, row!.id, tags);
   await logActivity(v, "item.create", row!.id, found ? `Added ${row!.name} from a room scan` : `Added ${row!.name}`);
   countEvent(v.deps, "item.add");
+  await emitEvent(v, "item.created", async () => ({ item: await itemData(v, row!) }));
   if (row!.brand || row!.barcode) await queueRecallCheck(v);
   await itemChanged(v, row!.id);
   await rememberBarcode(v, row!);
@@ -922,13 +924,16 @@ export async function updateItem(v: Caller, id: string, input: ItemPatch, summar
   await rememberBarcode(v, row);
   if (row.barcode !== current.barcode) await queueProductLookup(v, row.barcode);
   if (row.brand !== current.brand || row.model !== current.model || row.barcode !== current.barcode || row.name !== current.name) await queueRecallCheck(v);
-  await logActivity(
-    v,
-    "item.update",
-    row.id,
-    summary?.(row.name) ?? disposal.summary?.(row.name) ?? (await describeChanges(v, current, row, tags ? { before: tagsBefore, after: tags } : undefined)),
-  );
+  const line = summary?.(row.name) ?? disposal.summary?.(row.name) ?? (await describeChanges(v, current, row, tags ? { before: tagsBefore, after: tags } : undefined));
+  await logActivity(v, "item.update", row.id, line);
   await itemChanged(v, row.id);
+  // Webhooks (lib/webhooks.ts): gone is its own event; the history line says what changed.
+  if (disposal.gone && !current.disposition) {
+    await emitEvent(v, "item.gone", async () => ({ item: await itemData(v, row), disposedOn: row.disposedOn ?? null, summary: line }));
+  } else {
+    await emitEvent(v, "item.updated", async () => ({ item: await itemData(v, row), summary: line }));
+  }
+  if (row.quantity < current.quantity) await stockChanged(v, row.id, current.quantity, row.quantity);
   // A box that moved takes its contents along.
   if (row.isContainer && row.locationId !== current.locationId) {
     const inside = await insideOf(v, row.id);
@@ -1051,6 +1056,7 @@ export async function deleteItem(v: Caller, id: string) {
   for (const { id: itemId } of loose) await itemChanged(v, itemId);
   if (row.containerItemId) await itemChanged(v, row.containerItemId);
   await logActivity(v, "item.delete", row.id, `Removed ${row.name}`);
+  await emitEvent(v, "item.deleted", () => ({ item: { id: row.id, name: row.name } }));
   await itemChanged(v, row.id); // drops it from search
   return { id: row.id, name: row.name };
 }

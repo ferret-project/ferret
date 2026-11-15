@@ -773,6 +773,74 @@ export const notificationChannel = sqliteTable(
 );
 
 /**
+ * A household's webhook (lib/webhooks.ts): events POSTed to another app, signed with its secret. The address and the
+ * secrets are sealed with the household key (the address may carry a token); `host` is what Settings shows.
+ */
+export const webhook = sqliteTable(
+  "webhook",
+  {
+    id: id(),
+    householdId: householdId(),
+    name: text("name").notNull(),
+    urlSealed: text("url_sealed").notNull(),
+    host: text("host").notNull(),
+    events: text("events", { mode: "json" }).$type<string[]>().notNull(),
+    secretSealed: text("secret_sealed").notNull(),
+    /** After a rotation, the old secret signs too until `previousSecretUntil`, so receivers can switch over. */
+    previousSecretSealed: text("previous_secret_sealed"),
+    previousSecretUntil: integer("previous_secret_until", { mode: "timestamp_ms" }),
+    /** May post to the server's own network: set by whoever runs this Ferret (the server admin) — others can't. */
+    allowLocal: integer("allow_local", { mode: "boolean" }).notNull().default(false),
+    pausedAt: integer("paused_at", { mode: "timestamp_ms" }),
+    /** Switched off by Ferret after `failures` deliveries in a row gave up; the bell says so. */
+    disabledAt: integer("disabled_at", { mode: "timestamp_ms" }),
+    failures: integer("failures").notNull().default(0),
+    lastDeliveryAt: integer("last_delivery_at", { mode: "timestamp_ms" }),
+    lastStatus: integer("last_status"),
+    lastError: text("last_error"),
+    createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
+    createdAt: timestamps.createdAt,
+  },
+  (t) => [index("webhook_household_idx").on(t.householdId)],
+);
+
+/** One event for one webhook: the body is kept so retries (and Retry) send exactly the same thing. Kept 30 days. */
+export const webhookDelivery = sqliteTable(
+  "webhook_delivery",
+  {
+    id: id(),
+    householdId: householdId(),
+    webhookId: text("webhook_id")
+      .notNull()
+      .references(() => webhook.id, { onDelete: "cascade" }),
+    eventId: text("event_id").notNull(),
+    event: text("event").notNull(),
+    body: text("body").notNull(),
+    status: text("status").$type<"pending" | "sent" | "failed">().notNull().default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    responseStatus: integer("response_status"),
+    error: text("error"),
+    createdAt: timestamps.createdAt,
+    lastAttemptAt: integer("last_attempt_at", { mode: "timestamp_ms" }),
+  },
+  (t) => [index("webhook_delivery_webhook_idx").on(t.webhookId, t.createdAt), index("webhook_delivery_created_idx").on(t.createdAt)],
+);
+
+/**
+ * What a household's webhooks have already been told needs attention (a task due on a day, a warranty ending…), so
+ * each is sent once. A key that no longer applies is dropped, so the same thing can be sent again next time.
+ */
+export const webhookSent = sqliteTable(
+  "webhook_sent",
+  {
+    householdId: householdId(),
+    key: text("key").notNull(),
+    at: timestamps.createdAt,
+  },
+  (t) => [primaryKey({ columns: [t.householdId, t.key] })],
+);
+
+/**
  * A room scan (lib/room-scans.ts): one to five photos of a room or box; the vision model lists what it sees
  * (`candidates`, with boxes where the model gives them), someone ticks what to keep, and those become items there.
  * pending (being looked at) → ready (to review) → done (items made) | failed. Its photos are stored encrypted

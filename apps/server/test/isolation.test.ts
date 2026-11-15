@@ -25,7 +25,7 @@ const householdTables = (Object.values(schema) as unknown[]).filter(
 
 async function annHousehold() {
   // The optional services on, so their routes (and search by meaning, through the vector store) really run.
-  const t = await setup({ ai: new FakeAi(), vectors: new MemoryVectors(), notifier: new FakeNotifier(), downloader: new FakeDownloader(), products: new FakeProducts() });
+  const t = await setup({ ai: new FakeAi(), vectors: new MemoryVectors(), notifier: new FakeNotifier(), downloader: new FakeDownloader(), products: new FakeProducts(), webhooks: { post: async () => ({ status: 200 }) } });
   const ann = await t.user("ann");
   const bob = await t.user("bob");
   const make = async <T = { id: string }>(method: string, url: string, body?: object): Promise<T> => {
@@ -34,6 +34,8 @@ async function annHousehold() {
     return res.status === 204 ? (undefined as T) : json<T>(res);
   };
 
+  // Her webhook first, so everything she adds is delivered to it (and logged).
+  const hook = await make("POST", "/api/v1/webhooks", { name: `${SECRET} n8n`, url: `https://hooks.example.com/${SECRET}`, events: ["item.created", "item.updated"] });
   const property = await make("POST", "/api/v1/properties", { name: `${SECRET} House` });
   const garage = await make("POST", "/api/v1/locations", { propertyId: property.id, name: `${SECRET} Garage` });
   const shelf = await make("POST", "/api/v1/locations", { propertyId: property.id, parentId: garage.id, name: `${SECRET} Shelf` });
@@ -98,6 +100,7 @@ async function annHousehold() {
   await make("POST", `/api/v1/room-reviews/${shelf.id}`);
   await make("POST", `/api/v1/room-reviews/${shelf.id}/items/${box.id}`, { outcome: "here" });
 
+  const deliveries = await make<{ data: { id: string }[] }>("GET", `/api/v1/webhooks/${hook.id}/deliveries`);
   // Ann's id for each kind of thing, by the path segment before it.
   const missing = crypto.randomUUID(); // kinds with nothing of Ann's to point at (room scans, recalls…): any id
   const ids: Record<string, string> = {
@@ -125,8 +128,9 @@ async function annHousehold() {
     "security/sessions": sessions.data[0]!.id,
     usage: reading.id,
     repairs: fix.id,
+    webhooks: hook.id,
   };
-  const params: Record<string, string> = { ruleId: rule.id, pairingId: pairing.id, code: codes[0]!, n: "0", name: "x", locationId: shelf.id, itemId: box.id };
+  const params: Record<string, string> = { ruleId: rule.id, pairingId: pairing.id, code: codes[0]!, n: "0", name: "x", locationId: shelf.id, itemId: box.id, deliveryId: deliveries.data[0]!.id };
   // What Bob sends with every write: plausible fields of his own, then the same with one of Ann's things in each
   // reference — one at a time, so a reference that's refused can't hide one that isn't checked.
   const base = {

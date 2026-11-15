@@ -144,6 +144,9 @@ export function onLocalNetwork(url: string) {
 
 const SELF_HOSTED = new Set(["ntfy", "ntfys", "hassio", "hassios", "gotify", "gotifys", "matrix", "matrixs", "bark", "barks", "signal", "signals", "mailto", "mailtos"]);
 
+/** A web address's host (and port) that's on the server's own network by its look (an internal address or name). */
+export const localHostName = (hostPort: string) => localHost(hostPort, true);
+
 function localHost(hostPort: string, hasPath: boolean) {
   const host = (hostPort.startsWith("[") ? hostPort.slice(1, hostPort.indexOf("]")) : hostPort.replace(/:\d*$/, "")).toLowerCase().replace(/\.$/, "");
   if (!host) return false;

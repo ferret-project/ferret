@@ -1482,6 +1482,82 @@ export interface NotificationChannel {
   lastError: string | null;
 }
 
+// ── Webhooks: events posted to another app (n8n, Home Assistant…) ───────────
+/**
+ * What a household's webhooks can be told about. Changes are sent as they happen; the rest (due, ending, closing,
+ * found) once each, when they first need attention.
+ */
+export const WEBHOOK_EVENTS = [
+  "item.created",
+  "item.updated",
+  "item.gone",
+  "item.deleted",
+  "items.imported",
+  "stock.low",
+  "task.due",
+  "task.overdue",
+  "warranty.ending",
+  "return.closing",
+  "recall.found",
+  "loan.due",
+] as const;
+export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
+
+const webhookUrl = z.url({ protocol: /^https?$/, error: "Use a web address starting with https:// (or http://)" }).max(2000);
+
+export const webhookInput = z.object({
+  name: z.string().trim().min(1).max(60),
+  url: webhookUrl,
+  events: z.array(z.enum(WEBHOOK_EVENTS)).min(1, "Pick at least one event").max(WEBHOOK_EVENTS.length),
+});
+export type WebhookInput = z.infer<typeof webhookInput>;
+
+/** Changes to a webhook. `paused`: stop sending for now (events while paused aren't kept); false also turns a webhook that was switched off by failures back on. */
+export const webhookPatch = webhookInput.partial().extend({ paused: z.boolean().optional() });
+export type WebhookPatch = z.infer<typeof webhookPatch>;
+
+/** A webhook as Settings lists it — its address only as the host (the rest may hold a token). */
+export interface WebhookSummary {
+  id: string;
+  name: string;
+  /** Where it posts: the address's host (and port). */
+  host: string;
+  events: WebhookEvent[];
+  /** Paused by a person. */
+  paused: boolean;
+  /** Switched off by Ferret after deliveries kept failing (`failures` in a row); Turn on again clears it. */
+  disabledAt: string | null;
+  failures: number;
+  /** The newest delivery: when, and how it went. */
+  lastDeliveryAt: string | null;
+  lastStatus: number | null;
+  lastError: string | null;
+  /** A secret was rotated: the old one also signs until then. */
+  previousSecretUntil: string | null;
+  /** May post to the server's own network (set up by whoever runs this Ferret). */
+  local: boolean;
+  createdAt: string;
+}
+
+/** Returned when a webhook is made and when its secret is rotated (and by Show secret). */
+export interface WebhookSecret {
+  secret: string;
+}
+
+export interface WebhookDelivery {
+  id: string;
+  /** The event's id: the same in every delivery of it, and in the `Ferret-Event-Id` header — receivers dedupe on it. */
+  eventId: string;
+  event: WebhookEvent | "ping";
+  status: "pending" | "sent" | "failed";
+  attempts: number;
+  /** The receiver's HTTP status, if it answered. */
+  responseStatus: number | null;
+  error: string | null;
+  createdAt: string;
+  lastAttemptAt: string | null;
+}
+
 // ── Add from a web address ──────────────────────────────────────────────────
 /** A photo or document for the server to download (public internet only). No kind: it goes by what arrives. */
 export const downloadInput = z.object({

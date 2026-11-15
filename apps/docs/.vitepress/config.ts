@@ -123,6 +123,7 @@ export default defineConfig({
           text: "Claude and automation",
           items: [
             { text: "Claude and the API", link: "/guide/claude" },
+            { text: "Webhooks", link: "/guide/webhooks" },
             { text: "API reference", link: "/api/" },
             { text: "Home dashboards", link: "/hosting/dashboards" },
             { text: "Home Assistant import", link: "/guide/importing#home-assistant" },

@@ -9,6 +9,7 @@ import type { FileStore } from "../lib/files";
 import { purgeUnverified } from "../lib/email-verification";
 import { purgeDeleted } from "../lib/trash";
 import { purgeAiRuns } from "../lib/ai-runs";
+import { pruneDeliveries } from "../lib/webhooks";
 import type { Deps, JobHandler } from "../ports";
 import { and, eq, lt } from "drizzle-orm";
 import { job } from "../db/schema";
@@ -28,7 +29,7 @@ export const PURGE_JOB = "trash.purge";
 
 export function purgeJob(deps: Deps & { files: FileStore }): JobHandler {
   return async () => {
-    const counts = { ...(await purgeDeleted({ db: deps.db, deps, files: deps.files })), "unconfirmed accounts": await purgeUnverified(deps.db), "failed jobs": await purgeFailedJobs(deps.db) };
+    const counts = { ...(await purgeDeleted({ db: deps.db, deps, files: deps.files })), "unconfirmed accounts": await purgeUnverified(deps.db), "failed jobs": await purgeFailedJobs(deps.db), "webhook deliveries": await pruneDeliveries(deps.db) };
     await purgeAiRuns(deps);
     const gone = Object.entries(counts).filter(([, n]) => n > 0);
     if (gone.length) console.log(`Purged deleted ${gone.map(([what, n]) => `${what}: ${n}`).join(", ")}`);

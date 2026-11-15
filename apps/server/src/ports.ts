@@ -14,6 +14,7 @@
  *   Chat      → gpt-oss on vLLM (text)
  *   Notifier  → apprise-api (ntfy, Pushover…)
  *   Downloader→ node:https, public IPs only
+ *   WebhookSender → node:http(s); public IPs only unless the server admin set it up
  *   Backups   → VACUUM INTO + a folder (NAS)
  *   HomeAssistant → its WebSocket API (LAN)
  *   Recalls   → CPSC's recall API (fetch)
@@ -275,6 +276,20 @@ export interface Downloader {
 /** Why a download didn't work, in words for the person who asked for it. */
 export class DownloadError extends Error {}
 
+/**
+ * Posts a household's webhook events (lib/webhooks.ts) to the address it gave. Redirects are never followed (a 3xx is
+ * an answer like any other). Without `allowLocal`, only addresses on the public internet — checked when connecting,
+ * so a name can't point inside the network — else anywhere the server can reach (its own network: n8n, Home
+ * Assistant), which only whoever runs the server can set up.
+ */
+export interface WebhookSender {
+  /** The receiver's HTTP status. Throws WebhookError with a reason a person can act on when it couldn't be posted. */
+  post(url: string, body: string, headers: Record<string, string>, opts: { allowLocal: boolean }): Promise<{ status: number }>;
+}
+
+/** Why a webhook couldn't be posted (couldn't connect, took too long, an address it may not use). */
+export class WebhookError extends Error {}
+
 export interface Images {
   /**
    * The image no larger than `maxSize` px on its longest side, rotated upright
@@ -424,6 +439,8 @@ export interface Deps {
   notifier?: Notifier;
   /** Photos and documents from a web address (public internet only). */
   downloader?: Downloader;
+  /** Households' webhooks (Settings → Claude & API). Without it, webhooks are off. */
+  webhooks?: WebhookSender;
   /** Barcode → product details (UPCitemdb), for naming scanned things. */
   products?: ProductLookup;
   /** Map pictures of properties' addresses (Apple Maps, needs a Maps key). */

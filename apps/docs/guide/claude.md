@@ -70,7 +70,7 @@ photos, add and change things — one at a time or many at once — and look aft
 warranties and claims, maintenance, recalls, stock and the shopping list, lending, collections, insurance limits,
 and [room reviews](./room-review) (*"found the passport"*, *"let's go through the garage"*).
 With a **read-only** key it only gets the tools that look and ask. A few things stay in the app: managing keys,
-members and invitations, share links, pairing codes, settings and backups.
+members and invitations, share links, webhooks, pairing codes, settings and backups.
 
 Claude asks before deleting anything, deleted things wait 30 days in [Recently deleted](./recently-deleted), and
 suggestions read from photos and documents are applied only once you've said yes.
@@ -118,6 +118,7 @@ Postman, Bruno or Insomnia, or generate a client from it.
 | --- | --- |
 | Show counts on a home dashboard (Heimdall, Homepage) | `GET /api/v1/summary` — [Home dashboards](../hosting/dashboards) |
 | Get maintenance in a calendar app | the calendar feed — [Reminders](./reminders#calendar) |
+| Tell n8n, Home Assistant or a script when things change | [Webhooks](./webhooks) |
 | Send reminders to ntfy, Pushover, Telegram… | [Other apps](./reminders#other-apps) |
 | Bring in devices and rooms from Home Assistant | [Importing](./importing#home-assistant) |
 | Load or move things in bulk | a spreadsheet, [importing](./importing#a-spreadsheet-csv) and the [insurance report's CSV](./insurance-report) |

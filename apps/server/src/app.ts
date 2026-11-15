@@ -49,6 +49,7 @@ import { pairing } from "./routes/pairing";
 import { trash } from "./routes/trash";
 import { imports } from "./routes/imports";
 import { shared, shareShortLinks, shares } from "./routes/shares";
+import { webhooks } from "./routes/webhooks";
 import { borrowed, borrowerShortLinks, loans } from "./routes/loans";
 import { payoff } from "./routes/payoff";
 import { ai } from "./routes/ai";
@@ -309,6 +310,7 @@ export function createApp(deps: Deps, config: Config, opts: AppOptions = {}) {
   app.route("/api/v1/trash", trash);
   app.route("/api/v1/import", imports);
   app.route("/api/v1/shares", shares);
+  app.route("/api/v1/webhooks", webhooks);
   app.route("/api/v1/household", household);
   app.route("/api/v1/plan", plan);
   app.route("/api/v1/room-scans", roomScans);
