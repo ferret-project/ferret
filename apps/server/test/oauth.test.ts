@@ -2,7 +2,7 @@
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { and, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
-import { job, member, oauthConsent } from "../src/db/schema";
+import { job, member, oauthConsent, oauthResource } from "../src/db/schema";
 import { APP_CONNECTED_JOB } from "../src/jobs/security-alert";
 import { purgeOAuth } from "../src/lib/oauth";
 import { config, setup } from "./helpers";
@@ -284,6 +284,16 @@ describe("apps signing in with OAuth", () => {
     // The approval goes; a token that somehow still exists for it (here: one not yet revoked) is refused anyway.
     await s.db.delete(oauthConsent).where(eq(oauthConsent.id, grant!.id));
     expect((await mcpStatus(s.app, tokens.access_token)).status).toBe(401);
+  });
+
+  it("are only for this server's /mcp, and never make Better Auth seed resources (it hung hosted's sign-ins, 2026.11.18)", async () => {
+    const s = await setup();
+    const ann = await s.user("ann");
+    const clientId = await register(s.app);
+    const other = await ann.as(`/api/auth/oauth2/authorize?${new URLSearchParams({ response_type: "code", client_id: clientId, redirect_uri: REDIRECT, scope: "ferret", code_challenge: "x".repeat(43), code_challenge_method: "S256", resource: "https://elsewhere.example/api" })}`, { redirect: "manual" });
+    expect(other.status).toBe(400);
+    await connect(s, ann, clientId);
+    expect(await s.db.select().from(oauthResource)).toEqual([]);
   });
 
   it("let apps on a computer register with a localhost address (Claude Code, Cursor, MCP Inspector)", async () => {

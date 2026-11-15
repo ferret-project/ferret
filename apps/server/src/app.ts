@@ -282,6 +282,37 @@ export function createApp(deps: Deps, config: Config, opts: AppOptions = {}) {
     return auth.handler(new Request(c.req.url, { method: "POST", headers, body: isObject ? text : "{}" }));
   });
   app.post("/api/auth/sign-up/email", signUpHumanCheck);
+  // An app's `resource` (RFC 8707) is checked here — it must be this server's /mcp, the only thing a token is for — and
+  // taken off before Better Auth sees it: its resource registry is seeded during its startup, a database write every
+  // request waits on, which on Workers hung every sign-in check once the request that began it was cut short (lib/oauth.ts).
+  app.get("/api/auth/oauth2/authorize", async (c) => {
+    const url = new URL(c.req.url);
+    if (!url.searchParams.getAll("resource").every((r) => r === mcpResource(config))) return c.json({ error: "invalid_target", error_description: "Ferret's only resource is its /mcp" }, 400);
+    url.searchParams.delete("resource");
+    return auth.handler(new Request(url, c.req.raw));
+  });
+  app.post("/api/auth/oauth2/token", async (c) => {
+    const text = await c.req.text();
+    const headers = new Headers(c.req.raw.headers);
+    headers.delete("content-length");
+    const refused = () => c.json({ error: "invalid_target", error_description: "Ferret's only resource is its /mcp" }, 400);
+    if (c.req.header("content-type")?.includes("application/json")) {
+      let body: Record<string, unknown>;
+      try {
+        body = JSON.parse(text) as Record<string, unknown>;
+      } catch {
+        return auth.handler(new Request(c.req.url, { method: "POST", headers, body: text }));
+      }
+      const resources = ([] as unknown[]).concat(body.resource ?? []);
+      if (!resources.every((r) => r === mcpResource(config))) return refused();
+      delete body.resource;
+      return auth.handler(new Request(c.req.url, { method: "POST", headers, body: JSON.stringify(body) }));
+    }
+    const form = new URLSearchParams(text);
+    if (!form.getAll("resource").every((r) => r === mcpResource(config))) return refused();
+    form.delete("resource");
+    return auth.handler(new Request(c.req.url, { method: "POST", headers, body: form.toString() }));
+  });
   // Apps registering themselves for OAuth (lib/oauth.ts): MCP clients on a computer (Claude Code, Cursor, MCP
   // Inspector…) come back to http://localhost:<port> and don't say they're native apps, which Better Auth then refuses
   // (RFC 8252 allows loopback only for native apps) — so an app whose every address is loopback is one.

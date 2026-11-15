@@ -153,8 +153,9 @@ export function oauthPlugin(db: Db, config: Config) {
     refreshTokenExpiresIn: REFRESH_TOKEN_TTL_S,
     // A client that retries a refresh (a dropped reply) gets the same answer for a minute, not a revoked family.
     refreshTokenReuseInterval: 60,
-    resources: [mcpResource(config)],
-    resourceSeedMode: "overwrite",
+    // No `resources`: the plugin would seed them in its startup (a database write Better Auth's whole context waits on)
+    // — on Workers, a startup cut short with its request left every later sign-in check hanging (2026.11.18).
+    // Without them a token is for any resource, and /mcp is the only one.
     enforcePerClientResources: false,
     loginPage: OAUTH_PAGES.signIn,
     consentPage: OAUTH_PAGES.finish,
