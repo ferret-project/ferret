@@ -19,8 +19,8 @@ or pick one of its places for them.
 
 ## Doing a task
 
-![Maintenance: what's due in the next two weeks and what's coming up, each with Done](/screenshots/maintenance-light.webp){.shot .light-only}
-![Maintenance: what's due in the next two weeks and what's coming up, each with Done](/screenshots/maintenance-dark.webp){.shot .dark-only}
+![Maintenance as a list (or a month): what's overdue, what's due in the next two weeks, each with Done](/screenshots/maintenance-light.webp){.shot .light-only}
+![Maintenance as a list (or a month): what's overdue, what's due in the next two weeks, each with Done](/screenshots/maintenance-dark.webp){.shot .dark-only}
 
 Tap **Done** when it's done: say when, who did it and what it cost. The next due date moves on from the day it was
 actually done — so a job done late doesn't come due again too soon. A one-off is finished once it's done.
