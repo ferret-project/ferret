@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { serve } from "@hono/node-server";
 import { FsBlobs } from "./adapters/local/blobs";
 import { FolderBackupTarget, SqliteSnapshots } from "./adapters/local/backup";
-import { OllamaAi } from "./adapters/local/ai";
+import { OpenAiModels } from "./adapters/local/ai";
 import { OpenAiChat } from "./adapters/local/chat";
 import { createLocalDb, runMigrations } from "./adapters/local/db";
 import { ensureDataDir } from "./adapters/local/data-dir";
@@ -88,17 +88,21 @@ if (keys.needed.length) {
 const images = new SharpImages();
 const pdfPages = new PdfJsPages();
 const jobs = new DbJobs(db);
-const ai = config.OLLAMA_URL
-  ? new OllamaAi(config.OLLAMA_URL, { vision: config.VISION_MODEL, embed: config.EMBED_MODEL })
+const apiKey = config.AI_API_KEY;
+const ai = config.VISION_URL
+  ? new OpenAiModels(
+      { vision: config.VISION_URL, embed: config.EMBED_URL ?? config.VISION_URL, apiKey },
+      { vision: config.VISION_MODEL, embed: config.EMBED_MODEL },
+    )
   : undefined;
 const chat = config.CHAT_URL
-  ? new OpenAiChat(config.CHAT_URL, config.CHAT_MODEL, { reasoningEffort: config.CHAT_REASONING || undefined })
+  ? new OpenAiChat(config.CHAT_URL, config.CHAT_MODEL, { reasoningEffort: config.CHAT_REASONING || undefined, apiKey })
   : undefined;
 const documents = config.DOCLING_URL ? new DoclingDocuments(config.DOCLING_URL, doclingOptions(config)) : undefined;
 const vectors =
   config.QDRANT_URL && ai ? new QdrantVectors(config.QDRANT_URL, config.QDRANT_API_KEY, config.QDRANT_COLLECTION) : undefined;
-const reranker = config.RERANK_URL ? new VllmReranker(config.RERANK_URL, config.RERANK_MODEL) : undefined;
-const speech = config.SPEECH_URL ? new OpenAiSpeech(config.SPEECH_URL, config.SPEECH_MODEL) : undefined;
+const reranker = config.RERANK_URL ? new VllmReranker(config.RERANK_URL, config.RERANK_MODEL, apiKey) : undefined;
+const speech = config.SPEECH_URL ? new OpenAiSpeech(config.SPEECH_URL, config.SPEECH_MODEL, apiKey) : undefined;
 const push =
   config.VAPID_PUBLIC_KEY && config.VAPID_PRIVATE_KEY
     ? new WebCryptoPush(config.VAPID_PUBLIC_KEY, config.VAPID_PRIVATE_KEY, vapidSubject(config))
@@ -189,11 +193,11 @@ serve(
   (info) => {
   console.log(`🐾 Ferret listening on http://localhost:${info.port}  (public: ${config.PUBLIC_URL})`);
   const on = (enabled: unknown, detail: string, hint: string) => (enabled ? detail : `off (${hint})`);
-  console.log(`   Photo analysis: ${on(ai, `${config.VISION_MODEL} at ${config.OLLAMA_URL}`, "set OLLAMA_URL")}`);
-  console.log(`   Questions/text: ${on(chat ?? ai, chat ? `${config.CHAT_MODEL} at ${config.CHAT_URL}` : `${config.VISION_MODEL} (set CHAT_URL for a stronger model)`, "set OLLAMA_URL or CHAT_URL")}`);
+  console.log(`   Photo analysis: ${on(ai, `${config.VISION_MODEL} at ${config.VISION_URL}`, "set VISION_URL")}`);
+  console.log(`   Questions/text: ${on(chat ?? ai, chat ? `${config.CHAT_MODEL} at ${config.CHAT_URL}` : `${config.VISION_MODEL} (set CHAT_URL for a stronger model)`, "set VISION_URL or CHAT_URL")}`);
   console.log(`   Document text:  ${on(documents, `docling at ${config.DOCLING_URL}`, "set DOCLING_URL")}`);
   console.log(
-    `   Smart search:   ${on(vectors, `${config.EMBED_MODEL} → Qdrant ${config.QDRANT_COLLECTION}`, "set QDRANT_URL and OLLAMA_URL")}`,
+    `   Smart search:   ${on(vectors, `${config.EMBED_MODEL}${config.EMBED_URL !== config.VISION_URL ? ` at ${config.EMBED_URL}` : ""} → Qdrant ${config.QDRANT_COLLECTION}`, "set QDRANT_URL and VISION_URL")}`,
   );
   console.log(`   Reranking:      ${on(vectors && reranker, `${config.RERANK_MODEL} at ${config.RERANK_URL}`, "set RERANK_URL")}`);
   console.log(`   Speech to text: ${on(speech, `${config.SPEECH_MODEL} at ${config.SPEECH_URL}`, "set SPEECH_URL")}`);

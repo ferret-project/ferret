@@ -681,7 +681,7 @@ export async function searchItems(
 /** Ask Ferret: a question answered from the household's own items and documents, with sources. */
 export async function ask(v: Caller, question: string) {
   const model = v.deps.chat ?? v.deps.ai; // the stronger text model, when there is one
-  if (!model) throw new HTTPException(409, { message: "Ask Ferret needs an AI model (CHAT_URL or OLLAMA_URL)" });
+  if (!model) throw new HTTPException(409, { message: "Ask Ferret needs an AI model (CHAT_URL or VISION_URL)" });
   const plan = await requireAllowed(v, "ai.ask"); // in the plan, and within its AI actions (lib/plan.ts)
   countEvent(v.deps, "ask");
   const results = await searchItems(v, question, {}, ASK_ITEMS);
@@ -705,7 +705,7 @@ export async function findInOneItem(v: Caller, itemId: string, query: string) {
 export async function askItem(v: Caller, itemId: string, question: string) {
   const doc = await itemDoc(v, itemId);
   const model = v.deps.chat ?? v.deps.ai;
-  if (!model) throw new HTTPException(409, { message: "Asking needs an AI model (CHAT_URL or OLLAMA_URL)" });
+  if (!model) throw new HTTPException(409, { message: "Asking needs an AI model (CHAT_URL or VISION_URL)" });
   const plan = await requireAllowed(v, "ai.ask");
   countEvent(v.deps, "ask");
   const vectors = searchEnabled(v.deps) && (await meaningSearchAllowed(v)) ? v.deps.vectors : undefined;

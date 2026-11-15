@@ -6,7 +6,7 @@
  *   pnpm --filter @ferret/server eval:search --verbose  # every query
  *   pnpm --filter @ferret/server eval:search --no-judge # without the chat model deciding unsure matches
  */
-import { OllamaAi } from "../src/adapters/local/ai";
+import { OpenAiModels } from "../src/adapters/local/ai";
 import { OpenAiChat } from "../src/adapters/local/chat";
 import { VllmReranker } from "../src/adapters/local/reranker";
 import { loadConfig } from "../src/config";
@@ -15,16 +15,19 @@ import { runSearchEval } from "./run";
 
 const noJudge = process.argv.includes("--no-judge");
 const config = loadConfig({ ...process.env, NODE_ENV: "test" });
-if (!config.QDRANT_URL || !config.OLLAMA_URL) {
-  console.error("Needs OLLAMA_URL and QDRANT_URL (and optionally RERANK_URL, CHAT_URL) in .env");
+if (!config.QDRANT_URL || !config.VISION_URL) {
+  console.error("Needs VISION_URL and QDRANT_URL (and optionally RERANK_URL, CHAT_URL) in .env");
   process.exit(1);
 }
 await runSearchEval({
   config,
   collection: "ferret-eval",
-  ai: new OllamaAi(config.OLLAMA_URL, { vision: config.VISION_MODEL, embed: config.EMBED_MODEL }),
-  reranker: config.RERANK_URL ? new VllmReranker(config.RERANK_URL, config.RERANK_MODEL) : undefined,
-  chat: !noJudge && config.CHAT_URL ? new OpenAiChat(config.CHAT_URL, config.CHAT_MODEL, { reasoningEffort: config.CHAT_REASONING || undefined }) : undefined,
+  ai: new OpenAiModels(
+    { vision: config.VISION_URL, embed: config.EMBED_URL ?? config.VISION_URL, apiKey: config.AI_API_KEY },
+    { vision: config.VISION_MODEL, embed: config.EMBED_MODEL },
+  ),
+  reranker: config.RERANK_URL ? new VllmReranker(config.RERANK_URL, config.RERANK_MODEL, config.AI_API_KEY) : undefined,
+  chat: !noJudge && config.CHAT_URL ? new OpenAiChat(config.CHAT_URL, config.CHAT_MODEL, { reasoningEffort: config.CHAT_REASONING || undefined, apiKey: config.AI_API_KEY }) : undefined,
   searchProfile: SEARCH_PROFILES.home,
   profileName: "home",
   models: { embed: config.EMBED_MODEL, rerank: config.RERANK_URL ? config.RERANK_MODEL : undefined, chat: !noJudge && config.CHAT_URL ? config.CHAT_MODEL : undefined },

@@ -8,6 +8,19 @@ export interface ModelReply {
   usage?: { prompt_tokens?: number; completion_tokens?: number } | null;
 }
 
+/**
+ * An OpenAI-style endpoint on a model server's base address: http://gpu.lan:8080, …/v1 and a path in front
+ * (a reverse proxy's /llama) all work — `new URL("/v1/…", base)` would drop that path.
+ */
+export function apiUrl(base: string, path: `/v1/${string}`) {
+  return new URL(base.replace(/\/+$/, "").replace(/\/v1$/, "") + path);
+}
+
+/** Headers for a model server: JSON, plus the API key when it was started with one (AI_API_KEY). */
+export function modelHeaders(apiKey: string | undefined, json = true): Record<string, string> {
+  return { ...(json ? { "Content-Type": "application/json" } : {}), ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}) };
+}
+
 type JsonRequest = { prompt: string; schema: object; image?: { data: Uint8Array; contentType: string }; maxTokens?: number };
 
 /**
@@ -57,7 +70,7 @@ export function replyShape(text: string): FailureDetail {
 }
 
 /**
- * Any OpenAI-compatible chat API (vLLM, Ollama…) asked for JSON that follows a
+ * Any OpenAI-compatible chat API (vLLM, Ollama, llama.cpp, LM Studio…) asked for JSON that follows a
  * schema — e.g. gpt-oss-120b for questions and documents, or qwen3-vl
  * (with an image) for photos.
  */
@@ -69,6 +82,7 @@ export class OpenAiChat implements TextModel {
       /** For reasoning models (gpt-oss): "low" keeps answers quick. */
       reasoningEffort?: string;
       timeoutMs?: number;
+      apiKey?: string;
     } = {},
   ) {}
 
@@ -79,9 +93,9 @@ export class OpenAiChat implements TextModel {
       content.push({ type: "image_url", image_url: { url: `data:${image.contentType};base64,${toBase64(image.data)}` } });
     }
     const ask = async (temperature: number): Promise<ModelReply> => {
-      const res = await fetch(new URL("/v1/chat/completions", this.baseUrl), {
+      const res = await fetch(apiUrl(this.baseUrl, "/v1/chat/completions"), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: modelHeaders(this.opts.apiKey),
         // A cold model load plus a busy GPU can take minutes.
         signal: AbortSignal.timeout(this.opts.timeoutMs ?? 300_000),
         body: JSON.stringify({

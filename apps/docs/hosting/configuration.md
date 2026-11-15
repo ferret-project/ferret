@@ -88,7 +88,9 @@ and check **Settings → Server → Keys** says "From the settings". The copy in
 
 | Setting | |
 |---|---|
-| `OLLAMA_URL`, `VISION_MODEL`, `EMBED_MODEL` | Reading photos; embeddings for smart search. Any OpenAI-compatible server ([not only Ollama](ai#other-model-servers-llama-cpp-lm-studio-vllm)). |
+| `VISION_URL`, `VISION_MODEL`, `EMBED_MODEL` | Reading photos; embeddings for smart search. Any OpenAI-compatible server — Ollama, llama.cpp, LM Studio, vLLM ([model servers](ai#model-servers)). `OLLAMA_URL` is `VISION_URL`'s old name and still works. |
+| `EMBED_URL` | Embeddings from a different server than `VISION_URL` (e.g. a second llama-server). |
+| `AI_API_KEY` | Sent as a Bearer token to the model servers (vision, embeddings, chat, reranker, speech), for servers started with an API key. |
 | `CHAT_URL`, `CHAT_MODEL`, `CHAT_REASONING` | A stronger text model for Ask Ferret and documents (OpenAI-compatible). `CHAT_REASONING` (default `low`) is sent as `reasoning_effort`; set it empty for a model that doesn't take one. |
 | `DOCLING_URL`, `DOCLING_VLM_URL`, `DOCLING_OPTIONS` | Reading PDFs and scanned documents; `DOCLING_VLM_URL` reads pages with granite-docling (an OpenAI-compatible endpoint) instead of docling's standard pipeline. |
 | `QDRANT_URL`, `QDRANT_API_KEY`, `QDRANT_COLLECTION` | Smart search's vector store. |

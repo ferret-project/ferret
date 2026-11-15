@@ -176,8 +176,17 @@ const schema = z.object({
   APPLE_MAPS_TEAM_ID: z.string().optional(),
   APPLE_MAPS_KEY_ID: z.string().optional(),
   APPLE_MAPS_PRIVATE_KEY: z.string().optional(),
-  /** Ollama (OpenAI-compatible API), e.g. http://gpu.lan:11434. Enables photo analysis and embeddings. */
+  /**
+   * Any OpenAI-compatible model server (Ollama, llama.cpp's llama-server, LM Studio, vLLM…), e.g. http://gpu.lan:11434.
+   * Enables photo analysis, and embeddings too unless EMBED_URL is set.
+   */
+  VISION_URL: z.url().optional(),
+  /** The old name for VISION_URL (it was Ollama only at first); still read when VISION_URL isn't set. */
   OLLAMA_URL: z.url().optional(),
+  /** A separate OpenAI-compatible server for EMBED_MODEL (e.g. a second llama-server). Without it, VISION_URL. */
+  EMBED_URL: z.url().optional(),
+  /** Sent as "Authorization: Bearer …" to the model servers (vision, embeddings, chat, reranker, speech), for servers started with an API key. */
+  AI_API_KEY: z.string().optional(),
   /** Vision model used to describe photos and read receipts/labels. */
   VISION_MODEL: z.string().default("qwen3-vl:8b"),
   /**
@@ -210,7 +219,7 @@ const schema = z.object({
         return z.NEVER;
       }
     }),
-  /** Qdrant, e.g. http://qdrant.lan:6333. With OLLAMA_URL, enables semantic search. */
+  /** Qdrant, e.g. http://qdrant.lan:6333. With VISION_URL (or EMBED_URL), enables semantic search. */
   QDRANT_URL: z.url().optional(),
   QDRANT_API_KEY: z.string().optional(),
   QDRANT_COLLECTION: z.string().default("ferret"),
@@ -262,7 +271,10 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
   if (c.TRUSTED_HEADER_AUTH && !c.TRUSTED_HEADER_PROXIES.trim()) {
     throw new Error("Invalid configuration:\n  TRUSTED_HEADER_AUTH needs TRUSTED_HEADER_PROXIES (the sign-in proxy's address)");
   }
-  return { ...c, publicUrlSet: set.PUBLIC_URL !== undefined };
+  // OLLAMA_URL is VISION_URL's old name; embeddings come from the same server unless EMBED_URL says otherwise.
+  const visionUrl = c.VISION_URL ?? c.OLLAMA_URL;
+  if (c.EMBED_URL && !visionUrl) throw new Error("Invalid configuration:\n  EMBED_URL needs VISION_URL (the vision model's server)");
+  return { ...c, VISION_URL: visionUrl, EMBED_URL: c.EMBED_URL ?? visionUrl, publicUrlSet: set.PUBLIC_URL !== undefined };
 }
 
 /**

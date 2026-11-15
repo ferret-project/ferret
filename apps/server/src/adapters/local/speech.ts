@@ -1,4 +1,5 @@
 import { ServiceFailure, type Speech } from "../../ports";
+import { apiUrl, modelHeaders } from "./chat";
 
 /**
  * Speech to text through an OpenAI-compatible /v1/audio/transcriptions endpoint — a Whisper server such as speaches
@@ -9,6 +10,7 @@ export class OpenAiSpeech implements Speech {
   constructor(
     private readonly baseUrl: string,
     private readonly model: string,
+    private readonly apiKey?: string,
     private readonly timeoutMs = 30_000,
   ) {}
 
@@ -19,7 +21,7 @@ export class OpenAiSpeech implements Speech {
     form.set("model", this.model);
     form.set("response_format", "json");
     const started = Date.now();
-    const res = await fetch(new URL("/v1/audio/transcriptions", this.baseUrl), { method: "POST", body: form, signal: AbortSignal.timeout(this.timeoutMs) });
+    const res = await fetch(apiUrl(this.baseUrl, "/v1/audio/transcriptions"), { method: "POST", headers: modelHeaders(this.apiKey, false), body: form, signal: AbortSignal.timeout(this.timeoutMs) });
     if (!res.ok) {
       throw new ServiceFailure(`Speech server returned ${res.status}: ${(await res.text()).slice(0, 200)}`, { model: this.model, ms: Date.now() - started, bytes: audio.length, contentType });
     }

@@ -1,4 +1,5 @@
 import type { Reranker } from "../../ports";
+import { apiUrl, modelHeaders } from "./chat";
 
 /**
  * A cross-encoder reranker (e.g. bge-reranker-v2-m3) behind vLLM's
@@ -8,14 +9,15 @@ export class VllmReranker implements Reranker {
   constructor(
     private readonly baseUrl: string,
     private readonly model: string,
+    private readonly apiKey?: string,
     private readonly timeoutMs = 5_000, // it runs while someone waits on the search box
   ) {}
 
   async rerank(query: string, documents: string[]) {
     if (documents.length === 0) return [];
-    const res = await fetch(new URL("/v1/rerank", this.baseUrl), {
+    const res = await fetch(apiUrl(this.baseUrl, "/v1/rerank"), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: modelHeaders(this.apiKey),
       signal: AbortSignal.timeout(this.timeoutMs),
       body: JSON.stringify({ model: this.model, query, documents }),
     });
