@@ -12,7 +12,7 @@ import { logger } from "hono/logger";
 import { NONCE, secureHeaders } from "hono/secure-headers";
 import { type Auth, MEMBERSHIP_LIMIT, createAuth } from "./auth";
 import { NEW_ACCOUNT_JOB } from "./jobs/new-account";
-import { NEW_PLACE_JOB, PASSKEY_ADDED_JOB, PASSWORD_CHANGED_JOB, SECURITY_ALERT_JOB } from "./jobs/security-alert";
+import { APP_CONNECTED_JOB, NEW_PLACE_JOB, PASSKEY_ADDED_JOB, PASSWORD_CHANGED_JOB, SECURITY_ALERT_JOB } from "./jobs/security-alert";
 import { MAGIC_LINK_JOB } from "./lib/magic-link";
 import { mailTo } from "./lib/notifications";
 import { RESET_JOB } from "./lib/password-reset";
@@ -26,6 +26,9 @@ import { TURNSTILE_HEADER, TURNSTILE_ORIGIN, signUpHumanCheck } from "./lib/turn
 import { FileStore } from "./lib/files";
 import type { Deps, JobHandler, Jobs } from "./ports";
 import { apiKeys } from "./routes/api-keys";
+import { oauth } from "./routes/oauth";
+import { mcpResource, OAUTH_SCOPES } from "./lib/oauth";
+import { oauthProviderAuthServerMetadata } from "@better-auth/oauth-provider";
 import { attention } from "./routes/attention";
 import { backup } from "./routes/backup";
 import { server } from "./routes/server";
@@ -74,6 +77,9 @@ export const YOUTUBE_EMBED = "https://www.youtube-nocookie.com";
 
 /** The /api routes that take files: an item's uploads, and a room scan's photos (each has its own limit). */
 const UPLOAD_PATH = /^\/api\/v1\/(items\/[^/]+\/attachments|room-scans|transcribe)$/;
+/** The OAuth endpoints apps call themselves (from a server or a browser), and the documents that point at them. */
+const OAUTH_OPEN = /^\/(api\/auth\/oauth2\/(token|register|revoke)|\.well-known\/oauth-(protected-resource|authorization-server)(\/.*)?)$/;
+const isOAuthOpenPath = (path: string) => OAUTH_OPEN.test(path);
 
 export interface AppOptions {
   /** The help at /docs (VitePress): the sha256 of its inline scripts, from its build's csp.json. */
@@ -154,6 +160,7 @@ export function createApp(deps: Deps, config: Config, opts: AppOptions = {}) {
           }
         : undefined,
     onPasskeyAdded: jobs ? (added) => jobs.enqueue(PASSKEY_ADDED_JOB, added) : undefined,
+    onAppConnected: jobs ? (connected) => jobs.enqueue(APP_CONNECTED_JOB, connected) : undefined,
     onAccountCreated: jobs && config.ADMIN_WEBHOOK_URL ? () => jobs.enqueue(NEW_ACCOUNT_JOB, {}) : undefined,
     // New accounts confirm their email (lib/email-verification.ts): the link goes out from a job.
     verifyEmail: emailEnabled(deps, config)
@@ -217,15 +224,20 @@ export function createApp(deps: Deps, config: Config, opts: AppOptions = {}) {
   app.use("/api/*", (c, next) =>
     UPLOAD_PATH.test(c.req.path) ? next() : bodyLimit({ maxSize: 1024 * 1024, onError: (c) => c.json({ error: { code: "http_413", message: "Request too large" } }, 413) })(c, next),
   );
+  // What apps signing in with OAuth call from a browser (MCP clients that run in one): open to any origin, never with
+  // cookies — the token, registration and revoke endpoints don't use them (lib/oauth.ts).
+  const openCors = cors({ origin: "*", allowHeaders: ["Content-Type", "Authorization", "Mcp-Protocol-Version"], allowMethods: ["GET", "POST", "OPTIONS"], credentials: false });
+  app.use((c, next) => (isOAuthOpenPath(c.req.path) ? openCors(c, next) : next()));
   app.use(
     "/api/*",
-    cors({
+    async (c, next) => (isOAuthOpenPath(c.req.path) ? next() : corsForApp(c, next)),
+  );
+  const corsForApp = cors({
       origin: [config.PUBLIC_URL, ...origins],
       credentials: true,
       allowHeaders: ["Content-Type", "Authorization", "X-Api-Key", "X-Household-Id", TURNSTILE_HEADER],
       allowMethods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-    }),
-  );
+    });
   // Changes made with the session cookie come from Ferret's own pages only. SameSite=Lax keeps other sites' forms out,
   // but not a sibling site on the same domain; the browser says where a request comes from (Sec-Fetch-Site, Origin),
   // and anything else is refused. API keys aren't cookies, so scripts are unaffected. Better Auth checks its own.
@@ -295,8 +307,25 @@ export function createApp(deps: Deps, config: Config, opts: AppOptions = {}) {
     if (res.status < 400 || res.headers.has("location")) return res;
     return c.redirect(`/?sso=failed&error=${res.status === 403 ? "invite_only" : "sign_in_failed"}`, 302);
   });
+  // Apps signing in with OAuth (lib/oauth.ts) find /mcp's authorization server here (RFC 9728, RFC 8414) — at the root
+  // and with Better Auth's base path, since clients look in either place.
+  const resourceMetadata = (c: Context<AppEnv>) =>
+    c.json({
+      resource: mcpResource(config),
+      authorization_servers: [`${new URL(config.PUBLIC_URL).origin}/api/auth`],
+      scopes_supported: [...OAUTH_SCOPES],
+      bearer_methods_supported: ["header"],
+      resource_name: "Ferret",
+      resource_documentation: `${new URL(config.PUBLIC_URL).origin}/docs/guide/claude`,
+    });
+  app.get("/.well-known/oauth-protected-resource", resourceMetadata);
+  app.get("/.well-known/oauth-protected-resource/mcp", resourceMetadata);
+  const serverMetadata = oauthProviderAuthServerMetadata(auth);
+  app.get("/.well-known/oauth-authorization-server", (c) => serverMetadata(c.req.raw));
+  app.get("/.well-known/oauth-authorization-server/api/auth", (c) => serverMetadata(c.req.raw));
   app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw));
   app.route("/api/v1/api-keys", apiKeys);
+  app.route("/api/v1/oauth", oauth);
   app.route("/api/v1/maintenance", maintenance);
   app.route("/api/v1/attention", attention);
   app.route("/api/v1/calendar", calendarSettings);

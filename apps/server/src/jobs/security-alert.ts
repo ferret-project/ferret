@@ -4,7 +4,8 @@
  * every Apprise channel they added, in any household.
  */
 import { eq } from "drizzle-orm";
-import { notificationChannel, pushSubscription, user } from "../db/schema";
+import { notificationChannel, oauthClient, organization, pushSubscription, user } from "../db/schema";
+import { parseReference } from "../lib/oauth";
 import type { FileStore } from "../lib/files";
 import { deliver, mailTo, notifyPerson } from "../lib/notifications";
 import { describeDevice } from "../lib/security";
@@ -106,6 +107,34 @@ export function passkeyAddedAlert(deps: Deps & { files: FileStore; appUrl: strin
           `A passkey was just added from ${describeDevice(userAgent)}. It can sign in to your account without a password. ` +
           "If that wasn't you, remove it and sign out everywhere else in Settings → Security.",
         url: `${deps.appUrl}/#/settings/security`,
+        tag: "ferret-security",
+      },
+      { email: who.email },
+    );
+  };
+}
+
+export const APP_CONNECTED_JOB = "security.app-connected";
+
+/** "An app was connected to your Ferret account" — an app that can read the inventory is a new way in (push, Apprise, email). */
+export function appConnectedAlert(deps: Deps & { files: FileStore; appUrl: string; mailUrl?: string }): JobHandler {
+  return async (payload) => {
+    const { userId, clientId, reference } = payload as { userId: string; clientId: string; reference: string };
+    const [who] = await deps.db.select({ email: user.email }).from(user).where(eq(user.id, userId));
+    const [app] = await deps.db.select({ name: oauthClient.name }).from(oauthClient).where(eq(oauthClient.clientId, clientId));
+    const target = parseReference(reference);
+    if (!who || !app || !target) return;
+    const [household] = await deps.db.select({ name: organization.name }).from(organization).where(eq(organization.id, target.householdId));
+    const name = app.name?.trim() || "An app";
+    await notifyPerson(
+      deps,
+      userId,
+      {
+        title: `${name} was connected to your Ferret account`,
+        body:
+          `${name} can now ${target.readOnly ? "look things up in" : "look things up in and change"} ${household?.name ?? "a household"} with your account. ` +
+          "If that wasn't you, disconnect it in Settings → Claude & API, change your password and sign out everywhere else in Settings → Security.",
+        url: `${deps.appUrl}/#/settings/api`,
         tag: "ferret-security",
       },
       { email: who.email },

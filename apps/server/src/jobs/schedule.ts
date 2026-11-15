@@ -29,6 +29,8 @@ import { PURGE_JOB, purgeJob } from "./purge";
 import { RECALL_CHECK_JOB, RECALL_SYNC_JOB, recallCheckJob, recallSyncJob } from "./recalls";
 import { REMIND_JOB, sendReminders } from "./remind";
 import {
+  APP_CONNECTED_JOB,
+  appConnectedAlert,
   NEW_PLACE_JOB,
   PASSKEY_ADDED_JOB,
   PASSWORD_CHANGED_JOB,
@@ -109,6 +111,7 @@ export function jobSchedule({
     [RESET_JOB]: passwordResetJob({ db, auth }),
     [MAGIC_LINK_JOB]: magicLinkJob({ db, auth }),
     [PASSKEY_ADDED_JOB]: passkeyAddedAlert({ ...deps, files, appUrl, mailUrl }),
+    [APP_CONNECTED_JOB]: appConnectedAlert({ ...deps, files, appUrl, mailUrl }),
     [VERIFY_EMAIL_JOB]: sendVerificationJob({ notifier: deps.notifier, mailUrl }),
     [INVITE_EMAIL_JOB]: sendInvitationJob({ ...deps, appUrl, mailUrl }),
     [PASSWORD_CHANGED_JOB]: passwordChanged({ ...deps, files, appUrl, mailUrl }),

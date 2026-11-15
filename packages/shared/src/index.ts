@@ -1456,6 +1456,38 @@ export interface NewApiKey extends ApiKeySummary {
   key: string;
 }
 
+// ── Apps signed in with OAuth (claude.ai, ChatGPT… for /mcp) ─────────────────
+/** What's picked on the "Connect an app" screen: the household the app gets, and whether it can change things. */
+export const oauthConnectInput = z.object({
+  householdId: z.string().min(1),
+  readOnly: z.boolean().default(false),
+});
+export type OAuthConnectInput = z.infer<typeof oauthConnectInput>;
+
+/** An app asking to connect, as the "Connect an app" screen shows it. */
+export interface OAuthConnectRequest {
+  /** What the app calls itself — its own claim, not checked by Ferret. */
+  name: string;
+  /** Where it sends people back after (the host of its redirect address), and its own website if it gave one. */
+  redirectHost: string | null;
+  uri: string | null;
+  logoUri: string | null;
+  /** The households this person is in; a viewer's can only be read-only. */
+  households: { id: string; name: string; role: string }[];
+  activeHouseholdId: string | null;
+}
+
+/** An app connected to this household with this person's account (Settings → Claude & API). */
+export interface OAuthGrantSummary {
+  id: string;
+  name: string;
+  redirectHost: string | null;
+  readOnly: boolean;
+  createdAt: string;
+  /** When it last got a fresh access token (about hourly while in use). */
+  lastUsedAt: string | null;
+}
+
 // ── Notifications to other apps (ntfy, Pushover, Telegram… through Apprise) ──
 /** An Apprise URL: `scheme://…`, e.g. ntfys://ntfy.sh/my-topic or pover://user@token. */
 export const notificationChannelInput = z.object({

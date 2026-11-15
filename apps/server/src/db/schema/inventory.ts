@@ -7,7 +7,7 @@ import { sql } from "drizzle-orm";
 import { check, index, integer, primaryKey, real, sqliteTable, text, uniqueIndex, type AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import type { SightingHow, SightingKind } from "@ferret/shared/utils";
 import type { AiFill, AiFillSwitches, AnalysisStatus, AttachmentAnalysis, CategoryField, CustomFieldValues, HaSnapshot, ItemLink, ItemOrigin, ProductInfo, ReviewOutcome, RoomScanCandidate, RoomScanStatus } from "@ferret/shared";
-import { invitation, organization, user } from "./auth";
+import { invitation, organization, session, user } from "./auth";
 
 const id = () =>
   text("id")
@@ -1445,3 +1445,20 @@ export const itemPair = sqliteTable(
   },
   (t) => [primaryKey({ columns: [t.itemA, t.itemB] }), index("item_pair_household_idx").on(t.householdId)],
 );
+
+/**
+ * What someone just picked on the "Connect an app" screen (#/connect, lib/oauth.ts): the household an OAuth app gets
+ * and whether it may change things. Kept per browser session for the minutes the OAuth flow takes, then read as the
+ * grant's reference (`<householdId>:read|write`); stale rows are purged daily.
+ */
+export const oauthChoice = sqliteTable("oauth_choice", {
+  sessionId: text("session_id")
+    .primaryKey()
+    .references(() => session.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  householdId: householdId(),
+  readOnly: integer("read_only", { mode: "boolean" }).notNull(),
+  createdAt: timestamps.createdAt,
+});

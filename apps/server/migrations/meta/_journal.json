@@ -449,6 +449,13 @@
       "when": 1794722920067,
       "tag": "0063_home_assistant_url",
       "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "6",
+      "when": 1794763643205,
+      "tag": "0064_oauth",
+      "breakpoints": true
     }
   ]
 }

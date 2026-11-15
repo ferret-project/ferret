@@ -33,6 +33,7 @@ import { clearFailures, type FailureAlert, signInGuard } from "./lib/sign-in-gua
 import type { Db } from "./ports";
 import * as schema from "./db/schema";
 import { ssoPlugins } from "./lib/sso";
+import { currentChoice, OAUTH_DISABLED_PATHS, oauthPlugin, oauthReference } from "./lib/oauth";
 
 /** Household roles. "viewer" can look and ask but not change anything (enforced by requireWriter and MCP). */
 const ac = createAccessControl(defaultStatements);
@@ -70,6 +71,8 @@ export interface AuthHooks {
   onAccountCreated?: () => void | Promise<void>;
   /** Tell someone a passkey was added to their account (a job). */
   onPasskeyAdded?: (added: { userId: string; userAgent: string | null }) => void | Promise<void>;
+  /** Tell someone an app was connected to their account (OAuth, lib/oauth.ts; a job). */
+  onAppConnected?: (connected: { userId: string; clientId: string; reference: string }) => void | Promise<void>;
   /** People a household may have — its plan's limit (lib/plan.ts); without, MEMBERSHIP_LIMIT. */
   membershipLimit?: (householdId: string) => Promise<number>;
   /** Whether an account may start another household: null if so, else why not (a plan's rule, lib/plan.ts). */
@@ -166,7 +169,8 @@ export function createAuth(db: Db, config: Config, opts: AuthHooks = {}) {
     // Reset links go straight to the web app (#/reset-password/:token), not through Better Auth's redirect;
     // without email, no reset at all.
     // Confirming an email takes the account's password too (lib/email-verification.ts): not Better Auth's bare link.
-    disabledPaths: ["/api-key/create", "/api-key/update", "/verify-email", ...(reset ? ["/reset-password/:token"] : RESET_PATHS)],
+    // Apps signing in (lib/oauth.ts) register themselves; Better Auth's client admin and OIDC endpoints stay off.
+    disabledPaths: ["/api-key/create", "/api-key/update", "/verify-email", ...(reset ? ["/reset-password/:token"] : RESET_PATHS), ...OAUTH_DISABLED_PATHS],
     plugins: [
       apiKey({
         defaultPrefix: "ferret_",
@@ -255,6 +259,9 @@ export function createAuth(db: Db, config: Config, opts: AuthHooks = {}) {
       // runs on another port (Vite), so its origins are allowed too.
       passkey({ rpID: site.hostname, rpName: "Ferret", origin: [site.origin, ...trustedOrigins(config)] }),
       passkeyAdded(opts.onPasskeyAdded),
+      // Apps signing in to Ferret for /mcp (claude.ai, ChatGPT…): OAuth, bound to one household (lib/oauth.ts).
+      oauthPlugin(db, config),
+      appConnected(db, opts.onAppConnected),
       ...(link
         ? [
             magicLink({
@@ -328,6 +335,32 @@ function passkeyAdded(notify: AuthHooks["onPasskeyAdded"]) {
             const session = ctx.context.session;
             const ok = !(ctx.context.returned instanceof Error);
             if (notify && session && ok) await notify({ userId: session.user.id, userAgent: ctx.request?.headers.get("user-agent") ?? null });
+          }),
+        },
+      ],
+    },
+  } satisfies BetterAuthPlugin;
+}
+
+/**
+ * After someone approves an app on #/connect (Better Auth's /oauth2/consent, which stores a new consent): tell them —
+ * an app that can read the inventory is a new way in. Only a first approval for that app and household, not each
+ * time it asks again.
+ */
+function appConnected(db: Db, notify: AuthHooks["onAppConnected"]) {
+  return {
+    id: "ferret-app-connected",
+    hooks: {
+      after: [
+        {
+          matcher: (ctx) => ctx.path === "/oauth2/consent",
+          handler: createAuthMiddleware(async (ctx) => {
+            const session = ctx.context.session;
+            const body = ctx.body as { accept?: unknown; oauth_query?: unknown } | undefined;
+            if (!notify || !session || body?.accept !== true || ctx.context.returned instanceof Error) return;
+            const clientId = new URLSearchParams(typeof body.oauth_query === "string" ? body.oauth_query : "").get("client_id");
+            const choice = clientId ? await currentChoice(db, session.session.id, session.user.id) : null;
+            if (clientId && choice) await notify({ userId: session.user.id, clientId, reference: oauthReference(choice.householdId, choice.readOnly) });
           }),
         },
       ],
