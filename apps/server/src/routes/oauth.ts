@@ -60,6 +60,7 @@ oauth.post("/connect", async (c) => {
   await saveChoice(c.var.db, {
     sessionId: c.var.session!.id,
     userId: c.var.user.id,
+    clientId: input.clientId,
     householdId: input.householdId,
     // A viewer's apps can only look.
     readOnly: input.readOnly || role === "viewer",

@@ -1,0 +1,1 @@
+ALTER TABLE `oauth_choice` ADD `client_id` text DEFAULT '' NOT NULL;

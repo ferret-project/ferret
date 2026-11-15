@@ -4,7 +4,7 @@
  * - `#/connect/sign-in?…` when they aren't signed in: the request is remembered (localStorage, ten minutes) and started
  *   again once they are — whichever way they sign in, even an emailed link opened in another tab.
  * - `#/connect?…` every time an app asks: pick the household it gets and whether it can change things, then Allow.
- * - `#/connect/finish?…` the plugin's consent step, which Allow normally does itself; here only if it's landed on.
+ * - `#/connect/finish?…` the plugin's consent step, which Allow does itself: landing here approves nothing.
  * The `?…` after the route is the plugin's signed query, sent back to it as it came (`oauth_query`).
  */
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -107,7 +107,7 @@ export function Connect() {
     mutationFn: async () => {
       const household = households.find((h) => h.id === chosen);
       if (!household) throw new Error(t`Pick a household first.`);
-      await api.oauthChoose({ householdId: household.id, readOnly: !canChange || household.role === "viewer" });
+      await api.oauthChoose({ clientId, householdId: household.id, readOnly: !canChange || household.role === "viewer" });
       let next = await oauthStep("/oauth2/continue", { postLogin: true, oauth_query: query });
       if (next.startsWith("/#/connect/finish?")) next = await oauthStep("/oauth2/consent", { accept: true, oauth_query: next.slice(next.indexOf("?") + 1) });
       clearPending();
@@ -205,19 +205,12 @@ export function Connect() {
   );
 }
 
-/** The plugin's consent step, normally done by Allow above: finish it (the server only accepts it after #/connect). */
+/**
+ * The plugin's consent step. Allow above does it itself, so landing here means a link someone made, not a request
+ * this person just approved: nothing is approved from here (the server refuses it without a choice for that app too).
+ */
 export function ConnectFinish() {
-  const finish = useMutation({
-    mutationFn: async () => {
-      const next = await oauthStep("/oauth2/consent", { accept: true, oauth_query: hashQuery() });
-      clearPending();
-      window.location.assign(next);
-    },
-  });
-  const { mutate } = finish;
-  useEffect(() => mutate(), [mutate]);
-  if (finish.isError) return <Problem text={finish.error.message} />;
-  return <Splash />;
+  return <Problem text={t`Nothing was connected. To connect an app, start again from the app itself.`} />;
 }
 
 function clearPending() {

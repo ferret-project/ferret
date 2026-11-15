@@ -33,7 +33,7 @@ import { clearFailures, type FailureAlert, signInGuard } from "./lib/sign-in-gua
 import type { Db } from "./ports";
 import * as schema from "./db/schema";
 import { ssoPlugins } from "./lib/sso";
-import { currentChoice, OAUTH_DISABLED_PATHS, oauthPlugin, oauthReference } from "./lib/oauth";
+import { choiceGuard, currentChoice, OAUTH_DISABLED_PATHS, oauthPlugin, oauthReference } from "./lib/oauth";
 
 /** Household roles. "viewer" can look and ask but not change anything (enforced by requireWriter and MCP). */
 const ac = createAccessControl(defaultStatements);
@@ -261,6 +261,7 @@ export function createAuth(db: Db, config: Config, opts: AuthHooks = {}) {
       passkeyAdded(opts.onPasskeyAdded),
       // Apps signing in to Ferret for /mcp (claude.ai, ChatGPT…): OAuth, bound to one household (lib/oauth.ts).
       oauthPlugin(db, config),
+      choiceGuard(db),
       appConnected(db, opts.onAppConnected),
       ...(link
         ? [
@@ -359,7 +360,7 @@ function appConnected(db: Db, notify: AuthHooks["onAppConnected"]) {
             const body = ctx.body as { accept?: unknown; oauth_query?: unknown } | undefined;
             if (!notify || !session || body?.accept !== true || ctx.context.returned instanceof Error) return;
             const clientId = new URLSearchParams(typeof body.oauth_query === "string" ? body.oauth_query : "").get("client_id");
-            const choice = clientId ? await currentChoice(db, session.session.id, session.user.id) : null;
+            const choice = clientId ? await currentChoice(db, session.session.id, session.user.id, clientId) : null;
             if (clientId && choice) await notify({ userId: session.user.id, clientId, reference: oauthReference(choice.householdId, choice.readOnly) });
           }),
         },

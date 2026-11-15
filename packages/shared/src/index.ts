@@ -1459,6 +1459,8 @@ export interface NewApiKey extends ApiKeySummary {
 // ── Apps signed in with OAuth (claude.ai, ChatGPT… for /mcp) ─────────────────
 /** What's picked on the "Connect an app" screen: the household the app gets, and whether it can change things. */
 export const oauthConnectInput = z.object({
+  /** The app being connected (the client_id in the screen's link): the choice is good for it only. */
+  clientId: z.string().min(1).max(200),
   householdId: z.string().min(1),
   readOnly: z.boolean().default(false),
 });

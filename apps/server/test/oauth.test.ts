@@ -2,7 +2,7 @@
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { and, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
-import { job, member } from "../src/db/schema";
+import { job, member, oauthConsent } from "../src/db/schema";
 import { APP_CONNECTED_JOB } from "../src/jobs/security-alert";
 import { purgeOAuth } from "../src/lib/oauth";
 import { config, setup } from "./helpers";
@@ -64,7 +64,7 @@ async function connect(s: Setup, u: User, clientId: string, pick: { householdId?
   expect(location.startsWith("/#/connect?")).toBe(true);
   const chosen = await u.as("/api/v1/oauth/connect", {
     method: "POST",
-    body: JSON.stringify({ householdId: pick.householdId ?? u.householdId, readOnly: pick.readOnly ?? false }),
+    body: JSON.stringify({ clientId, householdId: pick.householdId ?? u.householdId, readOnly: pick.readOnly ?? false }),
   });
   expect(chosen.status).toBe(200);
   const cont = await u.as("/api/auth/oauth2/continue", { method: "POST", body: JSON.stringify({ postLogin: true, oauth_query: queryOf(location) }) });
@@ -235,14 +235,14 @@ describe("apps signing in with OAuth", () => {
     const bob = await s.user("bob");
     const clientId = await register(s.app);
     await startAuthorize(ann.as, clientId);
-    const theirs = await ann.as("/api/v1/oauth/connect", { method: "POST", body: JSON.stringify({ householdId: bob.householdId }) });
+    const theirs = await ann.as("/api/v1/oauth/connect", { method: "POST", body: JSON.stringify({ clientId, householdId: bob.householdId }) });
     expect(theirs.status).toBe(403);
 
     const key = (await (await ann.as("/api/v1/api-keys", { method: "POST", body: JSON.stringify({ name: "Script" }) })).json()) as { key: string };
     const withKey = await s.app.request("/api/v1/oauth/connect", {
       method: "POST",
       headers: { Authorization: `Bearer ${key.key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ householdId: ann.householdId }),
+      body: JSON.stringify({ clientId, householdId: ann.householdId }),
     });
     expect(withKey.status).toBe(403);
   });
@@ -253,6 +253,37 @@ describe("apps signing in with OAuth", () => {
     const { location } = await startAuthorize(s.app.request.bind(s.app), clientId);
     expect(location.startsWith("/#/connect/sign-in?")).toBe(true);
     expect(new URLSearchParams(queryOf(location)).get("client_id")).toBe(clientId);
+  });
+
+  it("never let a choice made for one app approve another, or approve anything without Allow", async () => {
+    const s = await setup();
+    const ann = await s.user("ann");
+    const good = await register(s.app, "Claude");
+    const evil = await register(s.app, "Claude (really)");
+    // Ann connects the real app; the other one's signed request is to hand within the ten minutes.
+    await connect(s, ann, good);
+    const { location } = await startAuthorize(ann.as, evil);
+    const query = queryOf(location);
+    for (const [path, body] of [
+      ["/api/auth/oauth2/continue", { postLogin: true, oauth_query: query }],
+      ["/api/auth/oauth2/consent", { accept: true, oauth_query: query }],
+    ] as const) {
+      const res = await ann.as(path, { method: "POST", body: JSON.stringify(body) });
+      expect(res.status, path).toBe(403);
+    }
+    const grants = (await (await ann.as("/api/v1/oauth/grants")).json()) as { data: { name: string }[] };
+    expect(grants.data.map((g) => g.name)).toEqual(["Claude"]);
+  });
+
+  it("refuse tokens from a code issued just before the app was disconnected", async () => {
+    const s = await setup();
+    const ann = await s.user("ann");
+    const clientId = await register(s.app);
+    const tokens = await connect(s, ann, clientId);
+    const [grant] = ((await (await ann.as("/api/v1/oauth/grants")).json()) as { data: { id: string }[] }).data;
+    // The approval goes; a token that somehow still exists for it (here: one not yet revoked) is refused anyway.
+    await s.db.delete(oauthConsent).where(eq(oauthConsent.id, grant!.id));
+    expect((await mcpStatus(s.app, tokens.access_token)).status).toBe(401);
   });
 
   it("let apps on a computer register with a localhost address (Claude Code, Cursor, MCP Inspector)", async () => {

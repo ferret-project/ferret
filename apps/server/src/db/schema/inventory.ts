@@ -1460,5 +1460,7 @@ export const oauthChoice = sqliteTable("oauth_choice", {
     .references(() => user.id, { onDelete: "cascade" }),
   householdId: householdId(),
   readOnly: integer("read_only", { mode: "boolean" }).notNull(),
+  /** The app it was picked for: the flow's next steps are refused for any other (lib/oauth.ts). */
+  clientId: text("client_id").notNull().default(""),
   createdAt: timestamps.createdAt,
 });

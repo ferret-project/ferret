@@ -14,7 +14,8 @@
  * - Tokens are opaque (no signing keys to look after) and stored hashed, so a revoked one stops at once.
  */
 import { oauthProvider } from "@better-auth/oauth-provider";
-import { APIError } from "better-auth/api";
+import type { BetterAuthPlugin } from "better-auth";
+import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
 import { and, eq, gt, lt, notExists, or, sql } from "drizzle-orm";
 import type { Config } from "../config";
 import { oauthAccessToken, oauthChoice, oauthClient, oauthConsent, oauthRefreshToken } from "../db/schema";
@@ -56,25 +57,56 @@ export function mcpResource(config: Pick<Config, "PUBLIC_URL">) {
   return `${new URL(config.PUBLIC_URL).origin}/mcp`;
 }
 
-/** The household this browser session just picked on #/connect, if it's fresh and they're still in it. */
-export async function currentChoice(db: Db, sessionId: string, userId: string) {
+/** The household this browser session just picked on #/connect (for `clientId`, if given), if fresh and they're still in it. */
+export async function currentChoice(db: Db, sessionId: string, userId: string, clientId?: string) {
   const [row] = await db
     .select()
     .from(oauthChoice)
     .where(and(eq(oauthChoice.sessionId, sessionId), eq(oauthChoice.userId, userId), gt(oauthChoice.createdAt, new Date(Date.now() - CHOICE_TTL_MS))));
-  if (!row) return null;
+  if (!row || (clientId !== undefined && row.clientId !== clientId)) return null;
   const role = await membership(db, row.householdId, userId);
   if (!role) return null;
-  return { householdId: row.householdId, readOnly: row.readOnly || role === "viewer" };
+  return { householdId: row.householdId, readOnly: row.readOnly || role === "viewer", clientId: row.clientId };
 }
 
 /** Remembers what was picked on #/connect for this browser session (the next step of the flow reads it). */
-export async function saveChoice(db: Db, choice: { sessionId: string; userId: string; householdId: string; readOnly: boolean }) {
+export async function saveChoice(db: Db, choice: { sessionId: string; userId: string; clientId: string; householdId: string; readOnly: boolean }) {
   const values = { ...choice, createdAt: new Date() };
   await db
     .insert(oauthChoice)
     .values(values)
-    .onConflictDoUpdate({ target: oauthChoice.sessionId, set: { userId: values.userId, householdId: values.householdId, readOnly: values.readOnly, createdAt: values.createdAt } });
+    .onConflictDoUpdate({
+      target: oauthChoice.sessionId,
+      set: { userId: values.userId, clientId: values.clientId, householdId: values.householdId, readOnly: values.readOnly, createdAt: values.createdAt },
+    });
+}
+
+/**
+ * Better Auth's steps after #/connect (`/oauth2/continue`, `/oauth2/consent`) carry the app's signed request: they're
+ * refused unless this browser session picked a household for that same app, on #/connect, minutes ago. So a choice made
+ * for one app can never approve another, and nothing is approved without Allow.
+ */
+export function choiceGuard(db: Db) {
+  return {
+    id: "ferret-oauth-choice",
+    hooks: {
+      before: [
+        {
+          matcher: (ctx: { path?: string }) => ctx.path === "/oauth2/continue" || ctx.path === "/oauth2/consent",
+          handler: createAuthMiddleware(async (ctx) => {
+            const body = ctx.body as { accept?: unknown; oauth_query?: unknown } | undefined;
+            // Cancel needs no choice: it only sends the app away with access_denied.
+            if (ctx.path === "/oauth2/consent" && body?.accept !== true) return;
+            const session = await getSessionFromCtx(ctx);
+            const clientId = new URLSearchParams(typeof body?.oauth_query === "string" ? body.oauth_query : "").get("client_id");
+            if (!session || !clientId || !(await currentChoice(db, session.session.id, session.user.id, clientId))) {
+              throw new APIError("FORBIDDEN", { message: "Pick a household for this app on Ferret's Connect an app screen first" });
+            }
+          }),
+        },
+      ],
+    },
+  } satisfies BetterAuthPlugin;
 }
 
 /** Better Auth's endpoints Ferret doesn't use: client admin (apps register themselves), OIDC, introspection. */
@@ -166,6 +198,16 @@ export async function verifyOAuthToken(db: Db, token: string): Promise<OAuthHold
     })
     .from(oauthAccessToken)
     .innerJoin(oauthClient, eq(oauthClient.clientId, oauthAccessToken.clientId))
+    // The approval must still be there: Disconnect removes it, so even a token minted afterwards from a code issued
+    // just before is refused.
+    .innerJoin(
+      oauthConsent,
+      and(
+        eq(oauthConsent.clientId, oauthAccessToken.clientId),
+        eq(oauthConsent.userId, oauthAccessToken.userId),
+        eq(oauthConsent.referenceId, oauthAccessToken.referenceId),
+      ),
+    )
     .where(eq(oauthAccessToken.token, hashed));
   if (!row?.userId || row.revoked || row.disabled || !row.expiresAt || row.expiresAt <= new Date()) return null;
   const scopes = scopeList(row.scopes);
