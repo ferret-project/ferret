@@ -51,7 +51,8 @@ export function ProductSuggestions({ item, householdId }: { item: ItemListing; h
   const same = (a: unknown, b: unknown) => String(a ?? "").trim().toLowerCase() === String(b ?? "").trim().toLowerCase();
   const rows: { label: string; display: string; patch: ItemPatch }[] = [
     !same(item.name, p.title) && { label: t`Name`, display: p.title, patch: { name: p.title } },
-    p.brand && !same(item.brand, p.brand) && { label: t`Brand`, display: p.brand, patch: { brand: p.brand } },
+    // A book's "brand" is its author (Open Library, by ISBN).
+    p.brand && !same(item.brand, p.brand) && { label: p.kind === "book" ? t`Author` : t`Brand`, display: p.brand, patch: { brand: p.brand } },
     p.model && !same(item.model, p.model) && { label: t`Model`, display: p.model, patch: { model: p.model } },
     p.typicalPriceCents && item.valueCents == null && { label: t`Worth`, display: t`${ph({ price: money(p.typicalPriceCents) })} (typical price)`, patch: { valueCents: p.typicalPriceCents } },
     p.description && !item.description && { label: t`About`, display: p.description, patch: { description: p.description } },
@@ -81,7 +82,7 @@ export function ProductSuggestions({ item, householdId }: { item: ItemListing; h
         )}
         {p.images.length > 0 && (
           <div>
-            <p className="mb-2 text-sm text-base-content/70"><Trans>Product photos — tap one to add it</Trans></p>
+            <p className="mb-2 text-sm text-base-content/70">{p.kind === "book" ? <Trans>Its cover — tap to add it</Trans> : <Trans>Product photos — tap one to add it</Trans>}</p>
             <div className="flex gap-2 overflow-x-auto pb-1">
               {p.images.slice(0, 6).map((src, i) => (
                 <button

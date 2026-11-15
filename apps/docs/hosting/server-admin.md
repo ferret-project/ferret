@@ -32,6 +32,13 @@ It's off until you switch it on, because it sends each **VIN** to NHTSA's decode
 vehicle's **make, model and year** to its recall search (api.nhtsa.gov) at most once a week — nothing else. Switching
 it on reads the VINs already in Ferret straight away.
 
+## Book look-ups
+
+**Settings → Server → Book look-ups** switches on asking [Open Library](https://openlibrary.org) about books' ISBNs
+([what people see](../guide/adding-things#books)), instead of the online product database. It's free and has no
+allowance, so it isn't counted against any lookup limit. It's off until you switch it on, because a book's **ISBN** is
+sent to Open Library — nothing else — once for the whole server.
+
 ## Repair guides
 
 **Settings → Server → Repair guides** switches on [links to iFixit](../guide/repairs#repair-guides) for things whose

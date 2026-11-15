@@ -923,7 +923,7 @@ export const barcodeProduct = sqliteTable("barcode_product", {
   name: text("name"),
   brand: text("brand"),
   model: text("model"),
-  source: text("source").$type<"ferret" | "upcitemdb">(),
+  source: text("source").$type<"ferret" | "upcitemdb" | "openlibrary">(),
   /** What the online database said (photos, prices, description), when it was asked. */
   external: text("external", { mode: "json" }).$type<ProductInfo>(),
   /** When the online database last didn't know it (asked again after a month). */

@@ -35,6 +35,7 @@ export function Server() {
       <RecallChecks />
       <VehicleLookups />
       <RepairGuideLinks />
+      <BookLookups />
       <ServerAiFillCard />
       {!demo && <Certificates />}
       <ServerAdmin />
@@ -394,6 +395,36 @@ function RepairGuideLinks() {
             {plural(s.asked, { one: "# model asked about", other: "# models asked about" })}, {plural(s.found, { one: "# with guides", other: "# with guides" })}.
           </p>
         )}
+        {toggle.isError && <div className="alert alert-soft alert-error">{toggle.error.message}</div>}
+      </div>
+    </section>
+  );
+}
+
+/** Book look-ups (Open Library): off until switched on, because a book's ISBN is sent to Open Library. */
+function BookLookups() {
+  const qc = useQueryClient();
+  const status = useQuery({ queryKey: ["server-books"], queryFn: api.bookLookupStatus });
+  const toggle = useMutation({ mutationFn: api.setBookLookups, onSuccess: (data) => qc.setQueryData(["server-books"], data) });
+  const s = status.data;
+  if (!s) return null;
+  return (
+    <section className="card" aria-labelledby="books-title">
+      <div className="card-body gap-3">
+        <h2 id="books-title" className="card-title flex items-center gap-2">
+          <span className="icon-[tabler--book] size-5 text-primary" />
+          <Trans>Book look-ups</Trans>
+          <HelpLink page="guide/adding-things.html#books" label={t`Book look-ups`} />
+        </h2>
+        <p className="text-sm text-base-content/70">
+          <Trans>A book's barcode is its ISBN: scanned or saved, it's asked of Open Library (openlibrary.org) for the title, author and cover — each
+          once for the whole server, free, and not counted against any lookup allowance. Only the ISBN is sent.</Trans>
+        </p>
+        <label className="flex cursor-pointer items-center gap-3">
+          <input type="checkbox" className="switch switch-primary" checked={s.enabled} disabled={toggle.isPending || !s.available} onChange={(e) => toggle.mutate(e.target.checked)} />
+          <span>{s.enabled ? t`On` : t`Off`}</span>
+        </label>
+        {s.enabled && <p className="text-sm text-base-content/70">{plural(s.books, { one: "# book found", other: "# books found" })}.</p>}
         {toggle.isError && <div className="alert alert-soft alert-error">{toggle.error.message}</div>}
       </div>
     </section>

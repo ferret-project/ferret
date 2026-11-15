@@ -65,6 +65,13 @@ If you **already have it**, Ferret says so instead of making a second one: **Add
 count of the thing you have (it shows in its history), and **Add as a separate item** makes a new one — say, the same
 drill for the cabin. If several of your things have that code, pick which one to add to.
 
+## Books
+
+A book's barcode is its **ISBN**. When whoever runs your Ferret has switched on
+[book look-ups](../hosting/server-admin#book-look-ups), scanning it (or saving a thing with it) asks Open Library, and
+Ferret offers the **title** and **author** — the author goes in the brand — and the **cover** as a photo, like any
+barcode's suggestions.
+
 ## Several of the same
 
 Bought three of something, like a TV box for each room? Usually each should be its own thing, with its own serial

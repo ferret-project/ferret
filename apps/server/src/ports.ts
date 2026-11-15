@@ -493,6 +493,8 @@ export interface Deps {
   recalls?: Recalls;
   /** NHTSA: VINs decoded and vehicle recalls (switched on by the server admin: Settings → Server). */
   vehicles?: VehicleData;
+  /** Open Library: books by ISBN, a second barcode book source (switched on by the server admin: Settings → Server). */
+  books?: ProductLookup;
   /** iFixit: a "Repair guides" link for things whose brand and model it knows (switched on in Settings → Server). */
   repairGuides?: RepairGuides;
   /** Search's cut-offs for these models (default: "home", lib/search.ts). */

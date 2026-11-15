@@ -17,7 +17,7 @@ import { demoReport } from "../lib/demo";
 import { DEMO_PARTS, partsOff, setPartsOff } from "../lib/demo-switches";
 import { HTTPException } from "hono/http-exception";
 import { aboutServer, clearServiceErrors, listServiceErrors } from "../lib/service-errors";
-import { barcodeLookupStatus } from "../lib/products";
+import { barcodeLookupStatus, bookLookupStatus, setBooksEnabled } from "../lib/products";
 import { runServerCheck } from "../lib/server-check";
 import { MAX_FILE_BYTES, addClient, addTrusted, listCertificates, removeCertificate } from "../lib/certificates";
 
@@ -121,6 +121,16 @@ server.get("/ai-fill", async (c) => c.json(await serverAiFillDefaults(c.var.db))
 server.put("/ai-fill", async (c) => {
   const input = await body(c.req.raw, z.partialRecord(z.enum(aiFillKinds), z.boolean()));
   return c.json(await setServerAiFillDefaults(c.var.db, input));
+});
+
+/** Book look-ups (Open Library, by ISBN): whether they're on, and how many books are kept. */
+server.get("/books", async (c) => c.json(await bookLookupStatus(c.var.deps)));
+
+/** Switch book look-ups on (an ISBN scanned or saved is asked of Open Library) or off. */
+server.put("/books", async (c) => {
+  const { enabled } = await body(c.req.raw, z.object({ enabled: z.boolean() }));
+  await setBooksEnabled(c.var.db, enabled);
+  return c.json(await bookLookupStatus(c.var.deps));
 });
 
 /** Repair guide links (iFixit): whether they're on, brands + models asked about and matched. */

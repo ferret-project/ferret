@@ -1117,6 +1117,8 @@ export interface ProductInfo {
   lowestPriceCents?: number;
   highestPriceCents?: number;
   source: string;
+  /** A book (looked up by its ISBN): `brand` holds its author(s). */
+  kind?: "book";
 }
 
 /** What Ferret knows about a scanned barcode: from its own barcode book, or the online database. */
@@ -1126,7 +1128,7 @@ export interface BarcodeMatch {
   brand?: string | null;
   model?: string | null;
   /** "ferret": someone saved an item with it; "upcitemdb": from the online database. */
-  source: "ferret" | "upcitemdb";
+  source: "ferret" | "upcitemdb" | "openlibrary";
   /** From the online database, when it was asked. */
   images: string[];
   typicalPriceCents?: number;
@@ -2061,6 +2063,14 @@ export interface RepairGuideStatus {
   /** Brands + models asked about, and those with a sure match. */
   asked: number;
   found: number;
+}
+
+/** Book look-ups (Open Library, by ISBN) for Settings → Server. */
+export interface BookLookupStatus {
+  available: boolean;
+  enabled: boolean;
+  /** Books kept in the shared barcode book. */
+  books: number;
 }
 
 /** Vehicle look-ups (NHTSA: VINs decoded, vehicle recalls) for Settings → Server. */
