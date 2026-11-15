@@ -9,7 +9,7 @@
  * Modal 15" (member rows), the new-key dialog from "Dashboard Modal 14" and the
  * one-time reveal from "Dashboard Modal 7"; behaviour is plain React.
  */
-import type { ApiKeySummary, NewApiKey } from "@ferret/shared";
+import type { ApiKeySummary, NewApiKey, OAuthGrantSummary } from "@ferret/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { api } from "./lib/api";
@@ -108,6 +108,7 @@ export function Settings(props: { section: SettingsSection; householdName: strin
           <>
             <ApiKeys householdName={householdName} householdId={householdId} />
             <ConnectClaude />
+            <ConnectedApps householdName={householdName} householdId={householdId} />
             <Webhooks canManage={role === "owner" || role === "admin"} />
           </>
         )}
@@ -251,11 +252,91 @@ function ConnectClaude() {
         </p>
         <CopyField label={t`MCP server URL`} value={mcpUrl()} icon="icon-[tabler--world]" />
         <p className="text-sm text-base-content/70">
+          <Trans>In claude.ai (or another app that adds MCP servers by address), add it as a custom connector: it asks you to
+          sign in to Ferret and pick a household — no key needed.</Trans>
+        </p>
+        <p className="text-sm text-base-content/70">
           <Trans>In Claude Code, run this once (with your key in place of <code>ferret_…</code></Trans>):
         </p>
         <CopyField label={t`Claude Code command`} value={claudeCommand("ferret_…")} icon="icon-[tabler--terminal-2]" />
       </div>
     </section>
+  );
+}
+
+/** Apps that signed in with OAuth (claude.ai's connectors…) for this household with your account — Connect.tsx. */
+function ConnectedApps({ householdName, householdId }: { householdName: string; householdId: string }) {
+  const qc = useQueryClient();
+  const grantsKey = ["oauth-grants", householdId];
+  const grants = useQuery({ queryKey: grantsKey, queryFn: api.oauthGrants });
+  const revoke = useMutation({ mutationFn: api.deleteOAuthGrant, onSuccess: () => qc.invalidateQueries({ queryKey: grantsKey }) });
+  if (!grants.data?.data.length && !grants.isError) return null;
+  return (
+    <section className="card" aria-labelledby="connected-apps-title">
+      <div className="card-body gap-4">
+        <div className="space-y-1">
+          <h2 id="connected-apps-title" className="card-title flex items-center gap-2">
+            <span className="icon-[tabler--apps] size-5 text-primary" />
+            <Trans>Connected apps</Trans>
+          </h2>
+          <p className="text-sm text-base-content/70">
+            <Trans>Apps you signed in to Ferret from, for {householdName}. Disconnecting one stops it at once.</Trans>
+          </p>
+        </div>
+        {grants.isError && <div className="alert alert-soft alert-error">{grants.error.message}</div>}
+        {revoke.isError && <div className="alert alert-soft alert-error">{revoke.error.message}</div>}
+        {grants.data && (
+          <ul className="space-y-2 *:flex *:flex-wrap *:items-center *:gap-3 *:rounded-box *:p-2 *:hover:bg-neutral/10">
+            {grants.data.data.map((grant) => (
+              <GrantRow key={grant.id} grant={grant} onRevoke={() => revoke.mutate(grant.id)} busy={revoke.isPending} />
+            ))}
+          </ul>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function GrantRow({ grant, onRevoke, busy }: { grant: OAuthGrantSummary; onRevoke: () => void; busy: boolean }) {
+  const [confirming, setConfirming] = useState(false);
+  return (
+    <li>
+      <div className="avatar avatar-placeholder">
+        <div className="size-10 rounded-full bg-primary/10 text-primary">
+          <span className={`${grant.readOnly ? "icon-[tabler--eye]" : "icon-[tabler--plug-connected]"} size-5`} />
+        </div>
+      </div>
+      <div className="min-w-0 flex-1">
+        <h3 className="flex flex-wrap items-center gap-2 font-medium text-base-content">
+          <span className="truncate">{grant.name}</span>
+          {grant.readOnly && <span className="badge badge-soft badge-info badge-sm"><Trans>Read-only</Trans></span>}
+        </h3>
+        <p className="flex flex-wrap gap-x-2 text-sm text-base-content/70">
+          {grant.redirectHost && <span>{grant.redirectHost}</span>}
+          <span><Trans>connected {ph({ date: formatDate(grant.createdAt) })}</Trans></span>
+          <span>{grant.lastUsedAt ? t`last used ${ph({ date: formatDate(grant.lastUsedAt) })}` : t`never used`}</span>
+        </p>
+      </div>
+      {confirming ? (
+        <div className="flex shrink-0 gap-1 max-sm:w-full max-sm:justify-end">
+          <button type="button" className="btn btn-error btn-sm" onClick={onRevoke} disabled={busy}>
+            <Trans>Disconnect</Trans>
+          </button>
+          <button type="button" className="btn btn-text btn-sm" onClick={() => setConfirming(false)}>
+            <Trans>Keep</Trans>
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          className="btn btn-text btn-sm btn-square btn-error shrink-0"
+          aria-label={t`Disconnect ${ph({ name: grant.name })}`}
+          onClick={() => setConfirming(true)}
+        >
+          <span className="icon-[tabler--plug-connected-x] size-5" />
+        </button>
+      )}
+    </li>
   );
 }
 

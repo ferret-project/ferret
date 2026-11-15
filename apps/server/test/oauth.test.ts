@@ -255,6 +255,36 @@ describe("apps signing in with OAuth", () => {
     expect(new URLSearchParams(queryOf(location)).get("client_id")).toBe(clientId);
   });
 
+  it("let apps on a computer register with a localhost address (Claude Code, Cursor, MCP Inspector)", async () => {
+    const { app } = await setup();
+    const res = await app.request("/api/auth/oauth2/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ client_name: "Claude Code", redirect_uris: ["http://localhost:53682/callback"], token_endpoint_auth_method: "none" }),
+    });
+    expect(res.status, await res.clone().text()).toBe(201);
+    // Not a web address that isn't loopback, though.
+    const plain = await app.request("/api/auth/oauth2/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ client_name: "Sneaky", redirect_uris: ["http://example.com/callback"], token_endpoint_auth_method: "none" }),
+    });
+    expect(plain.status).toBe(400);
+  });
+
+  it("send the app back with access_denied on Cancel", async () => {
+    const s = await setup();
+    const ann = await s.user("ann");
+    const clientId = await register(s.app);
+    const { location } = await startAuthorize(ann.as, clientId);
+    const res = await ann.as("/api/auth/oauth2/consent", { method: "POST", body: JSON.stringify({ accept: false, oauth_query: queryOf(location) }) });
+    expect(res.status).toBe(200);
+    const back = new URL(((await res.json()) as { url: string }).url);
+    expect(back.origin + back.pathname).toBe(REDIRECT);
+    expect(back.searchParams.get("error")).toBe("access_denied");
+    expect(back.searchParams.get("state")).toBe("state-123");
+  });
+
   it("clear out apps nobody approved", async () => {
     const s = await setup();
     const ann = await s.user("ann");

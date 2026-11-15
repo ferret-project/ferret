@@ -20,6 +20,7 @@ import {
 } from "@tanstack/react-router";
 import { App, Home, ResetPasswordScreen, SignedIn, UnlockScreen } from "./App";
 import { Categories } from "./Catalog";
+import { Connect, ConnectFinish, ConnectSignIn } from "./Connect";
 import { Borrower, Loans } from "./Loans";
 import { WarrantyList } from "./WarrantyList";
 import { AiFilled } from "./AiFill";
@@ -117,6 +118,14 @@ const unlockRoute = createRoute({
     return <UnlockScreen key={token} token={token} />;
   },
 });
+// An app signing in to Ferret with OAuth (Connect.tsx): signed in or not, outside the signed-in layout.
+const connectRoutes = ([
+  ["connect", Connect],
+  ["connect/sign-in", ConnectSignIn],
+  ["connect/finish", ConnectFinish],
+] as const).map(([path, Screen]) =>
+  createRoute({ getParentRoute: () => rootRoute, path, staticData: { name: "connect" }, component: Screen }),
+);
 const resetRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "reset-password/$token",
@@ -360,6 +369,7 @@ const routeTree = rootRoute.addChildren([
   borrowerRoute,
   unlockRoute,
   resetRoute,
+  ...connectRoutes,
   appRoute.addChildren([
     screensRoute.addChildren([
     ...homeRoutes,

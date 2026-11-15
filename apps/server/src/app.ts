@@ -27,7 +27,7 @@ import { FileStore } from "./lib/files";
 import type { Deps, JobHandler, Jobs } from "./ports";
 import { apiKeys } from "./routes/api-keys";
 import { oauth } from "./routes/oauth";
-import { mcpResource, OAUTH_SCOPES } from "./lib/oauth";
+import { loopbackIsNative, mcpResource, OAUTH_SCOPES } from "./lib/oauth";
 import { oauthProviderAuthServerMetadata } from "@better-auth/oauth-provider";
 import { attention } from "./routes/attention";
 import { backup } from "./routes/backup";
@@ -282,6 +282,13 @@ export function createApp(deps: Deps, config: Config, opts: AppOptions = {}) {
     return auth.handler(new Request(c.req.url, { method: "POST", headers, body: isObject ? text : "{}" }));
   });
   app.post("/api/auth/sign-up/email", signUpHumanCheck);
+  // Apps registering themselves for OAuth (lib/oauth.ts): MCP clients on a computer (Claude Code, Cursor, MCP
+  // Inspector…) come back to http://localhost:<port> and don't say they're native apps, which Better Auth then refuses
+  // (RFC 8252 allows loopback only for native apps) — so an app whose every address is loopback is one.
+  app.post("/api/auth/oauth2/register", async (c) => {
+    const text = await c.req.text();
+    return auth.handler(new Request(c.req.url, { method: "POST", headers: c.req.raw.headers, body: loopbackIsNative(text) }));
+  });
   // "Send the link again" while signed out: the same check as signing up (when there's one), so it can't be scripted.
   app.post("/api/auth/send-verification-email", async (c, next) =>
     (await auth.api.getSession({ headers: c.req.raw.headers })) ? next() : signUpHumanCheck(c, next),

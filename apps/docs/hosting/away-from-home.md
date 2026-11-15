@@ -52,3 +52,13 @@ household — an insurer, a neighbour — who won't be on your network. To let t
 public, expose only these paths (e.g. with a tunnel or a reverse-proxy rule): `/s/`, `/b/`,
 `/api/v1/shared/`, `/api/v1/borrowed/`, and the app itself (`/`, `/assets/`) that shows them. Everything else still
 needs a sign-in. (With an access proxy in front, see [what to let through](./tunnels#let-through-what-can-t-sign-in-to-the-proxy).) Until then, they work for anyone on your network or VPN.
+
+## Apps that sign in (claude.ai, ChatGPT)
+
+[claude.ai's connectors and other apps that sign in](../guide/claude#claude-ai-and-other-apps-that-sign-in) reach your
+Ferret from their own servers. Only these paths need to be reachable from the internet (with `PUBLIC_URL` set to that
+`https://` address): `/mcp`, `/.well-known/oauth-protected-resource`, `/.well-known/oauth-authorization-server`
+(both with anything after them), and `/api/auth/oauth2/register`, `/api/auth/oauth2/token` and
+`/api/auth/oauth2/revoke`. Signing in and the **Connect an app** screen open in your own browser at that same address,
+so it has to work there too — at home, on the VPN, or through your access proxy. (With an access proxy in front, let those paths through it — see
+[what to let through](./tunnels#let-through-what-can-t-sign-in-to-the-proxy).)

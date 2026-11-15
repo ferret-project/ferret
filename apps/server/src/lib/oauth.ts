@@ -226,3 +226,26 @@ export async function purgeOAuth(db: Db, now = Date.now()) {
     .returning({ id: oauthClient.id });
   return choices.length + access.length + refresh.length + apps.length;
 }
+
+/** A registration (RFC 7591) whose redirect addresses are all http loopback, marked `application_type: native` unless it says. */
+export function loopbackIsNative(body: string): string {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return body;
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return body;
+  const registration = parsed as { redirect_uris?: unknown; application_type?: unknown };
+  const uris = registration.redirect_uris;
+  if (registration.application_type !== undefined || !Array.isArray(uris) || uris.length === 0) return body;
+  const loopback = uris.every((uri) => {
+    try {
+      const url = new URL(String(uri));
+      return url.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+    } catch {
+      return false;
+    }
+  });
+  return loopback ? JSON.stringify({ ...registration, application_type: "native" }) : body;
+}

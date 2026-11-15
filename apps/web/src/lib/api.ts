@@ -135,8 +135,7 @@ import type {
   ImportTriageInput,
   ImportTriageRow,
   MergeInput,
-  SuggestedTask,
-} from "@ferret/shared";
+  SuggestedTask, OAuthConnectInput, OAuthConnectRequest, OAuthGrantSummary } from "@ferret/shared";
 import { photoCopies } from "./photo-copies";
 import { t, ph } from "@lingui/core/macro";
 
@@ -659,6 +658,12 @@ export const api = {
   listApiKeys: () => request<{ data: ApiKeySummary[] }>("/api-keys"),
   createApiKey: (input: ApiKeyInput) => request<NewApiKey>("/api-keys", { method: "POST", body: JSON.stringify(input) }),
   deleteApiKey: (id: string) => request<void>(`/api-keys/${id}`, { method: "DELETE" }),
+  /** An app asking to sign in with OAuth (#/connect), and what's picked there. */
+  oauthConnectRequest: (clientId: string) => request<OAuthConnectRequest>(`/oauth/connect?client_id=${encodeURIComponent(clientId)}`),
+  oauthChoose: (input: OAuthConnectInput) => request<{ ok: true }>("/oauth/connect", { method: "POST", body: JSON.stringify(input) }),
+  /** Apps connected to this household with your account (Settings → Claude & API). */
+  oauthGrants: () => request<{ data: OAuthGrantSummary[] }>("/oauth/grants"),
+  deleteOAuthGrant: (id: string) => request<void>(`/oauth/grants/${id}`, { method: "DELETE" }),
   /** Same-origin URL, so <img> and links carry the session cookie. */
   attachmentUrl: (id: string) => `/api/v1/attachments/${id}/content`,
   /** Small WebP for grids (falls back to the original server-side). */

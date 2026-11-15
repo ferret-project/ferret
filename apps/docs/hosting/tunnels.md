@@ -35,9 +35,11 @@ opened by apps or people who can't:
 | `/s/`, `/api/v1/shared/` | an insurer or anyone else you send a [share link](../guide/sharing) | they see the proxy's sign-in page |
 | `/b/`, `/api/v1/borrowed/` | a borrower opening their [lending reminder](../guide/lending) | the same |
 | `/healthz` | an uptime monitor, if you have one | it reports Ferret down |
+| `/mcp`, `/.well-known/oauth-protected-resource`, `/.well-known/oauth-authorization-server`, `/api/auth/oauth2/register`, `/api/auth/oauth2/token`, `/api/auth/oauth2/revoke` | [claude.ai's connectors and other apps that sign in](../guide/claude#claude-ai-and-other-apps-that-sign-in), from their servers | the app can't connect |
 
 Each of these is safe to open up: the calendar feed and the share and borrower links carry their own secret in the
-address, and `/healthz` says only "ok". In **Cloudflare Access**, add an application for each path (e.g.
+address, `/healthz` says only "ok", and the app paths answer only an app holding a token you allowed (the
+`.well-known` documents just say where to sign in). In **Cloudflare Access**, add an application for each path (e.g.
 `ferret.example.com/calendar`) with a **Bypass** policy for *Everyone* — the most specific application wins, so the
 rest of Ferret stays behind the main one.
 

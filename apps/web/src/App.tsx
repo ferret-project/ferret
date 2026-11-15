@@ -5,6 +5,7 @@ import { usePlan } from "./PlanUsage";
 import { AskFerret } from "./Ask";
 import { CapturesCard, OfflineCapture, useCaptureSync } from "./Offline";
 import { rememberHome, rememberedHome } from "./lib/offline";
+import { resumeOAuthRequest } from "./Connect";
 import { AuthLayout, Logo } from "./AuthLayout";
 import { NotFound } from "./NotFound";
 import { DemoCounts, DemoNote, DemoSignIn } from "./Demo";
@@ -75,6 +76,8 @@ export function SignedIn() {
   const home = !session && (error || !navigator.onLine) ? rememberedHome() : null;
   if (home) return <OfflineCapture home={home} />;
   if (!session) return <AuthScreen />;
+  // Signed in for an app that was waiting (Connect.tsx: an emailed link, single sign-on…): back to it.
+  if (resumeOAuthRequest()) return <Splash />;
   return <HouseholdGate />;
 }
 
@@ -95,7 +98,7 @@ export function Splash() {
  * `/?confirm=<token>#/…`, where signing in with the account's password confirms it (the link alone proves the inbox,
  * not who chose the password).
  */
-export function AuthScreen({ email: invited, invitationId, intro }: { email?: string; invitationId?: string; intro?: React.ReactNode }) {
+export function AuthScreen({ email: invited, invitationId, intro, forApp }: { email?: string; invitationId?: string; intro?: React.ReactNode; forApp?: boolean }) {
   const verified = verifiedReturn();
   const [confirm, setConfirm] = useState(confirmReturn);
   const [mode, setMode] = useState<"signIn" | "signUp" | "forgot">(invited && !verified && !confirm ? "signUp" : "signIn");
@@ -313,7 +316,8 @@ export function AuthScreen({ email: invited, invitationId, intro }: { email?: st
               }}
             />
           )}
-          <InstallOffer where="sign-in" />
+          {/* Not while signing in for an app (Connect.tsx): installing would lose the app's request. */}
+          {!forApp && <InstallOffer where="sign-in" />}
           {viaProxy && (
             <div className="alert alert-soft alert-info text-sm" role="status">
               <span className="loading loading-spinner loading-xs" />

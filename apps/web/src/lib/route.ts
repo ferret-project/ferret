@@ -39,6 +39,7 @@ export type Route =
   | { name: "collection"; id: string }
   | { name: "import"; source: "csv" | "homeassistant" | null }
   | { name: "shared"; token: string }
+  | { name: "connect" }
   | { name: "borrower"; token: string }
   | { name: "loans" }
   | { name: "warranties" }

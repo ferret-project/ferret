@@ -17,6 +17,29 @@ furnace filter"*.
 
 A key works for one household, acts as you, and can be revoked any time from the same page.
 
+### claude.ai and other apps that sign in
+
+Apps that add MCP servers by address — **claude.ai's custom connectors** (and so Claude on your phone), ChatGPT, and
+other MCP clients — can **sign in to Ferret** instead of using a key:
+
+1. In the app, add a custom connector (claude.ai: **Settings → Connectors → Add custom connector**) with your
+   Ferret's MCP address, `https://ferret.example.com/mcp` — the one shown under **Claude & API**.
+2. The app sends you to Ferret. Sign in if you need to, then on **Connect an app** pick the household it can use and
+   whether it can **add and change things** (off: it can search and ask, but not change anything). **Allow** sends you
+   back to the app.
+3. That's it: the app stays connected (it renews its access by itself) until you disconnect it.
+
+Ferret can't check what an app calls itself, so only allow one you've just asked to connect — the screen shows where
+it will send you back to. Each app you allow is listed under **Claude & API → Connected apps**, where **Disconnect**
+stops it at once; you also get a notice (push, your notification channels and email) whenever an app is connected.
+A viewer's apps can only look, and an app loses access when you leave the household.
+
+::: tip Reachable from the internet
+claude.ai and ChatGPT connect from their own servers, so your Ferret needs an `https://` address they can reach (and
+`PUBLIC_URL` set to it) — see [Away from home](../hosting/away-from-home). A Ferret only reachable at home works with
+apps on your own computer instead, like Claude Code.
+:::
+
 ### Claude Desktop
 
 Claude Desktop starts its MCP servers as programs on your computer, so it reaches Ferret through Ferret's small
