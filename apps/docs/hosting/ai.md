@@ -20,3 +20,25 @@ this server's households under Settings → Server).
 
 Changing `EMBED_MODEL` needs a new `QDRANT_COLLECTION` (the vectors are a different size). Use a separate collection
 for each Ferret (e.g. one for testing).
+
+## Other model servers (llama.cpp, LM Studio, vLLM)
+
+Despite its name, `OLLAMA_URL` doesn't need Ollama: Ferret only calls the OpenAI-compatible `/v1/chat/completions`
+(photos go as an `image_url`, and the reply is held to a JSON schema with `response_format`) and `/v1/embeddings`. Any
+server that answers those works: llama.cpp's `llama-server`, LM Studio, vLLM.
+
+```ini
+OLLAMA_URL=http://gpu.lan:8080      # just the address: Ferret adds /v1/…
+VISION_MODEL=qwen3-vl-8b            # the model name the server answers to
+EMBED_MODEL=qwen3-embedding-8b
+```
+
+- The vision model needs its image part loaded (llama.cpp: `--mmproj`), or photos are refused.
+- One `OLLAMA_URL` serves both `VISION_MODEL` and `EMBED_MODEL`. A plain `llama-server` runs one model, so put a
+  proxy that picks the model by name in front of it (e.g. [llama-swap](https://github.com/mostlygeek/llama-swap)), or
+  use llama-server's router mode. Embeddings are only asked for with `QDRANT_URL` set.
+- `CHAT_URL` can be a different server from `OLLAMA_URL`.
+- Smart search's cut-offs were tuned on `qwen3-embedding`. Another embedding model works, but matches by meaning may be
+  a little stricter or looser.
+
+If photos aren't read, Settings → Server lists the service errors with what the model server answered.
