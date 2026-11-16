@@ -47,7 +47,7 @@ function Marked({ text, marks }: { text: string; marks: [number, number][] }) {
   return <>{parts}</>;
 }
 
-function Passage({ passage }: { passage: ItemPassage }) {
+function Passage({ passage, query }: { passage: ItemPassage; query: string }) {
   const where = passage.source === "item" ? (passage.label === "Notes" ? t`Notes` : t`Description`) : passage.label;
   return (
     <li>
@@ -68,7 +68,7 @@ function Passage({ passage }: { passage: ItemPassage }) {
         <div className="flex flex-col gap-2 px-3 pb-3 ps-11">
           <p className="text-base-content text-sm break-words whitespace-pre-line">{passage.text}</p>
           {passage.attachmentId && passage.source !== "item" && (
-            <a href={api.attachmentUrl(passage.attachmentId)} target="_blank" rel="noreferrer" className="tap link link-primary self-start text-sm">
+            <a href={api.attachmentUrl(passage.attachmentId)} target="_blank" rel="noreferrer" data-find={query} data-near={passage.text} className="tap link link-primary self-start text-sm">
               {passage.source === "photo" ? <Trans>Open the photo</Trans> : <Trans>Open the document</Trans>}
             </a>
           )}
@@ -153,7 +153,7 @@ export function ItemSearch({ itemId, itemName, householdId, onClose }: { itemId:
             {result.passages.length > 0 && (
               <ul className="flex flex-col gap-2">
                 {result.passages.map((p, i) => (
-                  <Passage key={`${p.attachmentId ?? p.warrantyId ?? p.label}:${i}`} passage={p} />
+                  <Passage key={`${p.attachmentId ?? p.warrantyId ?? p.label}:${i}`} passage={p} query={q} />
                 ))}
               </ul>
             )}

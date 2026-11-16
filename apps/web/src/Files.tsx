@@ -252,7 +252,7 @@ export function DoneFiles({ householdId, taskId, doneId, files }: { householdId:
  * Search's "In documents": a property's, a room's or a task's own files whose name or text matched — each opens the
  * file, with what it belongs to beside it (`data-result`: ↑/↓ reach them like the things above).
  */
-export function FileMatches({ files }: { files: FileHit[] }) {
+export function FileMatches({ files, query }: { files: FileHit[]; query: string }) {
   const where = (f: FileHit) => (f.of.kind === "property" ? propertyHref(f.of.id) : f.of.kind === "place" ? placeHref(f.of.id) : MAINTENANCE_HREF);
   return (
     <section className="mt-4 flex flex-col gap-2" aria-labelledby="file-matches">
@@ -270,7 +270,7 @@ export function FileMatches({ files }: { files: FileHit[] }) {
                 <FileIcon contentType={f.contentType} />
               )}
               <div className="min-w-0 flex-1">
-                <a href={api.attachmentUrl(f.id)} target="_blank" rel="noreferrer" data-result className="link link-hover block truncate text-sm font-medium text-base-content/80">
+                <a href={api.attachmentUrl(f.id)} target="_blank" rel="noreferrer" data-result data-find={query} className="link link-hover block truncate text-sm font-medium text-base-content/80">
                   {f.filename}
                 </a>
                 <a href={where(f)} className="link link-primary tap text-xs">

@@ -63,7 +63,13 @@ the document would: *water heater*, not *the thing that makes hot water*.
 On a thing's page, the search at the top (or <kbd>/</kbd>, <kbd>⌘K</kbd>) searches **inside that thing** rather than
 everything: its documents (a manual answers with the section it's in: *"8.2 Cleaning and bag inspection"*), the text
 read from its photos, its warranties, and its description and notes. The words are highlighted; tap a passage to read
-all of it, or open the document.
+all of it, or **Open the document**: a PDF opens at that passage's page with your words marked, and the arrows at the
+top go to the other pages that have them. (A scanned PDF has no text to mark — Ferret read it with its own text
+recognition — so it opens at the start.)
+
+Documents open in Ferret's own viewer, also from a thing's page: zoom with the magnifiers, **Share** to save the file
+to your phone or open it in another app, **Close** to go back. On a computer the arrow button opens it in a browser
+tab instead.
 
 **Ask about this item** answers a question from that thing alone — *"how do I reset it when it shuts off?"*, *"what
 doesn't the protection plan cover?"* — and shows the documents it used. It counts as an AI action, like Ask Ferret.

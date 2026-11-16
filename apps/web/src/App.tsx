@@ -1339,7 +1339,7 @@ export function Home({ householdName, householdId, view }: { householdName: stri
                 />
               ))}
             </ul>
-            {foundFiles.length > 0 && <FileMatches files={foundFiles} />}
+            {foundFiles.length > 0 && <FileMatches files={foundFiles} query={query} />}
             </div>
 
             {items.data && items.data.total === 0 && !stillChecking && !foundFiles.length && (

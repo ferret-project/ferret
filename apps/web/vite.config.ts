@@ -2,6 +2,35 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { lingui } from "@lingui/vite-plugin";
 import { type Plugin, defineConfig } from "vite";
+import { createRequire } from "node:module";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import path from "node:path";
+
+/**
+ * pdf.js's data files (the document viewer, DocumentViewer.tsx): built-in fonts, character maps and its wasm image
+ * decoders, served at /pdfjs/… — copied into the build, and from node_modules in dev. Only fetched when a PDF needs one.
+ */
+function pdfjsFiles(): Plugin {
+  const root = path.dirname(createRequire(import.meta.url).resolve("pdfjs-dist/package.json"));
+  const dirs = ["cmaps", "standard_fonts", "wasm"];
+  return {
+    name: "ferret-pdfjs-files",
+    configureServer(server) {
+      server.middlewares.use("/pdfjs", (req, res, next) => {
+        const rel = path.normalize(decodeURIComponent((req.url ?? "").split("?")[0] ?? "")).replace(/^([/\\])+/, "");
+        const file = path.join(root, rel);
+        if (!dirs.includes(rel.split(/[/\\]/)[0] ?? "") || !file.startsWith(root + path.sep) || !statSync(file, { throwIfNoEntry: false })?.isFile()) return next();
+        res.setHeader("Content-Type", file.endsWith(".wasm") ? "application/wasm" : "application/octet-stream");
+        res.end(readFileSync(file));
+      });
+    },
+    generateBundle() {
+      for (const dir of dirs)
+        for (const name of readdirSync(path.join(root, dir)))
+          this.emitFile({ type: "asset", fileName: `pdfjs/${dir}/${name}`, source: readFileSync(path.join(root, dir, name)) });
+    },
+  };
+}
 
 /**
  * Writes precache.json: every file the built app is made of (and the public ones it needs), so the service worker
@@ -15,7 +44,8 @@ function precacheList(): Plugin {
     enforce: "post",
     generateBundle(_, bundle) {
       const files = Object.keys(bundle)
-        .filter((f) => !f.endsWith(".map") && f !== "index.html")
+        // pdf.js (the document viewer) isn't kept offline: the files it shows come from the server anyway.
+        .filter((f) => !f.endsWith(".map") && f !== "index.html" && !f.startsWith("pdfjs/") && !/^assets\/pdf(\.worker\.min)?-/.test(f))
         .map((f) => `/${f}`)
         .sort();
       const version = files.join("|").length.toString(36) + "-" + [...files.join("|")].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7).toString(36);
@@ -43,7 +73,7 @@ function noZod(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), lingui({ macroTransform: true, failOnCompileError: true }), tailwindcss(), precacheList(), noZod()],
+  plugins: [react(), lingui({ macroTransform: true, failOnCompileError: true }), tailwindcss(), pdfjsFiles(), precacheList(), noZod()],
   server: {
     port: 5173,
     // In dev, the API runs separately on :8787; in production one server serves both.
