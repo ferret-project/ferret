@@ -49,6 +49,7 @@ import { Warranties } from "./Warranties";
 import { ItemLinks } from "./Links";
 import { PartOfLine, PartsCard } from "./Parts";
 import { FromWeb } from "./FromWeb";
+import { PaperlessAttachButton } from "./Paperless";
 import { useFeatures } from "./lib/features";
 import { StockCard } from "./Stock";
 import { PairingCard } from "./Pairing";
@@ -493,6 +494,7 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
               />
             )}
             {features?.fromWeb && <FromWeb itemId={itemId} householdId={householdId} onArrived={refreshAttachments} />}
+            {features?.paperless && <PaperlessAttachButton householdId={householdId} itemId={itemId} onAttached={refreshAttachments} />}
             {uploads.length > 0 && (
               <ul className="flex flex-col gap-2">
                 {uploads.map((u) => (

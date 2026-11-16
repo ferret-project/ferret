@@ -45,6 +45,7 @@ import {
 import { NEW_ACCOUNT_JOB, newAccountAlert } from "./new-account";
 import { UNLOCK_JOB, sendUnlockLink } from "./unlock";
 import { WEBHOOK_JOB, WEBHOOK_STATES_JOB, deliverWebhookJob, webhookStatesJob } from "../lib/webhooks";
+import { PAPERLESS_SYNC_JOB, connectedHouseholds, paperlessSyncJob } from "../lib/paperless";
 
 const SERVICE_ALERT_JOB = "service-errors.alert";
 
@@ -145,6 +146,7 @@ export function jobSchedule({
     handlers[WEBHOOK_JOB] = deliverWebhookJob({ db, webhooks: deps.webhooks, files, appUrl });
     handlers[WEBHOOK_STATES_JOB] = webhookStatesJob(deps);
   }
+  if (deps.paperless) handlers[PAPERLESS_SYNC_JOB] = paperlessSyncJob(deps, files);
   if (reminders) handlers[REMIND_JOB] = sendReminders({ ...deps, files, appUrl, remindHour: config.REMIND_HOUR, mailUrl });
   if (deps.backups) handlers[BACKUP_JOB] = backupJob({ db, blobs: deps.blobs, ...deps.backups, filesKey: config.FILES_KEY, keep: config.BACKUP_KEEP });
   const extra = extensions?.jobs?.({ deps, files, auth, config, jobs });
@@ -189,7 +191,14 @@ export function jobSchedule({
       await hourly();
       await ensureFullText(db); // fills the keyword index the first time
     },
-    every10Minutes: async () => void (await enqueue(SERVICE_ALERT_JOB)),
+    every10Minutes: async () => {
+      await enqueue(SERVICE_ALERT_JOB);
+      // Each connected household's Paperless: new documents with its tag (lib/paperless.ts).
+      if (deps.paperless) {
+        const households = await connectedHouseholds(db).catch(() => [] as string[]);
+        for (const householdId of households) await jobs.enqueue(PAPERLESS_SYNC_JOB, { householdId }).catch((err) => console.warn(`Couldn't queue a Paperless sync: ${String(err)}`));
+      }
+    },
     hourly,
     daily,
   };

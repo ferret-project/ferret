@@ -1,7 +1,8 @@
 # Importing
 
 Got a list already? **Import** in the menu brings things in from a spreadsheet or from Home Assistant. Nothing
-is saved until you say so, and a whole import can be undone.
+is saved until you say so, and a whole import can be undone. Receipts and manuals kept in Paperless-ngx come in through
+[Paperless](./paperless).
 
 ## A spreadsheet (CSV)
 

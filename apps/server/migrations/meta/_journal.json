@@ -477,6 +477,13 @@
       "when": 1794769553463,
       "tag": "0067_repair_guide",
       "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "6",
+      "when": 1794810762541,
+      "tag": "0068_zippy_tag",
+      "breakpoints": true
     }
   ]
 }

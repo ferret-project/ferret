@@ -30,6 +30,7 @@ const KIND: Record<AttentionItem["kind"], { icon: string; label: MessageDescript
   service: { icon: "icon-[tabler--plug-connected-x]", label: msg`Service` },
   ai: { icon: "icon-[tabler--sparkles]", label: msg`Suggestion` },
   seen: { icon: "icon-[tabler--eye-check]", label: msg`Keeping track` },
+  paperless: { icon: "icon-[tabler--file-import]", label: msg`Paperless` },
 };
 
 const hrefFor = (a: AttentionItem) =>

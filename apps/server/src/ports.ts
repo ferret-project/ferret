@@ -339,6 +339,52 @@ export interface WebhookSender {
 /** Why a webhook couldn't be posted (couldn't connect, took too long, an address it may not use). */
 export class WebhookError extends Error {}
 
+/** Where a household's Paperless-ngx is, and how Ferret signs in to it. */
+export interface PaperlessServer {
+  url: string;
+  token: string;
+  /** May be on the server's own network (set up by whoever runs this Ferret). */
+  allowLocal: boolean;
+}
+
+/** A document as Paperless lists it (API version 9). */
+export interface PaperlessDoc {
+  id: number;
+  title: string;
+  correspondent: number | null;
+  /** yyyy-mm-dd */
+  created: string | null;
+  mimeType: string | null;
+  content: string;
+  tags: number[];
+}
+
+/** A household's Paperless-ngx, read with its API token — only ever read: Ferret changes nothing there. */
+export interface Paperless {
+  /** Who the token signs in as. */
+  whoAmI(server: PaperlessServer): Promise<{ user: string }>;
+  /** The tag with this name (case doesn't matter), or null. */
+  findTag(server: PaperlessServer, name: string): Promise<{ id: number; name: string } | null>;
+  /** Documents, newest added first: with a tag, or matching words (Paperless's full-text search). */
+  documents(server: PaperlessServer, q: { tagId?: number; query?: string; page?: number; pageSize?: number }): Promise<{ count: number; more: boolean; results: PaperlessDoc[] }>;
+  /** Correspondents' names by id. */
+  correspondents(server: PaperlessServer, ids: number[]): Promise<Map<number, string>>;
+  /** The document's file (its archived PDF when Paperless made one), up to `maxBytes`. */
+  download(server: PaperlessServer, id: number, maxBytes: number): Promise<{ bytes: Uint8Array; filename: string; contentType: string }>;
+  /** Paperless's small picture of it. */
+  thumbnail(server: PaperlessServer, id: number): Promise<{ bytes: Uint8Array; contentType: string }>;
+}
+
+/** Why Paperless couldn't be read, in words a person can act on. `status` is Paperless's answer when there was one. */
+export class PaperlessError extends Error {
+  constructor(
+    message: string,
+    readonly status?: number,
+  ) {
+    super(message);
+  }
+}
+
 export interface Images {
   /**
    * The image no larger than `maxSize` px on its longest side, rotated upright
@@ -490,6 +536,8 @@ export interface Deps {
   downloader?: Downloader;
   /** Households' webhooks (Settings → Claude & API). Without it, webhooks are off. */
   webhooks?: WebhookSender;
+  /** A household's Paperless-ngx (lib/paperless.ts). Absent: the Paperless connection is hidden. */
+  paperless?: Paperless;
   /** Barcode → product details (UPCitemdb), for naming scanned things. */
   products?: ProductLookup;
   /** Map pictures of properties' addresses (Apple Maps, needs a Maps key). */

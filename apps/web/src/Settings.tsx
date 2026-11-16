@@ -19,6 +19,7 @@ import { DataExport } from "./DataExport";
 import { DeleteHousehold } from "./DeleteForGood";
 import { ShareLinks } from "./Shares";
 import { Webhooks } from "./Webhooks";
+import { PaperlessCard } from "./Paperless";
 import { WeeklySummary } from "./PayOff";
 import { Household } from "./Household";
 import { Notifications } from "./Notifications";
@@ -88,6 +89,7 @@ export function Settings(props: { section: SettingsSection; householdName: strin
             <CurrencyCard householdId={householdId} canManage={role === "owner" || role === "admin"} />
             <AmazonStoreCard householdId={householdId} canManage={role === "owner" || role === "admin"} />
             <AiFillCard householdId={householdId} canManage={role === "owner" || role === "admin"} />
+            <PaperlessCard householdId={householdId} canManage={role === "owner" || role === "admin"} />
             <DataExport householdName={householdName} householdId={householdId} />
             <DeleteHousehold householdName={householdName} />
             <ShareLinks householdId={householdId} />

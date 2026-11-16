@@ -25,6 +25,7 @@ import { Borrower, Loans } from "./Loans";
 import { WarrantyList } from "./WarrantyList";
 import { AiFilled } from "./AiFill";
 import { Duplicates } from "./Duplicates";
+import { PaperlessInbox } from "./Paperless";
 import { Misplaced, RoomReviewScreen, RoomsToReview } from "./Tracking";
 import { Replacements } from "./Replacements";
 import { Coverage } from "./PayOff";
@@ -403,6 +404,7 @@ const routeTree = rootRoute.addChildren([
     screen("heirs", "heirs", Heirs),
     screen("warranties", "warranties", ({ householdId }) => <WarrantyList householdId={householdId} />),
     screen("duplicates", "duplicates", ({ householdId }) => <Duplicates householdId={householdId} />),
+    screen("paperless", "paperless", ({ householdId }) => <PaperlessInbox householdId={householdId} />),
     screen("review", "reviews", ({ householdId }) => <RoomsToReview householdId={householdId} />),
     screen("misplaced", "misplaced", ({ householdId }) => <Misplaced householdId={householdId} />),
     screen("replacements", "replacements", ({ householdId }) => <Replacements householdId={householdId} />),

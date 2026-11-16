@@ -848,6 +848,60 @@ export const webhookSent = sqliteTable(
 );
 
 /**
+ * A household's Paperless-ngx (lib/paperless.ts): one per household, set up by its owner or an admin. The token is
+ * sealed with the household key; the address isn't secret. Documents with `tag` come to Ferret's Paperless inbox.
+ */
+export const paperlessConnection = sqliteTable("paperless_connection", {
+  householdId: text("household_id")
+    .primaryKey()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  url: text("url").notNull(),
+  tokenSealed: text("token_sealed").notNull(),
+  tag: text("tag").notNull(),
+  /** Paperless's id for the tag, found at each sync (a renamed tag is found again by name). */
+  tagId: integer("tag_id"),
+  /** Copy files into Ferret (else only a link to Paperless). */
+  copyFiles: integer("copy_files", { mode: "boolean" }).notNull().default(true),
+  /** May be on the server's own network: set up by whoever runs this Ferret (the server admin). */
+  allowLocal: integer("allow_local", { mode: "boolean" }).notNull().default(false),
+  /** Paperless's user name for the token, from the last check. */
+  remoteUser: text("remote_user"),
+  lastSyncAt: integer("last_sync_at", { mode: "timestamp_ms" }),
+  lastError: text("last_error"),
+  /** Since when syncing has failed without a success (the bell, after a day). */
+  failingSince: integer("failing_since", { mode: "timestamp_ms" }),
+  createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
+  createdAt: timestamps.createdAt,
+});
+
+/**
+ * A document from the household's Paperless that came to Ferret (it had the tag), or was attached from a search —
+ * what Ferret remembers about it: what it's called, and what was done with it. `paperlessId` is Paperless's number.
+ */
+export const paperlessDocument = sqliteTable(
+  "paperless_document",
+  {
+    id: id(),
+    householdId: householdId(),
+    paperlessId: integer("paperless_id").notNull(),
+    title: text("title").notNull(),
+    correspondent: text("correspondent"),
+    /** The document's date in Paperless (yyyy-mm-dd). */
+    created: text("created"),
+    excerpt: text("excerpt").notNull().default(""),
+    mimeType: text("mime_type"),
+    /** new (in the inbox) → added (a new thing) | attached (to a thing) | dismissed. */
+    status: text("status").$type<"new" | "added" | "attached" | "dismissed">().notNull().default("new"),
+    itemId: text("item_id").references(() => item.id, { onDelete: "set null" }),
+    attachmentId: text("attachment_id").references(() => attachment.id, { onDelete: "set null" }),
+    handledBy: text("handled_by").references(() => user.id, { onDelete: "set null" }),
+    handledAt: integer("handled_at", { mode: "timestamp_ms" }),
+    createdAt: timestamps.createdAt,
+  },
+  (t) => [uniqueIndex("paperless_document_household_doc").on(t.householdId, t.paperlessId), index("paperless_document_status_idx").on(t.householdId, t.status)],
+);
+
+/**
  * A room scan (lib/room-scans.ts): one to five photos of a room or box; the vision model lists what it sees
  * (`candidates`, with boxes where the model gives them), someone ticks what to keep, and those become items there.
  * pending (being looked at) → ready (to review) → done (items made) | failed. Its photos are stored encrypted

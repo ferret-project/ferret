@@ -13,6 +13,7 @@ export const ORIGIN_HOW: Record<ItemOrigin, MessageDescriptor> = {
   label: msg`from a QR label`,
   spreadsheet: msg`from a spreadsheet`,
   homeassistant: msg`from Home Assistant`,
+  paperless: msg`from a Paperless document`,
   claude: msg`by Claude`,
   api: msg`by a script (API key)`,
 };
@@ -27,6 +28,7 @@ export const ORIGIN_FILTER: Record<ItemOrigin, MessageDescriptor> = {
   label: msg`Added from a QR label`,
   spreadsheet: msg`Imported from a spreadsheet`,
   homeassistant: msg`Imported from Home Assistant`,
+  paperless: msg`Added from Paperless`,
   claude: msg`Added by Claude`,
   api: msg`Added by a script`,
 };

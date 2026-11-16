@@ -45,6 +45,7 @@ export type Route =
   | { name: "warranties" }
   | { name: "ai-filled" }
   | { name: "duplicates" }
+  | { name: "paperless" }
   | { name: "reviews" }
   | { name: "review"; locationId: string }
   | { name: "misplaced" }
@@ -121,6 +122,8 @@ export const reviewHref = (locationId: string) => `${REVIEW_HREF}/${encodeURICom
 export const REPLACEMENTS_HREF = "#/replacements";
 /** Things nobody can find (Tracking.tsx). */
 export const MISPLACED_HREF = "#/misplaced";
+/** Documents from the household's Paperless-ngx to sort into things (Paperless.tsx). */
+export const PAPERLESS_HREF = "#/paperless";
 /** Things that may be the same thing twice, to merge (Duplicates.tsx). */
 export const DUPLICATES_HREF = "#/duplicates";
 /** Everything, most valuable first (the dashboard's Worth). */

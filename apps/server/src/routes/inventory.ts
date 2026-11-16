@@ -62,6 +62,8 @@ inventory.get("/me", requireUser, async (c) =>
       // The AI helpers that read words (sorting imports, filters from words, estimates, typical upkeep), and speech to text.
       textAi: Boolean(c.var.deps.chat ?? c.var.deps.ai),
       speech: Boolean(c.var.deps.speech),
+      // A household can connect its Paperless-ngx (lib/paperless.ts).
+      paperless: Boolean(c.var.deps.paperless),
       // Photos read by the vision model (an unread one offers "Analyze").
       photoAi: Boolean(c.var.deps.ai && c.var.deps.images && c.var.deps.jobs),
     },

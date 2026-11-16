@@ -1,4 +1,7 @@
 import type {
+  PaperlessConnection,
+  PaperlessDocument,
+  PaperlessInput,
   ItemParts,
   RoomReview,
   ReplacementForecast,
@@ -163,6 +166,13 @@ export interface DemoReport {
   countsError: string | null;
 }
 
+/** What adding or attaching a Paperless document did: the thing, whether the file was copied, and why not. */
+export interface PaperlessResult {
+  item: { id: string; name: string };
+  copied: boolean;
+  note: string | null;
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`/api/v1${path}`, {
     credentials: "include",
@@ -296,7 +306,7 @@ export const api = {
     request<StockRule>(`/items/${itemId}/stock-rules`, { method: "PUT", body: JSON.stringify(rule) }),
   deleteStockRule: (itemId: string, ruleId: string) => request<void>(`/items/${itemId}/stock-rules/${ruleId}`, { method: "DELETE" }),
   /** Whether you're the server admin (who sees Settings → Server). */
-  me: () => request<{ serverAdmin: boolean; features: { fromWeb: boolean; homeAssistant: boolean; roomScan: boolean; textAi: boolean; speech: boolean; photoAi?: boolean } }>("/me"),
+  me: () => request<{ serverAdmin: boolean; features: { fromWeb: boolean; homeAssistant: boolean; roomScan: boolean; textAi: boolean; speech: boolean; photoAi?: boolean; paperless?: boolean } }>("/me"),
   backupStatus: () => request<BackupStatus>("/backup"),
   serverSecrets: () => request<ServerSecrets>("/server/secrets"),
   serverAddress: () => request<ServerAddress>("/server/address"),
@@ -622,6 +632,18 @@ export const api = {
   testNotification: (id: string) => request<{ sent: true }>(`/notifications/${id}/test`, { method: "POST" }),
 
   /** The household's webhooks (owners/admins, a real sign-in). */
+  paperless: () => request<{ available: boolean; local: boolean; connection: PaperlessConnection | null }>("/paperless"),
+  connectPaperless: (input: PaperlessInput) => request<PaperlessConnection>("/paperless", { method: "PUT", body: JSON.stringify(input) }),
+  disconnectPaperless: () => request<void>("/paperless", { method: "DELETE" }),
+  syncPaperless: () => request<{ added: number; connection: PaperlessConnection | null }>("/paperless/sync", { method: "POST" }),
+  paperlessDocuments: (status: "new" | "done" = "new") => request<{ connected: boolean; data: PaperlessDocument[] }>(`/paperless/documents?status=${status}`),
+  searchPaperless: (q: string) => request<{ data: PaperlessDocument[] }>(`/paperless/search?q=${encodeURIComponent(q)}`),
+  paperlessThumbnailUrl: (id: number) => `/api/v1/paperless/documents/${id}/thumbnail`,
+  addFromPaperless: (id: number, input: { name?: string; locationId?: string | null }) =>
+    request<PaperlessResult>(`/paperless/documents/${id}/add`, { method: "POST", body: JSON.stringify(input) }),
+  attachFromPaperless: (id: number, itemId: string) => request<PaperlessResult>(`/paperless/documents/${id}/attach`, { method: "POST", body: JSON.stringify({ itemId }) }),
+  dismissPaperless: (id: number) => request<void>(`/paperless/documents/${id}/dismiss`, { method: "POST" }),
+  restorePaperless: (id: number) => request<void>(`/paperless/documents/${id}/restore`, { method: "POST" }),
   listWebhooks: () => request<{ enabled: boolean; local: boolean; events: WebhookEvent[]; data: WebhookSummary[] }>("/webhooks"),
   addWebhook: (input: WebhookInput) => request<WebhookSummary & WebhookSecret>("/webhooks", { method: "POST", body: JSON.stringify(input) }),
   updateWebhook: (id: string, input: WebhookPatch) => request<WebhookSummary>(`/webhooks/${id}`, { method: "PATCH", body: JSON.stringify(input) }),

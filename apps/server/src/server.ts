@@ -33,6 +33,7 @@ import { VllmReranker } from "./adapters/local/reranker";
 import { OpenAiSpeech } from "./adapters/local/speech";
 import { docsScriptHashes, mountDocs, mountWebApp } from "./adapters/local/web";
 import { markAuthProxy, proxyList, withClientAddress } from "./adapters/local/proxy";
+import { NodePaperless } from "./adapters/local/paperless";
 import { NodeTls } from "./adapters/local/certificates";
 import { applyCertificates, certificatesStamp } from "./lib/certificates";
 import { oidcProblem } from "./lib/sso";
@@ -150,6 +151,8 @@ const deps = {
   downloader: new SafeDownloader(),
   // Not watched either: a webhook fails on the address a household gave (its delivery log says why).
   webhooks: new NodeWebhookSender(),
+  // Not watched either: a household's own Paperless failing is its connection's trouble (Settings, its bell).
+  paperless: new NodePaperless(),
   homeAssistant: new HomeAssistantWebSocket(),
   recalls: watched(db, "recalls", recalls),
   vehicles: watched(db, "vehicles", vehicles),
@@ -226,6 +229,7 @@ serve(
   console.log(`   Reranking:      ${on(vectors && reranker, `${config.RERANK_MODEL} at ${config.RERANK_URL}`, "set RERANK_URL")}`);
   console.log(`   Speech to text: ${on(speech, `${config.SPEECH_MODEL} at ${config.SPEECH_URL}`, "set SPEECH_URL")}`);
   console.log("   Recalls:        the US CPSC's recalls, if the server admin switches them on (Settings → Server)");
+  console.log("   Paperless-ngx:  each household can connect its own (Settings → Household)");
   console.log("   Books:          Open Library for ISBNs, if the server admin switches it on (Settings → Server)");
   console.log("   Repair guides:  iFixit links for things' brand and model, if the server admin switches them on (Settings → Server)");
   console.log("   Vehicles:       NHTSA's VIN decoding and vehicle recalls, if the server admin switches them on (Settings → Server)");

@@ -13,7 +13,7 @@ import { ImportCsv } from "./ImportCsv";
 import { ImportHomeAssistant } from "./ImportHomeAssistant";
 import { api } from "./lib/api";
 import { useCanEdit } from "./lib/auth";
-import { DELETED_HREF, IMPORT_HREF, ITEMS_HREF, importHref } from "./lib/route";
+import { DELETED_HREF, IMPORT_HREF, ITEMS_HREF, PAPERLESS_HREF, importHref } from "./lib/route";
 import { t, ph, plural } from "@lingui/core/macro";
 import { Trans, Plural } from "@lingui/react/macro";
 
@@ -67,6 +67,13 @@ function Choices() {
       text: t`The appliances, TVs, speakers, cameras and network gear it knows — with their maker, model and room.`,
       // Only where the server can reach a Home Assistant.
       hidden: features?.homeAssistant === false,
+    },
+    {
+      href: PAPERLESS_HREF,
+      icon: "icon-[tabler--file-text]",
+      title: t`Paperless-ngx`,
+      text: t`Receipts and manuals you tag in Paperless — each becomes a new thing, or goes onto one you have.`,
+      hidden: features?.paperless === false,
     },
   ].filter((o) => !("hidden" in o && o.hidden));
   return (

@@ -26,6 +26,7 @@ import {
   HEIRS_HREF,
   AI_FILLED_HREF,
   DUPLICATES_HREF,
+  PAPERLESS_HREF,
   DELETED_HREF,
   IMPORT_HREF,
   ITEMS_HREF,
@@ -69,6 +70,7 @@ export const NAV_GROUPS: { title: MessageDescriptor; links: Link[] }[] = [
     links: [
       { href: WALKTHROUGH_HREF, label: msg`Walk through a room`, icon: "icon-[tabler--walk]" },
       { href: IMPORT_HREF, label: msg`Import`, icon: "icon-[tabler--file-import]" },
+      { href: PAPERLESS_HREF, label: msg`From Paperless`, icon: "icon-[tabler--file-text]" },
       { href: LABELS_HREF, label: msg`QR labels`, icon: "icon-[tabler--qrcode]" },
     ],
   },

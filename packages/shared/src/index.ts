@@ -185,7 +185,7 @@ export const itemDispositions = ["sold", "given", "donated", "discarded", "lost"
 export type ItemDisposition = (typeof itemDispositions)[number];
 
 /** Where a thing came from. The first five are the app's own ways to add one (it says which); the rest are set by the server. */
-export const itemOrigins = ["app", "photos", "walkthrough", "roomscan", "scan", "label", "spreadsheet", "homeassistant", "claude", "api"] as const;
+export const itemOrigins = ["app", "photos", "walkthrough", "roomscan", "scan", "label", "spreadsheet", "homeassistant", "paperless", "claude", "api"] as const;
 export type ItemOrigin = (typeof itemOrigins)[number];
 export const appOrigins = ["app", "photos", "walkthrough", "scan", "label"] as const;
 
@@ -1172,7 +1172,7 @@ export interface Label {
 // ── Needs attention (the bell) ──────────────────────────────────────────────
 /** Something to act on now; it disappears once it's dealt with (no read/unread state). */
 export interface AttentionItem {
-  kind: "maintenance" | "warranty" | "return" | "claim" | "review" | "roomscan" | "backup" | "shopping" | "loan" | "recall" | "coverage" | "service" | "ai" | "seen";
+  kind: "maintenance" | "warranty" | "return" | "claim" | "review" | "roomscan" | "backup" | "shopping" | "loan" | "recall" | "coverage" | "service" | "ai" | "seen" | "paperless";
   /** urgent: overdue / today; soon: coming up or waiting. */
   severity: "urgent" | "soon";
   /** The thing it's about (task, warranty, claim or item id; a backup's run id). */
@@ -2413,3 +2413,58 @@ export const mergeInput = z.object({
   take: z.array(z.string().max(40)).max(40).default([]).describe("Fields to take from the merged-away item where both have a value"),
 });
 export type MergeInput = z.infer<typeof mergeInput>;
+
+// ── Paperless-ngx: documents from a household's Paperless, to sort into things ───────────
+/** Connecting a household's Paperless-ngx (Settings → Household, owners/admins with a real sign-in). */
+export const paperlessInput = z.object({
+  url: z.url({ protocol: /^https?$/, error: "Use Paperless's address, starting with https:// (or http://)" }).max(500),
+  /** Paperless → Settings → My profile → API auth token. Left out on a change: the one kept stays. */
+  token: z.string().trim().min(20).max(200).optional(),
+  /** The tag Ferret watches: documents with it come to Ferret's Paperless inbox. */
+  tag: z.string().trim().min(1).max(128).default("ferret"),
+  /** true: the file is copied into Ferret (read, kept with its backups); false: only a link to it in Paperless. */
+  copyFiles: z.boolean().default(true),
+});
+export type PaperlessInput = z.infer<typeof paperlessInput>;
+
+export interface PaperlessConnection {
+  url: string;
+  host: string;
+  tag: string;
+  copyFiles: boolean;
+  /** Paperless's user the token belongs to (from the last check). */
+  user: string | null;
+  lastSyncAt: string | null;
+  lastError: string | null;
+  createdAt: string;
+}
+
+export const paperlessDocumentStatuses = ["new", "added", "attached", "dismissed"] as const;
+export type PaperlessDocumentStatus = (typeof paperlessDocumentStatuses)[number];
+
+/** One document from Paperless, in Ferret's inbox (or found by a search). `id` is Paperless's own number. */
+export interface PaperlessDocument {
+  id: number;
+  title: string;
+  correspondent: string | null;
+  /** The document's date in Paperless (yyyy-mm-dd). */
+  created: string | null;
+  /** The first words Paperless read in it. */
+  excerpt: string;
+  /** Opens it in Paperless. */
+  url: string;
+  status: PaperlessDocumentStatus;
+  /** The thing it was added as or attached to. */
+  item: { id: string; name: string } | null;
+  /** A thing it may belong to (its words match), for a new one. */
+  match: { id: string; name: string } | null;
+  /** Ferret can copy the file (a PDF or a picture); otherwise only a link. */
+  copyable: boolean;
+}
+
+export const paperlessAttachInput = z.object({ itemId: z.string().min(1) });
+export const paperlessAddInput = z.object({
+  name: z.string().trim().min(1).max(200).optional(),
+  locationId: z.string().min(1).nullish(),
+});
+export type PaperlessAddInput = z.infer<typeof paperlessAddInput>;

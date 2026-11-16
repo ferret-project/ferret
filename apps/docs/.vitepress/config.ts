@@ -83,6 +83,7 @@ export default defineConfig({
             { text: "Scanning a room", link: "/guide/room-scan" },
             { text: "Walking through a room", link: "/guide/walkthrough" },
             { text: "Importing", link: "/guide/importing" },
+            { text: "Paperless-ngx", link: "/guide/paperless" },
             { text: "Places and boxes", link: "/guide/places-and-boxes" },
             { text: "QR labels", link: "/guide/labels" },
             { text: "Categories and tags", link: "/guide/categories-and-tags" },

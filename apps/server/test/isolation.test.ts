@@ -12,6 +12,7 @@ import { eq, getTableColumns, is } from "drizzle-orm";
 import { SQLiteTable, getTableConfig } from "drizzle-orm/sqlite-core";
 import { describe, expect, it } from "vitest";
 import * as schema from "../src/db/schema";
+import type { Paperless } from "../src/ports";
 import { OPERATIONS } from "../src/lib/openapi";
 import { FakeAi, FakeDownloader, FakeNotifier, FakeProducts, MemoryVectors, pdf, photo, setup } from "./helpers";
 
@@ -23,9 +24,22 @@ const householdTables = (Object.values(schema) as unknown[]).filter(
   (t): t is SQLiteTable => is(t, SQLiteTable) && getTableConfig(t).columns.some((c) => c.name === "household_id"),
 );
 
+/** Ann's Paperless: one tagged document, with her secret in it. Anyone's token works (Bob's isn't connected anyway). */
+function annsPaperless(): Paperless {
+  const doc = { id: 41, title: `${SECRET} receipt`, correspondent: null, created: "2026-11-15", mimeType: "application/pdf", content: `${SECRET} total`, tags: [7] };
+  return {
+    whoAmI: async () => ({ user: "ann" }),
+    findTag: async () => ({ id: 7, name: "ferret" }),
+    documents: async () => ({ count: 1, more: false, results: [doc] }),
+    correspondents: async () => new Map(),
+    download: async () => ({ bytes: new TextEncoder().encode(`%PDF-1.7 ${SECRET}`), filename: "r.pdf", contentType: "application/pdf" }),
+    thumbnail: async () => ({ bytes: new TextEncoder().encode(SECRET), contentType: "image/webp" }),
+  };
+}
+
 async function annHousehold() {
   // The optional services on, so their routes (and search by meaning, through the vector store) really run.
-  const t = await setup({ ai: new FakeAi(), vectors: new MemoryVectors(), notifier: new FakeNotifier(), downloader: new FakeDownloader(), products: new FakeProducts(), webhooks: { post: async () => ({ status: 200 }) } });
+  const t = await setup({ ai: new FakeAi(), vectors: new MemoryVectors(), notifier: new FakeNotifier(), downloader: new FakeDownloader(), products: new FakeProducts(), webhooks: { post: async () => ({ status: 200 }) }, paperless: annsPaperless() });
   const ann = await t.user("ann");
   const bob = await t.user("bob");
   const make = async <T = { id: string }>(method: string, url: string, body?: object): Promise<T> => {
@@ -36,6 +50,8 @@ async function annHousehold() {
 
   // Her webhook first, so everything she adds is delivered to it (and logged).
   const hook = await make("POST", "/api/v1/webhooks", { name: `${SECRET} n8n`, url: `https://hooks.example.com/${SECRET}`, events: ["item.created", "item.updated"] });
+  await make("PUT", "/api/v1/paperless", { url: `https://paperless.example.com/${SECRET}`, token: "ann-paperless-token-0123456789", tag: "ferret", copyFiles: true });
+  await make("POST", "/api/v1/paperless/sync");
   const property = await make("POST", "/api/v1/properties", { name: `${SECRET} House` });
   const garage = await make("POST", "/api/v1/locations", { propertyId: property.id, name: `${SECRET} Garage` });
   const shelf = await make("POST", "/api/v1/locations", { propertyId: property.id, parentId: garage.id, name: `${SECRET} Shelf` });
@@ -129,6 +145,7 @@ async function annHousehold() {
     usage: reading.id,
     repairs: fix.id,
     webhooks: hook.id,
+    "paperless/documents": "41",
   };
   const params: Record<string, string> = { ruleId: rule.id, pairingId: pairing.id, code: codes[0]!, n: "0", name: "x", locationId: shelf.id, itemId: box.id, deliveryId: deliveries.data[0]!.id };
   // What Bob sends with every write: plausible fields of his own, then the same with one of Ann's things in each
