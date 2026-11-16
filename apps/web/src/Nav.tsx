@@ -8,9 +8,9 @@
  * - HouseholdBadge: the household's name in the top bar: switches between households, or makes another.
  */
 import type { CustomFieldValues, ItemTemplate, PlacesTree } from "@ferret/shared";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouterState } from "@tanstack/react-router";
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { type FormEvent, useContext, useEffect, useRef, useState } from "react";
 import { APPEARANCES } from "./App";
 import { PlacePicker } from "./Combobox";
 import { LanguageChoice } from "./Language";
@@ -57,12 +57,14 @@ import { Modal } from "./Modal";
 import { NewHouseholdDialog } from "./NewHousehold";
 import { COMMAND_K, searchFromAnywhere } from "./Search";
 import { navigateTo } from "./lib/navigate";
+import { HouseholdContext } from "./lib/household";
 import { currencySymbol, toCents } from "./lib/money";
 import { t, ph, msg } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
 
-type Link = { href: string; label: MessageDescriptor; icon: string; external?: boolean };
+/** `only`: listed only when the household has it set up (useNavGroups). */
+type Link = { href: string; label: MessageDescriptor; icon: string; external?: boolean; only?: "paperless" };
 
 export const NAV_GROUPS: { title: MessageDescriptor; links: Link[] }[] = [
   {
@@ -70,7 +72,8 @@ export const NAV_GROUPS: { title: MessageDescriptor; links: Link[] }[] = [
     links: [
       { href: WALKTHROUGH_HREF, label: msg`Walk through a room`, icon: "icon-[tabler--walk]" },
       { href: IMPORT_HREF, label: msg`Import`, icon: "icon-[tabler--file-import]" },
-      { href: PAPERLESS_HREF, label: msg`From Paperless`, icon: "icon-[tabler--file-text]" },
+      // Once the household has connected its Paperless (until then, Import offers it).
+      { href: PAPERLESS_HREF, label: msg`From Paperless`, icon: "icon-[tabler--file-text]", only: "paperless" },
       { href: LABELS_HREF, label: msg`QR labels`, icon: "icon-[tabler--qrcode]" },
     ],
   },
@@ -114,11 +117,21 @@ export const NAV_GROUPS: { title: MessageDescriptor; links: Link[] }[] = [
   },
 ];
 
+/** NAV_GROUPS without the links for what the household hasn't set up (a Paperless it hasn't connected). */
+export function useNavGroups(householdId?: string) {
+  const id = useContext(HouseholdContext)?.householdId ?? householdId;
+  // The same query as Settings' Paperless card, so connecting or disconnecting shows here at once.
+  const paperless = useQuery({ queryKey: ["paperless", id], queryFn: api.paperless, enabled: Boolean(id), staleTime: 5 * 60_000 });
+  const has = { paperless: Boolean(paperless.data?.connection) };
+  return NAV_GROUPS.map((g) => ({ ...g, links: g.links.filter((l) => !l.only || has[l.only]) }));
+}
+
 /** The groups as dropdown items (the account menu). `className` goes on each group (e.g. hidden where the sidebar shows). */
 export function MenuGroups({ onPick, className = "" }: { onPick: () => void; className?: string }) {
+  const groups = useNavGroups();
   return (
     <>
-      {NAV_GROUPS.map((g, i) => (
+      {groups.map((g, i) => (
         <li key={g.title.id} role="none" className={`${i ? "border-t border-base-content/10 pt-1" : ""} ${className}`}>
           <p className="dropdown-title px-4 pt-1 text-xs">{t(g.title)}</p>
           <ul role="none">
@@ -143,6 +156,7 @@ export function MorePage({ householdId }: { householdId: string }) {
   const { data: households } = authClient.useListOrganizations();
   const { choice, set } = useAppearance();
   const [creating, setCreating] = useState(false);
+  const groups = useNavGroups(householdId);
   const user = session?.user;
   return (
     <div className="min-h-dvh bg-base-200">
@@ -184,7 +198,7 @@ export function MorePage({ householdId }: { householdId: string }) {
           </section>
         )}
         {creating && <NewHouseholdDialog onClose={() => setCreating(false)} />}
-        {NAV_GROUPS.map((g) => (
+        {groups.map((g) => (
           <section key={g.title.id} className="card" aria-label={t(g.title)}>
             <div className="card-body gap-0 p-2">
               <h2 className="px-3 pt-2 pb-1 text-sm font-semibold text-base-content/70">{t(g.title)}</h2>
@@ -393,7 +407,8 @@ export function Sidebar(props: { route: Route["name"]; householdName: string; ho
   const { route, folded } = props;
   const hash = (window.location.hash || HOME_HREF).replace(/[?&]q=.*$/, "");
   const main: Link[] = [{ href: HOME_HREF, label: msg`Home`, icon: "icon-[tabler--home]" }, ...MAIN_LINKS];
-  const active = activeHref(route, hash, [...main, ...NAV_GROUPS.flatMap((g) => g.links)]);
+  const groups = useNavGroups(props.householdId);
+  const active = activeHref(route, hash, [...main, ...groups.flatMap((g) => g.links)]);
   const item = (l: Link) => {
     const on = l.href === active;
     return (
@@ -432,7 +447,7 @@ export function Sidebar(props: { route: Route["name"]; householdName: string; ho
       </div>
       <nav className={`flex-1 overflow-y-auto pb-4 ${folded ? "px-2" : "px-3"}`}>
         <ul className="flex flex-col gap-0.5">{main.map(item)}</ul>
-        {NAV_GROUPS.map((g) => {
+        {groups.map((g) => {
           const here = g.links.some((l) => l.href === active);
           return (
             <div key={g.title.id} className={folded ? "mt-3 border-t border-base-content/10 pt-3" : "mt-4"}>

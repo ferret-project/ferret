@@ -30,7 +30,8 @@ Paperless has a certificate from your own certificate authority, the server admi
 
 ## The inbox
 
-**From Paperless** (in **Add things**, on the Import screen, and in the bell when something's waiting) lists the
+**From Paperless** (in the menu's **Add things** once Paperless is connected, on the Import screen, and in the bell
+when something's waiting) lists the
 tagged documents nobody has sorted yet, newest first, with Paperless's picture of each and its first words.
 
 ![From Paperless: a snow blower receipt offered for the snow blower, a tax statement, an espresso machine manual offered for the espresso machine](/screenshots/paperless-light.webp){.shot .light-only}
