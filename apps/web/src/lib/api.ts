@@ -1,4 +1,4 @@
-import type {
+import type { TaskVideo, VideoHit,
   PaperlessConnection,
   PaperlessDocument,
   PaperlessInput,
@@ -306,7 +306,7 @@ export const api = {
     request<StockRule>(`/items/${itemId}/stock-rules`, { method: "PUT", body: JSON.stringify(rule) }),
   deleteStockRule: (itemId: string, ruleId: string) => request<void>(`/items/${itemId}/stock-rules/${ruleId}`, { method: "DELETE" }),
   /** Whether you're the server admin (who sees Settings → Server). */
-  me: () => request<{ serverAdmin: boolean; features: { fromWeb: boolean; homeAssistant: boolean; roomScan: boolean; textAi: boolean; speech: boolean; photoAi?: boolean; paperless?: boolean } }>("/me"),
+  me: () => request<{ serverAdmin: boolean; features: { fromWeb: boolean; homeAssistant: boolean; roomScan: boolean; textAi: boolean; speech: boolean; photoAi?: boolean; paperless?: boolean; videoSearch?: boolean } }>("/me"),
   backupStatus: () => request<BackupStatus>("/backup"),
   serverSecrets: () => request<ServerSecrets>("/server/secrets"),
   serverAddress: () => request<ServerAddress>("/server/address"),
@@ -605,6 +605,10 @@ export const api = {
   maintenanceDone: (id: string, input: MaintenanceDone) =>
     request<MaintenanceTask & { doneId: string }>(`/maintenance/${id}/done`, { method: "POST", body: JSON.stringify(input) }),
   maintenanceHistory: (id: string) => request<{ data: MaintenanceLogEntry[] }>(`/maintenance/${id}/history`),
+  addTaskVideo: (taskId: string, url: string) =>
+    request<TaskVideo>(`/maintenance/${taskId}/videos`, { method: "POST", body: JSON.stringify({ url }) }),
+  removeTaskVideo: (taskId: string, id: string) => request<{ ok: true }>(`/maintenance/${taskId}/videos/${id}`, { method: "DELETE" }),
+  searchVideos: (q: string) => request<{ available: boolean; results: VideoHit[] }>(`/maintenance/videos/search?q=${encodeURIComponent(q)}`),
   calendarStatus: () =>
     request<{ active: boolean; createdAt: string | null; url: string | null; webcal: string | null }>("/calendar"),
   createCalendar: () => request<{ url: string; webcal: string }>("/calendar", { method: "POST" }),

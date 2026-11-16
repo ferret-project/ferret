@@ -5,6 +5,7 @@
  * can't drift; test/openapi.test.ts fails if a route is added without an entry.
  */
 import {
+  taskVideoInput,
   householdSettingsInput,
   pairingInput,
   homeAssistantConnect,
@@ -333,6 +334,18 @@ export const OPERATIONS: Operation[] = [
     returns: "MaintenanceTask & { doneId }",
   },
   { method: "get", path: "/maintenance/{id}/history", tag: "Maintenance", summary: "When a task was done", returns: "{ data: MaintenanceLogEntry[] }" },
+  { method: "post", path: "/maintenance/{id}/videos", status: 201, tag: "Maintenance", summary: "Add a how-to video to a task from a YouTube link (the same video twice is the one already there)", body: taskVideoInput, writes: true, returns: "TaskVideo" },
+  { method: "delete", path: "/maintenance/{id}/videos/{videoId}", tag: "Maintenance", summary: "Remove a how-to video from a task (`videoId` is the TaskVideo's id)", writes: true, returns: "{ ok: true }" },
+  {
+    method: "get",
+    path: "/maintenance/videos/search",
+    tag: "Maintenance",
+    summary: "Search YouTube for how-to videos",
+    description: "Only on a server with a YouTube key (`YOUTUBE_API_KEY`): `available: false` without one. The same words within a week are answered from the last search. Writers only.",
+    query: z.object({ q: z.string().max(200) }),
+    writes: true,
+    returns: "{ available, results: VideoHit[] }",
+  },
   { method: "get", path: "/providers", tag: "Maintenance", summary: "Service providers, with jobs and spend", returns: "{ data: Provider[] }" },
   { method: "post", path: "/providers", status: 201, tag: "Maintenance", summary: "Add a provider", body: providerInput, writes: true, returns: "Provider" },
   { method: "get", path: "/providers/{id}", tag: "Maintenance", summary: "One provider", returns: "Provider" },

@@ -6,7 +6,7 @@
 import { sql } from "drizzle-orm";
 import { check, index, integer, primaryKey, real, sqliteTable, text, uniqueIndex, type AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import type { SightingHow, SightingKind } from "@ferret/shared/utils";
-import type { VehicleInfo, AiFill, AiFillSwitches, AnalysisStatus, AttachmentAnalysis, CategoryField, CustomFieldValues, HaSnapshot, ItemLink, ItemOrigin, ProductInfo, ReviewOutcome, RoomScanCandidate, RoomScanStatus } from "@ferret/shared";
+import type { VideoHit, VehicleInfo, AiFill, AiFillSwitches, AnalysisStatus, AttachmentAnalysis, CategoryField, CustomFieldValues, HaSnapshot, ItemLink, ItemOrigin, ProductInfo, ReviewOutcome, RoomScanCandidate, RoomScanStatus } from "@ferret/shared";
 import { invitation, organization, session, user } from "./auth";
 
 const id = () =>
@@ -554,6 +554,28 @@ export const maintenanceTask = sqliteTable(
     index("maintenance_task_due_idx").on(t.householdId, t.dueOn),
     index("maintenance_task_item_idx").on(t.householdId, t.itemId),
   ],
+);
+
+/**
+ * How-to videos on a maintenance task (lib/videos.ts): YouTube's video id, with the title and channel YouTube gave when
+ * it was added. Gone with the task (removed for good when the task is purged).
+ */
+export const taskVideo = sqliteTable(
+  "task_video",
+  {
+    id: id(),
+    householdId: householdId(),
+    taskId: text("task_id")
+      .notNull()
+      .references(() => maintenanceTask.id, { onDelete: "cascade" }),
+    videoId: text("video_id").notNull(),
+    title: text("title"),
+    channel: text("channel"),
+    seconds: integer("seconds"),
+    addedBy: text("added_by").references(() => user.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (t) => [index("task_video_task_idx").on(t.householdId, t.taskId), uniqueIndex("task_video_once").on(t.taskId, t.videoId)],
 );
 
 /** A reading of what an item counts (its `usageUnit`): the odometer, the hour meter — for maintenance by use. */
@@ -1370,6 +1392,13 @@ export const recallBrand = sqliteTable("recall_brand", {
  * iFixit device pages found for a brand and model (lib/repair-guides.ts), for every household — only what iFixit said:
  * the key is the normalised brand + model (+ a vehicle's year); `url` null when it had nothing sure. Kept 30 days.
  */
+/** YouTube searches already asked (lib/videos.ts), for every household: the words → the videos found, a week fresh. */
+export const videoSearch = sqliteTable("video_search", {
+  query: text("query").primaryKey(),
+  results: text("results", { mode: "json" }).$type<VideoHit[]>().notNull(),
+  checkedAt: integer("checked_at", { mode: "timestamp_ms" }).notNull(),
+});
+
 export const repairGuide = sqliteTable("repair_guide", {
   key: text("key").primaryKey(),
   title: text("title"),

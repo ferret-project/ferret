@@ -247,6 +247,21 @@ export interface VehicleData {
 }
 
 /** iFixit's public device search (switched on by the server admin: Settings → Server). Throws on network trouble. */
+/** What YouTube says about a video (how-to videos on maintenance tasks). */
+export interface VideoInfo {
+  videoId: string;
+  title: string;
+  channel: string | null;
+  /** Only with a key (oEmbed doesn't say). */
+  seconds: number | null;
+}
+export interface Videos {
+  /** A video's title and channel; null when YouTube says there's no such (public, embeddable) video. */
+  describe(videoId: string): Promise<VideoInfo | null>;
+  /** YouTube's search (embeddable videos only, best first) — only with a YouTube key; absent without one. */
+  search?(query: string): Promise<VideoInfo[]>;
+}
+
 export interface RepairGuides {
   /** Devices iFixit has guides for, best match first: their title and their page (always on www.ifixit.com). */
   searchDevices(query: string): Promise<{ title: string; url: string }[]>;
@@ -554,6 +569,8 @@ export interface Deps {
   books?: ProductLookup;
   /** iFixit: a "Repair guides" link for things whose brand and model it knows (switched on in Settings → Server). */
   repairGuides?: RepairGuides;
+  /** YouTube: how-to videos on maintenance tasks (lib/videos.ts) — describe a pasted link; search with a key. */
+  videos?: Videos;
   /** Search's cut-offs for these models (default: "home", lib/search.ts). */
   searchProfile?: SearchProfile;
   /** "Are you a person?" before sign-up (a Turnstile widget, lib/turnstile.ts). */

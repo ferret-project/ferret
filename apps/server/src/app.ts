@@ -187,7 +187,7 @@ export function createApp(deps: Deps, config: Config, opts: AppOptions = {}) {
     // (zxing, served from here); outside https images are product photos from the online barcode database.
     contentSecurityPolicy: {
       defaultSrc: ["'self'"],
-      // Turnstile's widget (sign-up, when it's set up) is its own script and frame.
+      // Turnstile's widget (sign-up, when it's set up) is its own script (and frame, below).
       scriptSrc: ["'self'", "'wasm-unsafe-eval'", ...turnstile, ...(opts.csp?.scriptSrc ?? []), ...(opts.cspNonce ? [NONCE] : [])],
       // The label sheet's print margins (Labels.tsx: <style>@page…</style>), by its hash — test/hardening.test.ts checks it.
       styleSrc: ["'self'", ...LABEL_PAGE_STYLE_HASHES.map((h) => `'${h}'`)],
@@ -200,7 +200,8 @@ export function createApp(deps: Deps, config: Config, opts: AppOptions = {}) {
       baseUri: ["'self'"],
       formAction: ["'self'"],
       frameAncestors: ["'self'"],
-      ...(turnstile.length && { frameSrc: turnstile }),
+      // How-to videos on maintenance tasks play in YouTube's privacy-enhanced player (Videos.tsx); Turnstile's widget.
+      frameSrc: [...turnstile, YOUTUBE_EMBED],
     },
   });
   // The help (/docs, VitePress) is static pages of our own with no user content: its few inline scripts are allowed by

@@ -13,6 +13,8 @@
  * It's streamed as it's made — one file decrypted at a time, nothing written on the server — so a decrypted copy
  * never sits anywhere but the download. Deleted things (Recently deleted) are left out.
  */
+import { youtubeWatchUrl } from "@ferret/shared/utils";
+import { videosOf } from "./videos";
 import { formatMoney } from "@ferret/shared";
 import { listTemplates } from "./templates";
 import { listCollections } from "./collections";
@@ -162,6 +164,7 @@ export async function householdData(v: Caller, root: string, householdName: stri
   // A folder per thing, property, place or maintenance task that has files (its name, made unique), a file per upload
   // (its name, made unique in the folder). Files of something deleted aren't included.
   const liveTasks = tasks.filter((t) => !t.itemId || itemIds.has(t.itemId));
+  const taskVideos = await videosOf(v, liveTasks.map((t) => t.id));
   const taskById = new Map(liveTasks.map((t) => [t.id, t]));
   const itemName = new Map(items.map((i) => [i.id, i.name]));
   const ownerOf = (f: (typeof files)[number]): { key: string; name: string } | null => {
@@ -385,6 +388,8 @@ export async function householdData(v: Caller, root: string, householdName: stri
         manualId: t.attachmentId,
         /** A house-wide task's own files (a thing's task keeps them with the thing). */
         files: filesOf((f) => f.taskId === t.id),
+        /** How-to videos (YouTube). */
+        videos: (taskVideos.get(t.id) ?? []).map((x) => ({ title: x.title, channel: x.channel, url: youtubeWatchUrl(x.videoId) })),
         history: logs
           .filter((l) => l.taskId === t.id)
           .map((l) => ({

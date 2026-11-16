@@ -35,6 +35,7 @@ import { todayFor } from "./household-time";
 import { inList } from "./sql";
 import { markSuggestionAdded } from "./suggested-tasks";
 import { removeFilesOf } from "./attachments";
+import { videosOf } from "./videos";
 
 const taskIn = (v: Pick<Caller, "householdId">, id: string) =>
   and(eq(maintenanceTask.id, id), eq(maintenanceTask.householdId, v.householdId), isNull(maintenanceTask.deletedAt));
@@ -120,10 +121,13 @@ export async function listMaintenance(v: Caller, filter: MaintenanceFilter = {})
           ? { every: t.usageEvery!, dueAt: t.usageDueAt!, unit: itemUsageUnit!, now: own.at(-1)?.value ?? null, perDay: usagePerDay(own) }
           : null,
         dueEstimated: own ? effectiveDue(t, own, on).estimated : false,
+        videos: [] as MaintenanceTask["videos"],
       };
     })
     .filter((t) => status === "all" || (status === "open" ? t.status !== "done" : t.status === status))
     .sort((a, b) => (a.dueOn ?? "9999").localeCompare(b.dueOn ?? "9999") || a.title.localeCompare(b.title));
+  const videos = await videosOf(v, list.map((t) => t.id));
+  for (const t of list) t.videos = videos.get(t.id) ?? [];
   if (!list.some((t) => t.part)) return list;
   // Parts are counted across every open task that uses them, so a filtered list asks for the whole household's.
   // (Finished one-offs have no due date, so they never draw on stock.)

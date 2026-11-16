@@ -35,6 +35,21 @@ added.
 
 Each task keeps its history, and the item's page shows its maintenance.
 
+## How-to videos {#videos}
+
+A task can keep the YouTube videos that show how to do it — *how to clean the ice maker*, *how to change this filter*.
+Open the task and tap **Add a video**:
+
+- **Search YouTube** right there (if your Ferret has a YouTube key — see
+  [Configuration](../hosting/configuration)): it starts with the task and its thing, change the words if you like, tap
+  a result to watch it first, **Add** to keep it.
+- Or **paste a YouTube link** (on a phone: **Share → Copy link** in YouTube). Without a key, **Find one on YouTube**
+  opens YouTube's own search to find it.
+
+The videos show under the task in the list and when you tap **Done**, and play inside Ferret — **Close** brings you
+back. They play in YouTube's privacy-enhanced player, so YouTube sets no cookies until you play one. Only the words you
+search for and the videos' links go to YouTube.
+
 ## By the month {#month}
 
 Switch **List** to **Month** to see the tasks on a calendar, so you can spot a busy week before it arrives. Each task

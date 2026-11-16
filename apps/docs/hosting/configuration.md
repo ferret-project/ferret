@@ -102,4 +102,5 @@ and check **Settings → Server → Keys** says "From the settings". The copy in
 | Setting | |
 |---|---|
 | `BARCODE_LOOKUP=upcitemdb`, `UPCITEMDB_KEY` | Look up unknown barcodes online (100 a day free, per internet address; a key for more). Only the barcode is sent. Settings → Server shows how many are left today, and the server admin's bell says when they're running low. |
+| `YOUTUBE_API_KEY` | Search YouTube for [how-to videos](../guide/maintenance#videos) from a maintenance task. A YouTube Data API v3 key from the Google Cloud console (free: about 100 searches a day; the same words are answered from Ferret's own copy for a week). Only the words searched for leave the server. Pasting a YouTube link works without it. |
 | `APPLE_MAPS_TEAM_ID`, `APPLE_MAPS_KEY_ID`, `APPLE_MAPS_PRIVATE_KEY` | Map pictures of property addresses (Apple Developer account). |

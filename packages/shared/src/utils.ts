@@ -336,3 +336,4 @@ export const AI_FILL_KIND_NAMES: Record<AiFillKind, { label: string; hint: strin
 };
 
 export * from "./vin";
+export * from "./youtube";

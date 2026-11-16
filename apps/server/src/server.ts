@@ -27,6 +27,7 @@ import { HomeAssistantWebSocket } from "./adapters/local/home-assistant";
 import { CpscRecalls } from "./adapters/local/cpsc";
 import { NhtsaVehicles } from "./adapters/local/nhtsa";
 import { IfixitGuides } from "./adapters/local/ifixit";
+import { YouTubeVideos } from "./adapters/local/youtube";
 import { OpenLibraryBooks } from "./adapters/local/openlibrary";
 import { QdrantVectors } from "./adapters/local/qdrant";
 import { VllmReranker } from "./adapters/local/reranker";
@@ -120,6 +121,8 @@ const recalls = new CpscRecalls();
 const vehicles = new NhtsaVehicles();
 // "Repair guides on iFixit" links: off until the server admin switches them on.
 const repairGuides = new IfixitGuides();
+// How-to videos on maintenance tasks: pasted links described by oEmbed; YouTube search with YOUTUBE_API_KEY.
+const videos = new YouTubeVideos(config.YOUTUBE_API_KEY);
 // Books by ISBN from Open Library (a second barcode source): off until the server admin switches it on.
 const books = new OpenLibraryBooks();
 const maps =
@@ -157,6 +160,7 @@ const deps = {
   recalls: watched(db, "recalls", recalls),
   vehicles: watched(db, "vehicles", vehicles),
   repairGuides: watched(db, "repair guides", repairGuides),
+  videos: watched(db, "youtube", videos),
   books: watched(db, "books", books),
   tls: new NodeTls(),
   secrets: { sources: secrets.sources, file: path.join(dataDir, SECRETS_FILE), filesKeyId: keys.set },

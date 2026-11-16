@@ -20,6 +20,7 @@ import { ProviderPicker } from "./Providers";
 import { itemHref, PROVIDERS_HREF } from "./lib/route";
 import { DialogActions, Modal } from "./Modal";
 import { SuggestedMaintenance } from "./SuggestedMaintenance";
+import { TaskVideos, VideoChips } from "./Videos";
 import { HelpLink } from "./HelpLink";
 import { Mascot } from "./Mascot";
 import { MaintenanceCalendar, thisMonth } from "./MaintenanceCalendar";
@@ -239,7 +240,8 @@ export function TaskRow(props: { task: MaintenanceTask; showItem?: boolean; canE
   const task = props.task;
   const where = [props.showItem && task.itemName, task.place && !task.itemName ? task.place : null].filter(Boolean);
   return (
-    <li className="flex items-center gap-3 py-3">
+    <li className="flex flex-col gap-2 py-3">
+    <div className="flex items-center gap-3">
       <span className={`size-2.5 shrink-0 rounded-full ${STATUS[task.status].dot}`} aria-hidden />
       <button type="button" className="min-w-0 flex-1 text-start" onClick={props.onEdit} disabled={!props.canEdit && !task.notes}>
         <span className="block truncate font-medium text-base-content">{task.title}</span>
@@ -268,6 +270,12 @@ export function TaskRow(props: { task: MaintenanceTask; showItem?: boolean; canE
           <span className="icon-[tabler--check] size-4" />
           <Trans>Done</Trans>
         </button>
+      )}
+    </div>
+      {!props.expected && task.videos.length > 0 && (
+        <div className="ps-5.5">
+          <VideoChips videos={task.videos} />
+        </div>
       )}
     </li>
   );
@@ -361,6 +369,11 @@ function DoneModal({ task, householdId, onClose }: { task: MaintenanceTask; hous
                 : t`Marks it done.`}
           </p>
         </div>
+        {task.videos.length > 0 && (
+          <div className="flex justify-center">
+            <VideoChips videos={task.videos} />
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="label-text" htmlFor="done-on">
@@ -645,6 +658,8 @@ export function TaskModal(props: {
             <textarea id="task-notes" name="notes" className="textarea" rows={2} defaultValue={initial.notes ?? ""} placeholder={t`Part numbers, how-to, who to call…`} maxLength={5000} />
           </div>
         </fieldset>
+
+        {task && <TaskVideos task={task} householdId={householdId} canEdit={canEdit} />}
 
         {task && !task.itemId && (
           <FilesSection of={{ taskId: task.id }} householdId={householdId} title={t`Documents & photos`} only={(f) => !f.doneId} />

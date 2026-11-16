@@ -4,6 +4,7 @@
  * Accepts a session cookie or an API key (see lib/context.ts).
  */
 import { householdSummary } from "../lib/summary";
+import { canSearchVideos } from "../lib/videos";
 import { PHOTO_ORDER } from "../lib/photo-order";
 import * as usage from "../lib/usage";
 import { fileOwnerQuery, usageReadingInput, itemsBulk, reviewItemBody, repairInput, repairPatch,
@@ -62,6 +63,8 @@ inventory.get("/me", requireUser, async (c) =>
       // The AI helpers that read words (sorting imports, filters from words, estimates, typical upkeep), and speech to text.
       textAi: Boolean(c.var.deps.chat ?? c.var.deps.ai),
       speech: Boolean(c.var.deps.speech),
+      // How-to videos can be searched for on YouTube from Ferret (a YouTube key; pasting a link always works).
+      videoSearch: canSearchVideos(c.var.deps),
       // A household can connect its Paperless-ngx (lib/paperless.ts).
       paperless: Boolean(c.var.deps.paperless),
       // Photos read by the vision model (an unread one offers "Analyze").

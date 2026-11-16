@@ -38,7 +38,7 @@ import {
   TRASH_DAYS,
   fileOwnerQuery,
 } from "@ferret/shared";
-import { amazonCartUrl } from "@ferret/shared/utils";
+import { amazonCartUrl, youtubeWatchUrl } from "@ferret/shared/utils";
 import { type AuthInfo, createMcpHandler, McpServer } from "@modelcontextprotocol/server";
 import { and, eq, isNull } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
@@ -1366,7 +1366,7 @@ function toBase64(bytes: Uint8Array) {
 
 /** A task as Claude sees it: no empty fields, and the interval in words. */
 function taskView(t: Awaited<ReturnType<typeof upkeep.getTask>>) {
-  const { intervalCount, intervalUnit, usage: byUse, dueEstimated, timeDueOn, ...rest } = t;
+  const { intervalCount, intervalUnit, usage: byUse, dueEstimated, timeDueOn, videos, ...rest } = t;
   const repeats = describeInterval(intervalCount, intervalUnit);
   return compact({
     ...rest,
@@ -1376,6 +1376,8 @@ function taskView(t: Awaited<ReturnType<typeof upkeep.getTask>>) {
     reading: byUse?.now != null ? describeUsage(byUse.now, byUse.unit) : undefined,
     dueOnIsEstimate: dueEstimated || undefined,
     timeDueOn: byUse && timeDueOn !== rest.dueOn ? timeDueOn : undefined,
+    // How-to videos people added (YouTube), as links Claude can pass on.
+    videos: videos.length ? videos.map((x) => compact({ title: x.title, url: youtubeWatchUrl(x.videoId) })) : undefined,
   });
 }
 

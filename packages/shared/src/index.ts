@@ -489,6 +489,27 @@ export const maintenanceDone = z.object({
 });
 export type MaintenanceDone = z.infer<typeof maintenanceDone>;
 
+/** A how-to video on a maintenance task (YouTube; only its id is stored, with what YouTube said about it). */
+export interface TaskVideo {
+  id: string;
+  videoId: string;
+  title: string | null;
+  channel: string | null;
+  /** Its length, when known (only with a YouTube key). */
+  seconds: number | null;
+}
+export const taskVideoInput = z.object({
+  url: z.string().trim().min(1).max(500).describe("A YouTube link (or video id) showing how to do the task"),
+});
+export type TaskVideoInput = z.infer<typeof taskVideoInput>;
+/** A video found by searching YouTube (only on servers with a YouTube key). */
+export interface VideoHit {
+  videoId: string;
+  title: string;
+  channel: string | null;
+  seconds: number | null;
+}
+
 export interface MaintenanceTask {
   id: string;
   title: string;
@@ -517,6 +538,8 @@ export interface MaintenanceTask {
   usage: { every: number; dueAt: number; unit: UsageUnit; now: number | null; perDay: number | null } | null;
   /** `dueOn` is an estimate from how fast the item's used (not a calendar date). */
   dueEstimated: boolean;
+  /** How-to videos for it. */
+  videos: TaskVideo[];
 }
 
 // ── Readings (maintenance by use) ───────────────────────────────────────────

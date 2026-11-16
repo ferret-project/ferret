@@ -29,6 +29,7 @@ import { repair,
   user,
   warranty,
   warrantyClaim,
+  videoSearch,
 } from "../db/schema";
 import type { Db, Deps } from "../ports";
 import type { FileStore } from "./files";
@@ -196,5 +197,7 @@ export async function purgeDeleted(p: Purger, now = Date.now()) {
     const gone = await p.db.delete(table).where(old(table)).returning({ id: table.id });
     counts[name] = gone.length;
   }
+  // YouTube searches nobody has asked again for a while (lib/videos.ts keeps them a week).
+  await p.db.delete(videoSearch).where(lt(videoSearch.checkedAt, cutoff));
   return counts;
 }

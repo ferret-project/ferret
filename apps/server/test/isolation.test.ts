@@ -84,6 +84,7 @@ async function annHousehold() {
     partItemId: filters.id,
   });
   await make("POST", `/api/v1/maintenance/${task.id}/done`, { note: `${SECRET} done note` });
+  const video = await make<{ id: string }>("POST", `/api/v1/maintenance/${task.id}/videos`, { url: "https://youtu.be/dQw4w9WgXcQ" });
   // Files of her house, garage and a house-wide task (lib/attachments.ts FileOwner).
   const chores = await make("POST", "/api/v1/maintenance", { title: `${SECRET} gutters` });
   for (const [field, owner] of [["propertyId", property.id], ["locationId", garage.id], ["taskId", chores.id]] as const) {
@@ -147,7 +148,7 @@ async function annHousehold() {
     webhooks: hook.id,
     "paperless/documents": "41",
   };
-  const params: Record<string, string> = { ruleId: rule.id, pairingId: pairing.id, code: codes[0]!, n: "0", name: "x", locationId: shelf.id, itemId: box.id, deliveryId: deliveries.data[0]!.id };
+  const params: Record<string, string> = { ruleId: rule.id, pairingId: pairing.id, code: codes[0]!, n: "0", name: "x", locationId: shelf.id, itemId: box.id, deliveryId: deliveries.data[0]!.id, videoId: video.id };
   // What Bob sends with every write: plausible fields of his own, then the same with one of Ann's things in each
   // reference — one at a time, so a reference that's refused can't hide one that isn't checked.
   const base = {

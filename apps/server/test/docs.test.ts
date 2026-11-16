@@ -55,6 +55,8 @@ describe("help at /docs", () => {
     expect(csp).toContain("script-src 'self' 'wasm-unsafe-eval'");
     expect(csp).not.toContain("unsafe-inline");
     expect(csp).not.toContain(HASH);
-    expect(csp).not.toContain("youtube");
+    // The app frames only YouTube's privacy-enhanced player (how-to videos on maintenance tasks).
+    expect(csp).toMatch(/frame-src https:\/\/www\.youtube-nocookie\.com(;|$)/);
+    expect(csp).not.toContain("www.youtube.com");
   });
 });

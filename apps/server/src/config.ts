@@ -144,6 +144,8 @@ const schema = z.object({
   BARCODE_LOOKUP: z.enum(["upcitemdb"]).optional(),
   /** A paid UPCitemdb plan's key (more lookups a day); without it, the free tier. */
   UPCITEMDB_KEY: z.string().optional(),
+  // YouTube Data API v3 key: search YouTube for how-to videos from a maintenance task (pasted links work without it).
+  YOUTUBE_API_KEY: z.string().optional(),
   /** Web Push for maintenance reminders: `npx web-push generate-vapid-keys`. Both keys, or neither. */
   VAPID_PUBLIC_KEY: z.string().optional(),
   VAPID_PRIVATE_KEY: z.string().optional(),

@@ -1,11 +1,12 @@
 /** /api/v1/maintenance — maintenance tasks, marking them done, and their history. Thin: see lib/maintenance.ts. */
-import { maintenanceDone, maintenanceInput, maintenancePatch } from "@ferret/shared";
+import { maintenanceDone, maintenanceInput, maintenancePatch, taskVideoInput } from "@ferret/shared";
 import { Hono } from "hono";
 import { z } from "zod";
 import { type AppEnv, body, callerOf, requireHousehold, requireUser, requireWriter } from "../lib/context";
 import * as svc from "../lib/maintenance";
 import { dismissSuggestedTask, listSuggestedTasks } from "../lib/suggested-tasks";
 import { askTypicalUpkeep } from "../lib/typical-upkeep";
+import { addTaskVideo, removeTaskVideo, searchVideos } from "../lib/videos";
 
 export const maintenance = new Hono<AppEnv>();
 maintenance.use(requireUser, requireHousehold);
@@ -18,6 +19,9 @@ const listQuery = z.object({
 
 /** Open tasks soonest first; ?status=all|overdue|due|upcoming|done, ?itemId= for one item's. */
 maintenance.get("/", async (c) => c.json({ data: await svc.listMaintenance(callerOf(c), listQuery.parse(c.req.query())) }));
+
+/** YouTube's search for how-to videos (`q`), on a server with a YouTube key: `available: false` without one. Writers only (it uses the server's daily allowance). */
+maintenance.get("/videos/search", requireWriter, async (c) => c.json(await searchVideos(callerOf(c), z.string().max(200).parse(c.req.query("q") ?? ""))));
 
 /** Suggested maintenance: schedules found in manuals, and typical upkeep — waiting to be added or dismissed. */
 maintenance.get("/suggestions", async (c) =>
@@ -49,3 +53,9 @@ maintenance.post("/:id/done", requireWriter, async (c) =>
 );
 
 maintenance.get("/:id/history", async (c) => c.json({ data: await svc.taskHistory(callerOf(c), c.req.param("id")) }));
+
+/** A how-to video on a task, from a YouTube link. */
+maintenance.post("/:id/videos", requireWriter, async (c) =>
+  c.json(await addTaskVideo(callerOf(c), c.req.param("id"), (await body(c.req.raw, taskVideoInput)).url), 201),
+);
+maintenance.delete("/:id/videos/:videoId", requireWriter, async (c) => c.json(await removeTaskVideo(callerOf(c), c.req.param("id"), c.req.param("videoId"))));

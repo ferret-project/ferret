@@ -310,7 +310,7 @@ describe("the calendar feed's repeats", () => {
   const task = (over: Partial<MaintenanceTask>): MaintenanceTask => ({
     id: "t1", title: "Filter", notes: null, itemId: null, itemName: null, locationId: null, place: null,
     intervalCount: 1, intervalUnit: "week", dueOn: "2026-11-10", lastDoneOn: null, attachmentId: null,
-    providerId: null, providerName: null, part: null, status: "due", timeDueOn: null, usage: null, dueEstimated: false,
+    providerId: null, providerName: null, part: null, status: "due", timeDueOn: null, usage: null, dueEstimated: false, videos: [],
     ...over,
   });
   const opts = { name: "Home", appUrl: "https://ferret.example.com", timeZone: "UTC", now: new Date("2026-11-07T12:00:00Z") };
