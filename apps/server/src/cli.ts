@@ -9,6 +9,9 @@
  *   docker compose exec -it ferret node dist/cli.js key export /backups          the secrets, sealed with a passphrase
  *   docker compose run --rm -v ./ferret-key-….json:/k.json ferret node dist/cli.js key recover /k.json [/data]
  *   docker compose run --rm ferret node dist/cli.js secrets new AUTH_SECRET     a new one, on purpose (when it's lost)
+ *   docker compose exec ferret node dist/cli.js certificates list               what Ferret trusts for its own connections
+ *   docker compose exec -T ferret node dist/cli.js certificates trust - "Home CA" < home-ca.pem
+ *   docker compose exec ferret node dist/cli.js certificates remove <id or name>
  * Reads .env (DATA_DIR, BACKUP_DIR, and the secrets — else the ones Ferret made, in DATA_DIR/secrets.json).
  * In dev: pnpm --filter @ferret/server cli admin
  */
@@ -24,10 +27,13 @@ import { masterKeyId } from "./lib/files";
 import { openKeyFile, passphraseProblem, sealKeyFile } from "./lib/key-file";
 import { recordKeyFile } from "./lib/key-file-log";
 import { DbJobs } from "./adapters/local/jobs";
+import { NodeTls } from "./adapters/local/certificates";
+import { addTrusted, listCertificates, removeCertificate } from "./lib/certificates";
 import { SECRETS_FILE, currentSecrets, readStoredSecrets, replaceAuthSecret, writeStoredSecrets } from "./adapters/local/secrets";
 
 const USAGE = `Usage: cli.js admin [email] | backup list | backup check [snapshot] | backup restore <data folder> [snapshot]
-       | key fingerprint | key export <folder or file> | key recover <key file> [data folder] | secrets new AUTH_SECRET`;
+       | key fingerprint | key export <folder or file> | key recover <key file> [data folder] | secrets new AUTH_SECRET
+       | certificates list | certificates trust <pem file, or - for stdin> [name] | certificates remove <id or name>`;
 const [command, ...args] = process.argv.slice(2);
 const dataDir = () => path.resolve(process.env.DATA_DIR?.trim() || "./data");
 const env = (name: string) => {
@@ -196,8 +202,59 @@ async function secretsCommand(sub: string | undefined, rest: string[]) {
   }
 }
 
+/** Reads all of stdin (for `certificates trust -`). */
+async function readStdin() {
+  const chunks: Buffer[] = [];
+  for await (const chunk of process.stdin) chunks.push(chunk as Buffer);
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+/**
+ * `certificates list | trust | remove`: what Settings → Server → Certificates does, for a setup with no browser at
+ * hand. A running Ferret notices the change within a minute (server.ts) — no restart. Client certificates (.p12 and a
+ * password) stay in Settings.
+ */
+async function certificates(sub: string | undefined, rest: string[]) {
+  const dbFile = path.join(dataDir(), "ferret.db");
+  if (!existsSync(dbFile)) throw new Error(`No Ferret database in ${dataDir()}.`);
+  const { db, client } = createLocalDb(`file:${dbFile}`);
+  const deps = { db, tls: new NodeTls() };
+  const show = (list: Awaited<ReturnType<typeof listCertificates>>) => {
+    const rows = [...list.trusted.map((c) => ({ ...c, kind: "trusted" })), ...list.clients.map((c) => ({ ...c, kind: `client → ${(c.hosts ?? []).join(", ")}` }))];
+    if (!rows.length) return console.log("No certificates of Ferret's own (only the usual public authorities are trusted).");
+    for (const c of rows) {
+      console.log(`${c.id}  ${c.name}  (${c.kind})`);
+      console.log(`    ${c.subject}, issued by ${c.issuer}; until ${c.notAfter.slice(0, 10)}; SHA-256 ${c.fingerprint}`);
+    }
+  };
+  try {
+    if (sub === "list") {
+      show(await listCertificates(deps));
+    } else if (sub === "trust" && rest[0]) {
+      const pem = rest[0] === "-" ? await readStdin() : readFileSync(path.resolve(rest[0]), "utf8");
+      const before = new Set((await listCertificates(deps)).trusted.map((c) => c.id));
+      const after = await addTrusted(deps, filesKeyInUse(), { name: rest.slice(1).join(" "), pem });
+      for (const c of after.trusted.filter((t) => !before.has(t.id))) console.log(`Trusted: ${c.name} (${c.subject}, until ${c.notAfter.slice(0, 10)})`);
+      console.log("A running Ferret uses it within a minute.");
+    } else if (sub === "remove" && rest[0]) {
+      const which = rest.join(" ");
+      const list = await listCertificates(deps);
+      const found = [...list.trusted, ...list.clients].filter((c) => c.id === which || c.name === which);
+      if (!found.length) throw new Error(`No certificate with the id or name "${which}" (cli.js certificates list).`);
+      if (found.length > 1) throw new Error(`Several certificates are called "${which}" — give its id.`);
+      await removeCertificate(deps, filesKeyInUse(), found[0]!.id);
+      console.log(`Removed: ${found[0]!.name}. A running Ferret stops using it within a minute.`);
+    } else {
+      throw new Error(USAGE);
+    }
+  } finally {
+    client.close();
+  }
+}
+
 try {
-  if (command === "admin") await admin(args[0]);
+  if (command === "certificates") await certificates(args[0], args.slice(1));
+  else if (command === "admin") await admin(args[0]);
   else if (command === "key") await key(args[0], args.slice(1));
   else if (command === "secrets") await secretsCommand(args[0], args.slice(1));
   else if (command === "backup") await backup(args[0], args.slice(1));

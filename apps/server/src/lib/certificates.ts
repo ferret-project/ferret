@@ -186,6 +186,15 @@ export async function applyCertificates(deps: Pick<Deps, "db" | "tls">, filesKey
   deps.tls.apply(kept.trusted.map((t) => t.pem), clients);
 }
 
+/**
+ * What's kept, as stored — for a running server to notice a change made by someone else (`cli.js certificates`), and
+ * apply it without a restart (server.ts compares it every minute).
+ */
+export async function certificatesStamp(db: Db): Promise<string> {
+  const [row] = await db.select({ value: serverSetting.value }).from(serverSetting).where(eq(serverSetting.key, KEY));
+  return row?.value ?? "";
+}
+
 /** For the server admin's bell: certificates that have run out, or will within 30 days. */
 export async function certificatesEnding(db: Db, now = new Date()) {
   const kept = await load(db);

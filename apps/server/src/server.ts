@@ -34,7 +34,8 @@ import { OpenAiSpeech } from "./adapters/local/speech";
 import { docsScriptHashes, mountDocs, mountWebApp } from "./adapters/local/web";
 import { markAuthProxy, proxyList, withClientAddress } from "./adapters/local/proxy";
 import { NodeTls } from "./adapters/local/certificates";
-import { applyCertificates } from "./lib/certificates";
+import { applyCertificates, certificatesStamp } from "./lib/certificates";
+import { oidcProblem } from "./lib/sso";
 import { otherMasterKeys } from "./lib/files";
 import { createApp } from "./app";
 import { jobSchedule } from "./jobs/schedule";
@@ -159,6 +160,17 @@ const deps = {
 };
 // Certificates the server admin added for Ferret's own connections (Settings → Server), before anything connects.
 await applyCertificates(deps, config.FILES_KEY);
+// …and again when they change from outside this process (`cli.js certificates trust`): checked every minute.
+let certificatesSeen = await certificatesStamp(db);
+setInterval(() => {
+  void (async () => {
+    const now = await certificatesStamp(db);
+    if (now === certificatesSeen) return;
+    certificatesSeen = now;
+    await applyCertificates(deps, config.FILES_KEY);
+    console.log("Certificates changed — applied.");
+  })().catch((err: unknown) => console.error("Couldn't re-apply certificates:", err));
+}, 60_000).unref();
 // The help at /docs, when it's been built (apps/docs): its CSP allows its own inline scripts by hash.
 const docsRoot = path.resolve(config.DOCS_DIST);
 const hasDocs = existsSync(path.join(docsRoot, "csp.json"));
@@ -228,5 +240,9 @@ serve(
   console.log(`   Backups:        ${on(backups, `nightly from ${config.BACKUP_HOUR}:00 to ${config.BACKUP_DIR}, keeping ${config.BACKUP_KEEP}`, "set BACKUP_DIR")}`);
   console.log(`   Other apps:     ${on(notifier, `Apprise at ${config.APPRISE_URL}, daily from ${config.REMIND_HOUR}:00`, "set APPRISE_URL")}`);
   console.log(`   Single sign-on: ${on(config.OIDC_ISSUER, `OIDC with ${config.OIDC_ISSUER}`, "set OIDC_ISSUER and OIDC_CLIENT_ID")}${config.TRUSTED_HEADER_AUTH ? `; ${config.TRUSTED_HEADER_EMAIL} from ${config.TRUSTED_HEADER_PROXIES}` : ""}`);
+  // Say now, not at someone's first sign-in, when the provider can't be used (an untrusted certificate, a wrong address).
+  if (config.OIDC_ISSUER) {
+    void oidcProblem(config).then((problem) => problem && console.warn(`   ⚠ Single sign-on won't work yet: ${problem}`));
+  }
   },
 );

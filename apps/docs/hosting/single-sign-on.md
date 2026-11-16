@@ -53,6 +53,17 @@ Verified**: Pocket ID otherwise tells Ferret every email is unconfirmed, and Fer
 to an address ("Your sign-in provider hasn't confirmed your email address"). If someone tried before you turned it on,
 their first try afterwards fails once more; the next one works.
 
+**When the button doesn't work**, Ferret says why under it — and in its log when it starts, and in **Settings →
+Server**'s service errors:
+
+- *its certificate isn't trusted* — the provider has a certificate from your own certificate authority (a home CA,
+  step-ca, Traefik's): add that authority's root in **Settings → Server → [Certificates](./certificates)**, or with
+  `cli.js certificates trust` when you can't sign in to do it. The next try works, no restart.
+- *that name can't be found* / *nothing is listening there* — Ferret's server can't reach `OIDC_ISSUER` (DNS inside the
+  container, a firewall, a typo).
+- *answered 404* / *isn't an OpenID Connect discovery document* — `OIDC_ISSUER` isn't the issuer's exact address: Ferret
+  reads `OIDC_ISSUER/.well-known/openid-configuration`.
+
 Ferret sends its secret the way the OIDC standard and these providers expect (`client_secret_basic`). If yours wants it in
 the form instead, set `OIDC_CLIENT_AUTH=post`.
 

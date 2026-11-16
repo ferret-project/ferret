@@ -68,3 +68,18 @@ The email has a **For triage** part, and each error has **Copy details**: what f
 zone), how long the call took, where in Ferret it was called from, what the service said — for an AI model, which model,
 why its reply stopped and how many tokens it used — and which server and version this is. Paste it into a bug report,
 or to Claude. It never includes what people typed or own: a model's reply is cut down to its first and last few words.
+
+## The command line
+
+What's done on the server itself, without a browser. With Docker Compose, in the folder with `compose.yaml`:
+
+```bash
+docker compose exec ferret node dist/cli.js admin [email]            # who the server admin is, or hand it over
+docker compose exec ferret node dist/cli.js certificates list        # certificates for Ferret's own connections
+docker compose exec -T ferret node dist/cli.js certificates trust - "Home CA" < home-ca.pem
+docker compose exec ferret node dist/cli.js certificates remove "Home CA"
+docker compose exec ferret node dist/cli.js key fingerprint          # which FILES_KEY is in use
+docker compose run --rm ferret node dist/cli.js backup list          # and backup check / restore
+```
+
+[Certificates](./certificates) and [Backups](./backups) say more about theirs.

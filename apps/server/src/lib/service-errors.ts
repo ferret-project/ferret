@@ -29,6 +29,7 @@ export const SERVICE_NAMES: Record<string, string> = {
   maps: "Apple Maps",
   recalls: "Recalls (CPSC)",
   turnstile: "Sign-up check (Turnstile)",
+  sso: "Single sign-on (OIDC)",
   jobs: "Background jobs (gave up)",
   ferret: "Ferret itself (unexpected errors)",
 };

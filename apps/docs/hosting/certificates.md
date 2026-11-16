@@ -20,6 +20,20 @@ Ferret trusts these for its own connections from then on, with no restart. **Dow
 web address", product photos) never use them: they trust only the usual public authorities, so a certificate you add
 can't vouch for a site on the internet.
 
+### From the command line
+
+Setting Ferret up without a browser at hand (a script, a fresh server, single sign-on that won't work until its
+certificate is trusted)? The same list is on the [command line](./server-admin#the-command-line):
+
+```sh
+docker compose exec ferret node dist/cli.js certificates list
+docker compose exec -T ferret node dist/cli.js certificates trust - "Home CA" < home-ca.pem
+docker compose exec ferret node dist/cli.js certificates remove "Home CA"     # or its id, from list
+```
+
+`trust` takes a file inside the container, or `-` to read it from what's piped in (as above). A running Ferret uses the
+change within a minute — no restart. Client certificates are added in Settings only.
+
 ## Client certificates (mutual TLS)
 
 Some services only answer clients that show a certificate of their own — an mTLS rule in Traefik, nginx or Caddy in

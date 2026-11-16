@@ -2,7 +2,8 @@
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { markAuthProxy, proxyList } from "../src/adapters/local/proxy";
-import { PROXY_MARK } from "../src/lib/sso";
+import { serviceError } from "../src/db/schema";
+import { oidcProblem, PROXY_MARK } from "../src/lib/sso";
 import { FakeNotifier, setup, verifiedAccount } from "./helpers";
 
 const ISSUER = "https://idp.test";
@@ -12,12 +13,15 @@ const CLIENT = "ferret";
 async function fakeProvider() {
   const { privateKey, publicKey } = await generateKeyPair("RS256");
   const jwk = { ...(await exportJWK(publicKey)), kid: "k1", alg: "RS256", use: "sig" };
-  const state = { next: { sub: "u-1", email: "pat@example.com", email_verified: true, name: "Pat" } as Record<string, unknown>, nonce: "", down: false };
+  const state = { next: { sub: "u-1", email: "pat@example.com", email_verified: true, name: "Pat" } as Record<string, unknown>, nonce: "", down: false, untrusted: false };
   const realFetch = globalThis.fetch;
   vi.stubGlobal("fetch", async (input: string | URL | Request, init?: RequestInit) => {
     const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
     if (url.origin !== ISSUER) return realFetch(input, init);
     if (state.down) throw new TypeError("fetch failed");
+    if (state.untrusted) {
+      throw new TypeError("fetch failed", { cause: Object.assign(new Error("unable to get local issuer certificate"), { code: "UNABLE_TO_GET_ISSUER_CERT_LOCALLY" }) });
+    }
     if (url.pathname === "/.well-known/openid-configuration") {
       return Response.json({
         issuer: ISSUER,
@@ -129,6 +133,46 @@ describe("OpenID Connect", () => {
     const back = await signInWithSso(app, provider);
     expect(back.status).toBe(302);
     expect(back.headers.get("location")).toBe("/#/items");
+  });
+});
+
+describe("when the provider can't be used", () => {
+  const start = (app: { request: (url: string, init?: RequestInit) => Response | Promise<Response> }) =>
+    app.request("/api/auth/sign-in/social", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Origin: "http://localhost:8787" },
+      body: JSON.stringify({ provider: "oidc", callbackURL: "/", errorCallbackURL: "/?sso=failed" }),
+    });
+
+  it("says its certificate isn't trusted (not \"Provider not found\") and logs it for the server admin", async () => {
+    const provider = await fakeProvider();
+    provider.untrusted = true;
+    const { app, db } = await setup({ config: OIDC });
+    const res = await start(app);
+    expect(res.status).toBe(502);
+    const body = (await res.json()) as { code: string; message: string };
+    expect(body.code).toBe("SSO_UNREACHABLE");
+    expect(body.message).toContain("Couldn't reach Pocket ID at https://idp.test");
+    expect(body.message).toContain("certificate isn't trusted");
+    const logged = await db.select().from(serviceError);
+    expect(logged.map((e) => [e.service, e.operation])).toEqual([["sso", "discovery"]]);
+
+    // Once it's trusted, sign-in works (discovery is tried again).
+    provider.untrusted = false;
+    expect((await signInWithSso(app, provider)).status).toBe(302);
+  });
+
+  it("explains other failures in words", async () => {
+    const cfg = { ...OIDC } as Parameters<typeof oidcProblem>[0];
+    const failing = (code: string) => async () => {
+      throw new TypeError("fetch failed", { cause: Object.assign(new Error(code), { code }) });
+    };
+    expect(await oidcProblem(cfg, failing("ENOTFOUND"))).toContain("can't be found");
+    expect(await oidcProblem(cfg, failing("ECONNREFUSED"))).toContain("nothing is listening");
+    expect(await oidcProblem(cfg, failing("CERT_HAS_EXPIRED"))).toContain("expired");
+    expect(await oidcProblem(cfg, async () => new Response("nope", { status: 404 }))).toContain("answered 404");
+    expect(await oidcProblem(cfg, async () => Response.json({ hello: 1 }))).toContain("isn't an OpenID Connect discovery document");
+    expect(await oidcProblem(cfg, async () => Response.json({ authorization_endpoint: "a", token_endpoint: "t" }))).toBeNull();
   });
 });
 

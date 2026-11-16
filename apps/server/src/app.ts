@@ -2,6 +2,7 @@
  * The Ferret app — runtime-agnostic. An entry point (server.ts for Node) builds the Deps and calls createApp().
  */
 import { recordServiceError } from "./lib/service-errors";
+import { OIDC_PROVIDER, oidcProblem } from "./lib/sso";
 import { z } from "zod";
 import type { BetterAuthPlugin } from "better-auth";
 import { type Context, Hono } from "hono";
@@ -338,6 +339,18 @@ export function createApp(deps: Deps, config: Config, opts: AppOptions = {}) {
     return c.redirect(`/?confirm=${encodeURIComponent(token)}${hash}`, 302);
   });
   app.post("/api/auth/:path{sign-in/email|sign-up/email}", countSignIns);
+  // Starting single sign-on: when the provider's discovery failed, Better Auth says only "Provider not found". Say why
+  // (its certificate isn't trusted, the name can't be found…) and log it for the server admin — an outside service failing.
+  app.post("/api/auth/sign-in/social", async (c) => {
+    const res = await auth.handler(c.req.raw.clone());
+    if (res.status !== 404 || !config.OIDC_ISSUER) return res;
+    const body = (await c.req.json().catch(() => null)) as { provider?: unknown } | null;
+    if (body?.provider !== OIDC_PROVIDER) return res;
+    const problem = await oidcProblem(config);
+    if (!problem) return res;
+    await recordServiceError(deps.db, "sso", "discovery", new Error(problem)).catch(() => {});
+    return c.json({ code: "SSO_UNREACHABLE", message: problem }, 502);
+  });
   // Coming back from single sign-on (lib/sso.ts): a refusal Better Auth answers as an error (Ferret's sign-up rules:
   // invite-only) goes back to the sign-in screen with the reason, rather than leaving the browser on a JSON error.
   app.get("/api/auth/callback/:id", async (c) => {

@@ -33,6 +33,52 @@ export function ssoOptions(config: Config) {
   };
 }
 
+/** Node's TLS error codes for a certificate nobody here vouches for (Settings → Server → Certificates fixes them). */
+const UNTRUSTED = new Set([
+  "UNABLE_TO_GET_ISSUER_CERT_LOCALLY",
+  "UNABLE_TO_GET_ISSUER_CERT",
+  "UNABLE_TO_VERIFY_LEAF_SIGNATURE",
+  "SELF_SIGNED_CERT_IN_CHAIN",
+  "DEPTH_ZERO_SELF_SIGNED_CERT",
+]);
+
+/** Why a fetch failed, in words — from the error's cause (Node's fetch puts the socket/TLS error there). */
+function whyUnreachable(err: unknown): string {
+  const cause = err instanceof Error && err.cause && typeof err.cause === "object" ? (err.cause as { code?: unknown; message?: unknown }) : undefined;
+  const code = typeof cause?.code === "string" ? cause.code : "";
+  if (err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")) return "it didn't answer within 10 seconds";
+  if (UNTRUSTED.has(code)) return "its certificate isn't trusted — add the certificate authority that signed it in Settings → Server → Certificates (or `cli.js certificates trust`)";
+  if (code === "CERT_HAS_EXPIRED") return "its certificate has expired";
+  if (code === "ERR_TLS_CERT_ALTNAME_INVALID") return "its certificate is for a different name";
+  if (code === "ENOTFOUND" || code === "EAI_AGAIN") return "that name can't be found (DNS)";
+  if (code === "ECONNREFUSED") return "nothing is listening there";
+  if (code === "ETIMEDOUT" || code === "UND_ERR_CONNECT_TIMEOUT") return "the connection timed out";
+  const said = typeof cause?.message === "string" ? cause.message : err instanceof Error ? err.message : String(err);
+  return code ? `${code}: ${said}` : said;
+}
+
+/**
+ * Why the OIDC provider's discovery document can't be used, or null when it can — for a sign-in Better Auth answered
+ * only "Provider not found", and the startup log. Fetches it the way Better Auth does (same address, 10 s).
+ */
+export async function oidcProblem(config: Config, fetcher: typeof fetch = fetch): Promise<string | null> {
+  if (!config.OIDC_ISSUER || !config.OIDC_CLIENT_ID) return null;
+  const url = `${config.OIDC_ISSUER.replace(/\/+$/, "")}/.well-known/openid-configuration`;
+  const where = `Couldn't reach ${config.OIDC_NAME} at ${config.OIDC_ISSUER}`;
+  let res: Response;
+  try {
+    res = await fetcher(url, { signal: AbortSignal.timeout(10_000), headers: { Accept: "application/json" } });
+  } catch (err) {
+    return `${where}: ${whyUnreachable(err)}.`;
+  }
+  if (!res.ok) return `${where}: ${url} answered ${res.status}. Is OIDC_ISSUER the issuer's exact address?`;
+  const doc = (await res.json().catch(() => null)) as { authorization_endpoint?: unknown; token_endpoint?: unknown } | null;
+  if (!doc || typeof doc.authorization_endpoint !== "string" || typeof doc.token_endpoint !== "string") {
+    return `${where}: ${url} isn't an OpenID Connect discovery document. Is OIDC_ISSUER the issuer's exact address?`;
+  }
+  return null;
+}
+
 export function ssoPlugins(db: Db, config: Config, onAccountCreated?: () => void | Promise<void>): BetterAuthPlugin[] {
   const plugins: BetterAuthPlugin[] = [];
   if (config.OIDC_ISSUER && config.OIDC_CLIENT_ID) {
