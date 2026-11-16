@@ -102,5 +102,38 @@ and check **Settings → Server → Keys** says "From the settings". The copy in
 | Setting | |
 |---|---|
 | `BARCODE_LOOKUP=upcitemdb`, `UPCITEMDB_KEY` | Look up unknown barcodes online (100 a day free, per internet address; a key for more). Only the barcode is sent. Settings → Server shows how many are left today, and the server admin's bell says when they're running low. |
-| `YOUTUBE_API_KEY` | Search YouTube for [how-to videos](../guide/maintenance#videos) from a maintenance task. A YouTube Data API v3 key from the Google Cloud console (free: about 100 searches a day; the same words are answered from Ferret's own copy for a week). Only the words searched for leave the server. Pasting a YouTube link works without it. |
+| `YOUTUBE_API_KEY` | Search YouTube for [how-to videos](../guide/maintenance#videos) from a maintenance task. A YouTube Data API v3 key from the Google Cloud console (free: about 100 searches a day; the same words are answered from Ferret's own copy for a week). Only the words searched for leave the server. Pasting a YouTube link works without it. [Getting a key](#youtube). |
 | `APPLE_MAPS_TEAM_ID`, `APPLE_MAPS_KEY_ID`, `APPLE_MAPS_PRIVATE_KEY` | Map pictures of property addresses (Apple Developer account). |
+
+## A YouTube key for how-to videos {#youtube}
+
+Anyone can paste a YouTube link onto a [maintenance task](../guide/maintenance#videos). With a key, the task can also
+**search YouTube** from Ferret, so nobody has to leave the app to find a video. The key is free and takes a few minutes:
+
+1. Open the [Google Cloud console](https://console.cloud.google.com) and sign in with a Google account. Pick a project
+   at the top, or make one (**New project**, any name — e.g. *ferret*). No billing account is needed.
+2. **APIs & Services → Library**: search for **YouTube Data API v3** and click **Enable**.
+3. **APIs & Services → Credentials → Create credentials → API key**, and copy the key.
+4. Open the new key (**Edit API key**) and limit what it can do:
+   - **API restrictions → Restrict key** → tick **YouTube Data API v3** only.
+   - Optionally, **Application restrictions → IP addresses** → your home's public address, so the key only works from
+     your server. If that address changes, searches stop working until you update it.
+
+   Then **Save**.
+5. Put it in your `.env` and restart Ferret:
+
+   ```bash
+   YOUTUBE_API_KEY=AIza…
+   ```
+
+   ```bash
+   docker compose up -d
+   ```
+
+A task's **Add a video** now shows **Search YouTube**. The free allowance is 10,000 units a day and a search uses 100,
+so about 100 searches a day — the same words are answered from Ferret's own copy for a week, and adding or playing
+videos uses none. If searches fail (a mistyped key, the allowance used up, a changed IP address), the server admin
+sees why in **Settings → Server**'s service errors, as *youtube*; pasting links keeps working.
+
+Only the words searched for and the videos' ids go to YouTube, from the server. Videos play in YouTube's
+privacy-enhanced player (`youtube-nocookie.com`), which sets no cookies until one is played.

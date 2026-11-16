@@ -59,7 +59,7 @@ the shopping list, remember what you lent, and print an insurance report. Claude
     <td align="center">
       <img src=".github/readme/mascot/wrench.webp" height="120" alt=""><br>
       <b>Maintenance</b><br>
-      Filters, tune-ups and checks on a schedule, with reminders when they're due.
+      Filters, tune-ups and checks on a schedule, with reminders when they're due and how-to videos for each job.
     </td>
     <td align="center">
       <img src=".github/readme/mascot/shopping-list.webp" height="120" alt=""><br>

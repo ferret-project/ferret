@@ -40,8 +40,8 @@ Each task keeps its history, and the item's page shows its maintenance.
 A task can keep the YouTube videos that show how to do it — *how to clean the ice maker*, *how to change this filter*.
 Open the task and tap **Add a video**:
 
-- **Search YouTube** right there (if your Ferret has a YouTube key — see
-  [Configuration](../hosting/configuration)): it starts with the task and its thing, change the words if you like, tap
+- **Search YouTube** right there (if your Ferret has a YouTube key — whoever runs it can
+  [get one free](../hosting/configuration#youtube)): it starts with the task and its thing, change the words if you like, tap
   a result to watch it first, **Add** to keep it.
 - Or **paste a YouTube link** (on a phone: **Share → Copy link** in YouTube). Without a key, **Find one on YouTube**
   opens YouTube's own search to find it.

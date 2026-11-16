@@ -37,6 +37,8 @@ menu.
 - The **camera**: add things from photos, scan barcodes and QR labels, photograph receipts as documents.
 - **Push reminders**: turn them on for each device in **Household & settings → Notifications**. On an iPhone they
   need Ferret installed on the Home Screen first.
+- **Manuals, receipts and how-to videos** open inside Ferret with a **Close** button, so the installed app never
+  leaves you stuck on a page. **Share** in the document viewer saves a PDF to Files or opens it in Books.
 - The tab bar along the bottom: Home, Everything, Places, Maintenance and Settings.
 
 ## No signal

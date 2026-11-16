@@ -29,6 +29,11 @@ On an item's page:
 - **Add from a web address** — paste the address of a photo or a PDF (a product photo, a manual online). Only photos and
   PDFs are accepted, and only from the public internet.
 
+Tap a document to open it in Ferret's own viewer: a PDF page by page, with the magnifiers to zoom, **Share** to save
+it to your phone (Files, Books) or send it to another app, and **Close** to come back. On a computer the arrow button
+opens it in a browser tab instead. Opened from a [search inside the thing](./finding-things#searching-one-thing), a
+manual opens at the page that matched, with your words highlighted.
+
 Tap a photo to see it **full screen**: swipe (or ‹ › and the arrow keys) between photos, double-tap — or **+** — to zoom
 in and drag to look around (handy for a serial number), and open the original to save it. Its caption is what Ferret
 read off it.
