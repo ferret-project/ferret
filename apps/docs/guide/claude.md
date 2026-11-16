@@ -92,7 +92,8 @@ Ferret has an `https://` address Claude's servers can reach — see
 With a full key, Claude can find things (by words and meaning, and from receipts and manuals), look at an item's
 photos, add and change things — one at a time or many at once — and look after places, categories, QR labels,
 warranties and claims, maintenance, recalls, stock and the shopping list, lending, collections, insurance limits,
-and [room reviews](./room-review) (*"found the passport"*, *"let's go through the garage"*).
+[room reviews](./room-review) (*"found the passport"*, *"let's go through the garage"*), and your
+[Paperless inbox](./paperless) (*"what's waiting from Paperless?"*, *"put the fridge manual on the fridge"*).
 With a **read-only** key it only gets the tools that look and ask. A few things stay in the app: managing keys,
 members and invitations, share links, webhooks, pairing codes, settings and backups.
 

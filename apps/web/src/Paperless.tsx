@@ -415,7 +415,7 @@ function ConnectionSummary({ connection: c }: { connection: PaperlessConnection 
     <div className="flex flex-col gap-2 text-sm">
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
         <dt className="text-base-content/70"><Trans>Address</Trans></dt>
-        <dd className="min-w-0 break-all">{c.url}</dd>
+        <dd className="min-w-0 break-words" title={c.url}>{c.host}</dd>
         <dt className="text-base-content/70"><Trans>Signed in as</Trans></dt>
         <dd>{c.user ?? "—"}</dd>
         <dt className="text-base-content/70"><Trans>Watches the tag</Trans></dt>

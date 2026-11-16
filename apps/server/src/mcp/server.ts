@@ -74,6 +74,7 @@ import { addCoverage, coverageChecks, deleteCoverage, updateCoverage } from "../
 import * as recalls from "../lib/recalls";
 import * as warranties from "../lib/warranties";
 import { attachLabel } from "../lib/own-labels";
+import { addFromPaperless, attachPaperless, dismissPaperless, listPaperlessDocuments, searchPaperless } from "../lib/paperless";
 import { sniffContentType } from "../lib/sniff";
 
 /** What the /mcp route hands each request's server (via AuthInfo.extra). */
@@ -635,7 +636,58 @@ function buildServer(v: McpCaller) {
       }),
   );
 
+  server.registerTool(
+    "paperless_inbox",
+    {
+      title: "Documents from Paperless",
+      description:
+        "The household's Paperless-ngx inbox: documents tagged for Ferret in Paperless that nobody has sorted yet (newest first) — each with its title, who it's from, its date, its first words and a thing it may belong to — or, with query, a search of all of Paperless's documents. Use it when the person asks about receipts or manuals in Paperless, or to help sort them; sort_paperless_document then adds one as a new thing, attaches it to a thing, or dismisses it. Ferret only reads Paperless. Says connected: false when the household hasn't connected one (Settings → Household). Changes nothing.",
+      inputSchema: z.object({
+        query: z.string().trim().min(1).max(200).optional().describe("Words to search Paperless for (any document, tagged or not); left out: the inbox"),
+        sorted: z.boolean().optional().describe("true: the documents already sorted (what was done with each) instead of the inbox"),
+      }),
+      annotations: read,
+    },
+    async ({ query, sorted }) =>
+      run(async () => {
+        const view = (d: Awaited<ReturnType<typeof listPaperlessDocuments>>["data"][number]) =>
+          compact({ documentId: d.id, title: d.title, from: d.correspondent ?? undefined, date: d.created ?? undefined, excerpt: d.excerpt || undefined, status: d.status, thing: d.item ?? undefined, maybeFor: d.match ?? undefined, linkOnly: d.copyable ? undefined : true });
+        if (query) return { documents: (await searchPaperless(v, query)).map(view) };
+        const listed = await listPaperlessDocuments(v, sorted ? "done" : "new");
+        return listed.connected ? { connected: true, documents: listed.data.map(view) } : { connected: false };
+      }),
+  );
+
   if (v.readOnly) return server;
+
+  server.registerTool(
+    "sort_paperless_document",
+    {
+      title: "Sort a Paperless document",
+      description:
+        "Does something with one document from the household's Paperless (documentId from paperless_inbox): action \"add\" makes a new thing from it (named after the document unless name is given; locationId optional), \"attach\" puts it on an existing thing (itemId — check with the person which one; paperless_inbox's maybeFor is only a guess), \"dismiss\" takes it out of the inbox (not about a thing), \"restore\" puts a dismissed one back. Adding or attaching copies the file into Ferret when the household keeps copies (it's then read for suggested details, which get_item shows a little later — confirm them before applying) and always adds a link back to Paperless. Returns the thing, whether the file was copied, and why not.",
+      inputSchema: z.object({
+        documentId: z.number().int().positive().describe("The document's number in Paperless, from paperless_inbox"),
+        action: z.enum(["add", "attach", "dismiss", "restore"]),
+        itemId: z.string().min(1).optional().describe("attach: the thing to put it on"),
+        name: z.string().trim().min(1).max(200).optional().describe("add: the new thing's name (default: the document's title)"),
+        locationId: z.string().min(1).optional().describe("add: where the new thing is kept"),
+      }),
+      annotations: write,
+    },
+    async ({ documentId, action, itemId, name, locationId }) =>
+      run(async () => {
+        if (action === "dismiss" || action === "restore") {
+          await dismissPaperless(v, documentId, action === "restore");
+          return { ok: true };
+        }
+        if (action === "attach") {
+          if (!itemId) throw new HTTPException(400, { message: "Say which thing to attach it to (itemId)" });
+          return compact(await attachPaperless(v, documentId, itemId, v.maxUploadBytes));
+        }
+        return compact(await addFromPaperless(v, documentId, { name, locationId }, v.maxUploadBytes));
+      }),
+  );
 
   server.registerTool(
     "mark_seen",

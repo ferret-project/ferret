@@ -151,12 +151,12 @@ can use the small bridge in [`contrib/mcp-bridge`](contrib/mcp-bridge): it forwa
 key. Ferret is also listed in the [MCP Registry](https://registry.modelcontextprotocol.io) as
 `io.github.ferret-project/ferret`.
 
-**What Claude can do** (53 tools):
+**What Claude can do** (55 tools):
 
 | | |
 |---|---|
 | Find | search by words and meaning, ask questions answered from receipts and manuals, items, places, history, files, recently deleted; look at an item's photos |
-| Add and change | add items (also from a photo, or a whole room's photos), update, move and restore, change many at once; properties, rooms, categories and collections; QR labels |
+| Add and change | add items (also from a photo, or a whole room's photos), update, move and restore, change many at once; properties, rooms, categories and collections; QR labels; sort the Paperless-ngx inbox |
 | Upkeep | maintenance by date or by use (odometer, engine hours), repairs, warranties and claims, recalls, replacement forecast, service providers |
 | Household | stock and the shopping list, lending, barcodes, collections, room reviews and last seen, the insurance report and coverage limits, what needs attention |
 

@@ -271,6 +271,7 @@ describe("MCP server", () => {
       "list_providers",
       "list_warranties",
       "lookup_barcode",
+      "paperless_inbox",
       "recently_deleted",
       "replacement_forecast",
       "rooms_to_review",

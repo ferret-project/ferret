@@ -1,4 +1,5 @@
 /** Paperless-ngx as a source (lib/paperless.ts): connect, sync the tagged documents into an inbox, sort them. */
+import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { member, paperlessConnection, user as userTable } from "../src/db/schema";
@@ -223,6 +224,46 @@ describe("Paperless-ngx", () => {
     expect((await ann.as("/api/v1/paperless", { method: "DELETE" })).status).toBe(204);
     expect(await db.select().from(paperlessConnection)).toHaveLength(0);
     expect(await json(ann.as("/api/v1/paperless/documents"))).toEqual({ connected: false, data: [] });
+  });
+
+  it("lets Claude read the inbox and sort it (a read-only key only reads)", async () => {
+    const paperless = new FakePaperless();
+    paperless.docs = [doc(1, "Fridge manual"), doc(2, "Junk mail"), doc(3, "Kettle receipt")];
+    const { app, user, jobs } = await setup({ paperless });
+    const ann = await user("ann");
+    const fridge = await ann.addItem({ name: "Fridge" });
+    await ann.as("/api/v1/paperless", { method: "PUT", body: JSON.stringify(connection) });
+    await jobs.drain();
+    const keyOf = async (readOnly: boolean) => (await json<{ key: string }>(ann.as("/api/v1/api-keys", { method: "POST", body: JSON.stringify({ name: "Claude", readOnly }) }))).key;
+    const connect = async (key: string) => {
+      const transport = new StreamableHTTPClientTransport(new URL("http://ferret.test/mcp"), {
+        fetch: async (url, init) => app.request(String(url), init),
+        requestInit: { headers: { Authorization: `Bearer ${key}` } },
+      });
+      const client = new Client({ name: "test", version: "1.0.0" });
+      await client.connect(transport);
+      return async (name: string, args: Record<string, unknown> = {}) => {
+        const r = (await client.callTool({ name, arguments: args })) as { isError?: boolean; content: { text: string }[] };
+        return { isError: Boolean(r.isError), json: () => JSON.parse(r.content[0]!.text) };
+      };
+    };
+    const call = await connect(await keyOf(false));
+    const inbox = (await call("paperless_inbox")).json();
+    expect(inbox.connected).toBe(true);
+    expect(inbox.documents.find((d: { documentId: number }) => d.documentId === 1)).toMatchObject({ title: "Fridge manual", maybeFor: { id: fridge.id, name: "Fridge" }, status: "new" });
+
+    expect((await call("sort_paperless_document", { documentId: 1, action: "attach", itemId: fridge.id })).json()).toMatchObject({ item: { id: fridge.id }, copied: true });
+    expect((await call("sort_paperless_document", { documentId: 2, action: "dismiss" })).json()).toEqual({ ok: true });
+    const kettle = (await call("sort_paperless_document", { documentId: 3, action: "add", name: "Kettle" })).json();
+    expect(kettle).toMatchObject({ item: { name: "Kettle" }, copied: true });
+    expect((await call("sort_paperless_document", { documentId: 1, action: "attach" })).isError).toBe(true); // no itemId
+    expect((await call("paperless_inbox")).json().documents).toEqual([]);
+    expect((await call("paperless_inbox", { sorted: true })).json().documents).toHaveLength(3);
+    expect((await call("paperless_inbox", { query: "kettle" })).json().documents).toMatchObject([{ documentId: 3, status: "added", thing: { name: "Kettle" } }]);
+
+    const reader = await connect(await keyOf(true));
+    expect((await reader("paperless_inbox")).isError).toBe(false);
+    await expect(reader("sort_paperless_document", { documentId: 2, action: "restore" })).rejects.toThrow(/not found/); // not offered
   });
 
   it("is hidden on a server without it", async () => {

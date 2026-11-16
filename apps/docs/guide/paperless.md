@@ -17,6 +17,9 @@ The household's owner or an admin does this once, in **Settings → Household �
 3. **In Ferret**, enter Paperless's address (the one Ferret's server reaches it at), the token and the tag.
    **Copy files into Ferret** is on to start with (see [Copy or link](#copy-or-link)).
 
+![Settings → Household: the Paperless-ngx card, with the address, the Paperless user, the tag and when it last checked](/screenshots/paperless-settings-light.webp){.shot .light-only}
+![Settings → Household: the Paperless-ngx card, with the address, the Paperless user, the tag and when it last checked](/screenshots/paperless-settings-dark.webp){.shot .dark-only}
+
 Ferret checks the token and the tag before saving, so a mistake shows up straight away. The token is kept encrypted
 with your household's key and never shown again. To change it, use **Change…** and paste a new one.
 
@@ -29,6 +32,9 @@ Paperless has a certificate from your own certificate authority, the server admi
 
 **From Paperless** (in **Add things**, on the Import screen, and in the bell when something's waiting) lists the
 tagged documents nobody has sorted yet, newest first, with Paperless's picture of each and its first words.
+
+![From Paperless: a snow blower receipt offered for the snow blower, a tax statement, an espresso machine manual offered for the espresso machine](/screenshots/paperless-light.webp){.shot .light-only}
+![From Paperless: a snow blower receipt offered for the snow blower, a tax statement, an espresso machine manual offered for the espresso machine](/screenshots/paperless-dark.webp){.shot .dark-only}
 
 - **New thing…** makes a thing named after the document (change the name, pick where it's kept), with the document on
   it.
@@ -43,6 +49,12 @@ so a document keeps its tag in Paperless and doesn't come back. Members can sort
 
 **Attach from Paperless** (under the thing's photos and documents) searches all of Paperless, whatever the tags, and
 attaches the document you pick.
+
+## With Claude
+
+Claude can read the inbox and search Paperless (`paperless_inbox`), and add, attach or dismiss documents
+(`sort_paperless_document`) — *"what's waiting from Paperless?"*, *"put the fridge manual on the fridge"*. It asks which
+thing before attaching. A read-only key only reads. See [Claude](./claude).
 
 ## Copy or link
 
