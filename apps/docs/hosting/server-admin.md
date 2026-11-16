@@ -46,6 +46,13 @@ brand and model iFixit knows. It's off until you switch it on, because it sends 
 vehicle's make, model and year) to iFixit's public search — nothing else — each at most once a month, for every
 household together. Ferret only links to iFixit; it never copies its guides.
 
+## Smart search
+
+**Settings → Server → Smart search** (shown when [smart search](ai) is set up) names the embedding model and the
+vector store, and how many things are embedded. After a change of model or collection, Ferret embeds everything again
+by itself, and this card follows it. **Re-index everything** clears the index and embeds every thing again — for a
+change Ferret can't tell from the names ([changing the embedding model](ai#changing-the-embedding-model)).
+
 ## Service errors
 
 **Settings → Server → Service errors** lists every failed call to a service Ferret uses — the AI models (Ollama, the

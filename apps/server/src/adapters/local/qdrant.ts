@@ -14,6 +14,16 @@ export class QdrantVectors implements Vectors {
     private readonly collection: string,
   ) {}
 
+  get store() {
+    return `Qdrant ${new URL(this.baseUrl).host}/${this.collection}`;
+  }
+
+  /** Drops the collection: the next upsert makes it again, sized to whatever the model now gives. */
+  async clear() {
+    this.ready = undefined;
+    if (await this.exists()) await this.call("DELETE", "");
+  }
+
   async upsert(points: VectorPoint[]) {
     if (points.length === 0) return;
     await this.ensureCollection(points[0]!.vector.length);

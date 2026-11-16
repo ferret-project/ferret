@@ -19,6 +19,8 @@ import { HTTPException } from "hono/http-exception";
 import { aboutServer, clearServiceErrors, listServiceErrors } from "../lib/service-errors";
 import { barcodeLookupStatus, bookLookupStatus, setBooksEnabled } from "../lib/products";
 import { runServerCheck } from "../lib/server-check";
+import { reindexEverything, searchIndexStatus } from "../lib/search-index";
+import { BACKFILL_JOB } from "../jobs/index-item";
 import { MAX_FILE_BYTES, addClient, addTrusted, listCertificates, removeCertificate } from "../lib/certificates";
 
 export const server = new Hono<AppEnv>();
@@ -113,6 +115,17 @@ server.delete("/certificates/:id", async (c) => c.json(await removeCertificate(c
 /** Online barcode lookups: on or off, and what's left of the database's allowance today. */
 /** Server check: files, rows pointing at nothing, unfinished work, backups — read-only, on demand. */
 server.post("/check", async (c) => c.json(await runServerCheck({ db: c.var.db, blobs: c.var.deps.blobs, files: c.var.files })));
+
+/** Search by meaning's index: the embedding model and store, how many things are embedded, a re-index under way. */
+server.get("/search-index", async (c) => c.json(await searchIndexStatus(c.var.deps)));
+/** Re-index everything: clears the vector store and embeds every thing again (for new weights under the same name). */
+server.post("/search-index/rebuild", async (c) => {
+  const { deps } = c.var;
+  if (!deps.ai || !deps.vectors || !deps.jobs) throw new HTTPException(409, { message: "Search by meaning isn't on" });
+  await reindexEverything(deps);
+  await deps.jobs.enqueue(BACKFILL_JOB, {});
+  return c.json(await searchIndexStatus(deps));
+});
 
 server.get("/barcode-lookups", async (c) => c.json(await barcodeLookupStatus(c.var.deps)));
 

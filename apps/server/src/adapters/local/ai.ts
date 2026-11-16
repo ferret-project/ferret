@@ -18,6 +18,10 @@ export class OpenAiModels implements Ai {
     this.chat = new OpenAiChat(servers.vision, models.vision, { timeoutMs, apiKey: servers.apiKey });
   }
 
+  get embedModel() {
+    return this.models.embed;
+  }
+
   async embed(texts: string[], purpose: "document" | "query") {
     // Qwen3-Embedding is instruction-tuned: queries get a task prefix, stored text doesn't.
     const input =

@@ -31,6 +31,7 @@ export function Server() {
       {!demo && <Backups />}
       <ServerCheck />
       <ServiceErrors />
+      <SearchIndex />
       <BarcodeLookups />
       <RecallChecks />
       <VehicleLookups />
@@ -232,6 +233,88 @@ function ServerCheck() {
             )}
           </>
         )}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Search by meaning's index: which embedding model and store made it, how many things are embedded, and a re-index
+ * under way (after EMBED_MODEL or QDRANT_COLLECTION changed — the server notices at start — or Re-index everything).
+ */
+function SearchIndex() {
+  const qc = useQueryClient();
+  const [asking, setAsking] = useState(false);
+  const status = useQuery({
+    queryKey: ["server-search-index"],
+    queryFn: api.searchIndexStatus,
+    // While things are being embedded, follow along.
+    refetchInterval: (q) => (q.state.data && q.state.data.indexed < q.state.data.things ? 5000 : false),
+  });
+  const rebuild = useMutation({
+    mutationFn: api.rebuildSearchIndex,
+    onSuccess: (data) => {
+      qc.setQueryData(["server-search-index"], data);
+      setAsking(false);
+    },
+  });
+  const s = status.data;
+  if (!s?.available) return null;
+  const where = [s.model, s.store].filter(Boolean).join(" → ");
+  const before = s.previous ? [s.previous.model, s.previous.store].filter(Boolean).join(" → ") : "";
+  const indexed = s.indexed.toLocaleString();
+  const things = s.things.toLocaleString();
+  return (
+    <section className="card" aria-labelledby="search-index-title">
+      <div className="card-body gap-3">
+        <h2 id="search-index-title" className="card-title flex items-center gap-2">
+          <span className="icon-[tabler--brain] size-5 text-primary" />
+          <Trans>Smart search</Trans>
+          <HelpLink page="hosting/ai.html#changing-the-embedding-model" label={t`Smart search`} />
+        </h2>
+        {where && <p className="text-sm break-words">{where}</p>}
+        <p className="text-sm text-base-content/70">
+          <Trans>{indexed} of {things} things embedded.</Trans>
+        </p>
+        {s.reindexingSince && (
+          <div className="alert alert-soft alert-info flex items-start gap-2">
+            <span className="icon-[tabler--refresh] mt-0.5 size-5 shrink-0" />
+            <span className="min-w-0 break-words">
+              {before ? (
+                <Trans>Embedding everything again, because the index was made by {before}. Until it's done, smart search finds only the things already embedded; keyword search works as usual.</Trans>
+              ) : (
+                <Trans>Embedding everything again. Until it's done, smart search finds only the things already embedded; keyword search works as usual.</Trans>
+              )}
+            </span>
+          </div>
+        )}
+        <p className="text-sm text-base-content/70">
+          <Trans>Ferret embeds everything again by itself when EMBED_MODEL or the vector store changes. Re-index everything is for a change it can't see, like new weights under the same model name.</Trans>
+        </p>
+        {asking ? (
+          <div className="flex flex-col gap-2 rounded-box border border-base-content/15 p-3">
+            <p className="text-sm">
+              <Trans>Clear the index and embed all {things} things again? Until it's done, smart search finds only the things already embedded.</Trans>
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className="btn btn-primary btn-wrap" disabled={rebuild.isPending} onClick={() => rebuild.mutate()}>
+                {rebuild.isPending && <span className="loading loading-spinner loading-sm" />}
+                <Trans>Re-index everything</Trans>
+              </button>
+              <button type="button" className="btn btn-soft" disabled={rebuild.isPending} onClick={() => setAsking(false)}>
+                <Trans>Cancel</Trans>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <button type="button" className="btn btn-soft btn-primary btn-wrap" disabled={!!s.reindexingSince} onClick={() => setAsking(true)}>
+              <span className="icon-[tabler--refresh] size-5" />
+              <Trans>Re-index everything…</Trans>
+            </button>
+          </div>
+        )}
+        {rebuild.isError && <div className="alert alert-soft alert-error">{rebuild.error.message}</div>}
       </div>
     </section>
   );

@@ -9,6 +9,7 @@ import { z } from "zod";
 import { item } from "../db/schema";
 import { itemSummary, loadSearchDoc } from "../lib/search-text";
 import type { Ai, Db, JobHandler, Jobs, SearchProfile, VectorPoint, Vectors } from "../ports";
+import { checkIndexSignature } from "../lib/search-index";
 import { DUPLICATE_SCORE, DUPLICATE_SCORE_SAME_PLACE, recordNeighbours } from "../lib/duplicates";
 
 export const INDEX_JOB = "item.index";
@@ -66,9 +67,13 @@ export function indexItem(deps: { db: Db; ai: Ai; vectors: Vectors; profile?: Se
   };
 }
 
-/** On startup: queue every item that was never indexed or changed since. */
-export function backfillIndex(deps: { db: Db; jobs: Jobs }): JobHandler {
+/**
+ * On startup: if the embedding model or the store changed, mark everything to embed again (lib/search-index.ts); then
+ * queue every item that was never indexed or changed since.
+ */
+export function backfillIndex(deps: { db: Db; jobs: Jobs; ai?: Ai; vectors?: Vectors }): JobHandler {
   return async () => {
+    await checkIndexSignature(deps);
     const stale = await deps.db
       .select({ id: item.id })
       .from(item)

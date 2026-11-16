@@ -93,7 +93,7 @@ and check **Settings → Server → Keys** says "From the settings". The copy in
 | `AI_API_KEY` | Sent as a Bearer token to the model servers (vision, embeddings, chat, reranker, speech), for servers started with an API key. |
 | `CHAT_URL`, `CHAT_MODEL`, `CHAT_REASONING` | A stronger text model for Ask Ferret and documents (OpenAI-compatible). `CHAT_REASONING` (default `low`) is sent as `reasoning_effort`; set it empty for a model that doesn't take one. |
 | `DOCLING_URL`, `DOCLING_VLM_URL`, `DOCLING_OPTIONS` | Reading PDFs and scanned documents; `DOCLING_VLM_URL` reads pages with granite-docling (an OpenAI-compatible endpoint) instead of docling's standard pipeline. |
-| `QDRANT_URL`, `QDRANT_API_KEY`, `QDRANT_COLLECTION` | Smart search's vector store. |
+| `QDRANT_URL`, `QDRANT_API_KEY`, `QDRANT_COLLECTION` | Smart search's vector store. Changing the collection or `EMBED_MODEL` embeds everything again at the next start ([changing the embedding model](ai#changing-the-embedding-model)). |
 | `RERANK_URL`, `RERANK_MODEL` | Better ordering of search results. |
 | `SPEECH_URL`, `SPEECH_MODEL` | Speech to text (an OpenAI-compatible `/v1/audio/transcriptions`: a Whisper server such as speaches, or vLLM): say a thing's name on a walkthrough. `SPEECH_MODEL` defaults to `whisper-1`. |
 

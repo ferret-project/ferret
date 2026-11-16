@@ -197,7 +197,7 @@ const schema = z.object({
   CHAT_MODEL: z.string().default("gpt-oss-120b"),
   /** reasoning_effort for reasoning models: low keeps answers to a few seconds. Empty to omit. */
   CHAT_REASONING: z.string().default("low"),
-  /** Embedding model for semantic search. Changing it means a new QDRANT_COLLECTION (different vector size). */
+  /** Embedding model for semantic search. Changing it re-embeds every item at the next start (lib/search-index.ts). */
   EMBED_MODEL: z.string().default("qwen3-embedding:8b"),
   /** docling-serve, e.g. http://docling.lan:5001. Enables text extraction from PDFs and scanned documents. */
   DOCLING_URL: z.url().optional(),

@@ -139,7 +139,7 @@ export function jobSchedule({
   }
   if (search) {
     handlers[INDEX_JOB] = indexItem({ db, ai: deps.ai!, vectors: deps.vectors!, profile: deps.searchProfile });
-    handlers[BACKFILL_JOB] = backfillIndex({ db, jobs });
+    handlers[BACKFILL_JOB] = backfillIndex({ db, jobs, ai: deps.ai, vectors: deps.vectors });
   }
   if (deps.webhooks) {
     handlers[WEBHOOK_JOB] = deliverWebhookJob({ db, webhooks: deps.webhooks, files, appUrl });

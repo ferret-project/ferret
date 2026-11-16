@@ -512,6 +512,8 @@ export const OPERATIONS: Operation[] = [
   { method: "put", path: "/server/books", tag: "Server", summary: "Switch book look-ups on (a book's ISBN is sent to Open Library) or off: { enabled } (server admin)", writes: true, returns: "BookLookupStatus" },
   { method: "get", path: "/server/repair-guides", tag: "Server", summary: "Repair guide links (iFixit): on or off, brands and models asked about and matched (server admin)", returns: "RepairGuideStatus" },
   { method: "put", path: "/server/repair-guides", tag: "Server", summary: "Switch repair guide links on (things' brands and models are sent to iFixit's search) or off: { enabled } (server admin)", writes: true, returns: "RepairGuideStatus" },
+  { method: "get", path: "/server/search-index", tag: "Server", summary: "Search by meaning's index: the embedding model and vector store, things embedded, a re-index under way (server admin)", returns: "SearchIndexStatus" },
+  { method: "post", path: "/server/search-index/rebuild", tag: "Server", summary: "Re-index everything: clear the vector store and embed every thing again (server admin)", writes: true, returns: "SearchIndexStatus" },
   { method: "get", path: "/server/vehicles", tag: "Server", summary: "Vehicle look-ups (NHTSA): on or off, vehicles decoded, vehicle recalls kept (server admin)", returns: "VehicleLookupStatus" },
   { method: "put", path: "/server/vehicles", tag: "Server", summary: "Switch vehicle look-ups on (VINs are sent to NHTSA to decode, and makes/models/years for recalls) or off: { enabled } (server admin)", writes: true, returns: "VehicleLookupStatus" },
   { method: "get", path: "/server/recalls", tag: "Server", summary: "Recall checks: on or off, brands asked about, recalls kept (server admin)", returns: "RecallStatus" },

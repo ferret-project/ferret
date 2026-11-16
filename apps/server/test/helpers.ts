@@ -83,6 +83,8 @@ export class FakeAi implements Ai {
   calls: { prompt: string; image?: string }[] = [];
   embedCalls: { texts: string[]; purpose: string }[] = [];
   embedError?: Error;
+  /** Set to test the search index's signature (lib/search-index.ts). */
+  embedModel?: string;
   constructor(private readonly replies: (unknown | Error)[] = []) {}
   async embed(texts: string[], purpose: "document" | "query") {
     this.embedCalls.push({ texts, purpose });
@@ -208,6 +210,10 @@ export class FakeReranker implements Reranker {
 /** Qdrant stand-in: brute-force cosine similarity over points in memory. */
 export class MemoryVectors implements Vectors {
   points = new Map<string, VectorPoint>();
+  constructor(readonly store?: string) {}
+  async clear() {
+    this.points.clear();
+  }
   async upsert(points: VectorPoint[]) {
     for (const p of points) this.points.set(p.id, p);
   }
@@ -316,7 +322,7 @@ export async function setup(
   if (chat ?? ai) jobs.register({ [IMPORT_TRIAGE_JOB]: importTriageJob(full), [REPLACEMENT_JOB]: replacementJob(full), [TYPICAL_UPKEEP_JOB]: typicalUpkeepJob(full) });
   if (pdfPages) jobs.register({ [PDF_THUMB_JOB]: pdfThumbnail({ db, files, pdfPages, images }), [PDF_BACKFILL_JOB]: pdfThumbnailBackfill({ db, jobs }) });
   if (ai && vectors) {
-    jobs.register({ [INDEX_JOB]: indexItem({ db, ai, vectors }), [BACKFILL_JOB]: backfillIndex({ db, jobs }) });
+    jobs.register({ [INDEX_JOB]: indexItem({ db, ai, vectors }), [BACKFILL_JOB]: backfillIndex({ db, jobs, ai, vectors }) });
   }
 
   /** Signs up a user with their own household; returns a fetch helper carrying their session. */

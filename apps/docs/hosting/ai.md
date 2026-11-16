@@ -18,8 +18,21 @@ this server's households under Settings → Server).
 | [AI helpers](../guide/ai) | `CHAT_URL` or `VISION_URL` | Sorting imports, filters from plain words, replacement-cost estimates, typical upkeep. Possible duplicates by meaning also need smart search. |
 | Speech to text | `SPEECH_URL` (an OpenAI-compatible `/v1/audio/transcriptions`, e.g. [speaches](https://github.com/speaches-ai/speaches) or vLLM with Whisper) | Saying a thing's name on a walkthrough. |
 
-Changing `EMBED_MODEL` needs a new `QDRANT_COLLECTION` (the vectors are a different size). Use a separate collection
-for each Ferret (e.g. one for testing).
+Use a separate `QDRANT_COLLECTION` for each Ferret (e.g. one for testing).
+
+### Changing the embedding model
+
+Ferret remembers which embedding model and which collection made its search index. When you change `EMBED_MODEL`,
+`QDRANT_COLLECTION` or `QDRANT_URL` and restart, it notices and embeds every thing again by itself — in the
+background, a thing at a time. If the collection is the same one, the old model's vectors are cleared first, so the
+two never mix (a new model's vectors are often a different size anyway). **Settings → Server → Smart search** shows
+the model, the collection and how far it has got. Until it's done, smart search only finds the things already
+embedded; keyword search works as usual.
+
+A change Ferret can't see from the names — new weights under the same model name, or the same model at another
+precision on the same server — needs **Re-index everything** there.
+
+Search's cut-offs were tuned on the default models, so another model may find a little more or less by meaning.
 
 ## Model servers
 

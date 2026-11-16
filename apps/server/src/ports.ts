@@ -112,6 +112,13 @@ export interface Vectors {
     opts: { limit: number; filter: Record<string, string> },
   ): Promise<{ id: string; score: number; payload: Record<string, string | number> }[]>;
   deleteWhere(filter: Record<string, string>): Promise<void>;
+  /**
+   * Which store this is ("Qdrant gpu.lan:6333/ferret"), for the search index's signature (lib/search-index.ts): a
+   * different one starts empty, so every item is embedded again.
+   */
+  readonly store?: string;
+  /** Removes every point — when the embedding model changed, so old and new vectors never mix. */
+  clear?(): Promise<void>;
 }
 
 /**
@@ -126,6 +133,8 @@ export interface TextModel {
 export interface Ai extends TextModel {
   /** One vector per text. Queries and documents can differ (instruction-tuned embedding models). */
   embed(texts: string[], purpose: "document" | "query"): Promise<number[][]>;
+  /** The embedding model's name, for the search index's signature: when it changes, every item is embedded again. */
+  readonly embedModel?: string;
 }
 
 /** Speech to text: a short recording (naming things during a walkthrough). */

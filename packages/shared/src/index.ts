@@ -2073,6 +2073,22 @@ export interface BookLookupStatus {
   books: number;
 }
 
+/** Search by meaning's index for Settings → Server: which models made it, and how far a re-index has got. */
+export interface SearchIndexStatus {
+  /** Search by meaning is on (an embedding model and a vector store). */
+  available: boolean;
+  /** The embedding model and the store, as the server names them (null when it can't). */
+  model: string | null;
+  store: string | null;
+  /** Things on this server (not deleted), and how many of them are embedded as they are now. */
+  things: number;
+  indexed: number;
+  /** When everything began being embedded again (a new model or store, or Re-index everything), while it's under way. */
+  reindexingSince: string | null;
+  /** What made the index before, while a re-index after a change is under way. */
+  previous: { model: string | null; store: string | null } | null;
+}
+
 /** Vehicle look-ups (NHTSA: VINs decoded, vehicle recalls) for Settings → Server. */
 export interface VehicleLookupStatus {
   available: boolean;
