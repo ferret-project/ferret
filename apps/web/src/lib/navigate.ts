@@ -21,3 +21,13 @@ export function navigateTo(href: string, opts: { replace?: boolean } = {}) {
   if (opts.replace) history.replace(path);
   else history.push(path);
 }
+
+/**
+ * Back as people mean it: to the screen they came from when it's one of Ferret's (the router numbers its entries —
+ * router.tsx stampEntry), else — a link opened fresh, a label scanned — to `parent`, replacing this entry so Back from
+ * there doesn't come here again.
+ */
+export function goBack(parent: string) {
+  if ((window.history.state?.__TSR_index ?? 0) > 0) window.history.back();
+  else navigateTo(parent, { replace: true });
+}

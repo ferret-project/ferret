@@ -56,7 +56,7 @@ import { AddFromPhotos } from "./PhotoAdd";
 import { Modal } from "./Modal";
 import { NewHouseholdDialog } from "./NewHousehold";
 import { COMMAND_K, searchFromAnywhere } from "./Search";
-import { navigateTo } from "./lib/navigate";
+import { navigateTo, goBack } from "./lib/navigate";
 import { HouseholdContext } from "./lib/household";
 import { AttentionBell } from "./AttentionBell";
 import { currencySymbol, toCents } from "./lib/money";
@@ -506,7 +506,6 @@ export const BarAccount = createContext<ReactNode>(null);
 export function TopBar({
   title,
   back,
-  history = false,
   help,
   actions,
   search,
@@ -514,10 +513,8 @@ export function TopBar({
   sticky = true,
 }: {
   title: ReactNode;
-  /** Where Back goes; none on a top-level screen (More). */
+  /** Back: to the screen this was opened from (a room, a search, More…), or to this on a fresh visit. None on a top-level screen (More). */
   back?: string;
-  /** Back to wherever the screen was opened from (a room, a search…), `back` on a fresh visit. */
-  history?: boolean;
   /** Its HelpLink, beside the title. */
   help?: ReactNode;
   /** The screen's own buttons (+ Task, Print, Edit…). */
@@ -539,16 +536,11 @@ export function TopBar({
             href={back}
             className="btn btn-text btn-sm btn-square"
             aria-label={t`Back`}
-            onClick={
-              history
-                ? (e) => {
-                    if (window.history.length > 1) {
-                      e.preventDefault();
-                      window.history.back();
-                    }
-                  }
-                : undefined
-            }
+            onClick={(e) => {
+              if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return; // a new tab: the link itself
+              e.preventDefault();
+              goBack(back);
+            }}
           >
             <span className="icon-[tabler--arrow-left] size-5 rtl:-scale-x-100" />
           </a>

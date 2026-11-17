@@ -166,7 +166,6 @@ export function PrintLabels({ householdName, householdId, codes }: { householdNa
       <TopBar
         title={<Trans>Print labels</Trans>}
         back="#/"
-        history
         help={<HelpLink page="guide/labels.html" label={t`QR labels`} />}
         actions={
           <>

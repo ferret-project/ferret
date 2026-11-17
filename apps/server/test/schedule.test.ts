@@ -10,7 +10,8 @@ import { REMIND_JOB } from "../src/jobs/remind";
 import { jobSchedule } from "../src/jobs/schedule";
 import type { Deps, Jobs } from "../src/ports";
 import { testDb } from "./db";
-import { FakePush, config } from "./helpers";
+import { BACKFILL_JOB } from "../src/jobs/index-item";
+import { FakeAi, FakePush, MemoryVectors, config } from "./helpers";
 
 /** A job queue that only remembers what was queued. */
 const recorder = () => {
@@ -41,5 +42,14 @@ describe("the job schedule (both entry points)", () => {
     await withPush.schedule.daily();
     await withPush.schedule.every10Minutes();
     expect(withPush.queued).toEqual([REMIND_JOB, RECALL_SYNC_JOB, PURGE_JOB, "service-errors.alert"]);
+  });
+
+  it("embeds what's new or missed every day too, not only at start (a Worker never starts)", async () => {
+    const search = await scheduleWith({ ai: new FakeAi(), vectors: new MemoryVectors() });
+    await search.schedule.daily();
+    expect(search.queued).toContain(BACKFILL_JOB);
+    const none = await scheduleWith({});
+    await none.schedule.daily();
+    expect(none.queued).not.toContain(BACKFILL_JOB);
   });
 });

@@ -41,6 +41,7 @@ import type { Db, Deps } from "../ports";
 import { countEvent } from "./analytics";
 import { ASK_FILES, ASK_ITEMS, askAboutItem, askInventory } from "./ask";
 import { askContextTokens } from "./ask-settings";
+import { suggestSpelling } from "./spelling";
 import { findInItem } from "./item-search";
 import { loadSearchDoc } from "./search-text";
 import { categoryInfo, setItemTags, tagsOf } from "./catalog";
@@ -644,7 +645,7 @@ export async function searchItems(
   const withDocuments = opts.documents !== "exclude";
   const words = await fullTextSearch(v.db, v.householdId, query, limit, { documents: withDocuments });
   const hits: Record<string, SearchHit> = Object.fromEntries(
-    words.map(({ itemId, rank: _, ...where }) => [itemId, { via: "words" as const, ...where }]),
+    words.map(({ itemId, rank: _, inDocumentsOnly: __, ...where }) => [itemId, { via: "words" as const, ...where }]),
   );
   let ids = words.map((w) => w.itemId);
   let checking = 0;
@@ -668,17 +669,21 @@ export async function searchItems(
         // A word match keeps "words", and its own passage if it has one.
         hits[id] = hits[id] ? { ...hit, ...hits[id], via: "words" } : hit;
       }
-      ids = fuse([ids, [...meaning.hits.keys()]]);
+      // A word match only inside a thing's documents votes half: a manual mentioning "television" is weaker than the TV.
+      const documentsOnly = new Set(words.filter((w) => w.inDocumentsOnly).map((w) => w.itemId));
+      ids = fuse([ids, [...meaning.hits.keys()]], 60, (id, list) => (list === 0 && documentsOnly.has(id) ? 0.5 : 1));
     } catch (err) {
       console.warn(`Semantic search unavailable, using words only: ${String(err)}`);
     }
   }
 
   ids = ids.slice(0, limit);
+  // Its words matched nothing: maybe a typo ("vacum") — a corrected search to offer, if that finds something.
+  const suggestion = words.length ? undefined : await suggestSpelling(v.db, v.householdId, query).catch(() => undefined);
   const found = ids.length ? await v.db.select().from(item).where(and(itemScope(v, filter), inList(item.id, ids))) : [];
   const byId = new Map(found.map((r) => [r.id, r]));
   const rows = await withTags(v, ids.flatMap((id) => byId.get(id) ?? [])); // keeps the ranking; drops other locations/deleted
-  return { data: rows, total: rows.length, limit, offset: 0, hits: Object.fromEntries(rows.map((r) => [r.id, hits[r.id]!])), ...(checking ? { checking } : {}) };
+  return { data: rows, total: rows.length, limit, offset: 0, hits: Object.fromEntries(rows.map((r) => [r.id, hits[r.id]!])), ...(checking ? { checking } : {}), ...(suggestion ? { suggestion } : {}) };
 }
 
 /** Ask Ferret: a question answered from the household's own items and documents, with sources. */

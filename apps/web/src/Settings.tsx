@@ -9,6 +9,7 @@
  * Modal 15" (member rows), the new-key dialog from "Dashboard Modal 14" and the
  * one-time reveal from "Dashboard Modal 7"; behaviour is plain React.
  */
+import { navigateTo } from "./lib/navigate";
 import { TopBar } from "./Nav";
 import type { ApiKeySummary, NewApiKey, OAuthGrantSummary } from "@ferret/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -67,6 +68,12 @@ export function Settings(props: { section: SettingsSection; householdName: strin
             <a
               key={tab.section}
               href={settingsHref(tab.section)}
+              // Tabs replace each other in history: Back leaves Settings, rather than stepping back through its tabs.
+              onClick={(e) => {
+                if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+                e.preventDefault();
+                navigateTo(settingsHref(tab.section), { replace: true });
+              }}
               className={`tab shrink-0 gap-2 max-sm:grow max-sm:px-2 max-sm:text-sm ${tab.section === section ? "tab-active" : ""}`}
               aria-current={tab.section === section ? "page" : undefined}
             >

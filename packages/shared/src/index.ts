@@ -948,6 +948,8 @@ export interface ItemSearch extends Paged<ItemListing> {
    * checked answer (the chat model decides which of them are what was meant).
    */
   checking?: number;
+  /** Searches whose words matched nothing: the same search with a misspelt word corrected ("vacum" → "vacuum"), when that finds something. */
+  suggestion?: string;
   /** Lists asked with `fold=category`: this page's folded categories (before its things). */
   folded?: FoldedCategory[];
   /** Lists asked with `fold=category`: rows to page through — folded categories + the things not in them. */

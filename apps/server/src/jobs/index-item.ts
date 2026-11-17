@@ -4,9 +4,9 @@
  * deep in a manual still finds its item. Vectors are derived data: rebuilt from
  * the database whenever an item or its attachments change.
  */
-import { and, eq, isNull, lt, or } from "drizzle-orm";
+import { and, eq, isNull, lt, or, sql } from "drizzle-orm";
 import { z } from "zod";
-import { item } from "../db/schema";
+import { item, serverSetting } from "../db/schema";
 import { itemSummary, loadSearchDoc } from "../lib/search-text";
 import type { Ai, Db, JobHandler, Jobs, SearchProfile, VectorPoint, Vectors } from "../ports";
 import { checkIndexSignature } from "../lib/search-index";
@@ -16,7 +16,8 @@ export const INDEX_JOB = "item.index";
 export const BACKFILL_JOB = "search.backfill";
 
 const CHUNK_CHARS = 1500;
-const MAX_CHUNKS_PER_DOCUMENT = 40;
+/** About 180,000 characters: a long manual (100+ pages) is searched by meaning to its end, not only its first 30 pages. */
+const MAX_CHUNKS_PER_DOCUMENT = 120;
 const EMBED_BATCH = 16;
 
 export function indexItem(deps: { db: Db; ai: Ai; vectors: Vectors; profile?: SearchProfile }): JobHandler {
@@ -74,12 +75,30 @@ export function indexItem(deps: { db: Db; ai: Ai; vectors: Vectors; profile?: Se
 export function backfillIndex(deps: { db: Db; jobs: Jobs; ai?: Ai; vectors?: Vectors }): JobHandler {
   return async () => {
     await checkIndexSignature(deps);
+    await reembedCutDocuments(deps.db);
     const stale = await deps.db
       .select({ id: item.id })
       .from(item)
       .where(and(isNull(item.deletedAt), or(isNull(item.indexedAt), lt(item.indexedAt, item.updatedAt))));
     for (const { id } of stale) await deps.jobs.enqueue(INDEX_JOB, { itemId: id });
   };
+}
+
+/**
+ * Once, when the cap on a document's chunks rises: things with a document longer than the old cap reached are embedded
+ * again (their `indexedAt` emptied), so the rest of their manuals become searchable by meaning — not everything.
+ */
+const CHUNKS_KEY = "search.chunksPerDocument";
+async function reembedCutDocuments(db: Db) {
+  const [row] = await db.select().from(serverSetting).where(eq(serverSetting.key, CHUNKS_KEY));
+  const before = Number(row?.value) || 40;
+  if (before >= MAX_CHUNKS_PER_DOCUMENT) return;
+  await db.run(sql`UPDATE item SET indexed_at = NULL WHERE id IN (
+    SELECT item_id FROM attachment
+    WHERE kind = 'document' AND deleted_at IS NULL AND item_id IS NOT NULL
+      AND length(json_extract(analysis, '$.text')) > ${before * CHUNK_CHARS})`);
+  const value = String(MAX_CHUNKS_PER_DOCUMENT);
+  await db.insert(serverSetting).values({ key: CHUNKS_KEY, value }).onConflictDoUpdate({ target: serverSetting.key, set: { value } });
 }
 
 /** Splits text into ~CHUNK_CHARS pieces on paragraph boundaries (hard-splitting very long paragraphs). */

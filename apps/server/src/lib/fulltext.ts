@@ -16,6 +16,8 @@ export interface TextHit {
   attachmentId?: string;
   filename?: string;
   snippet?: string;
+  /** Only its documents have the words (a manual mentions it), not the thing itself or its photos: weaker evidence. */
+  inDocumentsOnly?: boolean;
 }
 
 /** Rewrites an item's rows in both indexes (or removes them, if the item is gone). */
@@ -85,10 +87,16 @@ export async function fileTextSearch(db: Db, householdId: string, query: string,
   const rows = await db.all<{ attachment_id: string; snippet: string }>(sql`
     SELECT f.attachment_id, snippet(file_search, 3, '', '', '…', 24) AS snippet
     FROM file_search f JOIN attachment a ON a.id = f.attachment_id
-    WHERE file_search MATCH ${terms.map((t) => `"${t}"*`).join(" ")} AND f.household_id = ${householdId} AND a.deleted_at IS NULL
+    WHERE file_search MATCH ${matchQuery(terms)} AND f.household_id = ${householdId} AND a.deleted_at IS NULL
     ORDER BY bm25(file_search, 0, 0, 8.0, 1.0) LIMIT ${limit}`);
   return rows.map((r) => ({ attachmentId: r.attachment_id, snippet: r.snippet || undefined }));
 }
+
+/**
+ * Every term, as the start of a word ("dril" finds "drill") — except a single letter or digit, which as a start would
+ * match nearly everything ("c" of "c++"): that only matches itself, as a whole word.
+ */
+const matchQuery = (terms: string[]) => terms.map((t) => (t.length > 1 ? `"${t}"*` : `"${t}"`)).join(" ");
 
 /** Small words that would make every word required ("where is the drill") fail to match. */
 const STOPWORDS = new Set(
@@ -108,36 +116,46 @@ export async function fullTextSearch(db: Db, householdId: string, query: string,
 
   // Without documents: the item's own row and its photos' rows only.
   const noDocuments = opts.documents === false ? sql` AND (attachment_id IS NULL OR attachment_id NOT IN (SELECT id FROM attachment WHERE kind = 'document'))` : sql``;
-  type Row = { item_id: string; attachment_id: string | null; filename: string | null; rank: number; snippet: string };
+  type Row = { item_id: string; attachment_id: string | null; filename: string | null; rank: number; snippet: string; kind?: string | null };
   let rows = await db.all<Row>(sql`
     SELECT item_id, attachment_id, filename, bm25(item_search, 0, 0, 0, 0, 8.0, 1.0) AS rank,
+           (SELECT kind FROM attachment WHERE attachment.id = item_search.attachment_id) AS kind,
            snippet(item_search, 5, '', '', '…', 24) AS snippet
     FROM item_search
-    WHERE item_search MATCH ${terms.map((t) => `"${t}"*`).join(" ")} AND household_id = ${householdId}${noDocuments}
+    WHERE item_search MATCH ${matchQuery(terms)} AND household_id = ${householdId}${noDocuments}
     ORDER BY rank LIMIT ${limit * 4}`);
 
   const substrings = terms.filter((t) => t.length >= 3);
   if (rows.length === 0 && substrings.length) {
     rows = await db.all<Row>(sql`
       SELECT item_id, attachment_id, filename, bm25(item_search_trigram) AS rank,
+             (SELECT kind FROM attachment WHERE attachment.id = item_search_trigram.attachment_id) AS kind,
              snippet(item_search_trigram, 4, '', '', '…', 24) AS snippet
       FROM item_search_trigram
       WHERE item_search_trigram MATCH ${substrings.map((t) => `"${t}"`).join(" ")} AND household_id = ${householdId}${noDocuments}
       ORDER BY rank LIMIT ${limit * 4}`);
   }
 
-  // Best row per item; a match inside a document carries its passage.
+  // Best row per item; a match inside a document carries its passage. Things whose own words match (name, brand,
+  // notes, photos) come before things only their documents mention — "television" is the TV, not a manual's FCC notice.
   const hits = new Map<string, TextHit>();
   for (const r of rows) {
-    if (hits.has(r.item_id)) continue;
+    const inDocument = r.kind === "document";
+    const hit = hits.get(r.item_id);
+    if (hit) {
+      if (!inDocument) delete hit.inDocumentsOnly;
+      continue;
+    }
     hits.set(r.item_id, {
       itemId: r.item_id,
-      rank: hits.size,
+      rank: 0,
       ...(r.attachment_id
         ? { attachmentId: r.attachment_id, filename: r.filename ?? undefined, snippet: r.snippet || undefined }
         : {}),
+      ...(inDocument ? { inDocumentsOnly: true } : {}),
     });
-    if (hits.size >= limit) break;
   }
-  return [...hits.values()];
+  const ordered = [...hits.values()].sort((a, b) => Number(!!a.inDocumentsOnly) - Number(!!b.inDocumentsOnly)).slice(0, limit);
+  ordered.forEach((h, i) => (h.rank = i));
+  return ordered;
 }

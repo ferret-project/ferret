@@ -24,7 +24,7 @@ Use a separate `QDRANT_COLLECTION` for each Ferret (e.g. one for testing).
 
 Ferret remembers which embedding model and which collection made its search index. When you change `EMBED_MODEL`,
 `QDRANT_COLLECTION` or `QDRANT_URL` and restart, it notices and embeds every thing again by itself — in the
-background, a thing at a time. If the collection is the same one, the old model's vectors are cleared first, so the
+background, a thing at a time. (It also checks once a day, and embeds anything new or missed since.) If the collection is the same one, the old model's vectors are cleared first, so the
 two never mix (a new model's vectors are often a different size anyway). **Settings → Server → Smart search** shows
 the model, the collection and how far it has got. Until it's done, smart search only finds the things already
 embedded; keyword search works as usual.

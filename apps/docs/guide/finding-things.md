@@ -11,7 +11,12 @@ text **inside their photos and documents** (a receipt, a label, a manual). Part 
 If whoever runs Ferret has turned on smart search, it also finds things by **meaning**: *"something to make holes"*
 finds the drill.
 
-Manuals mention everything, so in a shop full of them a word can bring up every tool whose manual says it. Turn off
+A misspelt word — *"vacum"* — gets **Did you mean vacuum?** above the results, from the words your own things,
+places and tags use; tap it to search that instead.
+
+Things whose own name, details or photos have your words come before things only their manuals mention: *"television"*
+finds the TV before the vacuum whose manual warns about television interference. Manuals mention everything, though,
+so in a shop full of them a word can still bring up every tool whose manual says it. Turn off
 **Include manuals & receipts** above the results to match only the things themselves (their names, details, notes and
 photos). This device remembers the choice.
 

@@ -1357,6 +1357,26 @@ export function Home({ householdName, householdId, view }: { householdName: stri
               </div>
             )}
 
+            {/* Its words matched nothing, but a close spelling of them would ("vacum" → vacuum). */}
+            {query && items.data?.suggestion && (
+              <p className="text-sm text-base-content/70">
+                <Trans>
+                  Did you mean{" "}
+                  <button
+                    type="button"
+                    className="link link-primary tap font-medium"
+                    onClick={() => {
+                      setSearch(items.data!.suggestion!);
+                      setNow(items.data!.suggestion!);
+                    }}
+                  >
+                    {ph({ suggestion: items.data.suggestion })}
+                  </button>
+                  ?
+                </Trans>
+              </p>
+            )}
+
             {looksLikeQuestion(query) && aiAllowed && <AskFerret key={query} question={query} />}
 
             {items.isError && <div className="alert alert-soft alert-error">{items.error.message}</div>}

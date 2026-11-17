@@ -177,6 +177,9 @@ export function jobSchedule({
     await extra?.hourly?.().catch((err) => console.warn(`An extension's hourly work failed: ${String(err)}`));
   };
   const daily = async () => {
+    // Things new, changed or missed since they were last embedded, and a changed embedding model (lib/search-index.ts):
+    // also daily, since a runtime with no start (Workers) never runs atStart's.
+    if (search) await enqueue(BACKFILL_JOB);
     await enqueue(RECALL_SYNC_JOB);
     await enqueue(PURGE_JOB);
     await extra?.daily?.().catch((err) => console.warn(`An extension's daily work failed: ${String(err)}`));
@@ -186,8 +189,7 @@ export function jobSchedule({
     handlers,
     atStart: async () => {
       if (handlers[PDF_BACKFILL_JOB]) await enqueue(PDF_BACKFILL_JOB); // PDFs from before thumbnails
-      if (search) await enqueue(BACKFILL_JOB); // anything new or changed while search was off
-      await daily();
+      await daily(); // with the search backfill: anything new or changed while search was off
       await hourly();
       await ensureFullText(db); // fills the keyword index the first time
     },

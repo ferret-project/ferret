@@ -182,9 +182,9 @@ const round = (n: number) => Math.round(n * 1000) / 1000;
  * Σ 1/(k + rank) over the lists it appears in. Items ranked well by both
  * keyword and meaning search rise to the top; ties keep the earlier list's order.
  */
-export function fuse(lists: string[][], k = 60): string[] {
+export function fuse(lists: string[][], k = 60, weight: (id: string, list: number) => number = () => 1): string[] {
   const scores = new Map<string, number>();
-  for (const list of lists) list.forEach((id, i) => scores.set(id, (scores.get(id) ?? 0) + 1 / (k + i + 1)));
+  lists.forEach((list, l) => list.forEach((id, i) => scores.set(id, (scores.get(id) ?? 0) + weight(id, l) / (k + i + 1))));
   const firstSeen = [...new Set(lists.flat())];
   return firstSeen.sort((a, b) => scores.get(b)! - scores.get(a)! || firstSeen.indexOf(a) - firstSeen.indexOf(b));
 }

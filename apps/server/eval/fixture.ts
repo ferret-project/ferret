@@ -38,7 +38,9 @@ export const items: FixtureItem[] = [
   { name: "TV", brand: "Samsung", model: "QN65Q80C", location: ["Living room"],
     documents: [{ filename: "tv-receipt.jpg", description: "Best Buy receipt for a Samsung 65-inch TV.", text: "BEST BUY #1123\n03/02/2025\nSAMSUNG 65\" QLED QN65Q80C   1,099.99\nGEEK SQUAD PROTECTION 3YR     179.99\nTOTAL 1,384.67" }] },
   { name: "Soundbar", brand: "Sonos", model: "Beam", location: ["Living room"] },
-  { name: "Robot vacuum", brand: "iRobot", model: "Roomba j7", location: ["Hall closet"] },
+  { name: "Robot vacuum", brand: "iRobot", model: "Roomba j7", location: ["Hall closet"],
+    // A manual's boilerplate mentions things it isn't: "television" must still find the TV first.
+    documents: [{ filename: "roomba-manual.pdf", description: "iRobot Roomba j7 owner's guide.", text: "Emptying the bin\n\nPress the bin release button and empty the bin after each run. Clean the filter weekly.\n\nFCC notice\n\nThis equipment generates and can radiate radio frequency energy and may cause harmful interference to radio or television reception, which can be determined by turning the equipment off and on." }] },
   { name: "Space heater", brand: "De'Longhi", notes: "Oil-filled radiator", location: ["Basement"] },
   { name: "Dehumidifier", brand: "Frigidaire", location: ["Basement"] },
   { name: "Water heater", brand: "Rheem", model: "XG50T06EC36U1", serialNumber: "Q312345678", location: ["Basement", "Utility room"],
@@ -66,6 +68,7 @@ export const queries: FixtureQuery[] = [
   { q: "1234567", expect: ["Stand mixer", "Water heater"], kind: "keyword" }, // both serials contain it
   { q: "W12345", expect: ["Stand mixer"], kind: "keyword" },
   { q: "QN65", expect: ["TV"], kind: "keyword" },
+  { q: "television", expect: ["TV"], kind: "intent" },
   // Intent: what it's for, not what it's called.
   { q: "something to make holes in the wall", expect: ["Cordless drill"], kind: "intent" },
   { q: "clearing snow off the driveway", expect: ["Snow blower"], kind: "intent" },

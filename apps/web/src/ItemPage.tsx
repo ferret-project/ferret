@@ -857,7 +857,7 @@ function Classification({ item, fields, householdId }: { item: ItemListing; fiel
 function Shell({ title, action, wide, onSearch, children }: { title: string; action?: React.ReactNode; wide?: boolean; onSearch?: () => void; children: React.ReactNode }) {
   return (
     <div className="min-h-dvh bg-base-200">
-      <TopBar title={title} back="#/" history heading={false} search={onSearch} actions={action} />
+      <TopBar title={title} back="#/" heading={false} search={onSearch} actions={action} />
       {/* An item's own page uses a wide screen (photos beside the details); the not-found and loading states don't. */}
       <main className={`mx-auto flex max-w-3xl flex-col gap-6 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] ${wide ? "lg:max-w-6xl" : ""}`}>
         {children}
