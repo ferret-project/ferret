@@ -196,6 +196,12 @@ To make text translatable, wrap it with Lingui's macros: `` t`Add to cart` `` (`
 `<Trans>Add to cart</Trans>` (`@lingui/react/macro`). Write the English only; `pnpm test` fails on text that isn't
 wrapped, and CI sends the new text to the translations repository by itself. More in [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Support Ferret
+
+Ferret is free and open source, and every feature is in the app you run yourself. If it helps you keep track of your
+things, you can [buy the project a coffee](https://buymeacoffee.com/ferretproject). Starring the repository and
+telling a friend help too.
+
 ## License
 
 [MIT](LICENSE). Questions, ideas or something odd? Come say hi on [Discord](https://discord.gg/XSkKyP2pdg).
