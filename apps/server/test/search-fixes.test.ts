@@ -3,6 +3,8 @@ import type { ItemSearch } from "@ferret/shared";
 import { describe, expect, it } from "vitest";
 import { fuse } from "../src/lib/search";
 import { editDistance } from "../src/lib/spelling";
+import { eq } from "drizzle-orm";
+import { attachment } from "../src/db/schema";
 import { BACKFILL_JOB } from "../src/jobs/index-item";
 import { FakeAi, FakeDocuments, MemoryVectors, pdf, setup } from "./helpers";
 
@@ -81,11 +83,39 @@ describe("long manuals searched by meaning to the end", () => {
     const again = embedded().slice(before);
     expect(again.some((t) => t.startsWith("Furnace — furnace-manual.pdf"))).toBe(true);
     expect(again.some((t) => t.includes("Toaster"))).toBe(false);
-    expect(again.filter((t) => t.startsWith("Furnace — ")).length).toBeGreaterThan(40); // past the old cap
+    expect(again.filter((t) => t.startsWith("Furnace — ")).length).toBeGreaterThan(40); // past the old cap: all of it
 
     const after = embedded().length;
     await env.jobs.enqueue(BACKFILL_JOB, {});
     await env.jobs.drain();
     expect(embedded().length).toBe(after); // once
+  });
+});
+
+describe("document limits", () => {
+  const long = Array.from({ length: 2000 }, (_, i) => `Paragraph ${i} of a very long manual, about cleaning and care of the machine.`).join("\n\n");
+  async function withManual(documentLimits?: { textChars?: number; chunks?: number }) {
+    const ai = new FakeAi([docReply]);
+    const env = await setup({ ai, vectors: new MemoryVectors(), documents: new FakeDocuments([long]), documentLimits });
+    const ann = await env.user("ann");
+    const it = await ann.addItem({ name: "Furnace" });
+    const { id } = await ann.upload(it.id, pdf(), "furnace-manual.pdf", "document");
+    await env.jobs.drain();
+    const [row] = await env.db.select({ analysis: attachment.analysis }).from(attachment).where(eq(attachment.id, id));
+    const chunks = ai.embedCalls.flatMap((c) => c.texts).filter((t) => t.startsWith("Furnace — ")).length;
+    return { text: row!.analysis!.text, chunks };
+  }
+
+  it("keeps and embeds a whole manual on a server of its own", async () => {
+    const { text, chunks } = await withManual();
+    expect(text.length).toBe(long.length); // ~160k characters, all kept
+    expect(text).toContain("Paragraph 1999");
+    expect(chunks).toBeGreaterThan(100);
+  });
+
+  it("keeps and embeds only what a runtime's limits allow", async () => {
+    const { text, chunks } = await withManual({ textChars: 50_000, chunks: 10 });
+    expect(text.length).toBe(50_000);
+    expect(chunks).toBe(10);
   });
 });

@@ -13,11 +13,11 @@ import type { FileStore } from "../lib/files";
 import { countEvent } from "../lib/analytics";
 import { allow, recordUsage } from "../lib/plan";
 import { sniffContentType } from "../lib/sniff";
-import type { Ai, Analytics, Db, Deps, Documents, Entitlements, Images, JobHandler, PdfPages, TextModel } from "../ports";
+import type { Ai, Analytics, Db, Deps, Documents, Entitlements, Images, JobHandler, PdfPages, TextModel, DocumentLimits } from "../ports";
 import { householdCurrency } from "../lib/household-time";
 import { suggestTasks } from "../lib/suggested-tasks";
 import { autoFill } from "../lib/ai-fill";
-import { MAX_TEXT_PAGES, withMissedPages } from "../lib/pdf-text";
+import { withMissedPages } from "../lib/pdf-text";
 import { refreshFileSearch } from "../lib/fulltext";
 
 /** Separate job types so a long PDF never holds up photos (each type is its own lane). */
@@ -30,7 +30,6 @@ export const VISION_PX = 1600;
 /** Where a photo's vision copy from the browser waits for its analysis (lib/attachments.ts; removed once used). */
 export const previewKey = (blobKey: string) => `${blobKey}.preview`;
 /** Stored transcription limit (long manuals), and how much of it the model reads for suggestions. */
-const MAX_TEXT = 200_000;
 /**
  * Fewer readable characters than this in docling's Markdown, and the vision model reads the PDF's first page too: a scan
  * (no text at all), or a page docling took mostly for a picture — a Home Depot order PDF came back as its first four lines.
@@ -294,6 +293,8 @@ export function analyzeAttachment(deps: {
   entitlements?: Entitlements;
   /** Everything, for filling in fields where the household lets the AI (lib/ai-fill.ts). */
   full?: Deps;
+  /** How much of a document to keep (absent: all of it). */
+  limits?: DocumentLimits;
 }): JobHandler {
   return async (payload, { lastAttempt }) => {
     const { attachmentId } = z.object({ attachmentId: z.string() }).parse(payload);
@@ -333,9 +334,9 @@ export function analyzeAttachment(deps: {
       const docling = kind === "document" && deps.documents ? await deps.documents.toMarkdown(bytes, row.filename, row.contentType) : undefined;
       // Plus what the PDF's own text has that docling dropped (a parts list, a small table) — or, without docling, that
       // text alone when there's enough of it (lib/pdf-text.ts).
-      const pageTexts = kind === "document" && row.contentType === "application/pdf" ? await deps.pdfPages?.pageTexts?.(bytes, MAX_TEXT_PAGES) : null;
+      const pageTexts = kind === "document" && row.contentType === "application/pdf" ? await deps.pdfPages?.pageTexts?.(bytes, deps.limits?.pdfPages ?? Infinity) : null;
       const merged = pageTexts ? withMissedPages(docling, pageTexts) : docling;
-      const markdown = (merged !== undefined && (docling !== undefined || readableLength(merged) >= THIN_BELOW) ? merged : docling)?.slice(0, MAX_TEXT);
+      const markdown = (merged !== undefined && (docling !== undefined || readableLength(merged) >= THIN_BELOW) ? merged : docling)?.slice(0, deps.limits?.textChars ?? Infinity);
 
       let analysis: AttachmentAnalysis | undefined;
       // A scanned PDF (a picture of a receipt or a warranty card), or one docling mostly took for a picture: the vision

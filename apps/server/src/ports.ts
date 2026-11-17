@@ -525,10 +525,25 @@ export interface TlsSettings {
   apply(trusted: string[], clients: { hosts: string[]; pkcs12: Uint8Array; password: string }[]): void;
 }
 
+/**
+ * How much of a document is kept and searched, for a runtime that needs limits (small database values, short jobs).
+ * Absent — a server of its own (server.ts) — a manual is kept, searched and embedded whole.
+ */
+export interface DocumentLimits {
+  /** Characters of a document's text kept (what keyword search and Ask read). */
+  textChars?: number;
+  /** Pages of a PDF's own text layer read (to fill in what the document reader missed). */
+  pdfPages?: number;
+  /** ~1,500-character pieces of a document embedded for search by meaning. */
+  chunks?: number;
+}
+
 /** Everything the app needs, injected at startup by the entry point (server.ts, or another runtime's). */
 export interface Deps {
   db: Db;
   blobs: Blobs;
+  /** Limits on documents' text (absent: none). */
+  documentLimits?: DocumentLimits;
   vectors?: Vectors;
   ai?: Ai;
   jobs?: Jobs;

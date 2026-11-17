@@ -98,6 +98,7 @@ export function jobSchedule({
     pdfPages: deps.pdfPages,
     analytics: deps.analytics,
     entitlements: deps.entitlements,
+    limits: deps.documentLimits,
     onItemChanged,
     full: deps,
   });
@@ -139,8 +140,8 @@ export function jobSchedule({
     handlers[TYPICAL_UPKEEP_JOB] = typicalUpkeepJob(deps);
   }
   if (search) {
-    handlers[INDEX_JOB] = indexItem({ db, ai: deps.ai!, vectors: deps.vectors!, profile: deps.searchProfile });
-    handlers[BACKFILL_JOB] = backfillIndex({ db, jobs, ai: deps.ai, vectors: deps.vectors });
+    handlers[INDEX_JOB] = indexItem({ db, ai: deps.ai!, vectors: deps.vectors!, profile: deps.searchProfile, limits: deps.documentLimits });
+    handlers[BACKFILL_JOB] = backfillIndex({ db, jobs, ai: deps.ai, vectors: deps.vectors, limits: deps.documentLimits });
   }
   if (deps.webhooks) {
     handlers[WEBHOOK_JOB] = deliverWebhookJob({ db, webhooks: deps.webhooks, files, appUrl });

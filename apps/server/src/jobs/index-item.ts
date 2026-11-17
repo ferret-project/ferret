@@ -8,7 +8,7 @@ import { and, eq, isNull, lt, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { item, serverSetting } from "../db/schema";
 import { itemSummary, loadSearchDoc } from "../lib/search-text";
-import type { Ai, Db, JobHandler, Jobs, SearchProfile, VectorPoint, Vectors } from "../ports";
+import type { Ai, Db, DocumentLimits, JobHandler, Jobs, SearchProfile, VectorPoint, Vectors } from "../ports";
 import { checkIndexSignature } from "../lib/search-index";
 import { DUPLICATE_SCORE, DUPLICATE_SCORE_SAME_PLACE, recordNeighbours } from "../lib/duplicates";
 
@@ -16,11 +16,13 @@ export const INDEX_JOB = "item.index";
 export const BACKFILL_JOB = "search.backfill";
 
 const CHUNK_CHARS = 1500;
-/** About 180,000 characters: a long manual (100+ pages) is searched by meaning to its end, not only its first 30 pages. */
-const MAX_CHUNKS_PER_DOCUMENT = 120;
+/** What a document's embedding was cut at before limits came from the runtime (Deps.documentLimits). */
+const OLD_CHUNK_CAP = 40;
 const EMBED_BATCH = 16;
 
-export function indexItem(deps: { db: Db; ai: Ai; vectors: Vectors; profile?: SearchProfile }): JobHandler {
+export function indexItem(deps: { db: Db; ai: Ai; vectors: Vectors; profile?: SearchProfile; limits?: DocumentLimits }): JobHandler {
+  /** A manual is embedded whole, unless the runtime limits it. */
+  const cap = deps.limits?.chunks ?? Infinity;
   return async (payload) => {
     const { itemId } = z.object({ itemId: z.string() }).parse(payload);
     const doc = await loadSearchDoc(deps.db, itemId);
@@ -31,7 +33,7 @@ export function indexItem(deps: { db: Db; ai: Ai; vectors: Vectors; profile?: Se
 
     const chunks = documents.flatMap((d) =>
       chunk(d.analysis!.text)
-        .slice(0, MAX_CHUNKS_PER_DOCUMENT)
+        .slice(0, cap)
         .map((text, i) => ({ text, i, attachmentId: d.id, filename: d.filename })),
     );
     // The item's name goes in front of each chunk so a chunk alone still says what it's about.
@@ -72,10 +74,10 @@ export function indexItem(deps: { db: Db; ai: Ai; vectors: Vectors; profile?: Se
  * On startup: if the embedding model or the store changed, mark everything to embed again (lib/search-index.ts); then
  * queue every item that was never indexed or changed since.
  */
-export function backfillIndex(deps: { db: Db; jobs: Jobs; ai?: Ai; vectors?: Vectors }): JobHandler {
+export function backfillIndex(deps: { db: Db; jobs: Jobs; ai?: Ai; vectors?: Vectors; limits?: DocumentLimits }): JobHandler {
   return async () => {
     await checkIndexSignature(deps);
-    await reembedCutDocuments(deps.db);
+    await reembedCutDocuments(deps.db, deps.limits?.chunks ?? Infinity);
     const stale = await deps.db
       .select({ id: item.id })
       .from(item)
@@ -85,19 +87,20 @@ export function backfillIndex(deps: { db: Db; jobs: Jobs; ai?: Ai; vectors?: Vec
 }
 
 /**
- * Once, when the cap on a document's chunks rises: things with a document longer than the old cap reached are embedded
- * again (their `indexedAt` emptied), so the rest of their manuals become searchable by meaning — not everything.
+ * Once, when the cap on a document's chunks rises (or goes): things with a document longer than the old cap reached
+ * are embedded again (their `indexedAt` emptied), so the rest of their manuals become searchable by meaning — not
+ * everything.
  */
 const CHUNKS_KEY = "search.chunksPerDocument";
-async function reembedCutDocuments(db: Db) {
+async function reembedCutDocuments(db: Db, cap: number) {
   const [row] = await db.select().from(serverSetting).where(eq(serverSetting.key, CHUNKS_KEY));
-  const before = Number(row?.value) || 40;
-  if (before >= MAX_CHUNKS_PER_DOCUMENT) return;
+  const before = row ? Number(row.value) : OLD_CHUNK_CAP; // "Infinity" reads back as Infinity
+  if (before >= cap) return;
   await db.run(sql`UPDATE item SET indexed_at = NULL WHERE id IN (
     SELECT item_id FROM attachment
     WHERE kind = 'document' AND deleted_at IS NULL AND item_id IS NOT NULL
       AND length(json_extract(analysis, '$.text')) > ${before * CHUNK_CHARS})`);
-  const value = String(MAX_CHUNKS_PER_DOCUMENT);
+  const value = String(cap);
   await db.insert(serverSetting).values({ key: CHUNKS_KEY, value }).onConflictDoUpdate({ target: serverSetting.key, set: { value } });
 }
 

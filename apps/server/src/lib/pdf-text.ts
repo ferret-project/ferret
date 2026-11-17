@@ -5,8 +5,6 @@
  * under "Page N", so search and Ask find it and the model reads it.
  */
 
-/** Read this many pages at most (a long manual is ~100). */
-export const MAX_TEXT_PAGES = 300;
 /** A page with fewer distinct words than this isn't worth adding (a cover, a blank page, a page number). */
 const MIN_WORDS = 12;
 /** Fewer of its words than this share in docling's reading, and the page counts as missed. */
