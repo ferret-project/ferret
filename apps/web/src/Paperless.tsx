@@ -17,7 +17,7 @@ import { useCanEdit } from "./lib/auth";
 import { navigateTo } from "./lib/navigate";
 import { itemHref, settingsHref } from "./lib/route";
 import { DialogActions, Modal } from "./Modal";
-import { BarSearch } from "./Nav";
+import { TopBar } from "./Nav";
 
 const refreshAll = (qc: ReturnType<typeof useQueryClient>, householdId: string) => {
   for (const k of ["paperless-docs", "attention", "items", "overview"]) void qc.invalidateQueries({ queryKey: [k, householdId] });
@@ -44,16 +44,11 @@ export function PaperlessInbox({ householdId }: { householdId: string }) {
 
   return (
     <div className="min-h-dvh bg-base-200">
-      <nav className="navbar sticky top-0 z-10 border-b border-base-300 bg-base-100/85 px-4 backdrop-blur-md">
-        <div className="navbar-start w-full min-w-0 items-center gap-2">
-          <a href="#/" className="btn btn-text btn-sm btn-square" aria-label={t`Back`}>
-            <span className="icon-[tabler--arrow-left] size-5" />
-          </a>
-          <h1 className="truncate text-lg font-semibold"><Trans>From Paperless</Trans></h1>
-          <HelpLink page="guide/paperless.html" label={t`From Paperless`} />
-        </div>
-        <BarSearch />
-      </nav>
+      <TopBar
+        title={<Trans>From Paperless</Trans>}
+        back="#/"
+        help={<HelpLink page="guide/paperless.html" label={t`From Paperless`} />}
+      />
       <main className="mx-auto flex max-w-4xl flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         {docs.isPending && <span className="loading loading-spinner mx-auto my-12 text-primary" />}
         {docs.isError && <div className="alert alert-soft alert-error">{docs.error.message}</div>}

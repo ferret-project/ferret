@@ -4,7 +4,7 @@
  * Print it or "Save as PDF" from the browser; the CSV download has the same
  * items as a spreadsheet. Laid out for US Letter with FlyonUI tables.
  */
-import { BarSearch } from "./Nav";
+import { TopBar } from "./Nav";
 import type { ExportRow, PlacesTree } from "@ferret/shared";
 import { today } from "@ferret/shared/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -49,16 +49,11 @@ export function Report({ householdName, householdId }: { householdName: string; 
   const properties = (places.data?.properties ?? []).filter((p) => !propertyId || p.id === propertyId);
   return (
     <div className="min-h-dvh bg-base-200 print:bg-white">
-      <nav className="navbar sticky top-0 z-10 border-b border-base-300 bg-base-100/85 backdrop-blur-md px-4 print:hidden">
-        <div className="navbar-start items-center gap-2">
-          <a href="#/" className="btn btn-text btn-sm btn-square" aria-label={t`Back to your stuff`}>
-            <span className="icon-[tabler--arrow-left] size-5" />
-          </a>
-          <h1 className="text-lg font-semibold"><Trans>Insurance report</Trans></h1>
-          <HelpLink page="guide/insurance-report.html" label={t`Insurance report`} />
-        </div>
-        <BarSearch />
-      </nav>
+      <TopBar
+        title={<Trans>Insurance report</Trans>}
+        back="#/"
+        help={<HelpLink page="guide/insurance-report.html" label={t`Insurance report`} />}
+      />
 
       <main className="mx-auto flex max-w-4xl flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] print:max-w-none print:p-0">
         <section className="card print:hidden">

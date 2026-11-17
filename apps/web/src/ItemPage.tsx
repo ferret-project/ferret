@@ -9,7 +9,7 @@ import { MissingBanner, SeenLine } from "./Tracking";
 import { LifespanLine } from "./Replacements";
 import { ItemRepairs, OwnershipCard, ReplacedLine } from "./Repairs";
 import { UsageCard } from "./Usage";
-import { BarSearch } from "./Nav";
+import { TopBar } from "./Nav";
 import { ItemSearch } from "./ItemSearch";
 import { ITEM_SEARCH_EVENT } from "./Search";
 import { NotFound } from "./NotFound";
@@ -297,8 +297,8 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
         canEdit && (
           <button type="button" className="btn btn-soft btn-primary btn-sm shrink-0" aria-label={t`Edit`} onClick={() => setEditing(true)}>
             <span className="icon-[tabler--pencil] size-4" />
-            <Trans>{/* A narrow bar (a small phone, or big text): the pencil alone. */}
-            <span className="@max-[20rem]:hidden">Edit</span></Trans>
+            {/* On a phone: the pencil alone (the bar has the bell and account too). */}
+            <span className="max-sm:sr-only"><Trans>Edit</Trans></span>
           </button>
         )
       }
@@ -857,25 +857,7 @@ function Classification({ item, fields, householdId }: { item: ItemListing; fiel
 function Shell({ title, action, wide, onSearch, children }: { title: string; action?: React.ReactNode; wide?: boolean; onSearch?: () => void; children: React.ReactNode }) {
   return (
     <div className="min-h-dvh bg-base-200">
-      <nav className="navbar @container sticky top-0 z-10 gap-2 border-b border-base-300 bg-base-100/85 backdrop-blur-md px-2">
-        <a
-          href="#/"
-          className="btn btn-text btn-circle"
-          aria-label={t`Back`}
-          // Back to wherever it was opened from (a room, a search…), or home on a fresh visit.
-          onClick={(e) => {
-            if (window.history.length > 1) {
-              e.preventDefault();
-              window.history.back();
-            }
-          }}
-        >
-          <span className="icon-[tabler--arrow-left] size-5" />
-        </a>
-        <span className="text-base-content min-w-0 flex-1 truncate font-semibold">{title}</span>
-        <BarSearch onSearch={onSearch} />
-        {action}
-      </nav>
+      <TopBar title={title} back="#/" history heading={false} search={onSearch} actions={action} />
       {/* An item's own page uses a wide screen (photos beside the details); the not-found and loading states don't. */}
       <main className={`mx-auto flex max-w-3xl flex-col gap-6 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] ${wide ? "lg:max-w-6xl" : ""}`}>
         {children}

@@ -4,7 +4,7 @@
  * the pickers the item editor uses, and the "Categories & tags" screen.
  * Built from FlyonUI inputs, badges, cards and the shared Modal/Combobox.
  */
-import { BarSearch } from "./Nav";
+import { TopBar } from "./Nav";
 import type { CategoryField, CategoryNode, CustomFieldValues, TagSummary } from "@ferret/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
@@ -258,23 +258,21 @@ export function Categories({ householdId }: { householdId: string }) {
 
   return (
     <div className="min-h-dvh bg-base-200">
-      <nav className="navbar sticky top-0 z-10 border-b border-base-300 bg-base-100/85 backdrop-blur-md px-4">
-        <div className="navbar-start items-center gap-2">
-          <a href="#/" className="btn btn-text btn-sm btn-square" aria-label={t`Back to your stuff`}>
-            <span className="icon-[tabler--arrow-left] size-5" />
-          </a>
-          <h1 className="text-lg font-semibold"><Trans>Categories &amp; tags</Trans></h1>
-        </div>
-        <BarSearch />
-        <div className="navbar-end items-center">
+      <TopBar
+        title={<Trans>Categories &amp; tags</Trans>}
+        back="#/"
+        actions={
+          <>
           {canEdit && (
             <button type="button" className="btn btn-primary btn-sm" onClick={() => setEditing({})}>
               <span className="icon-[tabler--plus] size-4" />
-              <Trans>Category</Trans>
+              <span className="max-sm:sr-only"><Trans>Category</Trans></span>
             </button>
           )}
-        </div>
-      </nav>
+        
+          </>
+        }
+      />
 
       <main className="mx-auto flex max-w-3xl flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <section className="card" aria-labelledby="categories-title">

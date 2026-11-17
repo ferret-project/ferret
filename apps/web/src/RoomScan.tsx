@@ -8,6 +8,7 @@
  *   #/room-scan/new?in=<room> | ?box=<box>   take the photos
  *   #/room-scan/<id>                         waiting, then the review (the bell says when it's ready)
  */
+import { TopBar } from "./Nav";
 import type { RoomScan, RoomScanCandidate } from "@ferret/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useRef, useState } from "react";
@@ -43,15 +44,12 @@ export function RoomScanScreen({ householdId, id, locationId, boxId }: { househo
         : "#/";
   return (
     <div className="min-h-dvh bg-base-200">
-      <nav className="navbar sticky top-0 z-10 border-b border-base-300 bg-base-100/85 px-4 backdrop-blur-md">
-        <div className="navbar-start w-full min-w-0 items-center gap-2">
-          <a href={back} className="btn btn-text btn-sm btn-square" aria-label={t`Back`}>
-            <span className="icon-[tabler--arrow-left] size-5" />
-          </a>
-          <h1 className="truncate text-lg font-semibold">{scan.data?.placeName ? t`Scan of ${ph({ at: scan.data.placeName.split(" › ").at(-1) ?? "" })}` : t`Scan a room`}</h1>
-          <HelpLink page="guide/room-scan.html" label={t`Room scans`} />
-        </div>
-      </nav>
+      <TopBar
+        title={scan.data?.placeName ? t`Scan of ${ph({ at: scan.data.placeName.split(" › ").at(-1) ?? "" })}` : t`Scan a room`}
+        back={back}
+        help={<HelpLink page="guide/room-scan.html" label={t`Room scans`} />}
+        search={false}
+      />
       <main className="mx-auto flex max-w-3xl flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         {!canEdit && <div className="alert alert-soft alert-info"><Trans>You can look around, but not add things, in this household.</Trans></div>}
         {canEdit && id === "new" && <Start householdId={householdId} locationId={locationId} boxId={boxId} />}

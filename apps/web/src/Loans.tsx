@@ -5,7 +5,7 @@
  * - Loans (#/loans, account menu "Lent & borrowed"): everything out, overdue first.
  * - Borrower (#/b/:token, from a reminder email, no account): "I've given it back" / "Stop these reminders".
  */
-import { BarSearch } from "./Nav";
+import { TopBar } from "./Nav";
 import type { LoanDirection, LoanInput, LoanSummary } from "@ferret/shared";
 import { today } from "@ferret/shared/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -248,16 +248,11 @@ export function Loans({ householdId }: { householdId: string }) {
   ];
   return (
     <div className="min-h-dvh bg-base-200">
-      <nav className="navbar sticky top-0 z-10 border-b border-base-300 bg-base-100/85 backdrop-blur-md px-4">
-        <div className="navbar-start w-full min-w-0 items-center gap-2">
-          <a href="#/" className="btn btn-text btn-sm btn-square" aria-label={t`Back`}>
-            <span className="icon-[tabler--arrow-left] size-5" />
-          </a>
-          <h1 className="truncate text-lg font-semibold"><Trans>Lent &amp; borrowed</Trans></h1>
-          <HelpLink page="guide/lending.html" label={t`Lending`} />
-        </div>
-        <BarSearch />
-      </nav>
+      <TopBar
+        title={<Trans>Lent &amp; borrowed</Trans>}
+        back="#/"
+        help={<HelpLink page="guide/lending.html" label={t`Lending`} />}
+      />
       <main className="mx-auto flex max-w-3xl flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         {loans.isPending && <span className="loading loading-spinner text-primary mx-auto my-12" />}
         {loans.data && !all.length && (

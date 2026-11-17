@@ -4,7 +4,7 @@
  * and keep with other papers — not a legal document (rules differ by place; the help says to ask a lawyer). Owners
  * and admins only: it says who gets what.
  */
-import { BarSearch } from "./Nav";
+import { TopBar } from "./Nav";
 import { today } from "@ferret/shared/utils";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -28,16 +28,11 @@ export function Heirs({ householdId, householdName }: { householdId: string; hou
   const groups = list.data?.data ?? [];
   return (
     <div className="min-h-dvh bg-base-200 print:bg-white">
-      <nav className="navbar sticky top-0 z-10 border-b border-base-300 bg-base-100/85 backdrop-blur-md px-4 print:hidden">
-        <div className="navbar-start w-full min-w-0 items-center gap-2">
-          <a href="#/" className="btn btn-text btn-sm btn-square" aria-label={t`Back`}>
-            <span className="icon-[tabler--arrow-left] size-5" />
-          </a>
-          <h1 className="truncate text-lg font-semibold"><Trans>Personal property list</Trans></h1>
-          <HelpLink page="guide/personal-property-list.html" label={t`Personal property list`} />
-        </div>
-        <BarSearch />
-      </nav>
+      <TopBar
+        title={<Trans>Personal property list</Trans>}
+        back="#/"
+        help={<HelpLink page="guide/personal-property-list.html" label={t`Personal property list`} />}
+      />
       <main className="mx-auto flex max-w-4xl flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] print:max-w-none print:p-0">
         {role != null && !allowed && (
           <div className="alert alert-soft alert-info"><Trans>Only the household's owner and admins can see who should have what.</Trans></div>

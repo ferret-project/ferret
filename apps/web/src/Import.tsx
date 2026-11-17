@@ -4,6 +4,7 @@
  * POST /import in parts of 100, as one import that can be undone (server: lib/imports.ts). Recent imports are listed
  * here with Undo — their things go to Recently deleted.
  */
+import { TopBar } from "./Nav";
 import { useFeatures } from "./lib/features";
 import type { ImportPlace, ImportResult, ImportRow, ImportSource } from "@ferret/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -24,15 +25,12 @@ export function Import({ householdId, source }: { householdId: string; source: I
   const title = source === "csv" ? t`Import a spreadsheet` : source === "homeassistant" ? t`Import from Home Assistant` : t`Import`;
   return (
     <div className="min-h-dvh bg-base-200">
-      <nav className="navbar sticky top-0 z-10 border-b border-base-300 bg-base-100/85 backdrop-blur-md px-4">
-        <div className="navbar-start w-full min-w-0 items-center gap-2">
-          <a href={source ? IMPORT_HREF : "#/"} className="btn btn-text btn-sm btn-square" aria-label={t`Back`}>
-            <span className="icon-[tabler--arrow-left] size-5" />
-          </a>
-          <h1 className="truncate text-lg font-semibold">{title}</h1>
-          <HelpLink page="guide/importing.html" label={t`Importing`} />
-        </div>
-      </nav>
+      <TopBar
+        title={title}
+        back={source ? IMPORT_HREF : "#/"}
+        help={<HelpLink page="guide/importing.html" label={t`Importing`} />}
+        search={false}
+      />
       <main className="mx-auto flex max-w-3xl flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         {!canEdit ? (
           <div className="alert alert-soft alert-info"><Trans>You can look around, but not add things, in this household.</Trans></div>

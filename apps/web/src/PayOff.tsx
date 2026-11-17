@@ -6,7 +6,7 @@
  *   usual special limits. Server: lib/coverage.ts.
  * - WeeklySummary (Settings → Notifications): the day for this person's weekly summary, and email. Server: lib/digest.ts.
  */
-import { BarSearch } from "./Nav";
+import { TopBar } from "./Nav";
 import type { CoverageCheck, CoverageInput, ItemRecall } from "@ferret/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
@@ -160,16 +160,11 @@ export function Coverage({ householdId }: { householdId: string }) {
   const used = new Set(rows.map((r) => r.label));
   return (
     <div className="min-h-dvh bg-base-200">
-      <nav className="navbar sticky top-0 z-10 border-b border-base-300 bg-base-100/85 backdrop-blur-md px-4">
-        <div className="navbar-start w-full min-w-0 items-center gap-2">
-          <a href="#/" className="btn btn-text btn-sm btn-square" aria-label={t`Back`}>
-            <span className="icon-[tabler--arrow-left] size-5" />
-          </a>
-          <h1 className="truncate text-lg font-semibold"><Trans>Insurance coverage</Trans></h1>
-          <HelpLink page="guide/coverage.html" label={t`Coverage`} />
-        </div>
-        <BarSearch />
-      </nav>
+      <TopBar
+        title={<Trans>Insurance coverage</Trans>}
+        back="#/"
+        help={<HelpLink page="guide/coverage.html" label={t`Coverage`} />}
+      />
       <main className="mx-auto flex max-w-3xl flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <p className="text-sm text-base-content/70">
           <Trans>Your policy's limits, next to what your things are worth. A homeowner's or renter's policy covers your belongings up to one amount, and

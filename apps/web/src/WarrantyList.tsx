@@ -9,7 +9,7 @@ import { CLAIM_STATUS } from "./Claims";
 import { HelpLink } from "./HelpLink";
 import { api } from "./lib/api";
 import { itemHref } from "./lib/route";
-import { BarSearch } from "./Nav";
+import { TopBar } from "./Nav";
 import { daysLeft } from "./Overview";
 import { t } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
@@ -30,16 +30,11 @@ export function WarrantyList({ householdId }: { householdId: string }) {
 
   return (
     <div className="min-h-dvh bg-base-200">
-      <nav className="navbar sticky top-0 z-10 border-b border-base-300 bg-base-100/85 backdrop-blur-md px-4">
-        <div className="navbar-start w-full min-w-0 items-center gap-2">
-          <a href="#/" className="btn btn-text btn-sm btn-square" aria-label={t`Back`}>
-            <span className="icon-[tabler--arrow-left] size-5" />
-          </a>
-          <h1 className="truncate text-lg font-semibold"><Trans>Warranties</Trans></h1>
-          <HelpLink page="guide/warranties.html" label={t`Warranties`} />
-        </div>
-        <BarSearch />
-      </nav>
+      <TopBar
+        title={<Trans>Warranties</Trans>}
+        back="#/"
+        help={<HelpLink page="guide/warranties.html" label={t`Warranties`} />}
+      />
       <main className="mx-auto flex max-w-3xl flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         {warranties.isPending && <span className="loading loading-spinner text-primary mx-auto my-12" />}
         {warranties.isError && <div className="alert alert-soft alert-error">{warranties.error.message}</div>}

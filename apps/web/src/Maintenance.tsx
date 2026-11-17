@@ -5,7 +5,7 @@
  * pattern used elsewhere; the dialogs reuse the "Dashboard Modal 10" form layout.
  */
 import { StarterTasksButton } from "./StarterTasks";
-import { BarSearch } from "./Nav";
+import { TopBar } from "./Nav";
 import type { MaintenanceInput, MaintenanceTask } from "@ferret/shared";
 import { type IntervalUnit, addDays, intervalUnits, today } from "@ferret/shared/utils";
 import { everyText, spanText, usageText } from "./lib/words";
@@ -15,7 +15,6 @@ import { ACCEPT, DoneFiles, FilesSection, filesKey } from "./Files";
 import { api } from "./lib/api";
 import { useCanEdit } from "./lib/auth";
 import { type Choice, ItemPicker, PlacePicker } from "./Combobox";
-import { AttentionBell } from "./AttentionBell";
 import { ProviderPicker } from "./Providers";
 import { itemHref, PROVIDERS_HREF } from "./lib/route";
 import { DialogActions, Modal } from "./Modal";
@@ -83,31 +82,26 @@ export function Maintenance({ householdName, householdId, view: asked, month: as
 
   return (
     <div className="min-h-dvh bg-base-200">
-      <nav className="navbar sticky top-0 z-10 border-b border-base-300 bg-base-100/85 backdrop-blur-md px-4">
-        <div className="navbar-start items-center gap-2">
-          <a href="#/" className="btn btn-text btn-sm btn-square" aria-label={t`Back to your stuff`}>
-            <span className="icon-[tabler--arrow-left] size-5" />
-          </a>
-          <h1 className="text-lg font-semibold"><Trans>Maintenance</Trans></h1>
-          <HelpLink page="guide/maintenance.html" label={t`Maintenance`} />
-        </div>
-        <BarSearch />
-        <div className="navbar-end items-center gap-2">
-          {/* On a phone the bar is full: providers are under More, the bell on the home screen. */}
+      <TopBar
+        title={<Trans>Maintenance</Trans>}
+        back="#/"
+        help={<HelpLink page="guide/maintenance.html" label={t`Maintenance`} />}
+        actions={
+          <>
+          {/* On a phone the bar is full: providers are under More. */}
           <a href={PROVIDERS_HREF} className="btn btn-text btn-sm btn-circle max-sm:hidden" aria-label={t`Service providers`}>
             <span className="icon-[tabler--address-book] size-5" />
           </a>
-          <div className="max-sm:hidden">
-            <AttentionBell householdId={householdId} />
-          </div>
           {canEdit && (
             <button type="button" className="btn btn-primary btn-sm" onClick={() => setEditing("new")}>
               <span className="icon-[tabler--plus] size-4" />
-              <Trans>Task</Trans>
+              <span className="max-sm:sr-only"><Trans>Task</Trans></span>
             </button>
           )}
-        </div>
-      </nav>
+        
+          </>
+        }
+      />
 
       <main className={`mx-auto flex ${view === "month" ? "max-w-5xl" : "max-w-3xl"} flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]`}>
         {tasks.isPending && <span className="loading loading-spinner text-primary mx-auto my-12" />}

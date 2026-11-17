@@ -4,7 +4,7 @@
  * back. GoneDialog marks one; GoneBanner sits on its page; Past (#/past) lists them, with lost and stolen things
  * downloadable for a claim, and donations listed by year (Donations, #/donations/:year: print or CSV).
  */
-import { BarSearch } from "./Nav";
+import { TopBar } from "./Nav";
 import type { ItemDisposition, ItemListing } from "@ferret/shared";
 import { today } from "@ferret/shared/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -208,16 +208,11 @@ export function Past({ householdId }: { householdId: string }) {
   const years = donated.data?.years ?? [];
   return (
     <div className="min-h-dvh bg-base-200">
-      <nav className="navbar sticky top-0 z-10 border-b border-base-300 bg-base-100/85 backdrop-blur-md px-4">
-        <div className="navbar-start w-full min-w-0 items-center gap-2">
-          <a href="#/" className="btn btn-text btn-sm btn-square" aria-label={t`Back`}>
-            <span className="icon-[tabler--arrow-left] size-5" />
-          </a>
-          <h1 className="truncate text-lg font-semibold"><Trans>Past things</Trans></h1>
-          <HelpLink page="guide/past-things.html" label={t`Past things`} />
-        </div>
-        <BarSearch />
-      </nav>
+      <TopBar
+        title={<Trans>Past things</Trans>}
+        back="#/"
+        help={<HelpLink page="guide/past-things.html" label={t`Past things`} />}
+      />
       <main className="mx-auto flex max-w-3xl flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         {past.isPending && <span className="loading loading-spinner text-primary mx-auto my-12" />}
         {past.isError && <div className="alert alert-soft alert-error">{past.error.message}</div>}
@@ -318,16 +313,11 @@ export function Donations({ year, householdId, householdName }: { year: number; 
   const charities = [...new Set(rows.map((r) => r.charity ?? t`Not recorded`))];
   return (
     <div className="min-h-dvh bg-base-200 print:bg-white">
-      <nav className="navbar sticky top-0 z-10 border-b border-base-300 bg-base-100/85 backdrop-blur-md px-4 print:hidden">
-        <div className="navbar-start w-full min-w-0 items-center gap-2">
-          <a href={PAST_HREF} className="btn btn-text btn-sm btn-square" aria-label={t`Back`}>
-            <span className="icon-[tabler--arrow-left] size-5" />
-          </a>
-          <h1 className="truncate text-lg font-semibold">{t`Donations in ${year}`}</h1>
-          <HelpLink page="guide/past-things.html#donations" label={t`Donations`} />
-        </div>
-        <BarSearch />
-      </nav>
+      <TopBar
+        title={t`Donations in ${year}`}
+        back={PAST_HREF}
+        help={<HelpLink page="guide/past-things.html#donations" label={t`Donations`} />}
+      />
       <main className="mx-auto flex max-w-4xl flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] print:max-w-none print:p-0">
         <section className="card print:hidden">
           <div className="card-body flex-row flex-wrap gap-3 p-4 sm:p-6">

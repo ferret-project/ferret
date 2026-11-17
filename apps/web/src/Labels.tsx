@@ -4,6 +4,7 @@
  * QR drawing, the print page (Avery sheets, laid out to the inch) and the page
  * a scan lands on (a blank label offers to become a new box).
  */
+import { TopBar } from "./Nav";
 import type { Label } from "@ferret/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -162,33 +163,23 @@ export function PrintLabels({ householdName, householdId, codes }: { householdNa
     <div className="min-h-dvh bg-base-200 print:bg-white">
       {/* The sheet is laid out to the edge of the paper: no browser margins while this page is open. */}
       <style>{roll ? (roll.w > roll.h ? PAGE_STYLES.landscape : PAGE_STYLES.roll) : PAGE_STYLES.sheet}</style>
-      <nav className="navbar sticky top-0 z-10 border-b border-base-300 bg-base-100/85 backdrop-blur-md px-4 print:hidden">
-        <div className="navbar-start items-center gap-2">
-          <a
-            href="#/"
-            className="btn btn-text btn-sm btn-square"
-            aria-label={t`Back`}
-            onClick={(e) => {
-              if (window.history.length > 1) {
-                e.preventDefault();
-                window.history.back();
-              }
-            }}
-          >
-            <span className="icon-[tabler--arrow-left] size-5" />
-          </a>
-          <h1 className="text-lg font-semibold"><Trans>Print labels</Trans></h1>
-          <HelpLink page="guide/labels.html" label={t`QR labels`} />
-        </div>
-        <div className="navbar-end items-center">
+      <TopBar
+        title={<Trans>Print labels</Trans>}
+        back="#/"
+        history
+        help={<HelpLink page="guide/labels.html" label={t`QR labels`} />}
+        actions={
+          <>
           {labels.length > 0 && (
             <button type="button" className="btn btn-primary btn-sm" onClick={() => window.print()}>
               <span className="icon-[tabler--printer] size-4" />
-              <Trans>Print</Trans>
+              <span className="max-sm:sr-only"><Trans>Print</Trans></span>
             </button>
           )}
-        </div>
-      </nav>
+        
+          </>
+        }
+      />
 
       <main className="mx-auto flex max-w-3xl flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] print:hidden">
         <section className="card">

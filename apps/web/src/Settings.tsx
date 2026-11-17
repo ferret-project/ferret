@@ -9,6 +9,7 @@
  * Modal 15" (member rows), the new-key dialog from "Dashboard Modal 14" and the
  * one-time reveal from "Dashboard Modal 7"; behaviour is plain React.
  */
+import { TopBar } from "./Nav";
 import type { ApiKeySummary, NewApiKey, OAuthGrantSummary } from "@ferret/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
@@ -55,17 +56,12 @@ export function Settings(props: { section: SettingsSection; householdName: strin
   return (
     <div className="min-h-dvh bg-base-200">
       <header className="sticky top-0 z-10 border-b border-base-300 bg-base-100/85 backdrop-blur-md">
-        <nav className="navbar px-4">
-          <div className="navbar-start items-center gap-2">
-            <a href="#/" className="btn btn-text btn-sm btn-square" aria-label={t`Back to your stuff`}>
-              <span className="icon-[tabler--arrow-left] size-5" />
-            </a>
-            <h1 className="text-lg font-semibold"><Trans>Settings</Trans></h1>
-          </div>
-          <div className="navbar-end items-center">
-            <span className="badge badge-soft badge-primary">{householdName}</span>
-          </div>
-        </nav>
+        <TopBar
+          title={<Trans>Settings</Trans>}
+          back="#/"
+          sticky={false}
+          actions={<span className="badge badge-soft badge-primary max-sm:hidden">{householdName}</span>}
+        />
         <nav className="tabs tabs-bordered mx-auto max-w-4xl overflow-x-auto px-4 max-sm:px-1" aria-label={t`Settings sections`}>
           {tabs.map((tab) => (
             <a

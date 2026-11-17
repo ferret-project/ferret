@@ -20,7 +20,7 @@ import { useCanEdit } from "./lib/auth";
 import { navigateTo } from "./lib/navigate";
 import { COLLECTIONS_HREF, collectionHref, itemHref } from "./lib/route";
 import { DialogActions, Modal } from "./Modal";
-import { BarSearch } from "./Nav";
+import { TopBar } from "./Nav";
 import { templateIcon, useTemplates } from "./Templates";
 import { money, currencySymbol, toCents } from "./lib/money";
 import { t, ph, plural } from "@lingui/core/macro";
@@ -61,17 +61,12 @@ const complete = (c: CollectionSummary) => (c.wanted ? Math.round((c.owned / (c.
 
 function Bar({ title, back, actions }: { title: string; back: string; actions?: React.ReactNode }) {
   return (
-    <nav className="navbar sticky top-0 z-10 border-b border-base-300 bg-base-100/85 px-4 backdrop-blur-md">
-      <div className="navbar-start w-full min-w-0 items-center gap-2">
-        <a href={back} className="btn btn-text btn-sm btn-square" aria-label={t`Back`}>
-          <span className="icon-[tabler--arrow-left] size-5" />
-        </a>
-        <h1 className="truncate text-lg font-semibold">{title}</h1>
-        <HelpLink page="guide/collections.html" label={t`Collections`} />
-      </div>
-      <BarSearch />
-      {actions && <div className="ms-2 flex shrink-0 items-center gap-2">{actions}</div>}
-    </nav>
+    <TopBar
+      title={title}
+      back={back}
+      help={<HelpLink page="guide/collections.html" label={t`Collections`} />}
+      actions={actions}
+    />
   );
 }
 
@@ -90,7 +85,7 @@ export function CollectionsScreen({ householdId }: { householdId: string }) {
           canEdit && (
             <button type="button" className="btn btn-primary btn-sm" onClick={() => setAdding(true)}>
               <span className="icon-[tabler--plus] size-4" />
-              <Trans>Collection</Trans>
+              <span className="max-sm:sr-only"><Trans>Collection</Trans></span>
             </button>
           )
         }
@@ -195,7 +190,7 @@ export function CollectionScreen({ householdId, id, show }: { householdId: strin
           c && (
             <button type="button" className="btn btn-primary btn-sm" onClick={() => setAdding(true)}>
               <span className="icon-[tabler--plus] size-4" />
-              <Trans>Add</Trans>
+              <span className="max-sm:sr-only"><Trans>Add</Trans></span>
             </button>
           )
         }

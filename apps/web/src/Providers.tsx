@@ -5,7 +5,7 @@
  * maintenance dialogs use. Cards and rows follow the FlyonUI patterns used
  * elsewhere (Settings' member rows, the Modal form layout).
  */
-import { BarSearch } from "./Nav";
+import { TopBar } from "./Nav";
 import type { Provider, ProviderInput } from "@ferret/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
@@ -65,16 +65,11 @@ function ContactButtons({ p, size = "btn-sm" }: { p: Provider; size?: string }) 
 function Shell({ title, back, action, children }: { title: string; back: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="min-h-dvh bg-base-200">
-      <nav className="navbar sticky top-0 z-10 border-b border-base-300 bg-base-100/85 backdrop-blur-md px-4">
-        <div className="navbar-start min-w-0 items-center gap-2">
-          <a href={back} className="btn btn-text btn-sm btn-square" aria-label={t`Back`}>
-            <span className="icon-[tabler--arrow-left] size-5" />
-          </a>
-          <h1 className="truncate text-lg font-semibold">{title}</h1>
-        </div>
-        <BarSearch />
-        <div className="navbar-end items-center">{action}</div>
-      </nav>
+      <TopBar
+        title={title}
+        back={back}
+        actions={action}
+      />
       <main className="mx-auto flex max-w-3xl flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">{children}</main>
     </div>
   );
@@ -93,7 +88,7 @@ export function Providers({ householdId }: { householdId: string }) {
         canEdit && (
           <button type="button" className="btn btn-primary btn-sm" onClick={() => setAdding(true)}>
             <span className="icon-[tabler--plus] size-4" />
-            <Trans>Provider</Trans>
+            <span className="max-sm:sr-only"><Trans>Provider</Trans></span>
           </button>
         )
       }

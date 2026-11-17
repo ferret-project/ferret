@@ -10,7 +10,7 @@
 import type { CustomFieldValues, ItemTemplate, PlacesTree } from "@ferret/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouterState } from "@tanstack/react-router";
-import { type FormEvent, useContext, useEffect, useRef, useState } from "react";
+import { createContext, type FormEvent, type ReactNode, useContext, useEffect, useRef, useState } from "react";
 import { APPEARANCES } from "./App";
 import { PlacePicker } from "./Combobox";
 import { LanguageChoice } from "./Language";
@@ -51,13 +51,14 @@ import {
   scanRoomHref,
 } from "./lib/route";
 import { useRoomScanOn } from "./lib/room-scan";
-import { Logo, PawMark } from "./AuthLayout";
+import { Logo } from "./AuthLayout";
 import { AddFromPhotos } from "./PhotoAdd";
 import { Modal } from "./Modal";
 import { NewHouseholdDialog } from "./NewHousehold";
 import { COMMAND_K, searchFromAnywhere } from "./Search";
 import { navigateTo } from "./lib/navigate";
 import { HouseholdContext } from "./lib/household";
+import { AttentionBell } from "./AttentionBell";
 import { currencySymbol, toCents } from "./lib/money";
 import { t, ph, msg } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
@@ -160,10 +161,7 @@ export function MorePage({ householdId }: { householdId: string }) {
   const user = session?.user;
   return (
     <div className="min-h-dvh bg-base-200">
-      <nav className="navbar sticky top-0 z-10 border-b border-base-300 bg-base-100/85 backdrop-blur-md px-4">
-        <h1 className="text-lg font-semibold"><Trans>More</Trans></h1>
-        <BarSearch />
-      </nav>
+      <TopBar title={<Trans>More</Trans>} />
       <main className="mx-auto flex max-w-xl flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <section className="card">
           <div className="card-body flex-row items-center gap-3 p-4">
@@ -403,7 +401,7 @@ function activeHref(route: Route["name"], hash: string, links: Link[]) {
  * to icons with names; the screen beside it follows (`Screens`). Laptops keep the top bar's links, phones the tab bar;
  * it never prints.
  */
-export function Sidebar(props: { route: Route["name"]; householdName: string; householdId: string; folded: boolean; onToggle: () => void }) {
+export function Sidebar(props: { route: Route["name"]; householdName: string; householdId: string; folded: boolean; onToggle: () => void; account: ReactNode }) {
   const { route, folded } = props;
   const hash = (window.location.hash || HOME_HREF).replace(/[?&]q=.*$/, "");
   const main: Link[] = [{ href: HOME_HREF, label: msg`Home`, icon: "icon-[tabler--home]" }, ...MAIN_LINKS];
@@ -437,10 +435,23 @@ export function Sidebar(props: { route: Route["name"]; householdName: string; ho
       className={`fixed inset-y-0 start-0 z-20 flex flex-col border-e border-base-300 bg-base-100 transition-[width] duration-200 motion-reduce:transition-none max-xl:hidden print:hidden ${folded ? "w-16" : "w-64"}`}
       aria-label={t`Main menu`}
     >
-      <div className={`flex h-16 shrink-0 items-center ${folded ? "justify-center" : "px-5"}`}>
-        <a href={HOME_HREF} aria-label={t`Ferret home`} className="text-primary">
-          {folded ? <PawMark className="size-7" taps /> : <Logo className="text-lg" />}
-        </a>
+      {/* The menu button beside the logo folds the sidebar to icons and back, where people look for it. */}
+      <div className={`flex h-16 shrink-0 items-center gap-1 ${folded ? "justify-center" : "px-3"}`}>
+        <button
+          type="button"
+          className="btn btn-text btn-circle text-base-content/70"
+          aria-expanded={!folded}
+          aria-label={folded ? t`Show the menu's names` : t`Fold the menu to icons`}
+          title={folded ? t`Expand` : t`Collapse`}
+          onClick={props.onToggle}
+        >
+          <span className={`${folded ? "icon-[tabler--menu-2]" : "icon-[tabler--layout-sidebar-left-collapse]"} size-5 rtl:-scale-x-100`} />
+        </button>
+        {!folded && (
+          <a href={HOME_HREF} aria-label={t`Ferret home`} className="text-primary">
+            <Logo className="text-lg" />
+          </a>
+        )}
       </div>
       <div className={`pb-2 [&>*]:inline-flex ${folded ? "flex justify-center" : "px-4"}`}>
         <HouseholdBadge householdName={props.householdName} householdId={props.householdId} align="start" compact={folded} />
@@ -461,19 +472,8 @@ export function Sidebar(props: { route: Route["name"]; householdName: string; ho
           );
         })}
       </nav>
-      <div className={`shrink-0 border-t border-base-300 p-2 ${folded ? "flex justify-center" : ""}`}>
-        <button
-          type="button"
-          className={`btn btn-text btn-sm text-base-content/70 ${folded ? "btn-square" : "w-full justify-start"}`}
-          aria-expanded={!folded}
-          aria-label={folded ? t`Show the menu's names` : t`Fold the menu to icons`}
-          title={folded ? t`Expand` : undefined}
-          onClick={props.onToggle}
-        >
-          <span className={`${folded ? "icon-[tabler--layout-sidebar-left-expand]" : "icon-[tabler--layout-sidebar-left-collapse]"} size-5`} />
-          {!folded && t`Collapse`}
-        </button>
-      </div>
+      {/* Who's signed in, and their menu: on every screen. */}
+      <div className={`shrink-0 border-t border-base-300 p-2 ${folded ? "flex justify-center" : ""}`}>{props.account}</div>
     </aside>
   );
 }
@@ -494,16 +494,82 @@ export function requestScan(route: Route["name"], adding = false) {
   }
 }
 
+/** The account menu (App.tsx), handed to every screen's top bar by the screens' layout: below xl it's top right. */
+export const BarAccount = createContext<ReactNode>(null);
+
 /**
- * Search and scan in the top bar of the screens that don't have the search box (an item, maintenance, shopping…):
- * a field-shaped button (an icon on a phone) that goes home with the cursor in the search, and the scanner.
+ * Every screen's top bar but the home screens' (which have the search box): the screen gives what's its own — where
+ * Back goes, its title and help link, its buttons — and the bar adds the rest in the same order everywhere: search and
+ * scan, the screen's buttons, the bell ("needs attention"), and the account menu (below xl; from xl it's at the foot of
+ * the sidebar). A new screen uses this rather than a bar of its own.
  */
-/** `onSearch`: the screen searches in itself (an item's page: inside that item) instead of going home. */
-export function BarSearch({ onSearch }: { onSearch?: () => void } = {}) {
+export function TopBar({
+  title,
+  back,
+  history = false,
+  help,
+  actions,
+  search,
+  heading = true,
+  sticky = true,
+}: {
+  title: ReactNode;
+  /** Where Back goes; none on a top-level screen (More). */
+  back?: string;
+  /** Back to wherever the screen was opened from (a room, a search…), `back` on a fresh visit. */
+  history?: boolean;
+  /** Its HelpLink, beside the title. */
+  help?: ReactNode;
+  /** The screen's own buttons (+ Task, Print, Edit…). */
+  actions?: ReactNode;
+  /** The search: everything (default), the screen's own (an item's page: inside that item), or none. */
+  search?: false | (() => void);
+  /** The title is the page's heading — not on an item's page, whose name is the heading below. */
+  heading?: boolean;
+  /** False inside a header that is itself sticky (Settings, with its tabs). */
+  sticky?: boolean;
+}) {
+  const account = useContext(BarAccount);
+  const Title = heading ? "h1" : "span";
+  return (
+    <nav className={`navbar @container z-10 gap-2 px-4 max-sm:px-2 print:hidden ${sticky ? "sticky top-0 border-b border-base-300 bg-base-100/85 backdrop-blur-md" : ""}`}>
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        {back && (
+          <a
+            href={back}
+            className="btn btn-text btn-sm btn-square"
+            aria-label={t`Back`}
+            onClick={
+              history
+                ? (e) => {
+                    if (window.history.length > 1) {
+                      e.preventDefault();
+                      window.history.back();
+                    }
+                  }
+                : undefined
+            }
+          >
+            <span className="icon-[tabler--arrow-left] size-5 rtl:-scale-x-100" />
+          </a>
+        )}
+        <Title className="truncate text-lg font-semibold">{title}</Title>
+        {help}
+      </div>
+      {search !== false && <BarSearch onSearch={search} />}
+      {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+      <BarBell />
+      {account && <div className="flex shrink-0 items-center xl:hidden">{account}</div>}
+    </nav>
+  );
+}
+
+/** Search and scan: a field-shaped button (an icon on a phone) that goes home with the cursor in the search, and the scanner. */
+function BarSearch({ onSearch }: { onSearch?: () => void }) {
   const search = onSearch ?? searchFromAnywhere;
   const label = onSearch ? t`Search this item` : t`Search your stuff`;
   return (
-    <div className="ms-auto flex shrink-0 items-center gap-1 print:hidden">
+    <div className="flex shrink-0 items-center gap-1">
       <button
         type="button"
         className="input input-sm w-56 cursor-text items-center gap-2 text-base-content/70 max-md:hidden"
@@ -517,9 +583,21 @@ export function BarSearch({ onSearch }: { onSearch?: () => void } = {}) {
       <button type="button" className="btn btn-text btn-circle md:hidden" onClick={search} aria-label={label}>
         <span className="icon-[tabler--search] size-5" />
       </button>
-      <button type="button" className="btn btn-text btn-circle" onClick={() => requestScan("more")} aria-label={t`Scan a barcode`} title={t`Scan a barcode`}>
+      {/* Phones scan from + Add (and the home screen), so their bar keeps room for the title. */}
+      <button type="button" className="btn btn-text btn-circle max-sm:hidden" onClick={() => requestScan("more")} aria-label={t`Scan a barcode`} title={t`Scan a barcode`}>
         <span className="icon-[tabler--barcode] size-5" />
       </button>
+    </div>
+  );
+}
+
+/** The bell ("needs attention"). */
+function BarBell() {
+  const household = useContext(HouseholdContext);
+  if (!household) return null;
+  return (
+    <div className="flex shrink-0 items-center">
+      <AttentionBell householdId={household.householdId} />
     </div>
   );
 }

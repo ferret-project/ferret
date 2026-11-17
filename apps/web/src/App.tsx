@@ -40,7 +40,7 @@ import { type Appearance, useAppearance } from "./lib/appearance";
 import { ShareButton } from "./Shares";
 import { RecallAlert } from "./PayOff";
 import { ORIGIN_FILTER, itemOriginList } from "./lib/origin";
-import { type AddContext, AddButton, AddFab, DesktopLinks, HouseholdBadge, MenuGroups, Sidebar, switchHousehold, useScanRequests, useSidebarFolded } from "./Nav";
+import { type AddContext, AddButton, AddFab, BarAccount, DesktopLinks, HouseholdBadge, MenuGroups, Sidebar, switchHousehold, useScanRequests, useSidebarFolded } from "./Nav";
 import { SearchBox, useSearchDocuments, useSearchHotkeys, useSearchText } from "./Search";
 import { Everything, Pager } from "./Everything";
 import { FolderRow } from "./Folder";
@@ -830,9 +830,18 @@ function Screens({ householdName, householdId }: { householdName: string; househ
     // Big screens: the sidebar on the left (folded to icons, or open), each screen beside it.
     <HouseholdContext value={{ householdId, householdName }}>
       <div className={`transition-[padding] duration-200 motion-reduce:transition-none print:ps-0 ${folded ? "xl:ps-16" : "xl:ps-64"}`}>
-        <Sidebar route={route} householdName={householdName} householdId={householdId} folded={folded} onToggle={toggleSidebar} />
-        {/* A different currency redraws the screen, so every amount on it changes. */}
-        <Outlet key={currency} />
+        <Sidebar
+          route={route}
+          householdName={householdName}
+          householdId={householdId}
+          folded={folded}
+          onToggle={toggleSidebar}
+          account={<AccountMenu householdName={householdName} householdId={householdId} inSidebar folded={folded} />}
+        />
+        {/* A different currency redraws the screen, so every amount on it changes. Every screen's top bar gets the account menu. */}
+        <BarAccount value={<AccountMenu householdName={householdName} householdId={householdId} />}>
+          <Outlet key={currency} />
+        </BarAccount>
         <TabBar route={route} />
       </div>
     </HouseholdContext>
@@ -876,16 +885,19 @@ function CreateHousehold() {
 /**
  * The signed-in user's menu: who they are, Settings, sign out.
  * Adapted from FlyonUI Pro "Dashboard Dropdown 9"; opened and closed by React.
+ * Below xl it's the round button at the end of the home screens' top bar; from xl it's at the foot of the sidebar
+ * (`inSidebar`, opening upwards), so it's there on every screen, not only the home screens.
  */
-function AccountMenu({ householdName, householdId }: { householdName: string; householdId: string }) {
+function AccountMenu({ householdName, householdId, inSidebar = false, folded = false }: { householdName: string; householdId: string; inSidebar?: boolean; folded?: boolean }) {
   const { data: session } = authClient.useSession();
   const { data: households } = authClient.useListOrganizations();
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
     const close = (e: MouseEvent | KeyboardEvent) => {
-      if (e instanceof KeyboardEvent ? e.key === "Escape" : !(e.target as Element).closest("#account-menu")) setOpen(false);
+      if (e instanceof KeyboardEvent ? e.key === "Escape" : !root.current?.contains(e.target as Node)) setOpen(false);
     };
     document.addEventListener("click", close);
     document.addEventListener("keydown", close);
@@ -897,19 +909,50 @@ function AccountMenu({ householdName, householdId }: { householdName: string; ho
   const user = session?.user;
   const initial = (user?.name || user?.email || "?").slice(0, 1).toUpperCase();
   return (
-    <div id="account-menu" className={`dropdown relative inline-flex ${open ? "open" : ""}`}>
-      <button
-        type="button"
-        className="dropdown-toggle btn btn-circle btn-soft btn-primary"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label={t`Account menu`}
-        onClick={() => setOpen(!open)}
-      >
-        {initial}
-      </button>
+    <div ref={root} className={`dropdown relative ${inSidebar ? "flex" : "inline-flex"} ${open ? "open" : ""}`}>
+      {inSidebar ? (
+        <button
+          type="button"
+          className={`dropdown-toggle flex min-h-11 w-full items-center gap-3 rounded-field text-start hover:bg-base-200 ${folded ? "justify-center" : "px-2"} ${open ? "bg-base-200" : ""}`}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-label={t`Account menu`}
+          title={folded ? user?.name : undefined}
+          onClick={() => setOpen(!open)}
+        >
+          <span className="avatar avatar-placeholder shrink-0">
+            <span className="w-9 rounded-full bg-primary/10 text-primary">
+              <span>{initial}</span>
+            </span>
+          </span>
+          {!folded && (
+            <>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium">{user?.name}</span>
+                <span className="block truncate text-xs text-base-content/70">{user?.email}</span>
+              </span>
+              <span className="icon-[tabler--selector] size-4 shrink-0 text-base-content/70" />
+            </>
+          )}
+        </button>
+      ) : (
+        <button
+          type="button"
+          className="dropdown-toggle btn btn-circle btn-soft btn-primary"
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-label={t`Account menu`}
+          onClick={() => setOpen(!open)}
+        >
+          {initial}
+        </button>
+      )}
       {open && (
-        <ul className="dropdown-menu dropdown-open:opacity-100 absolute end-0 top-full max-h-[calc(100dvh-5rem)] w-72 space-y-0.5 overflow-y-auto" role="menu" aria-label={t`Account`}>
+        <ul
+          className={`dropdown-menu dropdown-open:opacity-100 absolute max-h-[calc(100dvh-5rem)] w-72 space-y-0.5 overflow-y-auto ${inSidebar ? "start-0 bottom-full mb-2" : "end-0 top-full"}`}
+          role="menu"
+          aria-label={t`Account`}
+        >
           <li className="dropdown-header mb-1 gap-3 px-4 pt-4 pb-3">
             <div className="avatar avatar-placeholder">
               <div className="w-10 rounded-full bg-primary/10 text-primary">
@@ -1116,7 +1159,10 @@ export function Home({ householdName, householdId, view }: { householdName: stri
             <HouseholdBadge householdName={householdName} householdId={householdId} />
           </span>
           <AttentionBell householdId={householdId} />
-          <AccountMenu householdName={householdName} householdId={householdId} />
+          {/* From xl the account menu is at the foot of the sidebar. */}
+          <span className="contents xl:[&>*]:hidden">
+            <AccountMenu householdName={householdName} householdId={householdId} />
+          </span>
         </div>
       </nav>
 

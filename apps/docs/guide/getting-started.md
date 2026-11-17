@@ -23,9 +23,9 @@ checklist goes away once they all are, or when you **Hide** it.
 - **On a phone**, the tabs along the bottom: **Home**, **Everything**, **Places**, **Maintenance** and **More** — More has
   everything else (lists, insurance, settings, help, appearance, sign out), grouped.
 - **On a computer**, the same places are along the top, and the rest is in the menu under your initial. On a big screen
-  everything is in the sidebar on the left — **Collapse** at its foot folds it to icons (hover for names; the
-  household's first letter at the top switches households) — and the menu under your initial is just appearance and
-  signing out.
+  everything is in the sidebar on the left — the menu button beside the logo folds it to icons (hover for
+  names; the household's first letter at the top switches households) — and your name at its foot opens a menu with
+  appearance, language and signing out, on every screen.
 - **+ Add** (the round button on a phone, top right on a computer) is every way to add something: type it in, from
   photos, scan a barcode, walk through a room, import, or print blank QR labels. Looking at a room, category or tag,
   new things go there.

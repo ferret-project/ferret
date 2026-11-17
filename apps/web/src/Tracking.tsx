@@ -14,7 +14,7 @@ import { useCanEdit } from "./lib/auth";
 import { lastSeenText, whenAgo } from "./lib/last-scanned";
 import { itemHref, MISPLACED_HREF, REVIEW_HREF, reviewHref } from "./lib/route";
 import { DialogActions, Modal } from "./Modal";
-import { BarSearch } from "./Nav";
+import { TopBar } from "./Nav";
 import { t, ph, plural, msg } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
@@ -39,16 +39,11 @@ function useRefreshTracking(householdId: string) {
 function Page({ title, back, help, children }: { title: string; back: string; help: string; children: React.ReactNode }) {
   return (
     <div className="min-h-dvh bg-base-200">
-      <nav className="navbar sticky top-0 z-10 border-b border-base-300 bg-base-100/85 px-4 backdrop-blur-md">
-        <div className="navbar-start w-full min-w-0 items-center gap-2">
-          <a href={back} className="btn btn-text btn-sm btn-square" aria-label={t`Back`}>
-            <span className="icon-[tabler--arrow-left] size-5" />
-          </a>
-          <h1 className="truncate text-lg font-semibold">{title}</h1>
-          <HelpLink page={help} label={title} />
-        </div>
-        <BarSearch />
-      </nav>
+      <TopBar
+        title={title}
+        back={back}
+        help={<HelpLink page={help} label={title} />}
+      />
       <main className="mx-auto flex max-w-3xl flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">{children}</main>
     </div>
   );

@@ -5,7 +5,7 @@
  * pattern; the add/rename dialogs reuse the "Dashboard Modal 14" form layout.
  */
 import { StarterTasksDialog } from "./StarterTasks";
-import { BarSearch } from "./Nav";
+import { TopBar } from "./Nav";
 import type { LocationNode, PlacesTree, PropertyInput } from "@ferret/shared";
 import { propertyTypes } from "@ferret/shared/utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -50,23 +50,21 @@ export function Places({ householdName, householdId }: { householdName: string; 
 
   return (
     <div className="min-h-dvh bg-base-200">
-      <nav className="navbar sticky top-0 z-10 border-b border-base-300 bg-base-100/85 backdrop-blur-md px-4">
-        <div className="navbar-start items-center gap-2">
-          <a href="#/" className="btn btn-text btn-sm btn-square" aria-label={t`Back to your stuff`}>
-            <span className="icon-[tabler--arrow-left] size-5" />
-          </a>
-          <h1 className="text-lg font-semibold"><Trans>Places</Trans></h1>
-        </div>
-        <BarSearch />
-        <div className="navbar-end items-center">
+      <TopBar
+        title={<Trans>Places</Trans>}
+        back="#/"
+        actions={
+          <>
           {canEdit && (
             <button type="button" className="btn btn-primary btn-sm" onClick={() => setDialog({ kind: "property" })}>
               <span className="icon-[tabler--plus] size-4" />
-              <Trans>Property</Trans>
+              <span className="max-sm:sr-only"><Trans>Property</Trans></span>
             </button>
           )}
-        </div>
-      </nav>
+        
+          </>
+        }
+      />
 
       <main className="mx-auto flex max-w-3xl flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         {places.isPending && <span className="loading loading-spinner text-primary mx-auto my-12" />}

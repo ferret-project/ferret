@@ -3,7 +3,7 @@
  * removed them and when they go for good. Restore brings one back with its
  * photos, warranties and maintenance; "Delete now" removes it for good early.
  */
-import { BarSearch } from "./Nav";
+import { TopBar } from "./Nav";
 import type { DeletedItem } from "@ferret/shared";
 import { TRASH_DAYS } from "@ferret/shared/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -20,15 +20,10 @@ export function Deleted({ householdId }: { householdId: string }) {
   const [restored, setRestored] = useState<{ id: string; name: string } | null>(null);
   return (
     <div className="min-h-dvh bg-base-200">
-      <nav className="navbar sticky top-0 z-10 border-b border-base-300 bg-base-100/85 backdrop-blur-md px-4">
-        <div className="navbar-start min-w-0 items-center gap-2">
-          <a href="#/" className="btn btn-text btn-sm btn-square" aria-label={t`Back`}>
-            <span className="icon-[tabler--arrow-left] size-5" />
-          </a>
-          <h1 className="truncate text-lg font-semibold"><Trans>Recently deleted</Trans></h1>
-        </div>
-        <BarSearch />
-      </nav>
+      <TopBar
+        title={<Trans>Recently deleted</Trans>}
+        back="#/"
+      />
       <main className="mx-auto flex max-w-3xl flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <p className="text-sm text-base-content/70">
           <Trans>Deleted things stay here for {TRASH_DAYS} days, with their photos, documents, warranties and maintenance, then go

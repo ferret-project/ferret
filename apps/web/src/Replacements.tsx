@@ -10,7 +10,7 @@ import { api } from "./lib/api";
 import { money } from "./lib/money";
 import { CATEGORIES_HREF, itemHref, REPLACEMENTS_HREF } from "./lib/route";
 import { lifespanKindWord } from "./lib/words";
-import { BarSearch } from "./Nav";
+import { TopBar } from "./Nav";
 import { t, ph, plural } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 
@@ -86,16 +86,11 @@ export function Replacements({ householdId }: { householdId: string }) {
     : [];
   return (
     <div className="min-h-dvh bg-base-200">
-      <nav className="navbar sticky top-0 z-10 border-b border-base-300 bg-base-100/85 px-4 backdrop-blur-md">
-        <div className="navbar-start w-full min-w-0 items-center gap-2">
-          <a href="#/" className="btn btn-text btn-sm btn-square" aria-label={t`Back`}>
-            <span className="icon-[tabler--arrow-left] size-5" />
-          </a>
-          <h1 className="truncate text-lg font-semibold"><Trans>Coming up for replacement</Trans></h1>
-          <HelpLink page="guide/replacements.html" label={t`Coming up for replacement`} />
-        </div>
-        <BarSearch />
-      </nav>
+      <TopBar
+        title={<Trans>Coming up for replacement</Trans>}
+        back="#/"
+        help={<HelpLink page="guide/replacements.html" label={t`Coming up for replacement`} />}
+      />
       <main className="mx-auto flex max-w-3xl flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <p className="text-sm text-base-content/70">
           <Trans>
