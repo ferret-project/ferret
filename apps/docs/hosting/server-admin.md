@@ -53,6 +53,11 @@ vector store, and how many things are embedded. After a change of model or colle
 by itself, and this card follows it. **Re-index everything** clears the index and embeds every thing again — for a
 change Ferret can't tell from the names ([changing the embedding model](ai#changing-the-embedding-model)).
 
+## Ask Ferret
+
+**Settings → Server → Ask Ferret** sets how much the answering model can read at once — its context size — so Ask
+reads as much of a long manual as the model can take. See [Ask Ferret's context size](ai#ask-ferret).
+
 ## Service errors
 
 **Settings → Server → Service errors** lists every failed call to a service Ferret uses — the AI models (Ollama, the

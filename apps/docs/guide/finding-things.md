@@ -58,6 +58,12 @@ It also reads the [documents of your house, rooms and maintenance](./places-and-
 heater?"* can be answered from the inspection report. Those are found by the words in your question, so use the words
 the document would: *water heater*, not *the thing that makes hot water*.
 
+For a how-to question — *"how do I descale the espresso machine?"* — Ferret reads the whole section of the manual
+that covers it (every step, its sub-sections and its warnings) and answers with the steps as a numbered list. The
+document it used shows with that section's name, *brava-manual.pdf · 11 Descaling*; tap it to open the manual at that
+page, your words marked. When a section is too long to read in full, the answer says the rest is in the document. Check
+the steps against the manual, especially safety warnings — it's an AI's reading.
+
 ## Searching one thing
 
 On a thing's page, the search at the top (or <kbd>/</kbd>, <kbd>⌘K</kbd>) searches **inside that thing** rather than

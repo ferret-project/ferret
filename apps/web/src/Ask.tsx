@@ -41,20 +41,25 @@ export function AskFerret({ question, itemId }: { question: string; itemId?: str
         )}
         {ask.data && (
           <>
-            <p className={ask.data.found ? "text-base-content" : "text-base-content/70"}>{ask.data.answer}</p>
+            {/* A how-to answer is a numbered list, a step a line: keep its line breaks. */}
+            <p className={`whitespace-pre-line ${ask.data.found ? "text-base-content" : "text-base-content/70"}`}>{ask.data.answer}</p>
             {ask.data.citations.length > 0 && (
               <ul className="flex flex-wrap gap-2">
                 {ask.data.citations.map((c) => (
-                  <li key={`${c.itemId ?? c.of?.id}:${c.attachmentId ?? ""}`}>
+                  <li key={`${c.itemId ?? c.of?.id}:${c.attachmentId ?? ""}:${c.section ?? ""}`} className="max-w-full">
                     <a
                       href={c.attachmentId ? api.attachmentUrl(c.attachmentId) : itemHref(c.itemId!)}
-                      {...(c.attachmentId ? { target: "_blank", rel: "noreferrer" } : {})}
+                      // The document viewer opens at the page the answer came from (data-near), the question's words marked (data-find).
+                      {...(c.attachmentId ? { target: "_blank", rel: "noreferrer", ...(c.find ? { "data-find": c.find } : {}), ...(c.near ? { "data-near": c.near } : {}) } : {})}
                       // A house's, room's or task's own document: whose it is, on hover.
                       title={c.of?.name}
-                      className="badge badge-soft badge-primary gap-1"
+                      className="badge badge-soft badge-primary h-auto max-w-full gap-1 py-0.5 text-start"
                     >
-                      <span className={`${c.attachmentId ? "icon-[tabler--file-text]" : "icon-[tabler--box]"} size-3.5`} />
-                      {c.attachmentId ? c.filename : c.itemName}
+                      <span className={`${c.attachmentId ? "icon-[tabler--file-text]" : "icon-[tabler--box]"} size-3.5 shrink-0`} />
+                      <span className="min-w-0 break-words">
+                        {c.attachmentId ? c.filename : c.itemName}
+                        {c.section && <span className="text-base-content/70"> · {c.section}</span>}
+                      </span>
                     </a>
                   </li>
                 ))}

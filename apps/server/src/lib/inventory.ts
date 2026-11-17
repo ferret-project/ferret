@@ -40,6 +40,7 @@ import { INDEX_JOB } from "../jobs/index-item";
 import type { Db, Deps } from "../ports";
 import { countEvent } from "./analytics";
 import { ASK_FILES, ASK_ITEMS, askAboutItem, askInventory } from "./ask";
+import { askContextTokens } from "./ask-settings";
 import { findInItem } from "./item-search";
 import { loadSearchDoc } from "./search-text";
 import { categoryInfo, setItemTags, tagsOf } from "./catalog";
@@ -691,7 +692,7 @@ export async function ask(v: Caller, question: string) {
   const files = await searchFiles(v, question, ASK_FILES);
   try {
     const onModel = () => recordUsage(v, "ai.ask", 1, plan); // counted only when the model is asked
-    return await askInventory({ db: v.db, model, timeZone: v.timeZone, onModel }, v.householdId, question, results, files);
+    return await askInventory({ db: v.db, model, timeZone: v.timeZone, contextTokens: await askContextTokens(v.db), onModel }, v.householdId, question, results, files);
   } catch (err) {
     console.warn(`Ask Ferret failed: ${String(err)}`);
     throw new HTTPException(503, { message: "Ferret couldn't answer right now — try again in a moment" });
@@ -713,7 +714,7 @@ export async function askItem(v: Caller, itemId: string, question: string) {
   const vectors = searchEnabled(v.deps) && (await meaningSearchAllowed(v)) ? v.deps.vectors : undefined;
   try {
     const onModel = () => recordUsage(v, "ai.ask", 1, plan);
-    return await askAboutItem({ db: v.db, model, timeZone: v.timeZone, onModel, ai: v.deps.ai, vectors }, v.householdId, doc, question);
+    return await askAboutItem({ db: v.db, model, timeZone: v.timeZone, contextTokens: await askContextTokens(v.db), onModel, ai: v.deps.ai, vectors }, v.householdId, doc, question);
   } catch (err) {
     console.warn(`Asking about an item failed: ${String(err)}`);
     throw new HTTPException(503, { message: "Ferret couldn't answer right now — try again in a moment" });

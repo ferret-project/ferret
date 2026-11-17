@@ -819,6 +819,24 @@ export interface AskCitation {
   /** Set when the answer came from inside a document. */
   attachmentId?: string;
   filename?: string;
+  /** The document's section it came from ("11 Descaling"), when it has headings. */
+  section?: string;
+  /** The start of that part of the document: the viewer opens at its page. */
+  near?: string;
+  /** The question's words to mark there ("descale"). */
+  find?: string;
+}
+
+/** Settings → Server → Ask Ferret: the answering model's context size, which decides how much Ask reads. */
+export const askSettingsInput = z.object({ contextTokens: z.number().int().min(2048).max(2_097_152).nullable() });
+export interface AskSettings {
+  contextTokens: number;
+  /** Not set by the admin: the default. */
+  isDefault: boolean;
+  default: number;
+  /** About how many characters of things and documents a question reads — and a how-to question (more room for the reply). */
+  readChars: number;
+  readCharsHowTo: number;
 }
 
 export interface AskAnswer {

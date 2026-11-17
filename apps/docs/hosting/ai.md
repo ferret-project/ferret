@@ -65,3 +65,29 @@ AI_API_KEY=…                        # optional: for servers started with an AP
   a little stricter or looser.
 
 If photos aren't read, Settings → Server lists the service errors with what the model server answered.
+
+## Ask Ferret
+
+[Ask Ferret](../guide/finding-things#ask-ferret) gives the answering model (`CHAT_URL`'s, else the vision model) the
+things and document sections that match the question, as much as fits its **context size** — set it in
+**Settings → Server → Ask Ferret** to the context size the model server runs the model with. Each server sets it its own
+way, and Ferret can't change it through the API, so it only needs to be told:
+
+| Server | Where its context size is set |
+| --- | --- |
+| vLLM | `--max-model-len` |
+| llama.cpp (`llama-server`) | `--ctx-size` (`-c`) |
+| Ollama | `OLLAMA_CONTEXT_LENGTH` on the server, or the model's `num_ctx` |
+| LM Studio | the model's **Context Length** when it's loaded |
+| A hosted API | the model's context window in its documentation |
+
+The default, 8K tokens, works with nearly every server.
+
+- **Bigger** reads more of a long manual at once (a whole chapter rather than its start) and leaves room for long
+  lists of steps, but each question takes longer.
+- **Bigger than the model allows** and the model server cuts the question off — the answer then comes from part of the
+  manual — or refuses it (a service error). Some servers (Ollama, llama.cpp) cut silently, so match their setting.
+- How-to questions keep more room for the reply (a quarter of the size, up to 4,096 tokens), so they read a little less.
+
+The card shows about how many characters a question reads with the size chosen. Ferret estimates tokens from
+characters (about three a token), so leave some headroom for text that isn't English.

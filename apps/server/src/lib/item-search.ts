@@ -22,7 +22,12 @@ const STOP_WORDS = new Set(
 
 /** A word with its common English endings taken off, so forms of it match each other. */
 export function stem(word: string) {
-  const w = word.toLowerCase();
+  const w = endings(word.toLowerCase());
+  // A silent e goes too, so "descale" and "descaling", "replace" and "replaced" meet.
+  return w.length > 4 && w.endsWith("e") && !w.endsWith("ee") ? w.slice(0, -1) : w;
+}
+
+function endings(w: string) {
   if (w.length > 5 && w.endsWith("ing")) return w.slice(0, -3);
   if (w.length > 4 && w.endsWith("ies")) return `${w.slice(0, -3)}y`;
   if (w.length > 4 && /(s|x|z|ch|sh)es$/.test(w)) return w.slice(0, -2);
@@ -38,7 +43,7 @@ export function searchTerms(query: string) {
   return [...new Set((kept.length ? kept : words).map(stem))];
 }
 
-function matches(word: string, term: string) {
+export function matches(word: string, term: string) {
   const lower = word.toLowerCase();
   const s = stem(lower);
   return s === term || (term.length >= 3 && (lower.startsWith(term) || s.startsWith(term)));

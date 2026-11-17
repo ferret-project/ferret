@@ -3,13 +3,14 @@
  * whether things are checked against product recalls.
  */
 import { Hono } from "hono";
-import { type ServerAddress, type ServerSecrets, serverAdminInput } from "@ferret/shared";
+import { askSettingsInput, type ServerAddress, type ServerSecrets, serverAdminInput } from "@ferret/shared";
 import { type AppEnv, body, requireServerAdmin, requireUser } from "../lib/context";
 import { serverAdmin, setServerAdmin } from "../lib/server-admin";
 import { z } from "zod";
 import { RECALL_SYNC_JOB } from "../jobs/recalls";
 import { recallStatus, setRecallsEnabled } from "../lib/recalls";
 import { repairGuideStatus, setRepairGuidesEnabled } from "../lib/repair-guides";
+import { askSettings, setAskContextTokens } from "../lib/ask-settings";
 import { setVehiclesEnabled, VIN_BACKFILL_JOB, vehicleStatus } from "../lib/vehicles";
 import { serverAiFillDefaults, setServerAiFillDefaults } from "../lib/ai-fill";
 import { aiFillKinds } from "@ferret/shared";
@@ -154,6 +155,16 @@ server.put("/repair-guides", async (c) => {
   const { enabled } = await body(c.req.raw, z.object({ enabled: z.boolean() }));
   await setRepairGuidesEnabled(c.var.db, enabled);
   return c.json(await repairGuideStatus(c.var.deps));
+});
+
+/** Ask Ferret: the answering model's context size, and how much a question reads with it. */
+server.get("/ask", async (c) => c.json(await askSettings(c.var.db)));
+
+/** Set the answering model's context size ({ contextTokens }, null = the default). */
+server.put("/ask", async (c) => {
+  const { contextTokens } = await body(c.req.raw, askSettingsInput);
+  await setAskContextTokens(c.var.db, contextTokens);
+  return c.json(await askSettings(c.var.db));
 });
 
 /** Vehicle look-ups (NHTSA): whether they're on, how many vehicles decoded and their recalls kept. */

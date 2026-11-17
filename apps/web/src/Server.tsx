@@ -32,6 +32,7 @@ export function Server() {
       <ServerCheck />
       <ServiceErrors />
       <SearchIndex />
+      <AskLimits />
       <BarcodeLookups />
       <RecallChecks />
       <VehicleLookups />
@@ -444,6 +445,65 @@ function VehicleLookups() {
           </p>
         )}
         {toggle.isError && <div className="alert alert-soft alert-error">{toggle.error.message}</div>}
+      </div>
+    </section>
+  );
+}
+
+/** Context sizes offered: what model servers are commonly started with. */
+const CONTEXT_SIZES = [4096, 8192, 16384, 32768, 65536, 131072];
+const tokensText = (n: number) => (n % 1024 === 0 ? `${n / 1024}K` : n.toLocaleString());
+
+/**
+ * Ask Ferret's limits: the answering model's context size. Ask fits what it reads (and room for the reply) inside it —
+ * set too high for the model, long manuals get cut off by the model server or refused; too low, they're read in
+ * shorter pieces.
+ */
+function AskLimits() {
+  const qc = useQueryClient();
+  const status = useQuery({ queryKey: ["server-ask"], queryFn: api.askSettings });
+  const save = useMutation({ mutationFn: api.setAskSettings, onSuccess: (data) => qc.setQueryData(["server-ask"], data) });
+  const s = status.data;
+  if (!s) return null;
+  const reads = s.readChars.toLocaleString();
+  const readsHowTo = s.readCharsHowTo.toLocaleString();
+  const sizes = CONTEXT_SIZES.includes(s.contextTokens) ? CONTEXT_SIZES : [...CONTEXT_SIZES, s.contextTokens].sort((a, b) => a - b);
+  return (
+    <section className="card" aria-labelledby="ask-limits-title">
+      <div className="card-body gap-3">
+        <h2 id="ask-limits-title" className="card-title flex items-center gap-2">
+          <span className="icon-[tabler--sparkles] size-5 text-primary" />
+          <Trans>Ask Ferret</Trans>
+          <HelpLink page="hosting/ai.html#ask-ferret" label={t`Ask Ferret`} />
+        </h2>
+        <p className="text-sm text-base-content/70">
+          <Trans>How much the answering model can read at once (its context size, in tokens). Set it to the context size its model
+          server runs it with (each server has its own setting for it — see the help). Bigger reads more of a long manual for each question, and is slower;
+          bigger than the model allows, and answers come back cut off or fail.</Trans>
+        </p>
+        <label className="flex flex-col gap-1">
+          <span className="text-sm font-medium"><Trans>Context size</Trans></span>
+          <select
+            className="select max-w-xs"
+            value={s.isDefault ? "" : String(s.contextTokens)}
+            disabled={save.isPending}
+            onChange={(e) => save.mutate(e.target.value ? Number(e.target.value) : null)}
+          >
+            <option value="">{t`Default (${ph({ size: tokensText(s.default) })})`}</option>
+            {sizes.map((n) => (
+              <option key={n} value={n}>
+                {t`${ph({ size: tokensText(n) })} tokens`}
+              </option>
+            ))}
+          </select>
+        </label>
+        <p className="text-sm text-base-content/70">
+          <Trans>
+            A question reads up to about {reads} characters of your things and documents — {readsHowTo} for a
+            how-to question, which leaves more room for the steps.
+          </Trans>
+        </p>
+        {save.isError && <div className="alert alert-soft alert-error">{save.error.message}</div>}
       </div>
     </section>
   );
