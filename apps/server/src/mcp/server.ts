@@ -39,6 +39,7 @@ import {
   fileOwnerQuery,
 } from "@ferret/shared";
 import { amazonCartUrl, youtubeWatchUrl } from "@ferret/shared/utils";
+import { itemVideosOf } from "../lib/videos";
 import { type AuthInfo, createMcpHandler, McpServer } from "@modelcontextprotocol/server";
 import { and, eq, isNull } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
@@ -163,7 +164,7 @@ function buildServer(v: McpCaller) {
     {
       title: "Get an item",
       description:
-        "Everything about one item: all its fields, where it's kept (and which box), its parts and supplies (bags, filters — items of their own with partOfItemId set to it; add one with create_item and partOfItemId, the part number in model; its manuals' suggested parts are in attachments' suggestions.parts), warranties and claims, its photos and documents with what the vision model read in them, its repairs, what owning it has cost (cost: paid + maintenance + repairs − what it sold for, per year owned), what replaced it, how long it should last (lifespan), when it was last seen (lastSeen; missingSince if nobody can find it), and any suggested fields waiting for the person to confirm (item fields go through update_item, a warranty through save_warranty, a schedule through save_maintenance). Use it after search_inventory or list_items has found the item, when you need the details; for what happened to it over time use item_history, and for a quick look at many items list_items is enough.",
+        "Everything about one item: all its fields, where it's kept (and which box), its parts and supplies (bags, filters — items of their own with partOfItemId set to it; add one with create_item and partOfItemId, the part number in model; its manuals' suggested parts are in attachments' suggestions.parts), warranties and claims, its photos and documents with what the vision model read in them, its repairs, what owning it has cost (cost: paid + maintenance + repairs − what it sold for, per year owned), what replaced it, how-to videos (YouTube links), how long it should last (lifespan), when it was last seen (lastSeen; missingSince if nobody can find it), and any suggested fields waiting for the person to confirm (item fields go through update_item, a warranty through save_warranty, a schedule through save_maintenance). Use it after search_inventory or list_items has found the item, when you need the details; for what happened to it over time use item_history, and for a quick look at many items list_items is enough.",
       inputSchema: z.object({ id: z.string().min(1).describe("The item's id, from search_inventory or list_items") }),
       annotations: read,
     },
@@ -195,6 +196,11 @@ function buildServer(v: McpCaller) {
           label: listed?.labelCode ?? undefined,
           // When someone last saw it (scanned, "Still here", a room review); missingSince: nobody can find it.
           lastSeen: listed?.lastSeen ? compact({ at: listed.lastSeen.at, by: listed.lastSeen.by, how: listed.lastSeen.kind }) : undefined,
+          // How-to videos people added to it (YouTube), as links Claude can pass on.
+          videos: await itemVideosOf(v, [id]).then((m) => {
+            const list = m.get(id) ?? [];
+            return list.length ? list.map((x) => compact({ title: x.title, url: youtubeWatchUrl(x.videoId) })) : undefined;
+          }),
           // Repairs, what owning it has cost, and what replaced it / what it replaced.
           repairs: await repairs.listRepairs(v, id).then((rs) => (rs.length ? rs.map((r) => compact({ id: r.id, repairedOn: r.repairedOn, work: r.work, problem: r.problem, by: r.providerName, parts: r.parts, costCents: r.costCents, warrantyEndsOn: r.warrantyEndsOn })) : undefined)),
           cost: await repairs.ownershipCost(v, id).then((c) => compact({ totalCents: c.totalCents, perYearCents: c.perYearCents, years: c.years, paidCents: c.paidCents, maintenanceCents: c.maintenanceCents || undefined, repairCents: c.repairCents || undefined, backCents: c.backCents })),
@@ -1366,7 +1372,8 @@ function toBase64(bytes: Uint8Array) {
 
 /** A task as Claude sees it: no empty fields, and the interval in words. */
 function taskView(t: Awaited<ReturnType<typeof upkeep.getTask>>) {
-  const { intervalCount, intervalUnit, usage: byUse, dueEstimated, timeDueOn, videos, ...rest } = t;
+  const { intervalCount, intervalUnit, usage: byUse, dueEstimated, timeDueOn, videos: own, thingVideos, ...rest } = t;
+  const videos = [...own, ...thingVideos];
   const repeats = describeInterval(intervalCount, intervalUnit);
   return compact({
     ...rest,

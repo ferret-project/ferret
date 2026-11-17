@@ -14,7 +14,7 @@
  * never sits anywhere but the download. Deleted things (Recently deleted) are left out.
  */
 import { youtubeWatchUrl } from "@ferret/shared/utils";
-import { videosOf } from "./videos";
+import { itemVideosOf, videosOf } from "./videos";
 import { formatMoney } from "@ferret/shared";
 import { listTemplates } from "./templates";
 import { listCollections } from "./collections";
@@ -165,6 +165,7 @@ export async function householdData(v: Caller, root: string, householdName: stri
   // (its name, made unique in the folder). Files of something deleted aren't included.
   const liveTasks = tasks.filter((t) => !t.itemId || itemIds.has(t.itemId));
   const taskVideos = await videosOf(v, liveTasks.map((t) => t.id));
+  const thingVideos = await itemVideosOf(v, items.map((i) => i.id));
   const taskById = new Map(liveTasks.map((t) => [t.id, t]));
   const itemName = new Map(items.map((i) => [i.id, i.name]));
   const ownerOf = (f: (typeof files)[number]): { key: string; name: string } | null => {
@@ -267,6 +268,8 @@ export async function householdData(v: Caller, root: string, householdName: stri
     items: items.map((i) => ({
       id: i.id,
       name: i.name,
+      /** How-to videos (YouTube). */
+      videos: (thingVideos.get(i.id) ?? []).map((x) => ({ title: x.title, channel: x.channel, url: youtubeWatchUrl(x.videoId) })),
       description: i.description,
       brand: i.brand,
       model: i.model,

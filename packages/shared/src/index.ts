@@ -540,6 +540,8 @@ export interface MaintenanceTask {
   dueEstimated: boolean;
   /** How-to videos for it. */
   videos: TaskVideo[];
+  /** How-to videos on its thing (none for a house-wide task), shown with its own. */
+  thingVideos: TaskVideo[];
 }
 
 // ── Readings (maintenance by use) ───────────────────────────────────────────
@@ -878,6 +880,8 @@ export interface ItemListing extends Item {
   homeAssistantUrl?: string | null;
   /** One item's page (GET /items/:id): iFixit's page for it, when its brand and model surely match one (repair guides on). */
   repairGuide?: { title: string; url: string } | null;
+  /** One item's page (GET /items/:id): its how-to videos (YouTube). */
+  videos?: TaskVideo[];
   /** One item's page (GET /items/:id): what replaced it, and what it replaced. */
   replacedBy?: { id: string; name: string } | null;
   replaces?: { id: string; name: string }[];

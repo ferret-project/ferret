@@ -237,6 +237,8 @@ export const STATUS = {
 } as const;
 
 export function TaskRow(props: { task: MaintenanceTask; showItem?: boolean; canEdit: boolean; onDone: () => void; onEdit: () => void; expected?: string }) {
+  // The thing's own videos too — except on the thing's page (no showItem), where its How-to videos card has them.
+  const chips = props.showItem ? [...props.task.videos, ...props.task.thingVideos] : props.task.videos;
   const task = props.task;
   const where = [props.showItem && task.itemName, task.place && !task.itemName ? task.place : null].filter(Boolean);
   return (
@@ -272,9 +274,9 @@ export function TaskRow(props: { task: MaintenanceTask; showItem?: boolean; canE
         </button>
       )}
     </div>
-      {!props.expected && task.videos.length > 0 && (
+      {!props.expected && chips.length > 0 && (
         <div className="ps-5.5">
-          <VideoChips videos={task.videos} />
+          <VideoChips videos={chips} />
         </div>
       )}
     </li>
@@ -371,7 +373,7 @@ function DoneModal({ task, householdId, onClose }: { task: MaintenanceTask; hous
         </div>
         {task.videos.length > 0 && (
           <div className="flex justify-center">
-            <VideoChips videos={task.videos} />
+            <VideoChips videos={[...task.videos, ...task.thingVideos]} />
           </div>
         )}
         <div className="grid grid-cols-2 gap-4">

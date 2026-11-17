@@ -37,16 +37,19 @@ Each task keeps its history, and the item's page shows its maintenance.
 
 ## How-to videos {#videos}
 
-A task can keep the YouTube videos that show how to do it — *how to clean the ice maker*, *how to change this filter*.
-Open the task and tap **Add a video**:
+Keep the YouTube videos that show how to do things — on a **task** for one job (*how to clean the ice maker*, *how to
+change this filter*), or on the **thing** itself for anything about it (*how to reset the ice maker*), with or without a
+schedule. Open the task and tap **Add a video**, or on the thing's page tap **How-to video** (once it has one, its
+**How-to videos** card has **Add a video**):
 
 - **Search YouTube** right there (if your Ferret has a YouTube key — whoever runs it can
-  [get one free](../hosting/configuration#youtube)): it starts with the task and its thing, change the words if you like, tap
-  a result to watch it first, **Add** to keep it.
+  [get one free](../hosting/configuration#youtube)): it starts with the task and its thing (or the thing's brand, model
+  and name), change the words if you like, tap a result to watch it first, **Add** to keep it.
 - Or **paste a YouTube link** (on a phone: **Share → Copy link** in YouTube). Without a key, **Find one on YouTube**
   opens YouTube's own search to find it.
 
-The videos show under the task in the list and when you tap **Done**, and play inside Ferret — **Close** brings you
+A task's videos show under it in the list and when you tap **Done** — along with its thing's, so the reset video is
+there when you do the cleaning — and play inside Ferret — **Close** brings you
 back. They play in YouTube's privacy-enhanced player, so YouTube sets no cookies until you play one. Only the words you
 search for and the videos' links go to YouTube.
 

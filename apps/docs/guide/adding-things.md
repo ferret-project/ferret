@@ -59,7 +59,9 @@ online product database if whoever runs Ferret turned that on — and you can ad
 
 ## Links
 
-An item can keep web links: the maker's product page, the manual online, where you bought it.
+An item can keep web links: the maker's product page, the manual online, where you bought it. YouTube videos about it
+go in its **How-to videos** instead (**How-to video** on its page), where they play inside Ferret — see
+[How-to videos](./maintenance#videos).
 
 ## Scanning a barcode
 

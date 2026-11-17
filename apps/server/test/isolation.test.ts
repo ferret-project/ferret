@@ -85,6 +85,7 @@ async function annHousehold() {
   });
   await make("POST", `/api/v1/maintenance/${task.id}/done`, { note: `${SECRET} done note` });
   const video = await make<{ id: string }>("POST", `/api/v1/maintenance/${task.id}/videos`, { url: "https://youtu.be/dQw4w9WgXcQ" });
+  await make("POST", `/api/v1/items/${drill.id}/videos`, { url: "https://youtu.be/dQw4w9WgXcQ" });
   // Files of her house, garage and a house-wide task (lib/attachments.ts FileOwner).
   const chores = await make("POST", "/api/v1/maintenance", { title: `${SECRET} gutters` });
   for (const [field, owner] of [["propertyId", property.id], ["locationId", garage.id], ["taskId", chores.id]] as const) {

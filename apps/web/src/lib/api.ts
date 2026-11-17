@@ -608,6 +608,8 @@ export const api = {
   addTaskVideo: (taskId: string, url: string) =>
     request<TaskVideo>(`/maintenance/${taskId}/videos`, { method: "POST", body: JSON.stringify({ url }) }),
   removeTaskVideo: (taskId: string, id: string) => request<{ ok: true }>(`/maintenance/${taskId}/videos/${id}`, { method: "DELETE" }),
+  addItemVideo: (itemId: string, url: string) => request<TaskVideo>(`/items/${itemId}/videos`, { method: "POST", body: JSON.stringify({ url }) }),
+  removeItemVideo: (itemId: string, id: string) => request<{ ok: true }>(`/items/${itemId}/videos/${id}`, { method: "DELETE" }),
   searchVideos: (q: string) => request<{ available: boolean; results: VideoHit[] }>(`/maintenance/videos/search?q=${encodeURIComponent(q)}`),
   calendarStatus: () =>
     request<{ active: boolean; createdAt: string | null; url: string | null; webcal: string | null }>("/calendar"),

@@ -578,6 +578,25 @@ export const taskVideo = sqliteTable(
   (t) => [index("task_video_task_idx").on(t.householdId, t.taskId), uniqueIndex("task_video_once").on(t.taskId, t.videoId)],
 );
 
+/** How-to videos on a thing itself ("How to reset the ice maker"), beside task_video's for one job. */
+export const itemVideo = sqliteTable(
+  "item_video",
+  {
+    id: id(),
+    householdId: householdId(),
+    itemId: text("item_id")
+      .notNull()
+      .references(() => item.id, { onDelete: "cascade" }),
+    videoId: text("video_id").notNull(),
+    title: text("title"),
+    channel: text("channel"),
+    seconds: integer("seconds"),
+    addedBy: text("added_by").references(() => user.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (t) => [index("item_video_item_idx").on(t.householdId, t.itemId), uniqueIndex("item_video_once").on(t.itemId, t.videoId)],
+);
+
 /** A reading of what an item counts (its `usageUnit`): the odometer, the hour meter — for maintenance by use. */
 export const usageReading = sqliteTable(
   "usage_reading",

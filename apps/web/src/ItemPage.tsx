@@ -52,6 +52,7 @@ import { FromWeb } from "./FromWeb";
 import { PaperlessAttachButton } from "./Paperless";
 import { useFeatures } from "./lib/features";
 import { StockCard } from "./Stock";
+import { ItemVideos } from "./Videos";
 import { PairingCard } from "./Pairing";
 import { ItemHistory } from "./History";
 import { LoanCard } from "./Loans";
@@ -259,6 +260,7 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
     maintenance: (tasks.data?.data.length ?? 0) > 0 || (canEdit && (suggestedTasks.data?.data.length ?? 0) > 0) || isOpen("maintenance"),
     repairs: (repairs.data?.data.length ?? 0) > 0 || isOpen("repairs"),
     documents: documents.length > 0,
+    videos: (item.data.videos?.length ?? 0) > 0 || isOpen("videos"),
   };
   const editable = canEdit && !item.data.disposition;
   const offer = {
@@ -266,6 +268,7 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
     maintenance: editable && Boolean(tasks.data && suggestedTasks.data) && !show.maintenance,
     repairs: editable && Boolean(repairs.data) && !show.repairs,
     documents: editable && Boolean(attachments.data) && !show.documents,
+    videos: editable && !show.videos,
   };
   const details = [
     item.data.brand,
@@ -606,6 +609,11 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
           <Trans>Add a document</Trans>
         </ChipButton>
       )}
+      {offer.videos && (
+        <ChipButton icon="icon-[tabler--brand-youtube]" onClick={() => open("videos")}>
+          <Trans>How-to video</Trans>
+        </ChipButton>
+      )}
       <StockCard item={item.data} householdId={householdId} canEdit={canEdit && !item.data.disposition} />
       {/* Its bags, filters…: things of their own, with stock and where to buy them; and the ones its manual lists. */}
       <PartsCard item={item.data} householdId={householdId} canEdit={canEdit && !item.data.disposition} />
@@ -613,6 +621,8 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
       {/* HomeKit / Matter setup codes: shown on request, with their QR for the Home app. */}
       <PairingCard itemId={itemId} householdId={householdId} canEdit={canEdit} />
       {!item.data.disposition && <LoanCard itemId={itemId} itemName={item.data.name} householdId={householdId} canEdit={canEdit} />}
+      {/* How-to videos on the thing itself (task videos are in the task's dialog). */}
+      {show.videos && <ItemVideos key={itemId} item={item.data} householdId={householdId} canEdit={editable} startAdding={isOpen("videos") && !item.data.videos?.length} />}
       </div>
 
       {claimDialog && (
@@ -991,7 +1001,7 @@ function AnalysisBadge({ attachment, onRetry, canRead }: { attachment: Attachmen
 }
 
 /** The item page's sections that hide while empty. */
-type OptionalSection = "warranties" | "maintenance" | "repairs";
+type OptionalSection = "warranties" | "maintenance" | "repairs" | "videos";
 
 /** A small button in the row of optional cards (like "Track stock"). */
 function ChipButton({ icon, onClick, children }: { icon: string; onClick: () => void; children: ReactNode }) {

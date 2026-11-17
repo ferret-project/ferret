@@ -4,7 +4,7 @@
  * Accepts a session cookie or an API key (see lib/context.ts).
  */
 import { householdSummary } from "../lib/summary";
-import { canSearchVideos } from "../lib/videos";
+import { addItemVideo, canSearchVideos, itemVideosOf, removeItemVideo } from "../lib/videos";
 import { PHOTO_ORDER } from "../lib/photo-order";
 import * as usage from "../lib/usage";
 import { fileOwnerQuery, usageReadingInput, itemsBulk, reviewItemBody, repairInput, repairPatch,
@@ -14,6 +14,7 @@ import { fileOwnerQuery, usageReadingInput, itemsBulk, reviewItemBody, repairInp
   type AttachmentKind,
   attachmentKinds,
   itemInput,
+  taskVideoInput,
   itemPatch,
   listQuery,
   locationInput,
@@ -256,12 +257,18 @@ inventory.get("/items/:id/history", async (c) => {
   return c.json(await itemHistory(callerOf(c), c.req.param("id"), page));
 });
 
+/** How-to videos on the thing itself (YouTube): add one from a link, or remove one (`videoId` is the video's own id). */
+inventory.post("/items/:id/videos", requireWriter, async (c) =>
+  c.json(await addItemVideo(callerOf(c), c.req.param("id"), (await body(c.req.raw, taskVideoInput)).url), 201),
+);
+inventory.delete("/items/:id/videos/:videoId", requireWriter, async (c) => c.json(await removeItemVideo(callerOf(c), c.req.param("id"), c.req.param("videoId"))));
+
 inventory.get("/items/:id", async (c) => {
   const v = callerOf(c);
   const found = await svc.getItem(v, c.req.param("id"));
   const [listed] = await svc.asListing(v, [found]);
   const [by] = found.createdBy ? await c.var.db.select({ name: user.name }).from(user).where(eq(user.id, found.createdBy)) : [];
-  return c.json({ ...listed, addedBy: by?.name ?? null, ownLabels: await ownLabelsOf(v, found.id), lifespan: await itemLifespan(v, found), homeAssistantUrl: await homeAssistantLink(v, found), repairGuide: await repairGuideFor(v, found), ...(await repairs.replacementsOf(v, found)) });
+  return c.json({ ...listed, addedBy: by?.name ?? null, ownLabels: await ownLabelsOf(v, found.id), lifespan: await itemLifespan(v, found), homeAssistantUrl: await homeAssistantLink(v, found), repairGuide: await repairGuideFor(v, found), videos: (await itemVideosOf(v, [found.id])).get(found.id) ?? [], ...(await repairs.replacementsOf(v, found)) });
 });
 
 /** One change to many things: move, category, tag, untag, delete (≤200 at a time). */

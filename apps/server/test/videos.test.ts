@@ -114,3 +114,32 @@ describe("how-to videos on tasks", () => {
     expect(yt.searched).toHaveLength(1);
   });
 });
+
+describe("how-to videos on things", () => {
+  it("are added to a thing, shown on it and with its tasks, and removed", async () => {
+    const { user } = await setup({ videos: new FakeYouTube(false) });
+    const ann = await user("ann");
+    const maker = await json<{ id: string }>(send(ann, "POST", "/api/v1/items", { name: "Ice maker" }));
+    const task = await json<MaintenanceTask>(send(ann, "POST", "/api/v1/maintenance", { title: "Clean it", itemId: maker.id, intervalCount: 6, intervalUnit: "month" }));
+    await send(ann, "POST", `/api/v1/maintenance/${task.id}/videos`, { url: FILTER });
+
+    const res = await send(ann, "POST", `/api/v1/items/${maker.id}/videos`, { url: `https://youtu.be/${CLEAN}` });
+    expect(res.status).toBe(201);
+    const video = await json<TaskVideo>(res);
+    expect(video.title).toBe("How to clean a GE ice maker");
+    // The same video twice is the one; a task's own video isn't repeated as its thing's.
+    expect((await json<TaskVideo>(send(ann, "POST", `/api/v1/items/${maker.id}/videos`, { url: CLEAN }))).id).toBe(video.id);
+    await send(ann, "POST", `/api/v1/items/${maker.id}/videos`, { url: FILTER });
+
+    const item = await json<{ videos: TaskVideo[] }>(send(ann, "GET", `/api/v1/items/${maker.id}`));
+    expect(item.videos.map((v) => v.videoId)).toEqual([CLEAN, FILTER]);
+    const [listed] = (await json<{ data: MaintenanceTask[] }>(send(ann, "GET", `/api/v1/maintenance?itemId=${maker.id}`))).data;
+    expect(listed!.videos.map((v) => v.videoId)).toEqual([FILTER]);
+    expect(listed!.thingVideos.map((v) => v.videoId)).toEqual([CLEAN]);
+
+    expect((await send(ann, "POST", `/api/v1/items/${maker.id}/videos`, { url: "https://example.com/x" })).status).toBe(400);
+    expect((await send(ann, "DELETE", `/api/v1/items/${maker.id}/videos/${video.id}`)).status).toBe(200);
+    expect((await json<{ videos: TaskVideo[] }>(send(ann, "GET", `/api/v1/items/${maker.id}`))).videos.map((v) => v.videoId)).toEqual([FILTER]);
+    expect((await send(ann, "DELETE", `/api/v1/items/${maker.id}/videos/${video.id}`)).status).toBe(404);
+  });
+});

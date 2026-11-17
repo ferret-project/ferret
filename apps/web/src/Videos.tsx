@@ -1,10 +1,11 @@
 /**
- * How-to videos on maintenance tasks (server: lib/videos.ts). `VideoChips` under a task (its row, the Done dialog) play
- * them in `VideoPlayer` — YouTube's privacy-enhanced player inside Ferret, with Close (so an iPhone's Home Screen app
- * never strands you on YouTube). `TaskVideos` in the task's dialog adds them — search YouTube from Ferret when the
- * server has a YouTube key, else YouTube's own search in a new tab — or paste a link; and removes them.
+ * How-to videos on maintenance tasks and on things (server: lib/videos.ts). `VideoChips` under a task (its row, the
+ * Done dialog — the task's own and its thing's) play them in `VideoPlayer` — YouTube's privacy-enhanced player inside
+ * Ferret, with Close (so an iPhone's Home Screen app never strands you on YouTube). `TaskVideos` in the task's dialog and
+ * `ItemVideos` on a thing's page add them — search YouTube from Ferret when the server has a YouTube key, else
+ * YouTube's own search in a new tab — or paste a link; and remove them.
  */
-import type { MaintenanceTask, TaskVideo, VideoHit } from "@ferret/shared";
+import type { ItemListing, MaintenanceTask, TaskVideo, VideoHit } from "@ferret/shared";
 import { videoLength, youtubeEmbedUrl, youtubeId, youtubeSearchUrl, youtubeThumbnail, youtubeWatchUrl } from "@ferret/shared/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
@@ -16,7 +17,7 @@ import { useFeatures } from "./lib/features";
 
 type Playable = Pick<TaskVideo, "videoId" | "title" | "channel">;
 
-/** A task's videos as small thumbnails with their titles; tap to play. */
+/** Videos as small thumbnails with their titles; tap to play. */
 export function VideoChips({ videos }: { videos: TaskVideo[] }) {
   const [playing, setPlaying] = useState<Playable | null>(null);
   if (!videos.length) return null;
@@ -101,30 +102,88 @@ export function VideoPlayer({ video, onClose }: { video: Playable; onClose: () =
   );
 }
 
-/** The task dialog's How-to videos: play, add (search or paste), remove. */
+/** The task dialog's How-to videos: play, add (search or paste), remove; and its thing's, to play. */
 export function TaskVideos({ task, householdId, canEdit }: { task: MaintenanceTask; householdId: string; canEdit: boolean }) {
   const qc = useQueryClient();
-  const [videos, setVideos] = useState<TaskVideo[]>(task.videos);
-  const [adding, setAdding] = useState(false);
+  return (
+    <div className="space-y-2">
+      <VideoList
+        initial={task.videos}
+        suggested={[task.itemName, task.title].filter(Boolean).join(" ")}
+        canEdit={canEdit}
+        add={(url) => api.addTaskVideo(task.id, url)}
+        remove={(id) => api.removeTaskVideo(task.id, id)}
+        onChanged={() => void qc.invalidateQueries({ queryKey: ["maintenance", householdId] })}
+        hideEmpty={!task.thingVideos.length}
+      />
+      {task.thingVideos.length > 0 && task.itemName && (
+        <div className="space-y-1">
+          <p className="text-xs text-base-content/70">
+            <Trans>On {ph({ thing: task.itemName })}:</Trans>
+          </p>
+          <VideoChips videos={task.thingVideos} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** A thing's How-to videos, as a card on its page ("How to reset the ice maker"). */
+export function ItemVideos({ item, householdId, canEdit, startAdding }: { item: ItemListing; householdId: string; canEdit: boolean; startAdding?: boolean }) {
+  const qc = useQueryClient();
+  return (
+    <section id="item-videos" className="card scroll-mt-20">
+      <div className="card-body gap-3">
+        <VideoList
+          initial={item.videos ?? []}
+          suggested={[item.brand, item.model, item.name].filter(Boolean).join(" ")}
+          canEdit={canEdit}
+          startAdding={startAdding}
+          add={(url) => api.addItemVideo(item.id, url)}
+          remove={(id) => api.removeItemVideo(item.id, id)}
+          onChanged={() => {
+            void qc.invalidateQueries({ queryKey: ["item", householdId, item.id] });
+            void qc.invalidateQueries({ queryKey: ["maintenance", householdId] });
+          }}
+        />
+      </div>
+    </section>
+  );
+}
+
+/** The list with its heading, Remove (confirmed) and Add a video. */
+function VideoList(props: {
+  initial: TaskVideo[];
+  suggested: string;
+  canEdit: boolean;
+  startAdding?: boolean;
+  add: (url: string) => Promise<TaskVideo>;
+  remove: (id: string) => Promise<unknown>;
+  onChanged: () => void;
+  /** Show nothing when there are no videos and nobody can add one (default true). */
+  hideEmpty?: boolean;
+}) {
+  const { canEdit } = props;
+  const [videos, setVideos] = useState<TaskVideo[]>(props.initial);
+  const [adding, setAdding] = useState(Boolean(props.startAdding));
   const [removing, setRemoving] = useState<string | null>(null);
   const [playing, setPlaying] = useState<Playable | null>(null);
-  const changed = () => void qc.invalidateQueries({ queryKey: ["maintenance", householdId] });
   const add = useMutation({
-    mutationFn: (url: string) => api.addTaskVideo(task.id, url),
+    mutationFn: props.add,
     onSuccess: (v) => {
       setVideos((list) => (list.some((x) => x.id === v.id) ? list : [...list, v]));
-      changed();
+      props.onChanged();
     },
   });
   const remove = useMutation({
-    mutationFn: (id: string) => api.removeTaskVideo(task.id, id),
+    mutationFn: props.remove,
     onSuccess: (_, id) => {
       setVideos((list) => list.filter((x) => x.id !== id));
       setRemoving(null);
-      changed();
+      props.onChanged();
     },
   });
-  if (!canEdit && !videos.length) return null;
+  if (!canEdit && !videos.length && props.hideEmpty !== false) return null;
 
   return (
     <div className="space-y-2">
@@ -166,7 +225,7 @@ export function TaskVideos({ task, householdId, canEdit }: { task: MaintenanceTa
       {canEdit &&
         (adding ? (
           <AddVideo
-            task={task}
+            suggested={props.suggested}
             pending={add.isPending}
             error={add.isError ? add.error.message : null}
             added={videos.map((v) => v.videoId)}
@@ -184,11 +243,10 @@ export function TaskVideos({ task, householdId, canEdit }: { task: MaintenanceTa
   );
 }
 
-function AddVideo(props: { task: MaintenanceTask; pending: boolean; error: string | null; added: string[]; onAdd: (url: string) => void; onDone: () => void }) {
-  const { task } = props;
+function AddVideo(props: { suggested: string; pending: boolean; error: string | null; added: string[]; onAdd: (url: string) => void; onDone: () => void }) {
+  const { suggested } = props;
   const features = useFeatures();
   const canSearch = features?.videoSearch === true;
-  const suggested = [task.itemName, task.title].filter(Boolean).join(" ");
   const [words, setWords] = useState(suggested);
   const [asked, setAsked] = useState<string | null>(null);
   const [link, setLink] = useState("");
@@ -254,7 +312,7 @@ function AddVideo(props: { task: MaintenanceTask; pending: boolean; error: strin
       ) : (
         features && (
           <div className="space-y-1">
-            <a href={youtubeSearchUrl(suggested || task.title)} target="_blank" rel="noopener noreferrer" className="btn btn-soft btn-sm">
+            <a href={youtubeSearchUrl(suggested)} target="_blank" rel="noopener noreferrer" className="btn btn-soft btn-sm">
               <span className="icon-[tabler--brand-youtube] size-4" />
               <Trans>Find one on YouTube</Trans>
             </a>
