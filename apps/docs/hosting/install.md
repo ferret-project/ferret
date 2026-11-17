@@ -99,3 +99,10 @@ all: [Tunnels and access proxies](./tunnels). Ready-made setups for Caddy, nginx
 `ALLOW_SIGNUP=true` (the default) lets anyone who can reach Ferret make an account — though everyone after the first must
 confirm their email, so that needs [email](./email). Once your household is in, set `ALLOW_SIGNUP=false`: invited
 people can still join from their invitation link.
+
+## Support Ferret
+
+Ferret is free and open source, and everything is in the app you run — nothing is held back for a paid version. If it's
+useful to you, you can [buy the project a coffee](https://buymeacoffee.com/ferretproject). Starring
+[the repository](https://github.com/ferret-project/ferret), telling a friend, and reporting what doesn't work help just as
+much.
