@@ -949,7 +949,7 @@ function AccountMenu({ householdName, householdId, inSidebar = false, folded = f
       )}
       {open && (
         <ul
-          className={`dropdown-menu dropdown-open:opacity-100 absolute max-h-[calc(100dvh-5rem)] w-72 space-y-0.5 overflow-y-auto ${inSidebar ? "start-0 bottom-full mb-2" : "end-0 top-full"}`}
+          className={`dropdown-menu dropdown-open:opacity-100 absolute w-72 space-y-0.5 overflow-y-auto overscroll-contain ${inSidebar ? "start-0 bottom-full mb-2 max-h-[calc(100dvh-5rem)]" : "end-0 top-full max-h-[calc(100dvh-env(safe-area-inset-top)-var(--tabbar,0px)-6rem)]"}`}
           role="menu"
           aria-label={t`Account`}
         >
