@@ -17,6 +17,8 @@ import { mergeFields, TemplatePicker, useTemplates } from "./Templates";
 import { CollectionFields } from "./Collections";
 import { type Choice, ItemPicker, PlacePicker } from "./Combobox";
 import { usePlaces } from "./lib/places";
+import { placeFromScan } from "./lib/scan-place";
+import { Scanner } from "./Scanner";
 import { DialogActions, Modal } from "./Modal";
 import { type LinkDraft, LinksInput, linksToSave } from "./Links";
 import { GoneDialog } from "./Gone";
@@ -81,6 +83,27 @@ export function ItemEditor({
   const [keptIn, setKeptIn] = useState<string | null>(copy ? null : (item.locationId ?? null));
   const [box, setBox] = useState<Choice | null>(!copy && item.container ? { id: item.container.id, label: item.container.name } : null);
   const [isBox, setIsBox] = useState(item.isContainer);
+  // Kept in by scanning the shelf's (or box's) QR label.
+  const [scanning, setScanning] = useState(false);
+  const [scanNote, setScanNote] = useState<{ ok: boolean; text: string } | null>(null);
+  async function onScanned(code: string) {
+    setScanning(false);
+    try {
+      const found = await placeFromScan(householdId, code);
+      if (found.kind === "no") return setScanNote({ ok: false, text: found.message });
+      if (found.kind === "box" && found.id === item.id && !copy) return setScanNote({ ok: false, text: t`That's this box's own label.` });
+      if (found.kind === "place") {
+        setBox(null);
+        setKeptIn(found.id);
+        setScanNote({ ok: true, text: t`Kept in ${ph({ place: found.path })}.` });
+      } else {
+        setBox({ id: found.id, label: found.name });
+        setScanNote({ ok: true, text: t`In ${ph({ box: found.name })}.` });
+      }
+    } catch (err) {
+      setScanNote({ ok: false, text: (err as Error).message });
+    }
+  }
   const [categoryId, setCategoryId] = useState<string | null>(item.categoryId ?? null);
   const [tags, setTags] = useState<string[]>(item.tags ?? []);
   const [custom, setCustom] = useState<CustomFieldValues>(item.customFields ?? {});
@@ -172,6 +195,18 @@ export function ItemEditor({
                 noneLabel={t`No particular place`}
               />
             )}
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+              <button type="button" className="btn btn-soft btn-primary btn-sm" onClick={() => (setScanNote(null), setScanning(true))}>
+                <span className="icon-[tabler--qrcode] size-4" />
+                <Trans>Scan a place's or box's label</Trans>
+              </button>
+              {scanNote && (
+                <span className={`text-sm ${scanNote.ok ? "text-success" : "text-error"}`} role="status">
+                  {scanNote.text}
+                </span>
+              )}
+            </div>
+            {scanning && <Scanner onResult={(code) => void onScanned(code)} onClose={() => setScanning(false)} />}
             {places.data && places.data.properties.every((p) => p.locations.length === 0) && (
               <p className="helper-text">
                 <Trans>No rooms yet — add them under <a className="link link-primary" href="#/places">Places</a></Trans>.

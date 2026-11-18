@@ -36,6 +36,17 @@ they're wherever the box is: move the box to the attic and everything in it move
 
 Box things up from an item's page (choose its box) or from the box (add what's in it).
 
+## Moving things by scanning {#scan}
+
+With [QR labels](./labels) on your shelves, cabinets and boxes, you don't need to remember how the places are laid out:
+
+- **Editing a thing:** under **Kept in**, **Scan a place's or box's label** and scan the shelf (or the box) it's going
+  on. A place's label sets **Kept in**; a box's label puts it **In a box**. Then **Save**.
+- **Several at once:** open the place (or the box) and tap **Move things here**, then scan each thing's label, sticker
+  or barcode as you put it away. Each one moves straight away, with **Undo** in case you scanned the wrong one; a
+  barcode on several things asks which one. Moving a box brings everything in it along. Anything marked *Can't find
+  it* counts as found.
+
 ## Labels
 
 Rooms and boxes can have a QR label — see [QR labels](./labels).

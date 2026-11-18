@@ -29,6 +29,7 @@ import { MISSING_LABELS, OverviewSections } from "./Overview";
 import { ReviewRoomLink } from "./Tracking";
 import { CategoryTiles, categoryIcon, flattenCategories, useCategories } from "./Catalog";
 import { LabelBadge } from "./Boxes";
+import { MoveHereButton } from "./MoveHere";
 import { AttentionBell } from "./AttentionBell";
 import { AddFromPhotos } from "./PhotoAdd";
 import { ScanSession } from "./ScanSession";
@@ -1245,7 +1246,10 @@ export function Home({ householdName, householdId, view }: { householdName: stri
               }
             />
             {/* "Review this room" — and when it last was (Tracking.tsx). */}
-            <ReviewRoomLink locationId={view.locationId} householdId={householdId} />
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              {canEdit && <MoveHereButton target={{ locationId: view.locationId, name: place.node.name }} />}
+              <ReviewRoomLink locationId={view.locationId} householdId={householdId} />
+            </div>
             {place && place.node.children.length > 0 && <PlaceTiles nodes={place.node.children} title={t`Inside ${ph({ name: place.node.name })}`} />}
             {/* The room's own: an inspection report, before/after photos of work done in it… */}
             <FilesSection key={view.locationId} of={{ locationId: view.locationId }} householdId={householdId} title={t`Documents & photos`} />

@@ -337,3 +337,8 @@ export const AI_FILL_KIND_NAMES: Record<AiFillKind, { label: string; hint: strin
 
 export * from "./vin";
 export * from "./youtube";
+
+/** The code in a scanned Ferret QR label (`https://…/l/7HQ2MX`), as written in it — null for anything else. */
+export function labelCodeIn(scanned: string): string | null {
+  return /\/l\/([0-9A-Za-z]{4,12})\/?$/.exec(scanned.trim())?.[1] ?? null;
+}

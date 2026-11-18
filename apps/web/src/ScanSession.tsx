@@ -45,7 +45,7 @@ type Panel =
   | { kind: "error"; message: string };
 
 /** A short beep (and a buzz, where phones allow it): high when the count changed, low when there was nothing to take. */
-function useFeedback() {
+export function useFeedback() {
   const audio = useRef<AudioContext | null>(null);
   const prepare = () => {
     try {

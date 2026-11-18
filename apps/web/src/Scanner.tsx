@@ -7,9 +7,11 @@
  * scanning (a session of stocking shelves: ScanSession.tsx), ignoring the same
  * code for a moment so one barcode isn't counted twice (until `fresh` changes:
  * a new scanner mode reads it again). `paused` stops reading while a question
- * is on screen; `top` and `panel` are the caller's controls.
+ * is on screen; `top` and `panel` are the caller's controls. Rendered at the end of <body> above any dialog, so a
+ * dialog's form can open it without losing what's typed (Esc closes the scanner, not the dialog under it).
  */
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { readBarcode } from "./lib/barcode";
 import { dance, isDook } from "./lib/dook";
 import { t, ph } from "@lingui/core/macro";
@@ -46,6 +48,8 @@ export function Scanner({
   pausedRef.current = paused;
   const onResultRef = useRef(onResult);
   onResultRef.current = onResult;
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   const last = useRef({ code: "", at: 0 });
   useEffect(() => {
     last.current = { code: "", at: 0 };
@@ -129,8 +133,19 @@ export function Scanner({
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-black" role="dialog" aria-modal="true" aria-label={t`Scan a barcode`}>
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.stopImmediatePropagation();
+      stopCamera.current();
+      onCloseRef.current();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, []);
+
+  return createPortal(
+    <div className="fixed inset-0 z-[90] flex flex-col bg-black" role="dialog" aria-modal="true" aria-label={t`Scan a barcode`}>
       <div className="flex items-center justify-between p-3 pt-[max(0.75rem,env(safe-area-inset-top))] text-white">
         <Trans><span className="font-semibold">Scan a barcode</span></Trans>
         <button
@@ -178,6 +193,7 @@ export function Scanner({
           }}
         />
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

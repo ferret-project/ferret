@@ -15,6 +15,7 @@ import { useRoomScanOn } from "./lib/room-scan";
 import { QrCode, labelUrl } from "./Labels";
 import { Modal } from "./Modal";
 import { Scanner } from "./Scanner";
+import { MoveHereButton } from "./MoveHere";
 import { AddFromPhotos } from "./PhotoAdd";
 import { t, ph } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
@@ -64,6 +65,7 @@ export function BoxContents({ box, householdId }: { box: ItemListing; householdI
                 <Trans>Add</Trans>
               </button>
               <AddFromPhotos householdId={householdId} containerItemId={box.id} />
+              <MoveHereButton target={{ boxId: box.id, name: box.name }} className="btn btn-soft btn-primary btn-wrap" />
               {roomScanOn && (
                 <a href={scanRoomHref({ containerItemId: box.id })} className="btn btn-soft btn-primary btn-wrap">
                   <span className="icon-[tabler--scan-eye] size-5" />

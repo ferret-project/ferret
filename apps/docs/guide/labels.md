@@ -2,6 +2,8 @@
 
 Stick a QR label on a box, a shelf or a door and scan it with any phone camera: it opens that box or place in Ferret.
 Scanning a thing's label counts as [seeing it](./room-review#last-seen): its page says when, and by whom.
+The labels also tell Ferret where things go: scan a shelf's label while editing a thing, or **Move things here**
+and scan what you put there — see [Moving things by scanning](./places-and-boxes#scan).
 
 ## Printing
 

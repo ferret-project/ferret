@@ -8,7 +8,7 @@
 import { recordSighting } from "./sightings";
 import type { ScanCandidate, ScanInput, ScanResult, ShoppingItem, ShoppingList, StockAdjust, StockBehaviour, StockMovement, StockRuleInput, StockSummary } from "@ferret/shared";
 import { addDays, barcodeVariants } from "@ferret/shared";
-import { amazonProductOf, amazonSearchUrl, isPairingPayload } from "@ferret/shared/utils";
+import { amazonProductOf, amazonSearchUrl, isPairingPayload, labelCodeIn } from "@ferret/shared/utils";
 import { and, desc, eq, inArray, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { item, label, ownLabel, stockMovement, stockRule, user } from "../db/schema";
@@ -25,11 +25,9 @@ import { stockChanged } from "./webhooks";
 /** How a movement came about. */
 type Reason = StockMovement["reason"];
 
-const LABEL_URL = /\/l\/([0-9A-Za-z]{4,12})\/?$/;
-
 /** A scanned or typed code as rules store it: `label:<CODE>` for Ferret's labels, 13-digit EAN for product codes. */
 export function scanKey(raw: string) {
-  const fromUrl = LABEL_URL.exec(raw.trim())?.[1];
+  const fromUrl = labelCodeIn(raw);
   if (fromUrl) return `label:${normalizeCode(fromUrl)}`;
   if (/^label:/i.test(raw.trim())) return `label:${normalizeCode(raw.trim().slice(6))}`;
   return productCode(raw) ?? raw.trim();
