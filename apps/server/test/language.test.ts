@@ -20,6 +20,8 @@ const POLISH: Catalogs = {
     "Lent out": "Pożyczone",
     "Open Ferret": "Otwórz Ferret",
     "Or copy this link: {link}": "Albo skopiuj ten link: {link}",
+    "Buy {thing}": "Kup: {thing}",
+    "Running low: {list}": "Kończy się: {list}",
   }),
 };
 
@@ -79,6 +81,23 @@ describe("your language", () => {
     expect(mail.html).toContain("Albo skopiuj ten link:");
     // Not translated yet: English, not a gap.
     expect(mail.body).toContain("You get this summary once a week.");
+  });
+});
+
+describe("the bell", () => {
+  it("is in your language in the app, and English for your API key", async () => {
+    const { app, user } = await setup({ catalogs: POLISH });
+    const ann = await user("ann");
+    await ann.as("/api/v1/me/language", { method: "PUT", body: JSON.stringify({ language: "pl" }) });
+    const soap = await ann.addItem({ name: "Soap" });
+    await ann.as(`/api/v1/items/${soap.id}`, { method: "PATCH", body: JSON.stringify({ quantity: 1, minQuantity: 2 }) });
+    type Entries = { data: { kind: string; title: string; detail: string }[] };
+    const shopping = (r: Entries) => r.data.find((a) => a.kind === "shopping")!;
+    const inApp = (await (await ann.as("/api/v1/attention")).json()) as Entries;
+    expect(shopping(inApp)).toMatchObject({ title: "Kup: Soap", detail: "Kończy się: Soap" });
+    const { key } = (await (await ann.as("/api/v1/api-keys", { method: "POST", body: JSON.stringify({ name: "script" }) })).json()) as { key: string };
+    const byKey = (await (await app.request("/api/v1/attention", { headers: { Authorization: `Bearer ${key}` } })).json()) as Entries;
+    expect(shopping(byKey)).toMatchObject({ title: "Buy Soap", detail: "Running low: Soap" });
   });
 });
 

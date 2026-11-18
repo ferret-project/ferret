@@ -6,6 +6,9 @@
  * but not yet turned into named items, things to buy (one entry: the shopping
  * list), lent and borrowed things (overdue, or "they say it's back") — and, for the server admin, backups that stopped working. It's a list of states, not events: an
  * entry goes away when the thing is done, so the count means "things to do".
+ *
+ * Written in the reader's language (`tr`, lib/language.ts): the app's bell and the reminders pass the person's; Claude,
+ * webhooks and scripts get English. Names, error messages and recall notices stay as they are.
  */
 import { type AttentionItem, addDays } from "@ferret/shared";
 import { and, count, desc, eq, gte, isNull, lte } from "drizzle-orm";
@@ -30,6 +33,7 @@ import { aiFillEntries } from "./ai-fill";
 import { duplicateCount } from "./duplicates";
 import { trackingSummary } from "./room-reviews";
 import { switchedOff } from "./webhooks";
+import { type Tr, translator } from "./language";
 
 const MAINTENANCE_DAYS = 7;
 const WARRANTY_DAYS = 30;
@@ -46,7 +50,7 @@ const PLACEHOLDER = "New item";
 
 const dayDiff = (from: string, to: string) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
 
-export async function needsAttention(v: Caller): Promise<AttentionItem[]> {
+export async function needsAttention(v: Caller, tr: Tr = translator(undefined, null)): Promise<AttentionItem[]> {
   const on = todayFor(v);
   const [tasks, warranties, claims, unnamed, loans, recalls, coverage, returns] = await Promise.all([
     listMaintenance(v, { status: "open" }),
@@ -74,8 +78,13 @@ export async function needsAttention(v: Caller): Promise<AttentionItem[]> {
       kind: "return",
       severity: days <= RETURN_URGENT_DAYS ? "urgent" : "soon",
       id: r.id,
-      title: `Return ${r.name}?`,
-      detail: days === 0 ? "Last day to return it" : days === 1 ? "Last day to return it is tomorrow" : `${days} days left to return it`,
+      title: tr("Return {thing}?", { thing: r.name }),
+      detail:
+        days === 0
+          ? tr("Last day to return it")
+          : days === 1
+            ? tr("Last day to return it is tomorrow")
+            : tr("{days, plural, one {# day left} other {# days left}} to return it", { days }),
       itemId: r.id,
       date: r.returnBy!,
     });
@@ -89,14 +98,25 @@ export async function needsAttention(v: Caller): Promise<AttentionItem[]> {
     const short = t.part?.shortOn && t.part.shortOn === next ? t.part : null;
     if (!t.dueOn || t.dueOn > addDays(on, short ? PARTS_AHEAD_DAYS : MAINTENANCE_DAYS)) continue;
     const days = dayDiff(on, t.dueOn);
-    const when = days < 0 ? `${-days} ${days === -1 ? "day" : "days"} overdue` : days === 0 ? "Due today" : `Due in ${days} ${days === 1 ? "day" : "days"}`;
+    const when =
+      days < 0
+        ? tr("{days, plural, one {# day overdue} other {# days overdue}}", { days: -days })
+        : days === 0
+          ? tr("Due today")
+          : tr("Due in {days, plural, one {# day} other {# days}}", { days });
     out.push({
       kind: "maintenance",
       severity: days <= 0 ? "urgent" : "soon",
       id: t.id,
       title: t.itemName ? `${t.title} (${t.itemName})` : t.title,
       detail: short
-        ? `${when} — ${short.left === 0 ? `no ${short.name} left` : short.left < short.uses ? `only ${short.left} ${short.name} left` : `not enough ${short.name} left (other tasks use it too)`}`
+        ? `${when} — ${
+            short.left === 0
+              ? tr("no {part} left", { part: short.name })
+              : short.left < short.uses
+                ? tr("only {count} {part} left", { count: short.left, part: short.name })
+                : tr("not enough {part} left (other tasks use it too)", { part: short.name })
+          }`
         : when,
       itemId: t.itemId,
       date: t.dueOn,
@@ -109,8 +129,8 @@ export async function needsAttention(v: Caller): Promise<AttentionItem[]> {
       kind: "recall",
       severity: r.match === "possible" ? "soon" : "urgent",
       id: r.id,
-      title: `${r.match === "possible" ? "Possible recall" : "Recalled"}: ${r.itemName}`,
-      detail: r.match === "possible" ? `${r.recall.title} — check the model` : r.recall.title,
+      title: r.match === "possible" ? tr("Possible recall: {thing}", { thing: r.itemName }) : tr("Recalled: {thing}", { thing: r.itemName }),
+      detail: r.match === "possible" ? tr("{recall} — check the model", { recall: r.recall.title }) : r.recall.title,
       itemId: r.itemId,
       date: r.recall.recalledOn,
     });
@@ -120,30 +140,43 @@ export async function needsAttention(v: Caller): Promise<AttentionItem[]> {
   for (const c of coverage) {
     if (c.shortCents <= 0) continue;
     const money = (x: number) => moneyText(v, x, { whole: true });
-    out.push({ kind: "coverage", severity: "soon", id: c.id, title: `${c.label}: worth ${money(c.valueCents)}`, detail: `Covered for ${money(c.limitCents)} — ${money(c.shortCents)} short`, itemId: null, date: null });
+    out.push({
+      kind: "coverage",
+      severity: "soon",
+      id: c.id,
+      title: tr("{label}: worth {value}", { label: c.label, value: money(c.valueCents) }),
+      detail: tr("Covered for {limit} — {short} short", { limit: money(c.limitCents), short: money(c.shortCents) }),
+      itemId: null,
+      date: null,
+    });
   }
 
   // Lent and borrowed things: the borrower says it's back (agree?), it's overdue, or it's been out a long time.
   for (const l of loans) {
     const base = { kind: "loan" as const, id: l.id, itemId: l.itemId };
     if (l.borrowerReturnedAt) {
-      out.push({ ...base, severity: "soon", title: `${l.person} says ${l.itemName} is back`, detail: "Is it? Mark it back on its page", date: l.borrowerReturnedAt.slice(0, 10) });
+      out.push({ ...base, severity: "soon", title: tr("{person} says {thing} is back", { person: l.person, thing: l.itemName }), detail: tr("Is it? Mark it back on its page"), date: l.borrowerReturnedAt.slice(0, 10) });
       continue;
     }
-    const since = `since ${l.since}`;
+    const names = { person: l.person, thing: l.itemName, since: tr.date(l.since) };
     if (l.direction === "borrowed" && l.dueOn && l.dueOn <= addDays(on, 3)) {
       const days = dayDiff(on, l.dueOn);
       out.push({
         ...base,
         severity: days <= 0 ? "urgent" : "soon",
-        title: `Give ${l.itemName} back to ${l.person}`,
-        detail: days < 0 ? `${-days} ${days === -1 ? "day" : "days"} overdue` : days === 0 ? "Due back today" : `Due back in ${days} ${days === 1 ? "day" : "days"}`,
+        title: tr("Give {thing} back to {person}", names),
+        detail:
+          days < 0
+            ? tr("{days, plural, one {# day overdue} other {# days overdue}}", { days: -days })
+            : days === 0
+              ? tr("Due back today")
+              : tr("Due back in {days, plural, one {# day} other {# days}}", { days }),
         date: l.dueOn,
       });
     } else if (l.direction === "lent" && l.dueOn && l.dueOn < on) {
-      out.push({ ...base, severity: "soon", title: `${l.itemName} is still with ${l.person}`, detail: `Due back ${l.dueOn} (${since})`, date: l.dueOn });
+      out.push({ ...base, severity: "soon", title: tr("{thing} is still with {person}", names), detail: tr("Due back {due} (since {since})", { ...names, due: tr.date(l.dueOn) }), date: l.dueOn });
     } else if (l.direction === "lent" && !l.dueOn && dayDiff(l.since, on) >= LENT_LONG_DAYS) {
-      out.push({ ...base, severity: "soon", title: `${l.itemName} is still with ${l.person}`, detail: `${dayDiff(l.since, on)} days, ${since}`, date: l.since });
+      out.push({ ...base, severity: "soon", title: tr("{thing} is still with {person}", names), detail: tr("{days, plural, one {# day} other {# days}}, since {since}", { ...names, days: dayDiff(l.since, on) }), date: l.since });
     }
   }
 
@@ -154,8 +187,8 @@ export async function needsAttention(v: Caller): Promise<AttentionItem[]> {
       kind: "warranty",
       severity: days <= 7 ? "urgent" : "soon",
       id: w.id,
-      title: `${w.itemName} warranty${w.provider ? ` (${w.provider})` : ""}`,
-      detail: days <= 0 ? "Ends today" : `Ends in ${days} ${days === 1 ? "day" : "days"} — anything to claim?`,
+      title: w.provider ? tr("{thing} warranty ({provider})", { thing: w.itemName, provider: w.provider }) : tr("{thing} warranty", { thing: w.itemName }),
+      detail: days <= 0 ? tr("Ends today") : tr("Ends in {days, plural, one {# day} other {# days}} — anything to claim?", { days }),
       itemId: w.itemId,
       date: w.endsOn,
     });
@@ -168,8 +201,8 @@ export async function needsAttention(v: Caller): Promise<AttentionItem[]> {
       kind: "claim",
       severity: "soon",
       id: c.id,
-      title: `Claim for ${c.itemName}${c.reference ? ` #${c.reference}` : ""}`,
-      detail: `Filed ${quiet} days ago, still ${c.status.replace("_", " ")} — follow up?`,
+      title: c.reference ? tr("Claim for {thing} #{reference}", { thing: c.itemName, reference: c.reference }) : tr("Claim for {thing}", { thing: c.itemName }),
+      detail: tr("Filed {days, plural, one {# day ago} other {# days ago}}, still {status} — follow up?", { days: quiet, status: claimStatus(tr, c.status) }),
       itemId: c.itemId,
       date: c.filedOn,
     });
@@ -188,8 +221,8 @@ export async function needsAttention(v: Caller): Promise<AttentionItem[]> {
       kind: "review",
       severity: "soon",
       id: u.id,
-      title: named ? `Looks like: ${named}` : "A new item to name",
-      detail: named ? "Added from a photo — confirm what it is" : "Added from a photo, still being read",
+      title: named ? tr("Looks like: {name}", { name: named }) : tr("A new item to name"),
+      detail: named ? tr("Added from a photo — confirm what it is") : tr("Added from a photo, still being read"),
       itemId: u.id,
       date: null,
       ...(photoId ? { photoId } : {}),
@@ -204,11 +237,17 @@ export async function needsAttention(v: Caller): Promise<AttentionItem[]> {
       kind: "roomscan",
       severity: "soon",
       id: scan.id,
-      title: scan.status === "failed" ? "A room scan didn't work" : "Room scan ready to review",
+      title: scan.status === "failed" ? tr("A room scan didn't work") : tr("Room scan ready to review"),
       detail:
         scan.status === "failed"
-          ? (scan.error ?? "Couldn't look at the photos")
-          : `${n ? `${n} ${n === 1 ? "thing" : "things"} found` : "Nothing found yet — add what's there"}${scan.placeName ? ` in ${scan.placeName}` : ""}`,
+          ? (scan.error ?? tr("Couldn't look at the photos"))
+          : n
+            ? scan.placeName
+              ? tr("{count, plural, one {# thing} other {# things}} found in {place}", { count: n, place: scan.placeName })
+              : tr("{count, plural, one {# thing} other {# things}} found", { count: n })
+            : scan.placeName
+              ? tr("Nothing found yet in {place} — add what's there", { place: scan.placeName })
+              : tr("Nothing found yet — add what's there"),
       itemId: null,
       date: null,
     });
@@ -219,13 +258,18 @@ export async function needsAttention(v: Caller): Promise<AttentionItem[]> {
   if (toBuy.length) {
     const runOut = toBuy.filter((i) => i.quantity === 0).length;
     const names = toBuy.map((i) => i.name);
-    const listed = names.slice(0, 3).join(", ") + (names.length > 3 ? ` and ${names.length - 3} more` : "");
+    const first = names.slice(0, 3).join(", ");
+    const listed = names.length > 3 ? tr("{names} and {count} more", { names: first, count: names.length - 3 }) : first;
     out.push({
       kind: "shopping",
       severity: runOut ? "urgent" : "soon",
       id: "shopping",
-      title: toBuy.length === 1 ? `Buy ${toBuy[0]!.name}` : `${toBuy.length} things to buy`,
-      detail: runOut ? `${runOut === toBuy.length ? "Run out" : `${runOut} run out`}: ${listed}` : `Running low: ${listed}`,
+      title: toBuy.length === 1 ? tr("Buy {thing}", { thing: toBuy[0]!.name }) : tr("{count, plural, one {# thing} other {# things}} to buy", { count: toBuy.length }),
+      detail: runOut
+        ? runOut === toBuy.length
+          ? tr("Run out: {list}", { list: listed })
+          : tr("{count} run out: {list}", { count: runOut, list: listed })
+        : tr("Running low: {list}", { list: listed }),
       itemId: null,
       date: null,
     });
@@ -234,34 +278,34 @@ export async function needsAttention(v: Caller): Promise<AttentionItem[]> {
   // The AI's helpers: gentle lines, never urgent.
   const suggested = await suggestedTaskCount(v);
   if (suggested) {
-    out.push({ kind: "ai", severity: "soon", id: "suggested-maintenance", title: `${suggested} suggested maintenance ${suggested === 1 ? "task" : "tasks"}`, detail: "Found in manuals or typical for your things — add or dismiss", itemId: null, date: null, href: "#/maintenance" });
+    out.push({ kind: "ai", severity: "soon", id: "suggested-maintenance", title: tr("{count, plural, one {# suggested maintenance task} other {# suggested maintenance tasks}}", { count: suggested }), detail: tr("Found in manuals or typical for your things — add or dismiss"), itemId: null, date: null, href: "#/maintenance" });
   }
   const filled = (await aiFillEntries(v)).length;
   if (filled) {
-    out.push({ kind: "ai", severity: "soon", id: "ai-filled", title: `AI filled in ${filled} ${filled === 1 ? "detail" : "details"}`, detail: "Check what it filled in", itemId: null, date: null, href: "#/ai-filled" });
+    out.push({ kind: "ai", severity: "soon", id: "ai-filled", title: tr("AI filled in {count, plural, one {# detail} other {# details}}", { count: filled }), detail: tr("Check what it filled in"), itemId: null, date: null, href: "#/ai-filled" });
   }
   // Keeping track: gentle, never urgent — things nobody can find, and things not seen in a year (review a room).
   const tracking = await trackingSummary(v);
   if (tracking.misplaced) {
     const n = tracking.misplaced;
-    out.push({ kind: "seen", severity: "soon", id: "misplaced", title: `${n} ${n === 1 ? "thing" : "things"} nobody can find`, detail: "Found it, or is it lost for good?", itemId: null, date: null, href: "#/misplaced" });
+    out.push({ kind: "seen", severity: "soon", id: "misplaced", title: tr("{count, plural, one {# thing} other {# things}} nobody can find", { count: n }), detail: tr("Found it, or is it lost for good?"), itemId: null, date: null, href: "#/misplaced" });
   }
   if (tracking.notSeenYear) {
     const n = tracking.notSeenYear;
-    out.push({ kind: "seen", severity: "soon", id: "not-seen", title: `${n} ${n === 1 ? "thing" : "things"} not seen in a year`, detail: "Review a room to check they're still there", itemId: null, date: null, href: "#/review" });
+    out.push({ kind: "seen", severity: "soon", id: "not-seen", title: tr("{count, plural, one {# thing} other {# things}} not seen in a year", { count: n }), detail: tr("Review a room to check they're still there"), itemId: null, date: null, href: "#/review" });
   }
   // Paperless (lib/paperless.ts): documents waiting to be sorted, and a connection that's stopped working.
   const inbox = await inboxCount(v);
   if (inbox) {
-    out.push({ kind: "paperless", severity: "soon", id: "paperless-inbox", title: `${inbox} ${inbox === 1 ? "document" : "documents"} from Paperless to sort`, detail: "Add each as a new thing, or attach it to one", itemId: null, date: null, href: "#/paperless" });
+    out.push({ kind: "paperless", severity: "soon", id: "paperless-inbox", title: tr("{count, plural, one {# document} other {# documents}} from Paperless to sort", { count: inbox }), detail: tr("Add each as a new thing, or attach it to one"), itemId: null, date: null, href: "#/paperless" });
   }
   const paperlessTrouble = await syncTrouble(v);
   if (paperlessTrouble) {
-    out.push({ kind: "paperless", severity: "soon", id: "paperless-trouble", title: "Ferret can't reach Paperless", detail: paperlessTrouble.error, itemId: null, date: null, href: "#/settings" });
+    out.push({ kind: "paperless", severity: "soon", id: "paperless-trouble", title: tr("Ferret can't reach Paperless"), detail: paperlessTrouble.error, itemId: null, date: null, href: "#/settings" });
   }
   const duplicates = await duplicateCount(v);
   if (duplicates) {
-    out.push({ kind: "ai", severity: "soon", id: "duplicates", title: `${duplicates} possible ${duplicates === 1 ? "duplicate" : "duplicates"}`, detail: "The same thing added twice? Merge or keep both", itemId: null, date: null, href: "#/duplicates" });
+    out.push({ kind: "ai", severity: "soon", id: "duplicates", title: tr("{count, plural, one {# possible duplicate} other {# possible duplicates}}", { count: duplicates }), detail: tr("The same thing added twice? Merge or keep both"), itemId: null, date: null, href: "#/duplicates" });
   }
   const [{ n: noSerial } = { n: 0 }] = await v.db.select({ n: count() }).from(item).where(itemScope(v, { missing: "serial" }));
   if (noSerial) {
@@ -269,15 +313,15 @@ export async function needsAttention(v: Caller): Promise<AttentionItem[]> {
       kind: "ai",
       severity: "soon",
       id: "claim-ready",
-      title: `${noSerial} valuable ${noSerial === 1 ? "thing has" : "things have"} no serial number`,
-      detail: "Insurers ask for it — photograph the label and Ferret reads it",
+      title: tr("{count, plural, one {# valuable thing has} other {# valuable things have}} no serial number", { count: noSerial }),
+      detail: tr("Insurers ask for it — photograph the label and Ferret reads it"),
       itemId: null,
       date: null,
       href: "#/missing/serial",
     });
   }
 
-  const backup = await backupTrouble(v);
+  const backup = await backupTrouble(v, tr);
   if (backup) out.push(backup);
   // Webhooks Ferret switched off after their deliveries kept failing — for the household's owner and admins.
   for (const w of await switchedOff(v)) {
@@ -285,8 +329,10 @@ export async function needsAttention(v: Caller): Promise<AttentionItem[]> {
       kind: "service",
       severity: "soon",
       id: `webhook:${w.id}`,
-      title: `Webhook “${w.name}” was switched off`,
-      detail: `Its deliveries kept failing${w.lastError ? ` (${w.lastError})` : ""} — fix the address, then turn it on again`,
+      title: tr("Webhook “{name}” was switched off", { name: w.name }),
+      detail: w.lastError
+        ? tr("Its deliveries kept failing ({error}) — fix the address, then turn it on again", { error: w.lastError })
+        : tr("Its deliveries kept failing — fix the address, then turn it on again"),
       itemId: null,
       date: w.disabledAt ? todayFor(v, w.disabledAt) : null,
       href: "#/settings/api",
@@ -300,8 +346,11 @@ export async function needsAttention(v: Caller): Promise<AttentionItem[]> {
         kind: "service",
         severity: mins < 60 ? "urgent" : "soon",
         id: `service:${t.service}`,
-        title: `${t.name} is failing`,
-        detail: `${t.count} ${t.count === 1 ? "error" : "errors"} today, the last ${mins < 1 ? "just now" : mins < 60 ? `${mins} min ago` : `${Math.round(mins / 60)} h ago`}`,
+        title: tr("{service} is failing", { service: t.name }),
+        detail: tr("{count, plural, one {# error} other {# errors}} today, the last {ago}", {
+          count: t.count,
+          ago: mins < 1 ? tr("just now") : mins < 60 ? tr("{minutes} min ago", { minutes: mins }) : tr("{hours} h ago", { hours: Math.round(mins / 60) }),
+        }),
         itemId: null,
         date: todayFor(v, t.lastAt),
       });
@@ -312,13 +361,13 @@ export async function needsAttention(v: Caller): Promise<AttentionItem[]> {
   if (v.deps.products && (await isServerAdmin(v.db, v.userId))) {
     const { quota } = await barcodeLookupStatus(v.deps);
     if (quota && quota.remaining <= quota.limit * 0.2) {
-      const at = new Date(quota.resetsAt).toLocaleString("en-US", { weekday: "short", hour: "numeric", minute: "2-digit", timeZone: v.timeZone });
+      const at = new Date(quota.resetsAt).toLocaleString(tr.locale, { weekday: "short", hour: "numeric", minute: "2-digit", timeZone: v.timeZone });
       out.push({
         kind: "service",
         severity: quota.remaining === 0 ? "urgent" : "soon",
         id: "service:barcode-quota",
-        title: quota.remaining === 0 ? "Online barcode lookups are used up" : "Online barcode lookups are running low",
-        detail: `${quota.remaining} of ${quota.limit} left; it fills up again at ${at}. Scans still match the barcode books.`,
+        title: quota.remaining === 0 ? tr("Online barcode lookups are used up") : tr("Online barcode lookups are running low"),
+        detail: tr("{remaining} of {limit} left; it fills up again at {at}. Scans still match the barcode books.", { remaining: quota.remaining, limit: quota.limit, at }),
         itemId: null,
         date: null,
       });
@@ -332,8 +381,10 @@ export async function needsAttention(v: Caller): Promise<AttentionItem[]> {
         kind: "service",
         severity: c.ended ? "urgent" : "soon",
         id: `service:certificate:${c.id}`,
-        title: c.ended ? `Certificate "${c.name}" has expired` : `Certificate "${c.name}" expires soon`,
-        detail: `${c.ended ? "Ended" : "Ends"} ${todayFor(v, new Date(c.notAfter))} — add its replacement in Settings → Server → Certificates.`,
+        title: c.ended ? tr("Certificate “{name}” has expired", { name: c.name }) : tr("Certificate “{name}” expires soon", { name: c.name }),
+        detail: c.ended
+          ? tr("Ended {date} — add its replacement in Settings → Server → Certificates.", { date: tr.date(todayFor(v, new Date(c.notAfter))) })
+          : tr("Ends {date} — add its replacement in Settings → Server → Certificates.", { date: tr.date(todayFor(v, new Date(c.notAfter))) }),
         itemId: null,
         date: todayFor(v, new Date(c.notAfter)),
       });
@@ -347,8 +398,8 @@ export async function needsAttention(v: Caller): Promise<AttentionItem[]> {
       kind: "backup",
       severity: "soon",
       id: `backup:key-file:${s.filesKeyId}`,
-      title: "Save a copy of Ferret's keys",
-      detail: "FILES_KEY is only in this server's data folder: lose that, and every photo, document and backup is lost too. Make a key file — Settings → Server → Keys.",
+      title: tr("Save a copy of Ferret's keys"),
+      detail: tr("FILES_KEY is only in this server's data folder: lose that, and every photo, document and backup is lost too. Make a key file — Settings → Server → Keys."),
       itemId: null,
       date: null,
     });
@@ -365,7 +416,7 @@ export async function needsAttention(v: Caller): Promise<AttentionItem[]> {
 }
 
 /** Backups made elsewhere (Deps.backupElsewhere): the newest failed, or none for a day and a half. */
-async function backupElsewhereTrouble(v: Caller, elsewhere: NonNullable<Caller["deps"]["backupElsewhere"]>): Promise<AttentionItem | null> {
+async function backupElsewhereTrouble(v: Caller, elsewhere: NonNullable<Caller["deps"]["backupElsewhere"]>, tr: Tr): Promise<AttentionItem | null> {
   const run = await elsewhere.latest();
   const stale = !run || Date.now() - run.at.getTime() > BACKUP_STALE_MS;
   if (run && run.ok && !stale) return null;
@@ -373,16 +424,18 @@ async function backupElsewhereTrouble(v: Caller, elsewhere: NonNullable<Caller["
     kind: "backup",
     severity: "urgent",
     id: "backup:elsewhere",
-    title: run && !run.ok ? "Backup failed" : "Backups have stopped",
-    detail: run ? `${run.ok ? "None" : "Failed"} since ${todayFor(v, run.at)}${run.detail ? `: ${run.detail}` : ""} (${elsewhere.where})` : `None reported yet (${elsewhere.where})`,
+    title: run && !run.ok ? tr("Backup failed") : tr("Backups have stopped"),
+    detail: run
+      ? `${run.ok ? tr("None since {date}", { date: tr.date(todayFor(v, run.at)) }) : tr("Failed since {date}", { date: tr.date(todayFor(v, run.at)) })}${run.detail ? `: ${run.detail}` : ""} (${elsewhere.where})`
+      : tr("None reported yet ({where})", { where: elsewhere.where }),
     itemId: null,
     date: run ? todayFor(v, run.at) : null,
   };
 }
 
 /** The server's backups failing, or none lately — for the server admin (the one who can fix it), in any household. */
-async function backupTrouble(v: Caller): Promise<AttentionItem | null> {
-  if (v.deps.backupElsewhere && !v.deps.backups && (await isServerAdmin(v.db, v.userId))) return backupElsewhereTrouble(v, v.deps.backupElsewhere);
+async function backupTrouble(v: Caller, tr: Tr): Promise<AttentionItem | null> {
+  if (v.deps.backupElsewhere && !v.deps.backups && (await isServerAdmin(v.db, v.userId))) return backupElsewhereTrouble(v, v.deps.backupElsewhere, tr);
   if (!v.deps.backups || !(await isServerAdmin(v.db, v.userId))) return null;
   const [last] = await v.db.select().from(backupRun).orderBy(desc(backupRun.startedAt)).limit(1);
   if (!last) return null; // the first one hasn't run yet
@@ -390,14 +443,22 @@ async function backupTrouble(v: Caller): Promise<AttentionItem | null> {
   const failing = last.status === "failed";
   const stale = !lastOk || Date.now() - lastOk.startedAt.getTime() > BACKUP_STALE_MS;
   if (!failing && !stale) return null;
-  const since = lastOk ? `No backup since ${todayFor(v, lastOk.startedAt)}` : "No backup has worked yet";
+  const since = lastOk ? tr("No backup since {date}", { date: tr.date(todayFor(v, lastOk.startedAt)) }) : tr("No backup has worked yet");
   return {
     kind: "backup",
     severity: failing && !stale ? "soon" : "urgent",
     id: last.id,
-    title: failing ? "Backup failed" : "Backups have stopped",
+    title: failing ? tr("Backup failed") : tr("Backups have stopped"),
     detail: failing && last.error ? `${since}: ${last.error}` : since,
     itemId: null,
     date: todayFor(v, (lastOk ?? last).startedAt),
   };
+}
+
+/** A warranty claim's status in words, for "still … — follow up?". */
+function claimStatus(tr: Tr, status: string) {
+  if (status === "filed") return tr("filed");
+  if (status === "in_progress") return tr("in progress");
+  if (status === "denied") return tr("denied");
+  return status.replace("_", " ");
 }

@@ -60,7 +60,7 @@ export interface WeeklyDigest {
 
 /** This person's week, or null when there's nothing to say. */
 export async function weeklyDigest(v: Caller, appUrl: string, tr: Tr = translator(undefined, null)): Promise<WeeklyDigest | null> {
-  const [items, loans] = await Promise.all([needsAttention(v), listLoans(v)]);
+  const [items, loans] = await Promise.all([needsAttention(v, tr), listLoans(v)]);
   const lent = loans.filter((l) => l.direction === "lent");
   if (!items.length && !lent.length) return null;
   const groups: { heading: string; items: EmailItem[] }[] = [];

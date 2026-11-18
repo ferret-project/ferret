@@ -35,7 +35,7 @@ interface Digest {
 
 /** What to tell this person today, or null when nothing's urgent. */
 export async function dailyDigest(caller: Parameters<typeof needsAttention>[0], appUrl: string, tr: Tr = translator(undefined, null)): Promise<Digest | null> {
-  const urgent = (await needsAttention(caller)).filter((a) => a.severity === "urgent");
+  const urgent = (await needsAttention(caller, tr)).filter((a) => a.severity === "urgent");
   if (!urgent.length) return null;
   const maintenanceOnly = urgent.every((a) => a.kind === "maintenance");
   const shoppingOnly = urgent.length === 1 && urgent[0]!.kind === "shopping";

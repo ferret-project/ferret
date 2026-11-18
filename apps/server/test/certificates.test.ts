@@ -126,7 +126,7 @@ describe.skipIf(!hasOpenssl)("certificates", () => {
       body: JSON.stringify({ name: "Short", hosts: ["ha.example.lan"], pkcs12: file("shortlived.p12").toString("base64"), password: "secret" }),
     });
     const bell = (await (await ann.as("/api/v1/attention")).json()) as { data: { id: string; title: string; severity: string }[] };
-    expect(bell.data).toContainEqual(expect.objectContaining({ title: 'Certificate "Short" expires soon', severity: "soon" }));
+    expect(bell.data).toContainEqual(expect.objectContaining({ title: "Certificate “Short” expires soon", severity: "soon" }));
     tls.apply([], []);
   });
 
