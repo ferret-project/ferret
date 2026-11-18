@@ -320,6 +320,8 @@ const LOCKED_API: [RegExp, string[]][] = [
   [/^\/api\/v1\/security\/sessions/, ["POST", "DELETE"]],
   [/^\/api\/v1\/notifications/, ["POST", "PUT", "PATCH", "DELETE"]],
   [/^\/api\/v1\/push\/(subscribe|test)/, ["POST"]],
+  // One visitor's language would become every visitor's (a device without a choice takes the account's).
+  [/^\/api\/v1\/me\/language$/, ["PUT"]],
   // Deleting the shared account or the sample house.
   [/^\/api\/v1\/security\/account$/, ["DELETE"]],
   [/^\/api\/v1\/household\/?$/, ["DELETE"]],

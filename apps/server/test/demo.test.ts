@@ -119,6 +119,8 @@ describe("the public demo", { timeout: 30_000 }, () => {
     expect((await post("/api/auth/organization/leave", { organizationId: t.made.householdId })).status).toBe(403);
     expect((await post("/api/v1/api-keys", { name: "mine" })).status).toBe(403);
     expect((await post("/api/v1/security/sessions/revoke-others")).status).toBe(403);
+    // One visitor's language would become the next one's.
+    expect((await t.asDemo("/api/v1/me/language", { method: "PUT", body: JSON.stringify({ language: "pl" }) })).status).toBe(403);
     expect(await (await t.asDemo("/api/v1/security/sign-ins")).json()).toEqual({ data: [] });
     expect(await (await t.asDemo("/api/auth/list-sessions")).json()).toEqual([]);
     // …but it can use the household.
@@ -134,6 +136,7 @@ describe("the public demo", { timeout: 30_000 }, () => {
     const visitor = await t.user("visitor");
     expect(((await (await visitor.as("/api/v1/security/sign-ins")).json()) as { data: unknown[] }).data).toHaveLength(1);
     expect((await visitor.as("/api/v1/api-keys", { method: "POST", body: JSON.stringify({ name: "mine" }) })).status).not.toBe(403);
+    expect((await visitor.as("/api/v1/me/language", { method: "PUT", body: JSON.stringify({ language: "pl" }) })).status).toBe(200);
   });
 
   it("plants the household afresh every night, and deletes visitors after DEMO_VISITOR_DAYS", async () => {
