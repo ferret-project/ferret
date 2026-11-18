@@ -178,9 +178,9 @@ export class FakeAnalytics implements Analytics {
 }
 
 export class FakeNotifier implements Notifier {
-  sent: { url: string; title: string; body: string }[] = [];
+  sent: { url: string; title: string; body: string; html?: string }[] = [];
   failing = new Map<string, string>();
-  async send(url: string, message: { title: string; body: string }) {
+  async send(url: string, message: { title: string; body: string; html?: string }) {
     const error = this.failing.get(url);
     if (error) throw new Error(error);
     this.sent.push({ url, ...message });

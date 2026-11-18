@@ -286,7 +286,7 @@ export async function alertServiceErrors(
   // The email has room for the details: each service's newest few entries, as triage notes.
   const notes = services.flatMap((s) => newest(s).slice(0, 3)).map((r) => triageText(r, deps.about, timeZone));
   const details = `── For triage ──\n\n${notes.join("\n\n")}`;
-  await notifyPerson(deps, admin.id, { ...alert, tag: "ferret-service-errors" }, { email: who?.email, details });
+  await notifyPerson(deps, admin.id, { ...alert, tag: "ferret-service-errors", action: "See the details" }, { email: who?.email, details });
   if (deps.adminWebhook) await postToWebhook(deps.adminWebhook, alert, `${deps.appUrl}/icon-192.png`).catch((err) => console.error("admin webhook", err));
   for (const s of services) await deps.db.update(serviceError).set({ notifiedAt: now }).where(and(eq(serviceError.service, s)));
   return services.length;

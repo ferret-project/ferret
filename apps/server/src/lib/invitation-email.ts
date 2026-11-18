@@ -11,7 +11,7 @@ import { and, count, eq, gt } from "drizzle-orm";
 import { invitation, invitationEmail, organization, user } from "../db/schema";
 import type { Db, Deps, JobHandler } from "../ports";
 import { householdTimeZone } from "./household-time";
-import { mailTo } from "./notifications";
+import { sendEmail } from "./notifications";
 
 export const INVITE_EMAIL_JOB = "auth.invite-email";
 export const INVITES_A_DAY = 20;
@@ -65,12 +65,13 @@ export function sendInvitationJob(deps: Pick<Deps, "db" | "notifier"> & { appUrl
     const timeZone = await householdTimeZone(db, row.householdId);
     const until = row.expiresAt.toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone });
     try {
-      await notifier.send(mailTo(mailUrl, row.email), {
-        title: `${row.inviterName} invited you to ${row.householdName} on Ferret`,
-        body:
-          `${row.inviterName} invited you to join "${row.householdName}" on Ferret, where they keep track of the things ` +
-          `in their home. Open this link to join — it works until ${until}, and only for ${row.email}:\n\n${link}\n\n` +
-          "New to Ferret? You'll make an account with this email address first. If you weren't expecting this, ignore it.",
+      await sendEmail(notifier, mailUrl, row.email, {
+        subject: `${row.inviterName} invited you to ${row.householdName} on Ferret`,
+        heading: `Join ${row.householdName} on Ferret`,
+        paragraphs: [`${row.inviterName} invited you to join “${row.householdName}” on Ferret, where they keep track of the things in their home.`],
+        action: { label: "Accept the invitation", url: link, note: `It works until ${until}, and only for ${row.email}.` },
+        footnote: "New to Ferret? You'll make an account with this email address first. If you weren't expecting this, ignore it.",
+        appUrl: deps.appUrl,
       });
     } catch (err) {
       await failed(db, invitationId, "The email couldn't be sent — copy the link and send it yourself, or try Send again later");

@@ -15,7 +15,7 @@ import { type Auth, MEMBERSHIP_LIMIT, createAuth } from "./auth";
 import { NEW_ACCOUNT_JOB } from "./jobs/new-account";
 import { APP_CONNECTED_JOB, NEW_PLACE_JOB, PASSKEY_ADDED_JOB, PASSWORD_CHANGED_JOB, SECURITY_ALERT_JOB } from "./jobs/security-alert";
 import { MAGIC_LINK_JOB } from "./lib/magic-link";
-import { mailTo } from "./lib/notifications";
+import { sendEmail } from "./lib/notifications";
 import { RESET_JOB } from "./lib/password-reset";
 import { VERIFY_EMAIL_JOB, emailEnabled } from "./lib/email-verification";
 import { queueInvitationEmail } from "./lib/invitation-email";
@@ -137,12 +137,14 @@ export function createApp(deps: Deps, config: Config, opts: AppOptions = {}) {
         ? {
             enqueue: (email) => jobs.enqueue(RESET_JOB, { email }),
             send: (to, token) =>
-              notifier.send(mailTo(config.MAIL_URL!, to.email), {
-                title: "Choose a new Ferret password",
-                body:
-                  `Hi ${to.name}, someone (hopefully you) asked to reset your Ferret password. ` +
-                  `Choose a new one here — the link works once, for an hour:\n\n${config.PUBLIC_URL}/#/reset-password/${token}\n\n` +
-                  "If you didn't ask, ignore this: your password stays as it is.",
+              sendEmail(notifier, config.MAIL_URL!, to.email, {
+                subject: "Choose a new Ferret password",
+                heading: "Choose a new password",
+                greeting: `Hi ${to.name},`,
+                paragraphs: ["Someone — hopefully you — asked to reset your Ferret password."],
+                action: { label: "Choose a new password", url: `${config.PUBLIC_URL}/#/reset-password/${token}`, note: "The link works once, for an hour." },
+                footnote: "If you didn't ask, ignore this email: your password stays as it is.",
+                appUrl: config.PUBLIC_URL,
               }),
             changed: (who) => jobs.enqueue(PASSWORD_CHANGED_JOB, { userId: who.id, email: who.email }),
           }
@@ -153,11 +155,13 @@ export function createApp(deps: Deps, config: Config, opts: AppOptions = {}) {
         ? {
             enqueue: (email) => jobs.enqueue(MAGIC_LINK_JOB, { email }),
             send: (email, url) =>
-              notifier.send(mailTo(config.MAIL_URL!, email), {
-                title: "Sign in to Ferret",
-                body:
-                  `Here's your link to sign in to Ferret — it works once, for 15 minutes:\n\n${url}\n\n` +
-                  "If you didn't ask for it, ignore this: nobody can use it without your email.",
+              sendEmail(notifier, config.MAIL_URL!, email, {
+                subject: "Sign in to Ferret",
+                heading: "Your sign-in link",
+                paragraphs: ["Here's your link to sign in to Ferret."],
+                action: { label: "Sign in to Ferret", url, note: "It works once, for 15 minutes." },
+                footnote: "If you didn't ask for it, ignore this email: nobody can use the link without getting into your inbox.",
+                appUrl: config.PUBLIC_URL,
               }),
           }
         : undefined,

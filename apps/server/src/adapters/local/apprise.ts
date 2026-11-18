@@ -8,13 +8,15 @@ import type { Notifier } from "../../ports";
 export class AppriseNotifier implements Notifier {
   constructor(private readonly baseUrl: string) {}
 
-  async send(url: string, message: { title: string; body: string }) {
+  async send(url: string, message: { title: string; body: string; html?: string }) {
+    // Email gets the HTML (Apprise writes its plain-text part from it); chat apps the text.
+    const html = message.html && /^mailtos?:/i.test(url) ? message.html : null;
     let res: Response;
     try {
       res = await fetch(new URL("/notify/", this.baseUrl), {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ urls: url, title: message.title, body: message.body, type: "info", format: "text" }),
+        body: JSON.stringify({ urls: url, title: message.title, body: html ?? message.body, type: "info", format: html ? "html" : "text" }),
         signal: AbortSignal.timeout(30_000),
       });
     } catch (err) {

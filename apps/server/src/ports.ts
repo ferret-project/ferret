@@ -316,8 +316,11 @@ export interface Push {
 
 /** Notifications to other apps — ntfy, Pushover, Telegram, email… — each addressed by an Apprise URL. */
 export interface Notifier {
-  /** Throws, with a reason a person can act on, if it wasn't delivered. */
-  send(url: string, message: { title: string; body: string }): Promise<void>;
+  /**
+   * Throws, with a reason a person can act on, if it wasn't delivered. `html`: Ferret's own emails (lib/email.ts) —
+   * used for email addresses only; everything else gets `body`.
+   */
+  send(url: string, message: { title: string; body: string; html?: string }): Promise<void>;
 }
 
 /**

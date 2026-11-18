@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 import { notificationChannel, oauthClient, organization, pushSubscription, user } from "../db/schema";
 import { parseReference } from "../lib/oauth";
 import type { FileStore } from "../lib/files";
-import { deliver, mailTo, notifyPerson } from "../lib/notifications";
+import { deliver, notifyPerson, sendEmail } from "../lib/notifications";
 import { describeDevice } from "../lib/security";
 import type { FailureAlert } from "../lib/sign-in-guard";
 import type { Deps, JobHandler } from "../ports";
@@ -51,7 +51,16 @@ export function passwordChanged(deps: Deps & { files: FileStore; appUrl: string;
     const body =
       "Your password was just reset with an emailed link, and every session was signed out. " +
       "If that wasn't you, reset it again now and turn on two-step sign-in in Settings → Security.";
-    if (notifier && deps.mailUrl) await notifier.send(mailTo(deps.mailUrl, email), { title, body: `${body}\n\n${url}` });
+    if (notifier && deps.mailUrl) {
+      await sendEmail(notifier, deps.mailUrl, email, {
+        subject: title,
+        heading: "Your password was changed",
+        paragraphs: ["Your Ferret password was just reset with an emailed link, and every session was signed out."],
+        action: { label: "Review your sign-in security", url },
+        footnote: "If that wasn't you, reset it again now and turn on two-step sign-in in Settings → Security.",
+        appUrl: deps.appUrl,
+      });
+    }
     if (push) {
       for (const sub of await db.select().from(pushSubscription).where(eq(pushSubscription.userId, userId))) {
         await push.send(sub, { title, body, url, tag: "ferret-security" });
@@ -84,6 +93,7 @@ export function newPlaceAlert(deps: Deps & { files: FileStore; appUrl: string; m
           "If that was you, there's nothing to do. If not, change your password and sign out everywhere else in Settings → Security.",
         url: `${deps.appUrl}/#/settings/security`,
         tag: "ferret-security",
+        action: "Review your sign-in security",
       },
       { email: who.email },
     );
@@ -108,6 +118,7 @@ export function passkeyAddedAlert(deps: Deps & { files: FileStore; appUrl: strin
           "If that wasn't you, remove it and sign out everywhere else in Settings → Security.",
         url: `${deps.appUrl}/#/settings/security`,
         tag: "ferret-security",
+        action: "Review your sign-in security",
       },
       { email: who.email },
     );
@@ -136,6 +147,7 @@ export function appConnectedAlert(deps: Deps & { files: FileStore; appUrl: strin
           "If that wasn't you, disconnect it in Settings → Claude & API, change your password and sign out everywhere else in Settings → Security.",
         url: `${deps.appUrl}/#/settings/api`,
         tag: "ferret-security",
+        action: "Review connected apps",
       },
       { email: who.email },
     );

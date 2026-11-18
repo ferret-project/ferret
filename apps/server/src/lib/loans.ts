@@ -14,7 +14,7 @@ import { activity, item, loan, loanReminderStop, organization, user } from "../d
 import type { Db, Deps } from "../ports";
 import type { FileStore } from "./files";
 import { type Caller, itemScope, logActivity, notFound } from "./inventory";
-import { mailTo } from "./notifications";
+import { sendEmail } from "./notifications";
 import { hashToken, newToken } from "./shares";
 import { todayFor, zoneCache } from "./household-time";
 import { inList } from "./sql";
@@ -284,12 +284,17 @@ export async function sendLoanReminders(
     const who = firstName(owner);
     const link = borrowerUrl(deps.appUrl, await files.open(l.householdId, sealLabel(l.id), l.tokenSealed!));
     try {
-      await notifier.send(mailTo(mailUrl, l.email!), {
-        title: `A reminder from ${who}: ${name}`,
-        body:
-          `Hi ${l.person},\n\n${who} lent you ${name} on ${longDate(l.since)}` +
-          `${l.dueOn ? `, to bring back by ${longDate(l.dueOn)}` : ""}. This is a friendly reminder that it's still with you.\n\n` +
-          `Already given it back, or don't want these reminders? Let ${who} know here:\n${link}\n\n— sent by Ferret, ${who}'s home inventory`,
+      await sendEmail(notifier, mailUrl, l.email!, {
+        subject: `A reminder from ${who}: ${name}`,
+        heading: `A friendly reminder from ${who}`,
+        greeting: `Hi ${l.person},`,
+        paragraphs: [
+          `${who} lent you ${name} on ${longDate(l.since)}${l.dueOn ? `, to bring back by ${longDate(l.dueOn)}` : ""}. This is a friendly reminder that it's still with you.`,
+          `Already given it back, or don't want these reminders? Let ${who} know:`,
+        ],
+        action: { label: `Let ${who} know`, url: link },
+        footnote: `Sent by Ferret, ${who}'s home inventory.`,
+        appUrl: deps.appUrl,
       });
       await db.update(loan).set({ lastRemindedOn: on }).where(eq(loan.id, l.id));
       sent++;

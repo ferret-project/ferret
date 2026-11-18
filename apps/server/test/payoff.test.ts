@@ -158,6 +158,9 @@ describe("weekly summary", () => {
     expect(mail.url).toBe(`${MAIL}?to=${encodeURIComponent("ann@example.com")}`);
     expect(mail.title).toBe("Your week in Ferret: 1 thing to look at");
     expect(mail.body).toContain("To name\n• ");
-    expect(mail.body).toContain(`Lent out\n• Ladder — with Sam since ${today()}`);
+    expect(mail.body).toContain(`Lent out\n• Ladder — With Sam since ${today()}`);
+    // Laid out as HTML too (lib/email.ts), with the link written out.
+    expect(mail.html).toContain(">Lent out</h2>");
+    expect(mail.html).toContain(`${config.PUBLIC_URL}/#/</a>`);
   });
 });

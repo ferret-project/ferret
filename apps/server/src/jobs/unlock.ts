@@ -7,7 +7,7 @@
 import { eq } from "drizzle-orm";
 import { notificationChannel, pushSubscription, user } from "../db/schema";
 import type { FileStore } from "../lib/files";
-import { deliver, mailTo } from "../lib/notifications";
+import { deliver, sendEmail } from "../lib/notifications";
 import { createUnlock } from "../lib/sign-in-guard";
 import type { Deps, JobHandler } from "../ports";
 
@@ -29,7 +29,16 @@ export function sendUnlockLink(deps: Deps & { files: FileStore; appUrl: string; 
       `so you can sign in again straight away. Open this link (it works once, for 30 minutes):\n\n${url}\n\n` +
       "If that wasn't you, ignore this — and consider turning on two-step sign-in in Settings → Security.";
 
-    if (notifier && deps.mailUrl) await notifier.send(mailTo(deps.mailUrl, account.email), { title, body });
+    if (notifier && deps.mailUrl) {
+      await sendEmail(notifier, deps.mailUrl, account.email, {
+        subject: title,
+        heading: "Sign in again",
+        paragraphs: [`Someone${ipAddress ? ` at ${ipAddress}` : ""} asked to clear the wrong-password count on your Ferret account, so you can sign in again straight away.`],
+        action: { label: "Clear it and sign in", url, note: "It works once, for 30 minutes." },
+        footnote: "If that wasn't you, ignore this email — and consider turning on two-step sign-in in Settings → Security.",
+        appUrl: deps.appUrl,
+      });
+    }
     if (push) {
       for (const sub of await db.select().from(pushSubscription).where(eq(pushSubscription.userId, account.id))) {
         await push.send(sub, { title, body: "Tap to clear the wrong-password count and sign in again.", url, tag: "ferret-unlock" });

@@ -21,7 +21,7 @@ import { and, eq, gt, like, lt } from "drizzle-orm";
 import * as z from "zod";
 import { user, verification } from "../db/schema";
 import type { Db, Deps, JobHandler } from "../ports";
-import { mailTo } from "./notifications";
+import { sendEmail } from "./notifications";
 
 export const VERIFY_EMAIL_JOB = "auth.verify-email";
 /** How long a verification link works. */
@@ -37,11 +37,13 @@ export function sendVerificationJob(deps: Pick<Deps, "notifier"> & { mailUrl?: s
   return async (payload) => {
     const { email, name, url } = payload as { email: string; name: string; url: string };
     if (!deps.notifier || !deps.mailUrl) return;
-    await deps.notifier.send(mailTo(deps.mailUrl, email), {
-      title: "Confirm your email for Ferret",
-      body:
-        `Hi ${name}, to finish setting up your Ferret account, confirm this is your email address — open this link ` +
-        `(it works for a day):\n\n${url}\n\nThen sign in. If you didn't sign up for Ferret, ignore this and the account goes away in a week.`,
+    await sendEmail(deps.notifier, deps.mailUrl, email, {
+      subject: "Confirm your email for Ferret",
+      heading: "Confirm your email",
+      greeting: `Hi ${name},`,
+      paragraphs: ["To finish setting up your Ferret account, confirm this is your email address. Then sign in."],
+      action: { label: "Confirm my email", url, note: "The link works for a day." },
+      footnote: "If you didn't sign up for Ferret, ignore this email: the account is removed in a week.",
     });
   };
 }
