@@ -9,6 +9,7 @@ import { notificationChannel, pushSubscription, user } from "../db/schema";
 import type { FileStore } from "../lib/files";
 import { deliver, sendEmail } from "../lib/notifications";
 import { createUnlock } from "../lib/sign-in-guard";
+import { trFor } from "../lib/language";
 import type { Deps, JobHandler } from "../ports";
 
 export const UNLOCK_JOB = "security.unlock";
@@ -23,25 +24,33 @@ export function sendUnlockLink(deps: Deps & { files: FileStore; appUrl: string; 
     if (!token) return; // one went out in the last few minutes
 
     const url = `${deps.appUrl}/#/unlock/${token}`;
-    const title = "Sign in to Ferret again";
-    const body =
-      `Someone${ipAddress ? ` at ${ipAddress}` : ""} asked to clear the wrong-password count on your Ferret account, ` +
-      `so you can sign in again straight away. Open this link (it works once, for 30 minutes):\n\n${url}\n\n` +
-      "If that wasn't you, ignore this — and consider turning on two-step sign-in in Settings → Security.";
+    const tr = await trFor(deps, account.id);
+    const title = tr("Sign in to Ferret again");
+    const asked = ipAddress
+      ? tr("Someone at {address} asked to clear the wrong-password count on your Ferret account, so you can sign in again straight away.", { address: ipAddress })
+      : tr("Someone asked to clear the wrong-password count on your Ferret account, so you can sign in again straight away.");
+    const ifNot = tr("If that wasn't you, ignore this — and consider turning on two-step sign-in in Settings → Security.");
+    const body = `${asked} ${tr("Open this link (it works once, for 30 minutes):")}\n\n${url}\n\n${ifNot}`;
 
     if (notifier && deps.mailUrl) {
-      await sendEmail(notifier, deps.mailUrl, account.email, {
-        subject: title,
-        heading: "Sign in again",
-        paragraphs: [`Someone${ipAddress ? ` at ${ipAddress}` : ""} asked to clear the wrong-password count on your Ferret account, so you can sign in again straight away.`],
-        action: { label: "Clear it and sign in", url, note: "It works once, for 30 minutes." },
-        footnote: "If that wasn't you, ignore this email — and consider turning on two-step sign-in in Settings → Security.",
-        appUrl: deps.appUrl,
-      });
+      await sendEmail(
+        notifier,
+        deps.mailUrl,
+        account.email,
+        {
+          subject: title,
+          heading: tr("Sign in again"),
+          paragraphs: [asked],
+          action: { label: tr("Clear it and sign in"), url, note: tr("It works once, for 30 minutes.") },
+          footnote: ifNot,
+          appUrl: deps.appUrl,
+        },
+        tr,
+      );
     }
     if (push) {
       for (const sub of await db.select().from(pushSubscription).where(eq(pushSubscription.userId, account.id))) {
-        await push.send(sub, { title, body: "Tap to clear the wrong-password count and sign in again.", url, tag: "ferret-unlock" });
+        await push.send(sub, { title, body: tr("Tap to clear the wrong-password count and sign in again."), url, tag: "ferret-unlock" });
       }
     }
     if (notifier) {

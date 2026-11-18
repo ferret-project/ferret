@@ -2087,6 +2087,15 @@ export interface CoverageCheck {
 }
 
 // ── Weekly summary ──────────────────────────────────────────────────────────
+/** The language Ferret writes to you in (emails, push): a code the app offers, or null for English. */
+export const languageInput = z.object({
+  language: z
+    .string()
+    .regex(/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/)
+    .nullable(),
+});
+export type LanguageInput = z.infer<typeof languageInput>;
+
 export const weeklyDigestInput = z.object({
   /** 0 = Sunday … 6 = Saturday; null = no weekly summary. */
   day: z.number().int().min(0).max(6).nullable(),

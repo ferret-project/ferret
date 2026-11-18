@@ -28,6 +28,7 @@ import { FileMatches, FilesSection, filesKey } from "./Files";
 import { MISSING_LABELS, OverviewSections } from "./Overview";
 import { ReviewRoomLink } from "./Tracking";
 import { CategoryTiles, categoryIcon, flattenCategories, useCategories } from "./Catalog";
+import { useAccountLanguage } from "./Language";
 import { LabelBadge } from "./Boxes";
 import { MoveHereButton } from "./MoveHere";
 import { AttentionBell } from "./AttentionBell";
@@ -817,6 +818,8 @@ function HouseholdGate() {
 
 function Screens({ householdName, householdId }: { householdName: string; householdId: string }) {
   const route = useRouteName();
+  // Emails and notifications in the language you read Ferret in (Language.tsx).
+  useAccountLanguage();
   // Kept on this device for offline capture: the household and its places (to pick a room).
   const places = usePlaces(householdId);
   useEffect(() => rememberHome({ householdId, householdName, places: places.data }), [householdId, householdName, places.data]);

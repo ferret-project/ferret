@@ -23,6 +23,7 @@
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import type { PlanLimits } from "@ferret/shared";
 import type * as schema from "./db/schema";
+import type { Catalogs } from "./lib/language";
 
 /** Drizzle database — sync (libSQL) or async drivers alike. Always `await` queries. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -591,6 +592,11 @@ export interface Deps {
   videos?: Videos;
   /** Search's cut-offs for these models (default: "home", lib/search.ts). */
   searchProfile?: SearchProfile;
+  /**
+   * The server's text in other languages (lib/language.ts): each language's translations by Lingui message id, made
+   * with the web app's (apps/web/scripts/translations.mjs prepare). Without it, everything is English.
+   */
+  catalogs?: Catalogs;
   /** "Are you a person?" before sign-up (a Turnstile widget, lib/turnstile.ts). */
   humanCheck?: HumanCheck;
   /** Counts of what the demo's visitors do (lib/analytics.ts). */

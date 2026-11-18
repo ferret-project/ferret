@@ -1398,6 +1398,22 @@ export const personSetting = sqliteTable(
   (t) => [primaryKey({ columns: [t.householdId, t.userId] })],
 );
 
+/**
+ * A person's own settings that go with the account, not a household (lib/language.ts): the language Ferret writes to them
+ * in — emails, push, notifications. Null: English.
+ */
+export const accountSetting = sqliteTable("account_setting", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => user.id, { onDelete: "cascade" }),
+  /** A language code the app offers ("pl", "pt-BR"…); null = English. */
+  language: text("language"),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`)
+    .$onUpdate(() => new Date()),
+});
+
 /** Brands already asked about (lib/recalls.ts): the CPSC's answer is kept and asked for again after a week. */
 export const recallBrand = sqliteTable("recall_brand", {
   /** The brand, normalised ("black decker"). */

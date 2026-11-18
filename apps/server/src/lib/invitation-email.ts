@@ -12,6 +12,7 @@ import { invitation, invitationEmail, organization, user } from "../db/schema";
 import type { Db, Deps, JobHandler } from "../ports";
 import { householdTimeZone } from "./household-time";
 import { sendEmail } from "./notifications";
+import { trFor } from "./language";
 
 export const INVITE_EMAIL_JOB = "auth.invite-email";
 export const INVITES_A_DAY = 20;
@@ -29,7 +30,7 @@ export async function queueInvitationEmail(db: Db, jobs: NonNullable<Deps["jobs"
 }
 
 /** The job: email the invitation's link, if it's still waiting and the household hasn't sent too many. */
-export function sendInvitationJob(deps: Pick<Deps, "db" | "notifier"> & { appUrl: string; mailUrl?: string; now?: () => number }): JobHandler {
+export function sendInvitationJob(deps: Pick<Deps, "db" | "notifier" | "catalogs"> & { appUrl: string; mailUrl?: string; now?: () => number }): JobHandler {
   return async (payload) => {
     const { invitationId } = payload as { invitationId: string };
     const { db, notifier, mailUrl } = deps;
@@ -43,6 +44,7 @@ export function sendInvitationJob(deps: Pick<Deps, "db" | "notifier"> & { appUrl
         householdId: invitation.organizationId,
         householdName: organization.name,
         inviterName: user.name,
+        inviterId: user.id,
         sentAt: invitationEmail.sentAt,
       })
       .from(invitation)
@@ -63,16 +65,25 @@ export function sendInvitationJob(deps: Pick<Deps, "db" | "notifier"> & { appUrl
     const link = `${deps.appUrl}/#/invite/${encodeURIComponent(invitationId)}`;
     // The day it stops working where the household is (as Settings → Household shows it), not in UTC.
     const timeZone = await householdTimeZone(db, row.householdId);
-    const until = row.expiresAt.toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone });
+    // In the inviter's language: they chose who to invite, and probably write to them in it.
+    const tr = await trFor(deps, row.inviterId);
+    const until = tr.date(row.expiresAt, { month: "long", day: "numeric", timeZone });
     try {
-      await sendEmail(notifier, mailUrl, row.email, {
-        subject: `${row.inviterName} invited you to ${row.householdName} on Ferret`,
-        heading: `Join ${row.householdName} on Ferret`,
-        paragraphs: [`${row.inviterName} invited you to join “${row.householdName}” on Ferret, where they keep track of the things in their home.`],
-        action: { label: "Accept the invitation", url: link, note: `It works until ${until}, and only for ${row.email}.` },
-        footnote: "New to Ferret? You'll make an account with this email address first. If you weren't expecting this, ignore it.",
-        appUrl: deps.appUrl,
-      });
+      const names = { person: row.inviterName, household: row.householdName };
+      await sendEmail(
+        notifier,
+        mailUrl,
+        row.email,
+        {
+          subject: tr("{person} invited you to {household} on Ferret", names),
+          heading: tr("Join {household} on Ferret", names),
+          paragraphs: [tr("{person} invited you to join “{household}” on Ferret, where they keep track of the things in their home.", names)],
+          action: { label: tr("Accept the invitation"), url: link, note: tr("It works until {until}, and only for {email}.", { until, email: row.email }) },
+          footnote: tr("New to Ferret? You'll make an account with this email address first. If you weren't expecting this, ignore it."),
+          appUrl: deps.appUrl,
+        },
+        tr,
+      );
     } catch (err) {
       await failed(db, invitationId, "The email couldn't be sent — copy the link and send it yourself, or try Send again later");
       throw err;

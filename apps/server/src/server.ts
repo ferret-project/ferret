@@ -2,6 +2,7 @@
  * Node entry point (Docker). Wires local adapters into the app,
  * runs migrations, and serves the built web app from the same port.
  */
+import { loadCatalogs } from "./adapters/local/catalogs";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -134,8 +135,10 @@ const backups = config.BACKUP_DIR
   : undefined;
 // The services Ferret calls, watched: every failure goes in the server admin's error log (lib/service-errors.ts).
 // (Downloads and Home Assistant reads fail on what people typed, so they're not.)
+const catalogs = loadCatalogs();
 const deps = {
   db,
+  catalogs,
   blobs: new FsBlobs(path.join(dataDir, "files")),
   images,
   pdfPages,
@@ -247,6 +250,7 @@ serve(
   console.log(`   Maps:           ${on(maps, "Apple Maps pictures of property addresses", "set APPLE_MAPS_TEAM_ID, APPLE_MAPS_KEY_ID and APPLE_MAPS_PRIVATE_KEY")}`);
   console.log(`   Backups:        ${on(backups, `nightly from ${config.BACKUP_HOUR}:00 to ${config.BACKUP_DIR}, keeping ${config.BACKUP_KEEP}`, "set BACKUP_DIR")}`);
   console.log(`   Other apps:     ${on(notifier, `Apprise at ${config.APPRISE_URL}, daily from ${config.REMIND_HOUR}:00`, "set APPRISE_URL")}`);
+  console.log(`   Languages for emails and notifications: ${["English", ...Object.keys(catalogs ?? {})].join(", ")}`);
   console.log(`   Single sign-on: ${on(config.OIDC_ISSUER, `OIDC with ${config.OIDC_ISSUER}`, "set OIDC_ISSUER and OIDC_CLIENT_ID")}${config.TRUSTED_HEADER_AUTH ? `; ${config.TRUSTED_HEADER_EMAIL} from ${config.TRUSTED_HEADER_PROXIES}` : ""}`);
   // Say now, not at someone's first sign-in, when the provider can't be used (an untrusted certificate, a wrong address).
   if (config.OIDC_ISSUER) {

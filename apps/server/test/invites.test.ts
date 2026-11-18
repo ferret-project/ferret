@@ -67,7 +67,7 @@ async function confirmAndSignIn(env: Env, notifier: FakeNotifier, name: string) 
 
 /** Runs the queued verification emails through the job, as the job runner would. */
 async function sendQueuedEmails(env: Env, notifier: FakeNotifier) {
-  const run = sendVerificationJob({ notifier, mailUrl: MAIL });
+  const run = sendVerificationJob({ notifier, db: env.db, mailUrl: MAIL });
   for (const j of await env.db.select().from(job).where(and(eq(job.type, VERIFY_EMAIL_JOB), eq(job.status, "pending")))) {
     await run(JSON.parse(j.payload), { lastAttempt: false });
     await env.db.update(job).set({ status: "done" }).where(eq(job.id, j.id));

@@ -36,6 +36,14 @@ checklist goes away once they all are, or when you **Hide** it.
   screens, and a search field and scan button elsewhere that take you straight to it. Press <kbd>/</kbd> or
   <kbd>⌘</kbd> <kbd>K</kbd> to jump to it from anywhere.
 
+## Language {#language}
+
+Ferret is written in English and translated by its community. Pick your language under **Language** in the account
+menu (on a phone, **More**). Ferret remembers it with your account, so another device you sign in on starts in it too,
+and the emails, push notifications and messages to your other apps that Ferret sends you come in it. Emails to someone
+without an account, like an invitation or a reminder to someone who borrowed something, are in the language of whoever
+sent them. Anything not translated yet shows in English.
+
 ## Households
 
 Everything in Ferret belongs to a **household**: its properties, rooms, items, warranties and maintenance. Everyone in

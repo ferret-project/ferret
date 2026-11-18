@@ -306,7 +306,9 @@ export const api = {
     request<StockRule>(`/items/${itemId}/stock-rules`, { method: "PUT", body: JSON.stringify(rule) }),
   deleteStockRule: (itemId: string, ruleId: string) => request<void>(`/items/${itemId}/stock-rules/${ruleId}`, { method: "DELETE" }),
   /** Whether you're the server admin (who sees Settings → Server). */
-  me: () => request<{ serverAdmin: boolean; features: { fromWeb: boolean; homeAssistant: boolean; roomScan: boolean; textAi: boolean; speech: boolean; photoAi?: boolean; paperless?: boolean; videoSearch?: boolean } }>("/me"),
+  /** The language Ferret writes to you in (emails, push) — saved with the account. */
+  setMyLanguage: (language: string | null) => request<{ language: string | null }>("/me/language", { method: "PUT", body: JSON.stringify({ language }) }),
+  me: () => request<{ serverAdmin: boolean; language: string | null; features: { fromWeb: boolean; homeAssistant: boolean; roomScan: boolean; textAi: boolean; speech: boolean; photoAi?: boolean; paperless?: boolean; videoSearch?: boolean } }>("/me"),
   backupStatus: () => request<BackupStatus>("/backup"),
   serverSecrets: () => request<ServerSecrets>("/server/secrets"),
   serverAddress: () => request<ServerAddress>("/server/address"),

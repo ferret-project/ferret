@@ -6,8 +6,10 @@
  * The HTML is what email apps can show: tables, inline styles in the theme's colours, a dark version for apps that
  * honour `prefers-color-scheme`, no images (a home server's pictures wouldn't load outside the house, and many apps
  * block them anyway). Apprise writes the plain-text part itself from the HTML, so every link is visible text, never
- * only behind a button. Text from people (names, households, things) is escaped.
+ * only behind a button. Text from people (names, households, things) is escaped. The layout's own words are in the
+ * recipient's language (`tr`, lib/language.ts) — the caller writes the rest with the same `tr`.
  */
+import { type Tr, translator } from "./language";
 
 export interface EmailItem {
   text: string;
@@ -64,20 +66,20 @@ function hostOf(url: string | undefined) {
   }
 }
 
-export function renderEmail(c: EmailContent): RenderedEmail {
+export function renderEmail(c: EmailContent, tr: Tr = translator(undefined, null)): RenderedEmail {
   const heading = c.heading ?? c.subject;
   const appUrl = c.appUrl ?? (c.action ? new URL(c.action.url).origin : undefined);
   const host = hostOf(appUrl);
-  return { title: c.subject, body: renderText(c, appUrl, host), html: renderHtml(c, heading, appUrl, host) };
+  return { title: c.subject, body: renderText(c, tr, appUrl, host), html: renderHtml(c, tr, heading, appUrl, host) };
 }
 
-function renderText(c: EmailContent, appUrl: string | undefined, host: string | null) {
+function renderText(c: EmailContent, tr: Tr, appUrl: string | undefined, host: string | null) {
   const parts: string[] = [];
   if (c.greeting) parts.push(c.greeting);
   parts.push(...c.paragraphs);
   if (c.action) parts.push(`${c.action.label}:\n${c.action.url}${c.action.note ? `\n${c.action.note}` : ""}`);
   for (const s of c.sections ?? []) {
-    parts.push(`${s.heading}\n${s.items.map((i) => `• ${i.text}${i.detail ? ` — ${i.detail}` : ""}${i.urgent ? " (urgent)" : ""}`).join("\n")}`);
+    parts.push(`${s.heading}\n${s.items.map((i) => `• ${i.text}${i.detail ? ` — ${i.detail}` : ""}${i.urgent ? ` (${tr("urgent")})` : ""}`).join("\n")}`);
   }
   if (c.details) parts.push(c.details);
   if (c.footnote) parts.push(c.footnote);
@@ -85,7 +87,7 @@ function renderText(c: EmailContent, appUrl: string | undefined, host: string | 
   return parts.join("\n\n");
 }
 
-function renderHtml(c: EmailContent, heading: string, appUrl: string | undefined, host: string | null) {
+function renderHtml(c: EmailContent, tr: Tr, heading: string, appUrl: string | undefined, host: string | null) {
   const L = LIGHT;
   const p = (html: string, extra = "") => `<p class="t" style="margin:0 0 16px;font-size:16px;line-height:1.55;color:${L.text};${extra}">${html}</p>`;
   const muted = (html: string, extra = "") => `<p class="m" style="margin:0 0 12px;font-size:13px;line-height:1.5;color:${L.muted};${extra}">${html}</p>`;
@@ -102,7 +104,7 @@ function renderHtml(c: EmailContent, heading: string, appUrl: string | undefined
         `</td></tr></table>`,
     );
     if (c.action.note) body.push(muted(escape(c.action.note)));
-    body.push(muted(`Or copy this link: <a href="${url}" style="color:${L.accent};word-break:break-all">${url}</a>`, "margin-bottom:20px"));
+    body.push(muted(escape(tr("Or copy this link: {link}", { link: "\u0000" })).replace("\u0000", `<a href="${url}" style="color:${L.accent};word-break:break-all">${url}</a>`), "margin-bottom:20px"));
   }
   for (const s of c.sections ?? []) {
     body.push(`<h2 class="t" style="margin:24px 0 8px;font-size:15px;line-height:1.4;font-weight:650;color:${L.text}">${escape(s.heading)}</h2>`);
@@ -113,7 +115,7 @@ function renderHtml(c: EmailContent, heading: string, appUrl: string | undefined
             (i) =>
               `<tr><td class="ln" style="padding:9px 0;border-top:1px solid ${L.line};font-size:15px;line-height:1.45;color:${L.text}">` +
               `<span class="t" style="color:${L.text}">${escape(i.text)}</span>` +
-              (i.urgent ? ` <span class="u" style="font-size:13px;font-weight:600;color:${L.urgent}">· Urgent</span>` : "") +
+              (i.urgent ? ` <span class="u" style="font-size:13px;font-weight:600;color:${L.urgent}">· ${escape(tr("Urgent"))}</span>` : "") +
               (i.detail ? `<br><span class="m" style="font-size:13px;color:${L.muted}">${escape(i.detail)}</span>` : "") +
               `</td></tr>`,
           )
@@ -143,7 +145,7 @@ function renderHtml(c: EmailContent, heading: string, appUrl: string | undefined
     : "";
 
   return (
-    `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">` +
+    `<!doctype html><html lang="${escape(tr.locale)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">` +
     `<meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark">` +
     `<title>${escape(c.subject)}</title><style>${style}</style></head>` +
     `<body class="pg" style="margin:0;padding:0;background:${L.page};font-family:${FONT}">` +
@@ -152,7 +154,7 @@ function renderHtml(c: EmailContent, heading: string, appUrl: string | undefined
     `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;font-family:${FONT}">` +
     `<tr><td class="br" style="padding:0 4px 14px;font-size:19px;font-weight:700;letter-spacing:-0.01em;color:${L.accent}">Ferret</td></tr>` +
     `<tr><td class="cd" bgcolor="${L.card}" style="background:${L.card};border:1px solid ${L.line};border-radius:14px;padding:30px 28px">${body.join("")}</td></tr>` +
-    (footer ? `<tr><td class="m" style="padding:16px 4px 0;font-size:12px;line-height:1.5;color:${L.muted}">Sent by Ferret at ${footer}</td></tr>` : "") +
+    (footer ? `<tr><td class="m" style="padding:16px 4px 0;font-size:12px;line-height:1.5;color:${L.muted}">${escape(tr("Sent by Ferret at {host}", { host: "\u0000" })).replace("\u0000", footer)}</td></tr>` : "") +
     `</table></td></tr></table></body></html>`
   );
 }

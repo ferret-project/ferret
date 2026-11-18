@@ -16,20 +16,22 @@ import type { Caller } from "./inventory";
 import { listLoans } from "./loans";
 import { deliver, sendEmail } from "./notifications";
 import type { EmailContent, EmailItem } from "./email";
+import { type Tr, translator, trFor } from "./language";
 import { householdLocale, zoneCache } from "./household-time";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const GROUPS: [AttentionItem["kind"][], string][] = [
-  [["recall"], "Recalls"],
-  [["maintenance"], "Maintenance"],
-  [["return"], "Returns"],
-  [["warranty", "claim"], "Warranties and claims"],
-  [["loan"], "Lent and borrowed"],
-  [["shopping"], "To buy"],
-  [["coverage"], "Insurance coverage"],
-  [["review"], "To name"],
-  [["backup"], "Backups"],
-  [["ai"], "Suggestions"],
+/** The bell's kinds, grouped under headings in the person's language. */
+const groupsIn = (tr: Tr): [AttentionItem["kind"][], string][] => [
+  [["recall"], tr("Recalls")],
+  [["maintenance"], tr("Maintenance")],
+  [["return"], tr("Returns")],
+  [["warranty", "claim"], tr("Warranties and claims")],
+  [["loan"], tr("Lent and borrowed")],
+  [["shopping"], tr("To buy")],
+  [["coverage"], tr("Insurance coverage")],
+  [["review"], tr("To name")],
+  [["backup"], tr("Backups")],
+  [["ai"], tr("Suggestions")],
 ];
 
 export async function getWeekly(v: Caller, canEmail: boolean): Promise<WeeklyDigestSetting> {
@@ -57,39 +59,47 @@ export interface WeeklyDigest {
 }
 
 /** This person's week, or null when there's nothing to say. */
-export async function weeklyDigest(v: Caller, appUrl: string): Promise<WeeklyDigest | null> {
+export async function weeklyDigest(v: Caller, appUrl: string, tr: Tr = translator(undefined, null)): Promise<WeeklyDigest | null> {
   const [items, loans] = await Promise.all([needsAttention(v), listLoans(v)]);
   const lent = loans.filter((l) => l.direction === "lent");
   if (!items.length && !lent.length) return null;
   const groups: { heading: string; items: EmailItem[] }[] = [];
-  for (const [kinds, heading] of GROUPS) {
+  for (const [kinds, heading] of groupsIn(tr)) {
     const these = items.filter((a) => kinds.includes(a.kind));
     if (these.length) groups.push({ heading, items: these.map((a) => ({ text: a.title, detail: a.detail || undefined, urgent: a.severity === "urgent" })) });
   }
   const listed = new Set(items.filter((a) => a.kind === "loan").map((a) => a.id));
   const quiet = lent.filter((l) => !listed.has(l.id));
-  if (quiet.length) groups.push({ heading: "Lent out", items: quiet.map((l) => ({ text: l.itemName, detail: `With ${l.person} since ${l.since}` })) });
+  if (quiet.length) {
+    groups.push({ heading: tr("Lent out"), items: quiet.map((l) => ({ text: l.itemName, detail: tr("With {person} since {since}", { person: l.person, since: tr.date(l.since) }) })) });
+  }
   const sections = groups.map((g) => `${g.heading}\n${g.items.map((i) => `• ${i.text}${i.detail ? ` — ${i.detail}` : ""}${i.urgent ? " (!)" : ""}`).join("\n")}`);
   const urgent = items.filter((a) => a.severity === "urgent").length;
   const count = items.length;
-  const title = count ? `Your week in Ferret: ${count} ${count === 1 ? "thing" : "things"} to look at${urgent ? ` (${urgent} urgent)` : ""}` : "Your week in Ferret";
+  const title = !count
+    ? tr("Your week in Ferret")
+    : urgent
+      ? tr("Your week in Ferret: {count, plural, one {# thing} other {# things}} to look at ({urgent} urgent)", { count, urgent })
+      : tr("Your week in Ferret: {count, plural, one {# thing} other {# things}} to look at", { count });
   return {
     title,
     email: {
       subject: title,
-      heading: "Your week in Ferret",
+      heading: tr("Your week in Ferret"),
       paragraphs: [
-        count
-          ? `${count} ${count === 1 ? "thing needs" : "things need"} a look${urgent ? `, ${urgent} of them urgent` : ""}.`
-          : `${lent.length} ${lent.length === 1 ? "thing is" : "things are"} lent out.`,
+        !count
+          ? tr("{count, plural, one {# thing is} other {# things are}} lent out.", { count: lent.length })
+          : urgent
+            ? tr("{count, plural, one {# thing needs} other {# things need}} a look, {urgent} of them urgent.", { count, urgent })
+            : tr("{count, plural, one {# thing needs} other {# things need}} a look.", { count }),
       ],
-      action: { label: "Open Ferret", url: `${appUrl}/#/` },
+      action: { label: tr("Open Ferret"), url: `${appUrl}/#/` },
       sections: groups,
-      footnote: "You get this summary once a week. Change the day or stop it in Settings → Notifications.",
+      footnote: tr("You get this summary once a week. Change the day or stop it in Settings → Notifications."),
       appUrl,
     },
     body: `${sections.join("\n\n")}\n\n${appUrl}/#/`,
-    short: count ? items.slice(0, 4).map((a) => a.title).join(" · ") : `${lent.length} ${lent.length === 1 ? "thing" : "things"} lent out`,
+    short: count ? items.slice(0, 4).map((a) => a.title).join(" · ") : tr("{count, plural, one {# thing} other {# things}} lent out", { count: lent.length }),
   };
 }
 
@@ -123,7 +133,8 @@ export async function sendWeeklyDigests(
       await mark();
       continue;
     }
-    const digest = await weeklyDigest({ deps, db, householdId: s.householdId, userId: s.userId, ...(await householdLocale(db, s.householdId)), via: "web" }, deps.appUrl);
+    const tr = await trFor(deps, s.userId);
+    const digest = await weeklyDigest({ deps, db, householdId: s.householdId, userId: s.userId, ...(await householdLocale(db, s.householdId)), via: "web" }, deps.appUrl, tr);
     if (digest) {
       if (push) {
         for (const sub of await db.select().from(pushSubscription).where(and(eq(pushSubscription.householdId, s.householdId), eq(pushSubscription.userId, s.userId)))) {
@@ -135,7 +146,7 @@ export async function sendWeeklyDigests(
           await deliver(db, files, notifier, channel, { title: digest.title, body: digest.body });
         }
         if (s.weeklyEmail && deps.mailUrl) {
-          await sendEmail(notifier, deps.mailUrl, email, digest.email).catch((err) => console.warn(`Weekly summary email failed: ${String(err)}`));
+          await sendEmail(notifier, deps.mailUrl, email, digest.email, tr).catch((err) => console.warn(`Weekly summary email failed: ${String(err)}`));
         }
       }
       sent++;

@@ -53,6 +53,9 @@ export async function startLanguage() {
 
 export const currentLanguage = () => i18n.locale || "en";
 
+/** Whether this device has a language chosen (rather than following the browser). */
+export const chosenOnDevice = () => Boolean(stored());
+
 /** Switches language on this device; the page reloads so everything, menus included, is in the new one. */
 export function setLanguage(code: string) {
   try {

@@ -22,6 +22,7 @@ import * as z from "zod";
 import { user, verification } from "../db/schema";
 import type { Db, Deps, JobHandler } from "../ports";
 import { sendEmail } from "./notifications";
+import { languageOfEmail, translator } from "./language";
 
 export const VERIFY_EMAIL_JOB = "auth.verify-email";
 /** How long a verification link works. */
@@ -33,18 +34,26 @@ export const emailEnabled = (deps: Pick<Deps, "notifier" | "jobs">, config: { MA
   Boolean(deps.notifier && deps.jobs && config.MAIL_URL);
 
 /** The job: email the link Better Auth made (its token is signed and expires; it isn't stored anywhere else). */
-export function sendVerificationJob(deps: Pick<Deps, "notifier"> & { mailUrl?: string }): JobHandler {
+export function sendVerificationJob(deps: Pick<Deps, "notifier" | "db" | "catalogs"> & { mailUrl?: string }): JobHandler {
   return async (payload) => {
-    const { email, name, url } = payload as { email: string; name: string; url: string };
+    const { email, name, url, language } = payload as { email: string; name: string; url: string; language?: string | null };
     if (!deps.notifier || !deps.mailUrl) return;
-    await sendEmail(deps.notifier, deps.mailUrl, email, {
-      subject: "Confirm your email for Ferret",
-      heading: "Confirm your email",
-      greeting: `Hi ${name},`,
-      paragraphs: ["To finish setting up your Ferret account, confirm this is your email address. Then sign in."],
-      action: { label: "Confirm my email", url, note: "The link works for a day." },
-      footnote: "If you didn't sign up for Ferret, ignore this email: the account is removed in a week.",
-    });
+    // A new account: the language the app was in when it signed up, if it said (else whatever it has chosen since).
+    const tr = translator(deps.catalogs, language ?? (await languageOfEmail(deps.db, email)));
+    await sendEmail(
+      deps.notifier,
+      deps.mailUrl,
+      email,
+      {
+        subject: tr("Confirm your email for Ferret"),
+        heading: tr("Confirm your email"),
+        greeting: tr("Hi {name},", { name }),
+        paragraphs: [tr("To finish setting up your Ferret account, confirm this is your email address. Then sign in.")],
+        action: { label: tr("Confirm my email"), url, note: tr("The link works for a day.") },
+        footnote: tr("If you didn't sign up for Ferret, ignore this email: the account is removed in a week."),
+      },
+      tr,
+    );
   };
 }
 

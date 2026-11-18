@@ -16,6 +16,7 @@ import { NEW_ACCOUNT_JOB } from "./jobs/new-account";
 import { APP_CONNECTED_JOB, NEW_PLACE_JOB, PASSKEY_ADDED_JOB, PASSWORD_CHANGED_JOB, SECURITY_ALERT_JOB } from "./jobs/security-alert";
 import { MAGIC_LINK_JOB } from "./lib/magic-link";
 import { sendEmail } from "./lib/notifications";
+import { languageOfEmail, translator } from "./lib/language";
 import { RESET_JOB } from "./lib/password-reset";
 import { VERIFY_EMAIL_JOB, emailEnabled } from "./lib/email-verification";
 import { queueInvitationEmail } from "./lib/invitation-email";
@@ -136,16 +137,24 @@ export function createApp(deps: Deps, config: Config, opts: AppOptions = {}) {
       jobs && notifier && config.MAIL_URL
         ? {
             enqueue: (email) => jobs.enqueue(RESET_JOB, { email }),
-            send: (to, token) =>
-              sendEmail(notifier, config.MAIL_URL!, to.email, {
-                subject: "Choose a new Ferret password",
-                heading: "Choose a new password",
-                greeting: `Hi ${to.name},`,
-                paragraphs: ["Someone — hopefully you — asked to reset your Ferret password."],
-                action: { label: "Choose a new password", url: `${config.PUBLIC_URL}/#/reset-password/${token}`, note: "The link works once, for an hour." },
-                footnote: "If you didn't ask, ignore this email: your password stays as it is.",
-                appUrl: config.PUBLIC_URL,
-              }),
+            send: async (to, token) => {
+              const tr = translator(deps.catalogs, await languageOfEmail(deps.db, to.email));
+              await sendEmail(
+                notifier,
+                config.MAIL_URL!,
+                to.email,
+                {
+                  subject: tr("Choose a new Ferret password"),
+                  heading: tr("Choose a new password"),
+                  greeting: tr("Hi {name},", { name: to.name }),
+                  paragraphs: [tr("Someone — hopefully you — asked to reset your Ferret password.")],
+                  action: { label: tr("Choose a new password"), url: `${config.PUBLIC_URL}/#/reset-password/${token}`, note: tr("The link works once, for an hour.") },
+                  footnote: tr("If you didn't ask, ignore this email: your password stays as it is."),
+                  appUrl: config.PUBLIC_URL,
+                },
+                tr,
+              );
+            },
             changed: (who) => jobs.enqueue(PASSWORD_CHANGED_JOB, { userId: who.id, email: who.email }),
           }
         : undefined,
@@ -154,15 +163,23 @@ export function createApp(deps: Deps, config: Config, opts: AppOptions = {}) {
       jobs && notifier && config.MAIL_URL
         ? {
             enqueue: (email) => jobs.enqueue(MAGIC_LINK_JOB, { email }),
-            send: (email, url) =>
-              sendEmail(notifier, config.MAIL_URL!, email, {
-                subject: "Sign in to Ferret",
-                heading: "Your sign-in link",
-                paragraphs: ["Here's your link to sign in to Ferret."],
-                action: { label: "Sign in to Ferret", url, note: "It works once, for 15 minutes." },
-                footnote: "If you didn't ask for it, ignore this email: nobody can use the link without getting into your inbox.",
-                appUrl: config.PUBLIC_URL,
-              }),
+            send: async (email, url) => {
+              const tr = translator(deps.catalogs, await languageOfEmail(deps.db, email));
+              await sendEmail(
+                notifier,
+                config.MAIL_URL!,
+                email,
+                {
+                  subject: tr("Sign in to Ferret"),
+                  heading: tr("Your sign-in link"),
+                  paragraphs: [tr("Here's your link to sign in to Ferret.")],
+                  action: { label: tr("Sign in to Ferret"), url, note: tr("It works once, for 15 minutes.") },
+                  footnote: tr("If you didn't ask for it, ignore this email: nobody can use the link without getting into your inbox."),
+                  appUrl: config.PUBLIC_URL,
+                },
+                tr,
+              );
+            },
           }
         : undefined,
     onPasskeyAdded: jobs ? (added) => jobs.enqueue(PASSKEY_ADDED_JOB, added) : undefined,

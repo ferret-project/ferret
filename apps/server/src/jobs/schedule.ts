@@ -116,7 +116,7 @@ export function jobSchedule({
     [MAGIC_LINK_JOB]: magicLinkJob({ db, auth }),
     [PASSKEY_ADDED_JOB]: passkeyAddedAlert({ ...deps, files, appUrl, mailUrl }),
     [APP_CONNECTED_JOB]: appConnectedAlert({ ...deps, files, appUrl, mailUrl }),
-    [VERIFY_EMAIL_JOB]: sendVerificationJob({ notifier: deps.notifier, mailUrl }),
+    [VERIFY_EMAIL_JOB]: sendVerificationJob({ notifier: deps.notifier, db: deps.db, catalogs: deps.catalogs, mailUrl }),
     [INVITE_EMAIL_JOB]: sendInvitationJob({ ...deps, appUrl, mailUrl }),
     [PASSWORD_CHANGED_JOB]: passwordChanged({ ...deps, files, appUrl, mailUrl }),
     [NEW_ACCOUNT_JOB]: newAccountAlert({ db: deps.db, appUrl, adminWebhook: config.ADMIN_WEBHOOK_URL }),

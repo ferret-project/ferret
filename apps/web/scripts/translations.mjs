@@ -7,6 +7,8 @@
  *                                            apps/web/src/locales/ (gitignored), bring each up to date with the
  *                                            code's strings (new ones fall back to English), and write
  *                                            languages.json (each language's name and how much is translated).
+ *                                            Also server.json: the server's own text (emails, push — its tr("…")
+ *                                            calls) in each language, compiled, which the server's build takes along.
  *   node apps/web/scripts/translations.mjs template   write apps/web/src/locales/messages.pot — the English source list
  *                                            that CI pushes to the translations repo.
  *
@@ -22,6 +24,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { compileMessageOrThrow } from "@lingui/message-utils/compileMessage";
+import { generateMessageId } from "@lingui/message-utils/generateMessageId";
 import { parsePo, stringifyPo } from "pofile-ts";
 
 const REPO = "ferret-project/ferret-translations";
@@ -112,6 +115,26 @@ function checkLanguage(file) {
   return items.length ? Math.floor((done / items.length) * 100) : 0;
 }
 
+/**
+ * The server's part of each language (strings from apps/server/src), compiled and keyed by message id like the app's
+ * catalogs — read by the server (lib/language.ts) to write emails and notifications in each person's language. Run
+ * after checkLanguage, so broken or unreviewed translations are already left out.
+ */
+function serverCatalogs() {
+  const catalogs = {};
+  for (const f of readdirSync(out).filter((f) => LANGUAGE_FILE.test(f) && f !== "en.po")) {
+    const messages = {};
+    for (const item of parsePo(readFileSync(path.join(out, f), "utf8")).items) {
+      const text = item.msgstr[0];
+      if (item.obsolete || !item.msgid || !text || !item.references.some((r) => r.includes("server/src/"))) continue;
+      messages[generateMessageId(item.msgid, item.msgctxt ?? "")] = compileMessageOrThrow(text);
+    }
+    catalogs[f.slice(0, -3)] = messages;
+  }
+  writeFileSync(path.join(out, "server.json"), JSON.stringify(catalogs));
+  say(`server.json: ${Object.entries(catalogs).map(([code, m]) => `${code} ${Object.keys(m).length}`).join(", ") || "English only"}`);
+}
+
 function languageName(code) {
   try {
     return new Intl.DisplayNames([code], { type: "language" }).of(code) ?? code;
@@ -139,6 +162,7 @@ async function prepare() {
     })
     .sort((a, b) => (a.code === "en" ? -1 : b.code === "en" ? 1 : a.name.localeCompare(b.name)));
   writeFileSync(path.join(out, "languages.json"), `${JSON.stringify(languages, null, 2)}\n`);
+  serverCatalogs();
   say(languages.map((l) => `${l.code} ${l.percent}%`).join(", "));
 }
 

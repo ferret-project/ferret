@@ -9,6 +9,7 @@ import { HTTPException } from "hono/http-exception";
 import { notificationChannel, pushSubscription } from "../db/schema";
 import type { Db, Deps, Notifier } from "../ports";
 import { type EmailContent, renderEmail } from "./email";
+import type { Tr } from "./language";
 import type { FileStore } from "./files";
 import { isServerAdmin } from "./server-admin";
 
@@ -23,9 +24,9 @@ const sealLabel = (userId: string) => `notify:${userId}`;
 /** Ferret's own mail sender (MAIL_URL, an Apprise mailto URL), addressed to one person (Apprise's `to=`). */
 export const mailTo = (mailUrl: string, email: string) => `${mailUrl}${mailUrl.includes("?") ? "&" : "?"}to=${encodeURIComponent(email)}`;
 
-/** One of Ferret's own emails (lib/email.ts's layout) to one address, through MAIL_URL. */
-export const sendEmail = (notifier: Notifier, mailUrl: string, to: string, content: EmailContent) =>
-  notifier.send(mailTo(mailUrl, to), renderEmail(content));
+/** One of Ferret's own emails (lib/email.ts's layout) to one address, through MAIL_URL — in `tr`'s language. */
+export const sendEmail = (notifier: Notifier, mailUrl: string, to: string, content: EmailContent, tr?: Tr) =>
+  notifier.send(mailTo(mailUrl, to), renderEmail(content, tr));
 
 const summary = (row: Row): NotificationChannel => ({
   id: row.id,
@@ -109,7 +110,7 @@ export async function notifyPerson(
   userId: string,
   message: { title: string; body: string; url: string; tag: string; action?: string },
   /** `details`: more, for the email only (a service error's triage notes) — too long for a push or a chat app. */
-  opts: { email?: string | null; details?: string } = {},
+  opts: { email?: string | null; details?: string; tr?: Tr } = {},
 ) {
   const { db, push, notifier, files } = deps;
   if (push) {
@@ -128,7 +129,7 @@ export async function notifyPerson(
         paragraphs: [message.body],
         action: { label: message.action ?? "Open in Ferret", url: message.url },
         details: opts.details,
-      }).catch(() => {});
+      }, opts.tr).catch(() => {});
     }
   }
 }

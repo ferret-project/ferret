@@ -15,6 +15,7 @@ import type { Db, Deps } from "../ports";
 import type { FileStore } from "./files";
 import { type Caller, itemScope, logActivity, notFound } from "./inventory";
 import { sendEmail } from "./notifications";
+import { trFor } from "./language";
 import { hashToken, newToken } from "./shares";
 import { todayFor, zoneCache } from "./household-time";
 import { inList } from "./sql";
@@ -235,11 +236,10 @@ export function nextReminder(r: Pick<Row, "remindEvery" | "since" | "dueOn" | "l
   return step(r.since > recorded ? r.since : recorded);
 }
 
-const longDate = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 
 /** Emails every borrower whose reminder is due today (at most one a day each). Returns how many went. */
 export async function sendLoanReminders(
-  deps: Pick<Deps, "db" | "notifier"> & {
+  deps: Pick<Deps, "db" | "notifier" | "catalogs"> & {
     files: FileStore;
     mailUrl?: string;
     appUrl: string;
@@ -284,18 +284,30 @@ export async function sendLoanReminders(
     const who = firstName(owner);
     const link = borrowerUrl(deps.appUrl, await files.open(l.householdId, sealLabel(l.id), l.tokenSealed!));
     try {
-      await sendEmail(notifier, mailUrl, l.email!, {
-        subject: `A reminder from ${who}: ${name}`,
-        heading: `A friendly reminder from ${who}`,
-        greeting: `Hi ${l.person},`,
-        paragraphs: [
-          `${who} lent you ${name} on ${longDate(l.since)}${l.dueOn ? `, to bring back by ${longDate(l.dueOn)}` : ""}. This is a friendly reminder that it's still with you.`,
-          `Already given it back, or don't want these reminders? Let ${who} know:`,
-        ],
-        action: { label: `Let ${who} know`, url: link },
-        footnote: `Sent by Ferret, ${who}'s home inventory.`,
-        appUrl: deps.appUrl,
-      });
+      // In the lender's language: they know the borrower, and Ferret writes on their behalf.
+      const tr = await trFor(deps, l.createdBy);
+      const year = { month: "long", day: "numeric", year: "numeric" } as const;
+      const lent = { who, thing: name, since: tr.date(l.since, year) };
+      await sendEmail(
+        notifier,
+        mailUrl,
+        l.email!,
+        {
+          subject: tr("A reminder from {who}: {thing}", lent),
+          heading: tr("A friendly reminder from {who}", lent),
+          greeting: tr("Hi {name},", { name: l.person }),
+          paragraphs: [
+            l.dueOn
+              ? tr("{who} lent you {thing} on {since}, to bring back by {due}. This is a friendly reminder that it's still with you.", { ...lent, due: tr.date(l.dueOn, year) })
+              : tr("{who} lent you {thing} on {since}. This is a friendly reminder that it's still with you.", lent),
+            tr("Already given it back, or don't want these reminders? Let {who} know:", lent),
+          ],
+          action: { label: tr("Let {who} know", lent), url: link },
+          footnote: tr("Sent by Ferret, {who}'s home inventory.", lent),
+          appUrl: deps.appUrl,
+        },
+        tr,
+      );
       await db.update(loan).set({ lastRemindedOn: on }).where(eq(loan.id, l.id));
       sent++;
     } catch (err) {

@@ -2,6 +2,7 @@
 import { today } from "@ferret/shared";
 import { describe, expect, it } from "vitest";
 import { sendWeeklyDigests } from "../src/lib/digest";
+import { translator } from "../src/lib/language";
 import { checkHousehold, normalise } from "../src/lib/recalls";
 import type { RawRecall, Recalls } from "../src/ports";
 import { config, FakeNotifier, setup } from "./helpers";
@@ -158,7 +159,7 @@ describe("weekly summary", () => {
     expect(mail.url).toBe(`${MAIL}?to=${encodeURIComponent("ann@example.com")}`);
     expect(mail.title).toBe("Your week in Ferret: 1 thing to look at");
     expect(mail.body).toContain("To name\n• ");
-    expect(mail.body).toContain(`Lent out\n• Ladder — With Sam since ${today()}`);
+    expect(mail.body).toContain(`Lent out\n• Ladder — With Sam since ${translator(undefined, null).date(today())}`);
     // Laid out as HTML too (lib/email.ts), with the link written out.
     expect(mail.html).toContain(">Lent out</h2>");
     expect(mail.html).toContain(`${config.PUBLIC_URL}/#/</a>`);

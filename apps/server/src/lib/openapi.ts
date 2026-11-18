@@ -20,6 +20,7 @@ import {
   usageReadingInput,
   coverageInput,
   weeklyDigestInput,
+  languageInput,
   loanInput,
   loanPatch,
   importInput,
@@ -494,6 +495,7 @@ export const OPERATIONS: Operation[] = [
   { method: "post", path: "/coverage", status: 201, tag: "Coverage", summary: "Add a limit: everything, or a category or tag (optionally one property)", body: coverageInput, writes: true, returns: "CoverageCheck" },
   { method: "put", path: "/coverage/{id}", tag: "Coverage", summary: "Change a limit", body: coverageInput, writes: true, returns: "CoverageCheck" },
   { method: "delete", path: "/coverage/{id}", tag: "Coverage", summary: "Remove a limit", writes: true },
+  { method: "put", path: "/me/language", tag: "Account", summary: "The language Ferret writes to you in — emails, push, notifications (a real sign-in; null: English)", body: languageInput, returns: "{ language }" },
   { method: "get", path: "/me/weekly", tag: "Reminders", summary: "Your weekly summary: which day, and by email too (a real sign-in)", returns: "WeeklyDigestSetting" },
   { method: "put", path: "/me/weekly", tag: "Reminders", summary: "Set your weekly summary's day (null: none) and whether it's emailed", body: weeklyDigestInput, returns: "WeeklyDigestSetting" },
 

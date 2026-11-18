@@ -9,6 +9,7 @@ import { parseReference } from "../lib/oauth";
 import type { FileStore } from "../lib/files";
 import { deliver, notifyPerson, sendEmail } from "../lib/notifications";
 import { describeDevice } from "../lib/security";
+import { trFor } from "../lib/language";
 import type { FailureAlert } from "../lib/sign-in-guard";
 import type { Deps, JobHandler } from "../ports";
 
@@ -19,10 +20,11 @@ export function securityAlert(deps: Deps & { files: FileStore; appUrl: string })
     const { userId, failures, ipAddress } = payload as FailureAlert;
     const { db, push, notifier, files } = deps;
     const url = `${deps.appUrl}/#/settings/security`;
-    const title = "Someone is trying your Ferret password";
-    const body =
-      `${failures} wrong passwords for your account since you last signed in${ipAddress ? `, the latest from ${ipAddress}` : ""}. ` +
-      "If that wasn't you, turn on two-step sign-in in Settings → Security.";
+    const tr = await trFor(deps, userId);
+    const title = tr("Someone is trying your Ferret password");
+    const body = ipAddress
+      ? tr("{failures, plural, one {# wrong password} other {# wrong passwords}} for your account since you last signed in, the latest from {address}. If that wasn't you, turn on two-step sign-in in Settings → Security.", { failures, address: ipAddress })
+      : tr("{failures, plural, one {# wrong password} other {# wrong passwords}} for your account since you last signed in. If that wasn't you, turn on two-step sign-in in Settings → Security.", { failures });
 
     if (push) {
       for (const sub of await db.select().from(pushSubscription).where(eq(pushSubscription.userId, userId))) {
@@ -47,19 +49,24 @@ export function passwordChanged(deps: Deps & { files: FileStore; appUrl: string;
     const { userId, email } = payload as { userId: string; email: string };
     const { db, push, notifier, files } = deps;
     const url = `${deps.appUrl}/#/settings/security`;
-    const title = "Your Ferret password was changed";
-    const body =
-      "Your password was just reset with an emailed link, and every session was signed out. " +
-      "If that wasn't you, reset it again now and turn on two-step sign-in in Settings → Security.";
+    const tr = await trFor(deps, userId);
+    const title = tr("Your Ferret password was changed");
+    const body = tr("Your password was just reset with an emailed link, and every session was signed out. If that wasn't you, reset it again now and turn on two-step sign-in in Settings → Security.");
     if (notifier && deps.mailUrl) {
-      await sendEmail(notifier, deps.mailUrl, email, {
-        subject: title,
-        heading: "Your password was changed",
-        paragraphs: ["Your Ferret password was just reset with an emailed link, and every session was signed out."],
-        action: { label: "Review your sign-in security", url },
-        footnote: "If that wasn't you, reset it again now and turn on two-step sign-in in Settings → Security.",
-        appUrl: deps.appUrl,
-      });
+      await sendEmail(
+        notifier,
+        deps.mailUrl,
+        email,
+        {
+          subject: title,
+          heading: tr("Your password was changed"),
+          paragraphs: [tr("Your Ferret password was just reset with an emailed link, and every session was signed out.")],
+          action: { label: tr("Review your sign-in security"), url },
+          footnote: tr("If that wasn't you, reset it again now and turn on two-step sign-in in Settings → Security."),
+          appUrl: deps.appUrl,
+        },
+        tr,
+      );
     }
     if (push) {
       for (const sub of await db.select().from(pushSubscription).where(eq(pushSubscription.userId, userId))) {
@@ -82,20 +89,22 @@ export function newPlaceAlert(deps: Deps & { files: FileStore; appUrl: string; m
     const { userId, ipAddress, userAgent, at } = payload as { userId: string; ipAddress: string | null; userAgent: string | null; at: string };
     const [who] = await deps.db.select({ email: user.email }).from(user).where(eq(user.id, userId));
     if (!who) return;
-    const when = new Date(at).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
+    const tr = await trFor(deps, userId);
+    const when = new Date(at).toLocaleString(tr.locale, { dateStyle: "medium", timeStyle: "short" });
+    const device = describeDevice(userAgent);
     await notifyPerson(
       deps,
       userId,
       {
-        title: "New sign-in to Ferret",
-        body:
-          `Your account was just signed in to from somewhere new: ${describeDevice(userAgent)}${ipAddress ? ` at ${ipAddress}` : ""}, ${when}. ` +
-          "If that was you, there's nothing to do. If not, change your password and sign out everywhere else in Settings → Security.",
+        title: tr("New sign-in to Ferret"),
+        body: ipAddress
+          ? tr("Your account was just signed in to from somewhere new: {device} at {address}, {when}. If that was you, there's nothing to do. If not, change your password and sign out everywhere else in Settings → Security.", { device, address: ipAddress, when })
+          : tr("Your account was just signed in to from somewhere new: {device}, {when}. If that was you, there's nothing to do. If not, change your password and sign out everywhere else in Settings → Security.", { device, when }),
         url: `${deps.appUrl}/#/settings/security`,
         tag: "ferret-security",
-        action: "Review your sign-in security",
+        action: tr("Review your sign-in security"),
       },
-      { email: who.email },
+      { email: who.email, tr },
     );
   };
 }
@@ -108,19 +117,18 @@ export function passkeyAddedAlert(deps: Deps & { files: FileStore; appUrl: strin
     const { userId, userAgent } = payload as { userId: string; userAgent: string | null };
     const [who] = await deps.db.select({ email: user.email }).from(user).where(eq(user.id, userId));
     if (!who) return;
+    const tr = await trFor(deps, userId);
     await notifyPerson(
       deps,
       userId,
       {
-        title: "A passkey was added to your Ferret account",
-        body:
-          `A passkey was just added from ${describeDevice(userAgent)}. It can sign in to your account without a password. ` +
-          "If that wasn't you, remove it and sign out everywhere else in Settings → Security.",
+        title: tr("A passkey was added to your Ferret account"),
+        body: tr("A passkey was just added from {device}. It can sign in to your account without a password. If that wasn't you, remove it and sign out everywhere else in Settings → Security.", { device: describeDevice(userAgent) }),
         url: `${deps.appUrl}/#/settings/security`,
         tag: "ferret-security",
-        action: "Review your sign-in security",
+        action: tr("Review your sign-in security"),
       },
-      { email: who.email },
+      { email: who.email, tr },
     );
   };
 }
@@ -136,20 +144,21 @@ export function appConnectedAlert(deps: Deps & { files: FileStore; appUrl: strin
     const target = parseReference(reference);
     if (!who || !app || !target) return;
     const [household] = await deps.db.select({ name: organization.name }).from(organization).where(eq(organization.id, target.householdId));
-    const name = app.name?.trim() || "An app";
+    const tr = await trFor(deps, userId);
+    const names = { app: app.name?.trim() || tr("An app"), household: household?.name ?? tr("a household") };
     await notifyPerson(
       deps,
       userId,
       {
-        title: `${name} was connected to your Ferret account`,
-        body:
-          `${name} can now ${target.readOnly ? "look things up in" : "look things up in and change"} ${household?.name ?? "a household"} with your account. ` +
-          "If that wasn't you, disconnect it in Settings → Claude & API, change your password and sign out everywhere else in Settings → Security.",
+        title: tr("{app} was connected to your Ferret account", names),
+        body: target.readOnly
+          ? tr("{app} can now look things up in {household} with your account. If that wasn't you, disconnect it in Settings → Claude & API, change your password and sign out everywhere else in Settings → Security.", names)
+          : tr("{app} can now look things up in and change {household} with your account. If that wasn't you, disconnect it in Settings → Claude & API, change your password and sign out everywhere else in Settings → Security.", names),
         url: `${deps.appUrl}/#/settings/api`,
         tag: "ferret-security",
-        action: "Review connected apps",
+        action: tr("Review connected apps"),
       },
-      { email: who.email },
+      { email: who.email, tr },
     );
   };
 }

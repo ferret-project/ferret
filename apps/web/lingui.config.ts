@@ -6,6 +6,8 @@
 import { readdirSync } from "node:fs";
 import { defineConfig } from "@lingui/conf";
 import { formatter } from "@lingui/format-po";
+import babel from "@lingui/cli/api/extractors/babel";
+import { serverExtractor } from "./scripts/server-extractor";
 
 const LOCALES_DIR = new URL("./src/locales/", import.meta.url);
 
@@ -27,7 +29,9 @@ export default defineConfig({
   locales: locales(),
   // A string a language hasn't translated yet shows in English.
   fallbackLocales: { default: "en" },
-  catalogs: [{ path: "<rootDir>/src/locales/{locale}", include: ["<rootDir>/src"] }],
+  // The app's text, and the server's (emails, push: its tr("…") calls, lib/language.ts) — one list for translators.
+  catalogs: [{ path: "<rootDir>/src/locales/{locale}", include: ["<rootDir>/src", "<rootDir>/../server/src"], exclude: ["**/node_modules/**"] }],
+  extractors: [serverExtractor, babel],
   // No line numbers: the source list (messages.pot) then changes only when the text does.
   format: formatter({ lineNumbers: false }),
 });

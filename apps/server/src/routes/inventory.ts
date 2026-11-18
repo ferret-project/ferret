@@ -9,6 +9,7 @@ import { PHOTO_ORDER } from "../lib/photo-order";
 import * as usage from "../lib/usage";
 import { fileOwnerQuery, usageReadingInput, itemsBulk, reviewItemBody, repairInput, repairPatch,
   askInput,
+  languageInput,
   dismissPartInput,
   itemFindQuery,
   type AttachmentKind,
@@ -33,7 +34,8 @@ import { z } from "zod";
 import { attachment, item, user, warranty } from "../db/schema";
 import { dismissSuggestedPart, itemParts } from "../lib/parts";
 import { countEvent } from "../lib/analytics";
-import { type AppEnv, body, callerOf, requireHousehold, requireUser, requireWriter } from "../lib/context";
+import { type AppEnv, body, callerOf, requireHousehold, requireSession, requireUser, requireWriter } from "../lib/context";
+import { languageOf, setLanguage } from "../lib/language";
 import * as svc from "../lib/inventory";
 import { ownLabelsOf } from "../lib/own-labels";
 import { roomScansAvailable } from "../lib/room-scans";
@@ -59,6 +61,8 @@ inventory.get("/me", requireUser, async (c) =>
     activeHouseholdId: c.var.apiKey?.householdId ?? c.var.session?.activeOrganizationId ?? null,
     /** The server admin sees Settings → Server (backups). */
     serverAdmin: await isServerAdmin(c.var.db, c.var.user.id),
+    /** The language Ferret writes to them in (emails, push); null = not chosen (English). */
+    language: await languageOf(c.var.db, c.var.user.id),
     /** What this server can do that depends on how it runs (the app hides what it can't). */
     features: { fromWeb: Boolean(c.var.deps.downloader), homeAssistant: Boolean(c.var.deps.homeAssistant), roomScan: roomScansAvailable(c.var.deps, c.var.config.DEMO),
       // The AI helpers that read words (sorting imports, filters from words, estimates, typical upkeep), and speech to text.
@@ -73,6 +77,13 @@ inventory.get("/me", requireUser, async (c) =>
     },
   }),
 );
+
+/** Your language, for what Ferret sends you (the app saves it when you pick one). A real sign-in: a person's setting. */
+inventory.put("/me/language", requireUser, requireSession, async (c) => {
+  const { language } = await body(c.req.raw, languageInput);
+  await setLanguage(c.var.db, c.var.user.id, language === "en" ? null : language);
+  return c.json({ language: language === "en" ? null : language });
+});
 
 inventory.use("/properties/*", requireUser, requireHousehold);
 inventory.use("/properties", requireUser, requireHousehold);

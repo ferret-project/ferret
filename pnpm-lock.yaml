@@ -38,6 +38,12 @@ importers:
       '@libsql/client':
         specifier: ^0.18.0
         version: 0.18.0
+      '@lingui/core':
+        specifier: 6.12.0
+        version: 6.12.0(@babel/core@7.29.7)
+      '@lingui/message-utils':
+        specifier: 6.12.0
+        version: 6.12.0
       '@modelcontextprotocol/server':
         specifier: 2.4.0
         version: 2.4.0
