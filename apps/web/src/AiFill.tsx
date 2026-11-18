@@ -14,6 +14,13 @@ import { money } from "./lib/money";
 import { itemHref } from "./lib/route";
 import { TopBar } from "./Nav";
 import { FileThumb } from "./FileThumb";
+import { flattenCategories, useCategories } from "./Catalog";
+
+/** The household's category paths by id (a category the AI filled in is shown by name). */
+function useCategoryPaths(householdId: string) {
+  const categories = useCategories(householdId);
+  return new Map(flattenCategories(categories.data ?? []).map((c) => [c.id, c.path]));
+}
 import { t, ph, plural, msg } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
@@ -28,11 +35,14 @@ const LABELS: Record<string, MessageDescriptor> = {
   purchaseDate: msg`Purchase date`,
   purchasePriceCents: msg`Price paid`,
   returnBy: msg`Return by`,
+  categoryId: msg`Category`,
   warranty: msg`Warranty until`,
 };
 
-const show = (field: string, value: string | number) =>
-  field === "purchasePriceCents" ? money(Number(value), true) : /^\d{4}-\d{2}-\d{2}$/.test(String(value)) ? new Date(`${value}T00:00:00`).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : String(value);
+const show = (field: string, value: string | number, categories?: Map<string, string>) =>
+  field === "categoryId"
+    ? (categories?.get(String(value)) ?? t`A category since removed`)
+    : field === "purchasePriceCents" ? money(Number(value), true) : /^\d{4}-\d{2}-\d{2}$/.test(String(value)) ? new Date(`${value}T00:00:00`).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : String(value);
 
 /** Settings → Household: which kinds fill in by themselves (owners and admins change them). */
 export function AiFillCard({ householdId, canManage }: { householdId: string; canManage: boolean }) {
@@ -147,6 +157,7 @@ function useAiFillActions(householdId: string, itemId?: string) {
 
 /** On an item's page: what the AI filled in by itself, until someone checks it. */
 export function AiFilledCard({ item, householdId }: { item: ItemListing; householdId: string }) {
+  const paths = useCategoryPaths(householdId);
   const canEdit = useCanEdit(householdId);
   const { confirm, undo, busy, error } = useAiFillActions(householdId, item.id);
   const fills = Object.entries(item.aiFilled ?? {}) as [string, AiFill][];
@@ -164,7 +175,7 @@ export function AiFilledCard({ item, householdId }: { item: ItemListing; househo
               <span className="w-28 shrink-0 text-sm text-base-content/70">{label(field)}</span>
               {f.attachmentId && <FileThumb attachmentId={f.attachmentId} filename={f.from} />}
               <span className="min-w-0 flex-1">
-                <span className="block truncate font-medium">{show(field, f.value)}</span>
+                <span className="block truncate font-medium">{show(field, f.value, paths)}</span>
                 {f.from && <span className="block truncate text-xs text-base-content/70"><Trans>from {ph({ from: f.from })}</Trans></span>}
               </span>
               {canEdit && (
@@ -188,6 +199,7 @@ export function AiFilledCard({ item, householdId }: { item: ItemListing; househo
 
 /** #/ai-filled: everything the AI filled in that nobody has checked yet, newest first. */
 export function AiFilled({ householdId }: { householdId: string }) {
+  const paths = useCategoryPaths(householdId);
   const canEdit = useCanEdit(householdId);
   const list = useQuery({ queryKey: ["ai-fills", householdId], queryFn: api.aiFills });
   const { confirm, undo, busy, error } = useAiFillActions(householdId);
@@ -231,7 +243,7 @@ export function AiFilled({ householdId }: { householdId: string }) {
                     <span className="w-28 shrink-0 text-sm text-base-content/70">{e.field in LABELS ? label(e.field) : e.label}</span>
                     {e.attachmentId && <FileThumb attachmentId={e.attachmentId} filename={e.from} />}
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate font-medium">{show(e.field, e.value)}</span>
+                      <span className="block truncate font-medium">{show(e.field, e.value, paths)}</span>
                       <span className="block truncate text-xs text-base-content/70">
                         {e.from ? t`from ${ph({ from: e.from })} · ${ph({ date: new Date(e.at).toLocaleDateString() })}` : new Date(e.at).toLocaleDateString()}
                       </span>

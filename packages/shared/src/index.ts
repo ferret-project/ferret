@@ -185,9 +185,9 @@ export const itemDispositions = ["sold", "given", "donated", "discarded", "lost"
 export type ItemDisposition = (typeof itemDispositions)[number];
 
 /** Where a thing came from. The first five are the app's own ways to add one (it says which); the rest are set by the server. */
-export const itemOrigins = ["app", "photos", "walkthrough", "roomscan", "scan", "label", "spreadsheet", "homeassistant", "paperless", "claude", "api"] as const;
+export const itemOrigins = ["app", "photos", "walkthrough", "roomscan", "scan", "label", "receipt", "words", "spreadsheet", "homeassistant", "paperless", "claude", "api"] as const;
 export type ItemOrigin = (typeof itemOrigins)[number];
-export const appOrigins = ["app", "photos", "walkthrough", "scan", "label"] as const;
+export const appOrigins = ["app", "photos", "walkthrough", "scan", "label", "receipt", "words"] as const;
 
 const itemFields = z.object({
   name: z.string().trim().min(1).max(200).describe('What it is, the way people would look for it: "Cordless drill"'),
@@ -645,9 +645,49 @@ export type AttachmentSuggestions = Partial<
   maintenance?: { title: string; intervalCount: number; intervalUnit: (typeof intervalUnits)[number] }[];
   /** From manuals: replacement parts and supplies with their part numbers — suggested under the item's Parts & supplies. */
   parts?: SuggestedPartReading[];
+  /** One of the household's categories the model thought it belongs in (photos and receipts of a thing). */
+  categoryId?: string;
+  /** A receipt, invoice or order with several different products on it: each one (the other things it bought). */
+  lines?: ReceiptLine[];
+  /** Its lines were added (or "Not these"): kept, so it's still read as a receipt of several things, but not offered again. */
+  linesHandled?: boolean;
   /** The fields the model said it read plainly off the file (not inferred) — the only ones the AI may fill in by itself. */
   sure?: string[];
 };
+
+/** The other things on a receipt, as a person ticked and corrected them, to add (each with a copy of the receipt). */
+export const receiptLinesInput = z.object({
+  lines: z
+    .array(
+      z.object({
+        name: z.string().trim().min(1).max(200),
+        brand: z.string().trim().max(120).nullish(),
+        model: z.string().trim().max(120).nullish(),
+        quantity: z.number().int().min(1).max(100_000).default(1),
+        priceCents: z.number().int().min(0).max(1_000_000_000).nullish(),
+        categoryId: z.string().nullish(),
+      }),
+    )
+    .min(1)
+    .max(30),
+  /** Where they go; left out, where the receipt's thing is. */
+  locationId: z.string().nullish(),
+  /** The receipt's own thing is an unnamed "New item" (the receipt photographed on its own): the first line becomes it. */
+  intoItem: z.boolean().default(false),
+});
+export type ReceiptLinesInput = z.infer<typeof receiptLinesInput>;
+
+/** One product on a receipt with several: what it was, and what one cost. */
+export interface ReceiptLine {
+  name: string;
+  brand?: string;
+  model?: string;
+  quantity: number;
+  /** The price paid for one, in cents. */
+  priceCents?: number;
+  /** One of the household's categories, if the model picked one. */
+  categoryId?: string;
+}
 
 /** One of a thing's parts or supplies (Parts & supplies on its page): an item of the household's. */
 export interface ItemPart {
@@ -2436,6 +2476,48 @@ export interface AiRunStatus<T = unknown> {
 
 /** Plain words → Everything's filters (AI-2). */
 export const filtersFromTextInput = z.object({ text: z.string().trim().min(3).max(300) });
+
+/** "Say it" / "Type it": a sentence about one thing ("DeWalt drill, garage top shelf, $129 last March"). */
+export const itemFromTextInput = z.object({ text: z.string().trim().min(2).max(500) });
+/** What the AI read from it, for the person to check before adding — places, boxes, categories and tags are the household's own. */
+export interface ItemDraft {
+  name: string | null;
+  brand: string | null;
+  model: string | null;
+  serialNumber: string | null;
+  quantity: number | null;
+  locationId: string | null;
+  /** The place's path, to show. */
+  place: string | null;
+  /** In one of the household's boxes. */
+  containerItemId: string | null;
+  box: string | null;
+  categoryId: string | null;
+  category: string | null;
+  tags: string[];
+  valueCents: number | null;
+  purchaseDate: string | null;
+  purchasePriceCents: number | null;
+  description: string | null;
+  isContainer: boolean;
+}
+
+/**
+ * "To confirm": everything the AI suggested that's waiting for a person, in one list — things whose photos and
+ * receipts have suggestions (with the files, to show them as on the thing's page), replacement-cost estimates not
+ * used yet, and how many are waiting in the other lists (each has its own screen).
+ */
+export interface ToConfirm {
+  items: { item: ItemListing; attachments: Attachment[]; warranties: { endsOn: string }[] }[];
+  estimates: { itemId: string; name: string; photoId: string | null; cents: number; reasoning: string; valueCents: number | null; purchasePriceCents: number | null }[];
+  counts: { aiFilled: number; duplicates: number; suggestedTasks: number; paperless: number; roomScans: number };
+}
+
+/** Ask for replacement-cost estimates for several things at once: these, or every thing with no value or price yet. */
+export const replacementEstimatesInput = z.union([
+  z.object({ itemIds: z.array(z.string()).min(1).max(50) }),
+  z.object({ missing: z.literal("value") }),
+]);
 export interface FiltersFromText {
   /** Everything's filter values, as its link would carry them (e.g. { category: "…id", missing: "receipt" }). */
   filters: Record<string, string>;

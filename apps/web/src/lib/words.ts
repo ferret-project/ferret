@@ -116,6 +116,7 @@ export const planFeatureWord = (feature: PlanFeature) => i18n._(PLAN_FEATURE[fea
 
 const AI_FILL_KIND: Record<AiFillKind, { label: MessageDescriptor; hint: MessageDescriptor }> = {
   details: { label: msg`Details from photos and receipts`, hint: msg`Brand, model, serial number, barcode, purchase date and price paid — only empty fields` },
+  category: { label: msg`Categories`, hint: msg`Which of your categories a thing belongs in, from its photos and receipts — only when it has none` },
   returnBy: { label: msg`Return-by dates`, hint: msg`The last day to return it, from a receipt` },
   warranty: { label: msg`Warranties`, hint: msg`From a receipt or warranty card, when the purchase date is known` },
 };

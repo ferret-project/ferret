@@ -166,4 +166,63 @@ describe("the model's sure list", () => {
     expect(a.suggestions.sure).toEqual(["model"]);
     void photo;
   });
+
+  it("sorts a thing into one of the household's categories when it has none, and never into one a person took away", async () => {
+    const { pat, jobs, settings, chat } = await household(receipt({ category: "Tools › Power tools", sure: [] }));
+    const tools = (await (await pat.as("/api/v1/categories", { method: "POST", body: JSON.stringify({ name: "Tools" }) })).json()) as { id: string };
+    const power = (await (await pat.as("/api/v1/categories", { method: "POST", body: JSON.stringify({ name: "Power tools", parentId: tools.id }) })).json()) as { id: string };
+
+    // Off: a suggestion only.
+    const { id: first } = await pat.addItem({ name: "Drill" });
+    await pat.upload(first, pdf(), "receipt.pdf", "document");
+    await jobs.drain();
+    expect(chat.calls.at(-1)!.prompt).toContain("- Tools › Power tools");
+    expect((await item(pat, first)).categoryId).toBeNull();
+    const files = ((await (await pat.as(`/api/v1/items/${first}/attachments`)).json()) as { data: { analysis: { suggestions: { categoryId?: string } } }[] }).data;
+    expect(files[0]!.analysis.suggestions.categoryId).toBe(power.id);
+
+    // On: filled, marked, and undoable.
+    await settings({ category: true });
+    const { id } = await pat.addItem({ name: "Drill" });
+    await pat.upload(id, pdf(), "receipt.pdf", "document");
+    await jobs.drain();
+    const now = await item(pat, id);
+    expect(now.categoryId).toBe(power.id);
+    expect(now.aiFilled!.categoryId).toMatchObject({ value: power.id, from: "receipt.pdf" });
+    expect((await pat.as(`/api/v1/items/${id}/ai-fills/categoryId/undo`, { method: "POST" })).status).toBe(200);
+    expect((await item(pat, id)).categoryId).toBeNull();
+
+    // A category a person chose is never replaced; one they took away isn't put back.
+    const { id: chosen } = await pat.addItem({ name: "Drill", categoryId: tools.id });
+    const { id: cleared } = await pat.addItem({ name: "Drill" });
+    await pat.upload(chosen, pdf(), "receipt.pdf", "document");
+    await pat.as(`/api/v1/items/${cleared}`, { method: "PATCH", body: JSON.stringify({ categoryId: tools.id }) });
+    await pat.upload(cleared, pdf(), "receipt.pdf", "document");
+    await pat.as(`/api/v1/items/${cleared}`, { method: "PATCH", body: JSON.stringify({ categoryId: null }) });
+    await jobs.drain();
+    expect((await item(pat, chosen)).categoryId).toBe(tools.id);
+    expect((await item(pat, cleared)).categoryId).toBeNull();
+  });
+
+  it("names a New item from its photos, the richer reading winning over a name AI gave from another photo", async () => {
+    const ai = new FakeAi([
+      { description: "A yellow tool.", text: "", name: "Tool", brand: "DEWALT", sure: ["name", "brand"] },
+      { description: "A rating label.", text: "DEWALT DCD771C2", name: "Cordless drill", brand: "DEWALT", model: "DCD771C2", serialNumber: "SN1", sure: ["name", "brand", "model", "serialNumber"] },
+      { description: "Another look.", text: "", name: "Drill", sure: ["name"] },
+    ]);
+    const ctx = await setup({ ai });
+    const pat = await ctx.user("pat");
+    await pat.as("/api/v1/household/settings", { method: "PUT", body: JSON.stringify({ aiFill: { details: true } }) });
+    const { id } = await pat.addItem({ name: "New item" });
+    await pat.upload(id, await photo(), "front.jpg");
+    await ctx.jobs.drain();
+    expect((await item(pat, id)).name).toBe("Tool");
+    await pat.upload(id, await photo(), "label.jpg");
+    await ctx.jobs.drain();
+    expect(await item(pat, id)).toMatchObject({ name: "Cordless drill", model: "DCD771C2" });
+    // A poorer reading doesn't take it back; nor does anything replace a name a person gave.
+    await pat.upload(id, await photo(), "again.jpg");
+    await ctx.jobs.drain();
+    expect((await item(pat, id)).name).toBe("Cordless drill");
+  });
 });

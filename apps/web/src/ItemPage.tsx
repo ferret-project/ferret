@@ -433,6 +433,7 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
       {canEdit && <VehicleSuggestions item={item.data} householdId={householdId} />}
       {canEdit && attachments.data && (
         <Suggestions
+          householdId={householdId}
           item={item.data}
           attachments={attachments.data.data}
           warranties={warranties.data?.data ?? []}

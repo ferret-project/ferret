@@ -24,6 +24,7 @@ import { Connect, ConnectFinish, ConnectSignIn } from "./Connect";
 import { Borrower, Loans } from "./Loans";
 import { WarrantyList } from "./WarrantyList";
 import { AiFilled } from "./AiFill";
+import { ToConfirm } from "./ToConfirm";
 import { Duplicates } from "./Duplicates";
 import { PaperlessInbox } from "./Paperless";
 import { Misplaced, RoomReviewScreen, RoomsToReview } from "./Tracking";
@@ -409,6 +410,7 @@ const routeTree = rootRoute.addChildren([
     screen("misplaced", "misplaced", ({ householdId }) => <Misplaced householdId={householdId} />),
     screen("replacements", "replacements", ({ householdId }) => <Replacements householdId={householdId} />),
     screen("ai-filled", "ai-filled", ({ householdId }) => <AiFilled householdId={householdId} />),
+    screen("to-confirm", "to-confirm", ({ householdId }) => <ToConfirm householdId={householdId} />),
     screen("coverage", "coverage", ({ householdId }) => <Coverage householdId={householdId} />),
     screen("more", "more", ({ householdId }) => <MorePage householdId={householdId} />),
     // Any other address: not found, inside the signed-in layout (signed out, it's the sign-in screen).

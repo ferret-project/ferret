@@ -7,8 +7,9 @@ The quickest way to get a whole house into Ferret: one room at a time, photograp
 
 On a room's page, **Walk through this room** (or **Walk through a room** in the menu, then pick one). Then
 **Take a photo** — one thing per photo — and again, and again. Each photo becomes an item in that room straight away;
-they upload in the background while you carry on, with a tick on each one that's in. **Or pick from your photos** adds
-ones you've already taken.
+they upload in the background while you carry on, with a tick on each one that's in. **Another photo of the same
+thing** adds the next photo to the thing you just photographed — its label, its serial plate, its receipt — so the AI
+reads them together. **Or pick from your photos** adds ones you've already taken.
 
 ## 2. Review
 
@@ -28,6 +29,6 @@ still quick.
 
 ## Tips
 
-- Good light, one thing filling the frame. A second photo of the label or serial-number plate helps — add it from the
-  item's page later.
+- Good light, one thing filling the frame. A second photo of the label or serial-number plate helps — take it with
+  **Another photo of the same thing**.
 - Boxes: photograph the box, mark it as a box, then use **Add from photos** on the box's page for what's inside.

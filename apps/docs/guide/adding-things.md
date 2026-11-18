@@ -9,11 +9,17 @@ Type a name into **Add an item…** on the home screen (or in a room, a category
 Enter. Then fill in what you know on the item's page: brand, model, serial number, where it is, what you paid, what
 it's worth, notes.
 
+With the AI features, **+ Add → Type it in** also takes a sentence — *"DeWalt drill, garage top shelf, bought last
+March for $129"* — and fills in the fields from it ([Describe it](./ai#describe-it)). In a thing's **Edit**, **Read a
+label or receipt** fills them from a photo ([Read a label](./ai#read-a-label)).
+
 ## From photos
 
-**Add from photos** takes several photos at once — or pick them from your library — and makes a **New item** for each.
+**Add from photos** takes several photos at once — or pick them from your library — and makes a **New item** for each
+(or, for **All of one thing**, one item from all of them: [Several photos of one thing](./ai#several-photos)).
 Ferret reads every photo in the background: what it shows, any text on it (a label, a model number), and suggests a
-name and details. Those wait in the bell (**Needs attention**) until you confirm them.
+name, details and one of your categories. Those wait on each item, and under [To confirm](./ai#to-confirm), until you
+confirm them. A receipt with several things on it offers to [add each of them](./ai#receipt-lines).
 
 Nothing Ferret suggests is saved until you tap it. Each suggestion shows a small picture of the photo or document it
 was read from — tap it to see it bigger — so you can tell which photo was which, whatever the phone named it.
@@ -92,7 +98,8 @@ one?** and has the same **Add another** button.
 ## Where it came from
 
 Each thing's page says when it was added, by whom, and how: in the app, with **Add from photos**, on a
-[walkthrough](./walkthrough), by scanning its barcode, from a [QR label](./labels), from a spreadsheet or Home Assistant
+[walkthrough](./walkthrough), by scanning its barcode, from a [QR label](./labels), from a receipt with several things on
+it, by describing it in words, from a spreadsheet or Home Assistant
 [import](./importing) (with the file's name), by Claude, or by a script — with the name of the API key it used.
 
 To see everything added one way — say, **what Claude added**, to check its work — use **Where from** on the

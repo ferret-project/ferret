@@ -9,6 +9,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { CategoryPicker, flattenCategories, useCategories, useTags } from "./Catalog";
+import { EstimateMissing } from "./ToConfirm";
 import { PlacePicker } from "./Combobox";
 import { FolderRow, FolderThumb } from "./Folder";
 import { ItemRow } from "./ItemRow";
@@ -90,6 +91,7 @@ function useWide() {
  */
 export function Everything(props: { householdId: string; missing?: MissingDetail; origin?: ItemOrigin; placeFrom?: string; sort?: string; unseen?: string }) {
   const { householdId } = props;
+  const canEditHere = useCanEdit(householdId);
   // Filters from plain words (AI-2) that the filter bar has no control for, shown as chips.
   const [extra, setExtra] = useState<ExtraFilters>({});
   const missing = props.missing ?? extra.missing;
@@ -238,6 +240,7 @@ export function Everything(props: { householdId: string; missing?: MissingDetail
       />
 
       {items.isError && <div className="alert alert-soft alert-error">{items.error.message}</div>}
+      {missing === "value" && canEditHere && <EstimateMissing compact />}
 
       {table ? (
         <>

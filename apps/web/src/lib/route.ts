@@ -44,6 +44,7 @@ export type Route =
   | { name: "loans" }
   | { name: "warranties" }
   | { name: "ai-filled" }
+  | { name: "to-confirm" }
   | { name: "duplicates" }
   | { name: "paperless" }
   | { name: "reviews" }
@@ -115,6 +116,7 @@ export const WARRANTIES_HREF = "#/warranties";
 export const HEIRS_HREF = "#/heirs";
 /** What the AI filled in by itself, waiting for someone to check it (AiFill.tsx). */
 export const AI_FILLED_HREF = "#/ai-filled";
+export const TO_CONFIRM_HREF = "#/to-confirm";
 /** Room reviews: places to check, the longest unchecked first (Tracking.tsx); one place's review. */
 export const REVIEW_HREF = "#/review";
 export const reviewHref = (locationId: string) => `${REVIEW_HREF}/${encodeURIComponent(locationId)}`;

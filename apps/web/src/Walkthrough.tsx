@@ -20,6 +20,7 @@ import { useCanEdit } from "./lib/auth";
 import { findLocation, usePlaces } from "./lib/places";
 import { WALKTHROUGH_HREF, placeHref, walkthroughHref } from "./lib/route";
 import { pendingSuggestions } from "./Suggestions";
+import { flattenCategories, useCategories } from "./Catalog";
 import { SpeakButton } from "./SpeakButton";
 import { t, ph, plural, msg } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
@@ -87,9 +88,14 @@ interface Shot {
   preview: string;
   status: "uploading" | "done" | "failed";
   error?: string;
+  /** Another photo of the thing before it (its label, its receipt), not a thing of its own. */
+  same?: boolean;
 }
 
-/** The camera loop: each photo is a "New item" in the room, uploaded one after another while you carry on. */
+/**
+ * The camera loop: each photo is a "New item" in the room, uploaded one after another while you carry on — or, with
+ * "Another photo of the same thing", one more photo of the last one (its label, its receipt), read together with it.
+ */
 function Photograph({ householdId, locationId, roomName }: { householdId: string; locationId: string; roomName: string }) {
   const qc = useQueryClient();
   const camera = useRef<HTMLInputElement>(null);
@@ -97,6 +103,9 @@ function Photograph({ householdId, locationId, roomName }: { householdId: string
   const [shots, setShots] = useState<Shot[]>([]);
   const queue = useRef(Promise.resolve());
   const nextKey = useRef(0);
+  /** The thing the last photo made: where "another photo of the same thing" goes. */
+  const last = useRef<string | null>(null);
+  const sameCamera = useRef<HTMLInputElement>(null);
   const waiting = useQuery({
     queryKey: ["items", householdId, "walkthrough", locationId],
     queryFn: () => api.listItems(undefined, { locationId, limit: 200 }),
@@ -104,15 +113,21 @@ function Photograph({ householdId, locationId, roomName }: { householdId: string
   });
   useEffect(() => () => shots.forEach((s) => URL.revokeObjectURL(s.preview)), []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function add(files: File[]) {
+  function add(files: File[], same = false) {
     for (const file of files) {
       const key = nextKey.current++;
-      setShots((s) => [{ key, preview: URL.createObjectURL(file), status: "uploading" }, ...s]);
+      setShots((s) => [{ key, preview: URL.createObjectURL(file), status: "uploading", same }, ...s]);
       const set = (patch: Partial<Shot>) => setShots((s) => s.map((x) => (x.key === key ? { ...x, ...patch } : x)));
       // One at a time, in order, so a slow connection doesn't stack up uploads.
       queue.current = queue.current.then(async () => {
         try {
+          if (same && last.current) {
+            await api.uploadAttachment(last.current, file, "photo", () => {});
+            set({ status: "done" });
+            return;
+          }
           const created = await api.createItem({ name: PLACEHOLDER, locationId, origin: "walkthrough" });
+          last.current = created.id;
           try {
             await api.uploadAttachment(created.id, file, "photo", () => {});
           } catch (err) {
@@ -140,11 +155,21 @@ function Photograph({ householdId, locationId, roomName }: { householdId: string
             <span className="icon-[tabler--camera] size-6" />
             <Trans>Take a photo</Trans>
           </button>
+          {shots.some((s) => s.status === "done" && !s.same) && (
+            <button type="button" className="btn btn-soft btn-primary btn-wrap w-full max-w-sm" onClick={() => sameCamera.current?.click()}>
+              <span className="icon-[tabler--photo-plus] size-5" />
+              <Trans>Another photo of the same thing</Trans>
+            </button>
+          )}
           <button type="button" className="btn btn-text btn-sm" onClick={() => library.current?.click()}>
             <Trans>Or pick from your photos</Trans>
           </button>
+          <p className="text-xs text-base-content/70">
+            <Trans>A label, a serial number or a receipt? Take it as another photo of the same thing — AI reads them together.</Trans>
+          </p>
           {/* `capture`: straight to the camera, each time. */}
           <input ref={camera} type="file" hidden accept="image/*" capture="environment" onChange={(e) => (add([...(e.target.files ?? [])]), (e.target.value = ""))} />
+          <input ref={sameCamera} type="file" hidden accept="image/*" capture="environment" onChange={(e) => (add([...(e.target.files ?? [])], true), (e.target.value = ""))} />
           <input ref={library} type="file" hidden multiple accept="image/jpeg,image/png,image/webp,image/avif,image/gif" onChange={(e) => (add([...(e.target.files ?? [])]), (e.target.value = ""))} />
           <p className="text-sm text-base-content/70" aria-live="polite">
             {shots.length === 0
@@ -161,10 +186,10 @@ function Photograph({ householdId, locationId, roomName }: { householdId: string
               <img src={s.preview} alt="" className="size-full object-cover" />
               <span
                 className={`absolute end-1 bottom-1 grid size-6 place-items-center rounded-full ${s.status === "failed" ? "bg-error text-error-content" : "bg-base-100/90"}`}
-                title={s.status === "failed" ? s.error : s.status === "uploading" ? t`Uploading` : t`Added`}
+                title={s.status === "failed" ? s.error : s.status === "uploading" ? t`Uploading` : s.same ? t`Added to the thing before it` : t`Added`}
               >
                 {s.status === "uploading" && <span className="loading loading-spinner loading-xs" />}
-                {s.status === "done" && <span className="icon-[tabler--check] size-4 text-success" />}
+                {s.status === "done" && <span className={`${s.same ? "icon-[tabler--photo-plus]" : "icon-[tabler--check]"} size-4 text-success`} />}
                 {s.status === "failed" && <span className="icon-[tabler--x] size-4" />}
               </span>
             </li>
@@ -263,7 +288,8 @@ function ReviewCard({
   });
   const photos: Attachment[] = (files.data?.data ?? []).filter((a) => a.kind === "photo");
   const reading = photos.some((a) => a.analysisStatus === "pending");
-  const { rows } = pendingSuggestions(item, photos);
+  const categories = useCategories(householdId);
+  const { rows } = pendingSuggestions(item, photos, [], [], new Map(flattenCategories(categories.data ?? []).map((c) => [c.id, c.path])));
   const suggestedName = rows.find((r) => r.key === "name")?.value as string | undefined;
   const others = rows.filter((r) => r.key !== "name");
   const description = photos.find((a) => a.analysis?.description)?.analysis?.description;

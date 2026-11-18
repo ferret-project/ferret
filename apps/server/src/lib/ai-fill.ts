@@ -23,7 +23,7 @@ import {
 } from "@ferret/shared";
 import { and, eq, gte, isNotNull, isNull } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
-import { activity, attachment, householdSetting, item, serverSetting, warranty } from "../db/schema";
+import { activity, attachment, category, householdSetting, item, serverSetting, warranty } from "../db/schema";
 import type { Db, Deps } from "../ports";
 import { householdLocale, moneyText } from "./household-time";
 import { type Caller, getItem, itemScope, notFound, updateItem } from "./inventory";
@@ -45,6 +45,7 @@ const DETAIL_FIELDS = [
 export const AI_FIELD_LABELS: Record<string, string> = {
   name: "Name",
   ...Object.fromEntries(DETAIL_FIELDS.map((f) => [f.field, f.label])),
+  categoryId: "Category",
   returnBy: "Return by",
   warranty: "Warranty",
 };
@@ -114,7 +115,7 @@ export async function autoFill(
   if (!aiFillKinds.some((k) => on[k])) return [];
   const s = analysis.suggestions;
   const sure = new Set(s.sure ?? []);
-  if (!sure.size) return [];
+  if (!sure.size && !(on.category && s.categoryId)) return [];
   // The AI acts for nobody (like the recall check): its history lines say "by AI" themselves.
   const v: Caller = { deps, db, householdId: file.householdId, userId: "", ...(await householdLocale(db, file.householdId)), via: "ferret" };
   const [current] = await db.select().from(item).where(and(eq(item.id, file.itemId), itemScope(v)));
@@ -143,19 +144,39 @@ export async function autoFill(
     fills[field] = { value, from: file.filename, attachmentId: file.id, at, ...extra };
   };
 
+  // A receipt with several products: its brand, model, price and name aren't this thing's (its lines are offered to
+  // add instead — lib/receipt-lines.ts); the day it was bought and its return window still are.
+  const several = Boolean(s.lines?.length);
   if (on.details) {
     for (const f of DETAIL_FIELDS) {
       const value = s[f.field];
-      if (value == null || current[f.field] != null || !sure.has(f.sure) || cleared(f.history)) continue;
+      if ((several && f.field !== "purchaseDate") || value == null || current[f.field] != null || !sure.has(f.sure) || cleared(f.history)) continue;
       (patch as Record<string, unknown>)[f.field] = value;
       mark(f.field, value);
       words.push(`${f.history} ${f.field === "purchasePriceCents" ? moneyText(v, value as number, { exact: true }) : value}`);
     }
-    // An unnamed "New item" gets its name too — never a name a person gave.
-    if (s.name && current.name === PLACEHOLDER && sure.has("name")) {
+    // An unnamed "New item" gets its name too — never a name a person gave. A name the AI gave from another photo of
+    // it gives way to one from a photo that read more (its label's "Cordless drill" over its front's "Tool").
+    const aiNamed = current.aiFilled?.name && current.aiFilled.name.value === current.name ? current.aiFilled.name : null;
+    let better = false;
+    if (aiNamed && s.name && s.name !== current.name && sure.has("name") && aiNamed.attachmentId && aiNamed.attachmentId !== file.id) {
+      const [before] = await db.select({ analysis: attachment.analysis }).from(attachment).where(eq(attachment.id, aiNamed.attachmentId));
+      better = Object.keys(s).length > Object.keys(before?.analysis?.suggestions ?? {}).length;
+    }
+    if (!several && s.name && (current.name === PLACEHOLDER || better) && sure.has("name")) {
       patch.name = s.name;
       mark("name", s.name);
       words.push(`named ${s.name}`);
+    }
+  }
+  // A category: one of the household's own, only for a thing with none (not "sure" — it's the model's judgement, which
+  // is why it's its own switch). Never one a person took away since the file came.
+  if (on.category && !several && s.categoryId && current.categoryId == null && !edits.some((e) => /\bcategory .* → none\b/.test(e.summary ?? ""))) {
+    const [known] = await db.select({ id: category.id, name: category.name }).from(category).where(and(eq(category.id, s.categoryId), eq(category.householdId, v.householdId), isNull(category.deletedAt)));
+    if (known) {
+      patch.categoryId = s.categoryId;
+      mark("categoryId", s.categoryId);
+      words.push(`category ${known.name}`);
     }
   }
   const boughtOn = patch.purchaseDate ?? current.purchaseDate;

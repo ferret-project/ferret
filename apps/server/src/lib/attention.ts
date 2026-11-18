@@ -30,6 +30,7 @@ import { openRoomScans } from "./room-scans";
 import { moneyText, todayFor } from "./household-time";
 import { suggestedTaskCount } from "./suggested-tasks";
 import { aiFillEntries } from "./ai-fill";
+import { toConfirmCount } from "./to-confirm";
 import { duplicateCount } from "./duplicates";
 import { trackingSummary } from "./room-reviews";
 import { switchedOff } from "./webhooks";
@@ -280,9 +281,20 @@ export async function needsAttention(v: Caller, tr: Tr = translator(undefined, n
   if (suggested) {
     out.push({ kind: "ai", severity: "soon", id: "suggested-maintenance", title: tr("{count, plural, one {# suggested maintenance task} other {# suggested maintenance tasks}}", { count: suggested }), detail: tr("Found in manuals or typical for your things — add or dismiss"), itemId: null, date: null, href: "#/maintenance" });
   }
+  // What the AI filled in, read off photos and receipts, or estimated: one line, to the list that has it all.
   const filled = (await aiFillEntries(v)).length;
-  if (filled) {
-    out.push({ kind: "ai", severity: "soon", id: "ai-filled", title: tr("AI filled in {count, plural, one {# detail} other {# details}}", { count: filled }), detail: tr("Check what it filled in"), itemId: null, date: null, href: "#/ai-filled" });
+  const waiting = filled + (await toConfirmCount(v));
+  if (waiting) {
+    out.push({
+      kind: "ai",
+      severity: "soon",
+      id: "ai-filled",
+      title: tr("{count, plural, one {# AI suggestion} other {# AI suggestions}} to confirm", { count: waiting }),
+      detail: filled ? tr("Check what AI filled in and read off your photos and receipts") : tr("Check what AI read off your photos and receipts"),
+      itemId: null,
+      date: null,
+      href: "#/to-confirm",
+    });
   }
   // Keeping track: gentle, never urgent — things nobody can find, and things not seen in a year (review a room).
   const tracking = await trackingSummary(v);

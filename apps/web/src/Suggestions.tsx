@@ -3,15 +3,17 @@
  * cards. Nothing changes until someone taps Apply or Add (unless the household lets AI fill in — AiFill.tsx).
  * Maintenance schedules from manuals are in Suggested maintenance (SuggestedMaintenance.tsx).
  */
-import type { Attachment, Item, ItemPatch, MaintenanceInput, MaintenanceTask, Warranty, WarrantyInput } from "@ferret/shared";
+import type { Attachment, AttachmentSuggestions, Item, ItemPatch, MaintenanceInput, MaintenanceTask, ReceiptLine, Warranty, WarrantyInput } from "@ferret/shared";
 import { addDays, addMonths, today } from "@ferret/shared/utils";
 import { money } from "./lib/money";
 import { FileThumb } from "./FileThumb";
+import { ReceiptLinesButton } from "./ReceiptLines";
+import { flattenCategories, useCategories } from "./Catalog";
 import { t, ph, plural, msg } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
 
-type Field = "name" | "brand" | "model" | "serialNumber" | "barcode" | "purchaseDate" | "purchasePriceCents" | "returnBy";
+type Field = "name" | "brand" | "model" | "serialNumber" | "barcode" | "purchaseDate" | "purchasePriceCents" | "returnBy" | "categoryId";
 
 const fields: { key: Field; label: MessageDescriptor; format?: (v: string | number) => string }[] = [
   { key: "name", label: msg`Name` },
@@ -26,36 +28,75 @@ const fields: { key: Field; label: MessageDescriptor; format?: (v: string | numb
 const same = (a: unknown, b: unknown) =>
   String(a ?? "").trim().toLowerCase() === String(b ?? "").trim().toLowerCase();
 
-/** For each field, the newest suggestion that differs from what the item already says. */
-export function pendingSuggestions(item: Item, attachments: Attachment[], warranties: Warranty[] = [], tasks: MaintenanceTask[] = []) {
+/** Which of a receipt's lines is this thing: the one at its price (or the receipt's), else one sharing its name; -1 for none. */
+export function receiptLineOf(lines: ReceiptLine[], item: Pick<Item, "name" | "purchasePriceCents">, s?: AttachmentSuggestions) {
+  const price = item.purchasePriceCents ?? s?.purchasePriceCents;
+  const byPrice = price != null ? lines.findIndex((l) => l.priceCents === price) : -1;
+  if (byPrice >= 0 || item.name === "New item") return byPrice;
+  const name = item.name.toLowerCase();
+  return lines.findIndex((l) => {
+    const line = l.name.toLowerCase();
+    return line.includes(name) || name.includes(line);
+  });
+}
+
+/**
+ * For each field, the newest suggestion that differs from what the item already says. `categories`: the household's
+ * category paths by id, to offer the category the AI picked (left out without them).
+ */
+export function pendingSuggestions(item: Item, attachments: Attachment[], warranties: Warranty[] = [], tasks: MaintenanceTask[] = [], categories?: Map<string, string>) {
+  // A receipt with several products says nothing about this thing as a whole: its line does (brand, model, price,
+  // category), when one of them is this thing; the receipt's day and return window still hold.
+  const sugg = (a: Attachment): AttachmentSuggestions => {
+    const s = a.analysis!.suggestions;
+    if (!s.lines?.length) return s;
+    const line = s.lines[receiptLineOf(s.lines, item, s)];
+    const { name: _, brand: _b, model: _m, purchasePriceCents: _p, categoryId: _c, ...rest } = s;
+    return { ...rest, ...(line && { brand: line.brand, model: line.model, purchasePriceCents: line.priceCents, categoryId: line.categoryId }) };
+  };
   const sources = attachments
     .filter((a) => a.analysisStatus === "done" && a.analysis && !a.suggestionsDismissedAt)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   // Each with the file it was read from, shown beside it.
   const rows: { key: Field; label: string; value: string | number; display: string; source?: Attachment }[] = [];
+  // Several files of one thing (its front, its label, its receipt): each field from the file that read it plainly, then
+  // from the one that read the most — the label's "Cordless drill" over the front's "Tool" — then the newest.
+  const richness = (a: Attachment) => Object.keys(sugg(a)).length;
+  const plainly = (a: Attachment, key: string) => (sugg(a).sure ?? []).includes(key === "purchasePriceCents" ? "purchasePrice" : key);
+  const best = (key: Field) =>
+    sources
+      .filter((a) => sugg(a)[key] != null)
+      .sort((a, b) => Number(plainly(b, key)) - Number(plainly(a, key)) || richness(b) - richness(a))[0];
   for (const field of fields) {
-    const source = sources.find((a) => a.analysis!.suggestions[field.key] != null);
-    const value = source?.analysis!.suggestions[field.key];
+    const source = best(field.key);
+    const value = (source && sugg(source))?.[field.key];
     if (value == null || same(item[field.key], value)) continue;
     rows.push({ key: field.key, label: t(field.label), value, display: field.format?.(value) ?? String(value), source });
   }
 
+  // The category the AI picked: one of the household's, while the thing has another (or none).
+  const sorted = categories && sources.find((a) => categories.has(sugg(a).categoryId ?? ""));
+  const categoryId = (sorted && sugg(sorted))?.categoryId;
+  if (categoryId && categoryId !== item.categoryId) {
+    rows.push({ key: "categoryId", label: t`Category`, value: categoryId, display: categories!.get(categoryId)!, source: sorted });
+  }
+
   // A return window from a receipt: the date it prints, else its days from the purchase date — while it's still open.
-  const printedIn = sources.find((a) => a.analysis!.suggestions.returnBy);
-  const printed = printedIn?.analysis!.suggestions.returnBy;
-  const window = sources.find((a) => a.analysis!.suggestions.returnDays);
-  const boughtOn = item.purchaseDate ?? sources.find((a) => a.analysis!.suggestions.purchaseDate)?.analysis!.suggestions.purchaseDate;
-  const returnBy = printed ?? (window && boughtOn ? addDays(boughtOn, window.analysis!.suggestions.returnDays!) : undefined);
+  const printedIn = sources.find((a) => sugg(a).returnBy);
+  const printed = (printedIn && sugg(printedIn))?.returnBy;
+  const window = sources.find((a) => sugg(a).returnDays);
+  const boughtOn = item.purchaseDate ?? sources.map(sugg).find((x) => x.purchaseDate)?.purchaseDate;
+  const returnBy = printed ?? (window && boughtOn ? addDays(boughtOn, sugg(window).returnDays!) : undefined);
   if (returnBy && returnBy >= today() && returnBy !== item.returnBy) {
     rows.push({ key: "returnBy", label: t`Return by`, value: returnBy, display: new Date(`${returnBy}T00:00:00`).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }), source: printed ? printedIn : window });
   }
 
   // Warranty terms run from the purchase date: the item's, or one read from a receipt.
-  const terms = sources.find((a) => a.analysis!.suggestions.warrantyMonths);
+  const terms = sources.find((a) => sugg(a).warrantyMonths);
   let warranty: { input?: WarrantyInput; display: string; needsDate: boolean; source?: Attachment } | undefined;
   if (terms) {
-    const { warrantyMonths: months, warrantyProvider: provider } = terms.analysis!.suggestions;
-    const purchased = item.purchaseDate ?? sources.find((a) => a.analysis!.suggestions.purchaseDate)?.analysis!.suggestions.purchaseDate;
+    const { warrantyMonths: months, warrantyProvider: provider } = sugg(terms);
+    const purchased = item.purchaseDate ?? sources.map(sugg).find((x) => x.purchaseDate)?.purchaseDate;
     const length = months! % 12 === 0 ? plural(months! / 12, { one: "# year", other: "# years" }) : plural(months!, { one: "# month", other: "# months" });
     if (purchased) {
       const endsOn = addMonths(purchased, months!);
@@ -72,10 +113,13 @@ export function pendingSuggestions(item: Item, attachments: Attachment[], warran
       warranty = { display: `${length}${provider ? ` (${provider})` : ""}`, needsDate: true, source: terms };
     }
   }
-  return { rows, warranty, sources };
+  // A receipt with other things on it, not handled yet.
+  const receipt = sources.find((a) => sugg(a).lines?.length && !sugg(a).linesHandled);
+  return { rows, warranty, sources, receipt };
 }
 
 export function Suggestions(props: {
+  householdId: string;
   item: Item;
   attachments: Attachment[];
   warranties: Warranty[];
@@ -86,8 +130,10 @@ export function Suggestions(props: {
   onDismiss: (attachmentIds: string[]) => void;
   busy: boolean;
 }) {
-  const { rows, warranty, sources } = pendingSuggestions(props.item, props.attachments, props.warranties);
-  if (rows.length === 0 && !warranty) return null;
+  const categories = useCategories(props.householdId);
+  const paths = new Map(flattenCategories(categories.data ?? []).map((c) => [c.id, c.path]));
+  const { rows, warranty, sources, receipt } = pendingSuggestions(props.item, props.attachments, props.warranties, props.tasks, paths);
+  if (rows.length === 0 && !warranty && !receipt) return null;
   const all = Object.fromEntries(rows.map((r) => [r.key, r.value])) as ItemPatch;
 
   return (
@@ -136,6 +182,12 @@ export function Suggestions(props: {
             </li>
           )}
         </ul>
+        {receipt && (
+          <div className="flex items-center gap-3">
+            <FileThumb attachmentId={receipt.id} filename={receipt.filename} />
+            <ReceiptLinesButton item={props.item} receipt={receipt} householdId={props.householdId} />
+          </div>
+        )}
         <div className="flex items-center justify-end gap-2">
           <button
             type="button"

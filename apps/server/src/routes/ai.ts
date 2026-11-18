@@ -10,16 +10,19 @@ import { mergeInput } from "@ferret/shared";
 import { z } from "zod";
 import { body } from "../lib/context";
 import { getAiRun } from "../lib/ai-runs";
-import { askReplacementEstimate } from "../lib/replacement";
+import { askReplacementEstimate, askReplacementEstimates, dismissReplacementEstimate } from "../lib/replacement";
+import { itemFromText } from "../lib/item-from-text";
+import { toConfirm } from "../lib/to-confirm";
+import { addReceiptLines, dismissReceiptLines } from "../lib/receipt-lines";
 import { filtersFromText } from "../lib/plain-filters";
 import { draftListing } from "../lib/listing";
-import { filtersFromTextInput } from "@ferret/shared";
+import { filtersFromTextInput, itemFromTextInput, receiptLinesInput, replacementEstimatesInput } from "@ferret/shared";
 import { HTTPException } from "hono/http-exception";
 import { bodyLimit } from "hono/body-limit";
 import { recordUsage, requireAllowed } from "../lib/plan";
 
 export const ai = new Hono<AppEnv>();
-for (const path of ["/ai-fills", "/items/:id/ai-fills/*", "/duplicates", "/duplicates/*", "/items/:id/merge", "/ai-runs/*", "/items/:id/replacement-estimate", "/items/filters-from-text", "/items/:id/listing", "/transcribe"]) ai.use(path, requireUser, requireHousehold);
+for (const path of ["/ai-fills", "/items/:id/ai-fills/*", "/duplicates", "/duplicates/*", "/items/:id/merge", "/ai-runs/*", "/items/:id/replacement-estimate", "/items/filters-from-text", "/items/:id/listing", "/transcribe", "/items/from-text", "/replacement-estimates", "/to-confirm", "/attachments/:id/lines"]) ai.use(path, requireUser, requireHousehold);
 
 /** "Filled in by AI": every field the AI filled in that nobody has looked at yet. */
 ai.get("/ai-fills", async (c) => c.json({ data: await aiFillEntries(callerOf(c)) }));
@@ -40,6 +43,29 @@ ai.get("/ai-runs/:id", async (c) => c.json(await getAiRun(callerOf(c), c.req.par
 
 /** Estimate what replacing it would cost today (a suggestion on the item, applied only by a tap). */
 ai.post("/items/:id/replacement-estimate", requireWriter, async (c) => c.json(await askReplacementEstimate(callerOf(c), c.req.param("id")), 202));
+
+/** Estimates for several things at once (things with no value yet, or a chosen few). */
+ai.post("/replacement-estimates", requireWriter, async (c) => c.json(await askReplacementEstimates(callerOf(c), await body(c.req.raw, replacementEstimatesInput)), 202));
+ai.delete("/items/:id/replacement-estimate", requireWriter, async (c) => {
+  await dismissReplacementEstimate(callerOf(c), c.req.param("id"));
+  return c.body(null, 204);
+});
+
+/** A sentence about a thing → its fields, for the person to check before adding (nothing saved). */
+ai.post("/items/from-text", requireWriter, async (c) => {
+  const { text } = await body(c.req.raw, itemFromTextInput);
+  return c.json(await itemFromText(callerOf(c), text));
+});
+
+/** Everything the AI suggested that's waiting for someone to look. */
+ai.get("/to-confirm", async (c) => c.json(await toConfirm(callerOf(c))));
+
+/** A receipt's other things: add the ones ticked (each with a copy of the receipt), or not these. */
+ai.post("/attachments/:id/lines", requireWriter, async (c) => c.json(await addReceiptLines(callerOf(c), c.var.files, c.req.param("id"), await body(c.req.raw, receiptLinesInput)), 201));
+ai.delete("/attachments/:id/lines", requireWriter, async (c) => {
+  await dismissReceiptLines(callerOf(c), c.req.param("id"));
+  return c.body(null, 204);
+});
 
 /** Plain words → Everything's filters (shown for the person to change; never an answer by itself). */
 ai.post("/items/filters-from-text", async (c) => {

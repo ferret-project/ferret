@@ -6,11 +6,12 @@
  * With `copy`, it adds another thing like this one instead (several of the same bought at once: each its own thing,
  * with its own serial number, place and photos) — the same details, minus what belongs to the one thing.
  */
-import type { CustomFieldValues, ItemListing, ItemPatch } from "@ferret/shared";
+import type { AttachmentSuggestions, CustomFieldValues, ItemListing, ItemPatch } from "@ferret/shared";
 import { itemConditions } from "@ferret/shared/utils";
 import { conditionWord } from "./lib/words";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useRef, useState } from "react";
+import { ReadLabel } from "./ReadLabel";
 import { api } from "./lib/api";
 import { CategoryPicker, CustomFieldInputs, flattenCategories, TagInput, useCategories } from "./Catalog";
 import { mergeFields, TemplatePicker, useTemplates } from "./Templates";
@@ -105,6 +106,43 @@ export function ItemEditor({
     }
   }
   const [categoryId, setCategoryId] = useState<string | null>(item.categoryId ?? null);
+  // "Read a label or receipt": what was filled in, and what differs from a field already filled (Use to take it).
+  const form = useRef<HTMLFormElement>(null);
+  const [readNote, setReadNote] = useState<string | null>(null);
+  const [offers, setOffers] = useState<{ field: string; label: string; value: string; display: string }[]>([]);
+  const inputOf = (name: string) => form.current?.elements.namedItem(name) as HTMLInputElement | null;
+  function onRead(s: AttachmentSuggestions) {
+    const read: { field: string; label: string; value?: string; display?: string }[] = [
+      { field: "name", label: t`Name`, value: s.name },
+      { field: "brand", label: t`Brand`, value: s.brand ?? undefined },
+      { field: "model", label: t`Model`, value: s.model ?? undefined },
+      { field: "serialNumber", label: t`Serial number`, value: s.serialNumber ?? undefined },
+      { field: "barcode", label: t`Barcode`, value: s.barcode ?? undefined },
+      { field: "purchaseDate", label: t`Bought on`, value: s.purchaseDate ?? undefined },
+      { field: "returnBy", label: t`Return by`, value: s.returnBy ?? undefined },
+      { field: "purchasePrice", label: t`Paid`, value: s.purchasePriceCents != null ? centsToInput(s.purchasePriceCents) : undefined, display: s.purchasePriceCents != null ? `${currencySymbol()}${centsToInput(s.purchasePriceCents)}` : undefined },
+    ];
+    const filled: string[] = [];
+    const differ: typeof offers = [];
+    for (const r of read) {
+      const el = inputOf(r.field);
+      if (!r.value || !el) continue;
+      const now = el.value.trim();
+      // A name only for a thing nobody named yet.
+      if (!now || (r.field === "name" && now === "New item")) {
+        el.value = r.value;
+        filled.push(r.label.toLowerCase());
+      } else if (now.toLowerCase() !== r.value.toLowerCase() && r.field !== "name") {
+        differ.push({ field: r.field, label: r.label, value: r.value, display: r.display ?? r.value });
+      }
+    }
+    if (s.categoryId && !categoryId && flattenCategories(categories.data ?? []).some((c) => c.id === s.categoryId)) {
+      setCategoryId(s.categoryId);
+      filled.push(t`category`);
+    }
+    setOffers(differ);
+    setReadNote(filled.length ? t`Filled in from the photo: ${filled.join(", ")}. Check before saving.` : differ.length ? null : t`Nothing new to fill in from that photo.`);
+  }
   const [tags, setTags] = useState<string[]>(item.tags ?? []);
   const [custom, setCustom] = useState<CustomFieldValues>(item.customFields ?? {});
   const [links, setLinks] = useState<LinkDraft[]>((item.links ?? []).map((l) => ({ url: l.url, label: l.label ?? "" })));
@@ -161,7 +199,7 @@ export function ItemEditor({
   const busy = save.isPending || remove.isPending;
   return (
     <Modal id="edit-item" title={copy ? t`Add another ${ph({ name: item.name })}` : t`Edit ${ph({ name: item.name })}`} onClose={onClose}>
-      <form className="flex flex-col gap-6" onSubmit={onSubmit}>
+      <form ref={form} className="flex flex-col gap-6" onSubmit={onSubmit}>
         <div className="space-y-4">
           {copy && (
             <p className="text-sm text-base-content/70">
@@ -229,6 +267,37 @@ export function ItemEditor({
           <CollectionFields householdId={householdId} {...inCollection} onChange={setInCollection} />
           <TagInput householdId={householdId} value={tags} onChange={setTags} />
 
+          {!copy && (
+            <div className="flex flex-col gap-2">
+              <ReadLabel itemId={item.id} householdId={householdId} onRead={onRead} />
+              {readNote && (
+                <p className="text-sm text-success" role="status">
+                  {readNote}
+                </p>
+              )}
+              {offers.length > 0 && (
+                <ul className="flex flex-col gap-1 rounded-box bg-base-200 p-2" aria-label={t`Also read from the photo`}>
+                  {offers.map((o) => (
+                    <li key={o.field} className="flex items-center gap-2 text-sm">
+                      <span className="text-base-content/70 w-24 shrink-0">{o.label}</span>
+                      <span className="min-w-0 flex-1 truncate font-medium">{o.display}</span>
+                      <button
+                        type="button"
+                        className="btn btn-text btn-primary btn-xs"
+                        onClick={() => {
+                          const el = inputOf(o.field);
+                          if (el) el.value = o.value;
+                          setOffers((all) => all.filter((x) => x.field !== o.field));
+                        }}
+                      >
+                        <Trans>Use</Trans>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <Field label={t`Brand`} name="brand" defaultValue={item.brand} maxLength={120} />
             <Field label={t`Model`} name="model" defaultValue={item.model} maxLength={120} />

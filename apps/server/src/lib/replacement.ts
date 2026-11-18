@@ -2,9 +2,10 @@
  * Replacement cost estimates (AI-3): from what an item is (name, brand, model, category, age, what was paid), the text
  * model estimates what a new equivalent costs today, with its reasoning. Always an estimate, kept on the item as a
  * suggestion (`replacementEstimate`); only a person's tap puts it in `replacementCents` (the insurance report's
- * replacement column). Asked for one item at a time, by a person; done in a job.
+ * replacement column). Asked for one item at a time, or for up to 50 at once (the things with no value or price —
+ * the insurance report's biggest gap), by a person; each done in its own job, counted as one AI action.
  */
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import { item } from "../db/schema";
@@ -14,6 +15,7 @@ import { householdLocale } from "./household-time";
 import { type Caller, itemScope, notFound } from "./inventory";
 import { requireAllowed } from "./plan";
 import { askInJob, textModelOf } from "./text-ai";
+import { inList } from "./sql";
 
 export const REPLACEMENT_JOB = "ai.replacement";
 
@@ -24,6 +26,37 @@ export async function askReplacementEstimate(v: Caller, itemId: string) {
   await requireAllowed(v, "ai.ask");
   await v.deps.jobs.enqueue(REPLACEMENT_JOB, { householdId: v.householdId, itemId, userId: v.userId });
   return { queued: true as const };
+}
+
+/** At most this many estimates asked for at once. */
+export const MAX_ESTIMATES_AT_ONCE = 50;
+
+/**
+ * Estimates for several things: these (asked afresh), or (`missing: "value"`) the things with no value, price paid or
+ * replacement cost yet that haven't been estimated (an estimate already there is waiting to be looked at).
+ */
+export async function askReplacementEstimates(v: Caller, input: { itemIds: string[] } | { missing: "value" }) {
+  if (!textModelOf(v.deps) || !v.deps.jobs) throw new HTTPException(503, { message: "Estimates need an AI model, and none is set up on this server" });
+  const scope = itemScope(v);
+  const rows =
+    "itemIds" in input
+      ? await v.db.select({ id: item.id }).from(item).where(and(scope, inList(item.id, input.itemIds)))
+      : await v.db
+          .select({ id: item.id })
+          .from(item)
+          .where(and(scope, isNull(item.valueCents), isNull(item.purchasePriceCents), isNull(item.replacementCents), isNull(item.replacementEstimate), eq(item.isContainer, false)))
+          .limit(MAX_ESTIMATES_AT_ONCE);
+  const wanted = rows.slice(0, MAX_ESTIMATES_AT_ONCE);
+  if (wanted.length) await requireAllowed(v, "ai.ask");
+  for (const r of wanted) await v.deps.jobs.enqueue(REPLACEMENT_JOB, { householdId: v.householdId, itemId: r.id, userId: v.userId });
+  return { queued: wanted.length, skipped: ("itemIds" in input ? input.itemIds.length : wanted.length) - wanted.length };
+}
+
+/** Not this estimate: it's cleared (a person can ask again). */
+export async function dismissReplacementEstimate(v: Caller, itemId: string) {
+  const [row] = await v.db.select({ id: item.id, updatedAt: item.updatedAt }).from(item).where(and(eq(item.id, itemId), itemScope(v, { gone: "include" })));
+  if (!row) throw notFound("Item");
+  await v.db.update(item).set({ replacementEstimate: null, updatedAt: row.updatedAt }).where(and(eq(item.id, itemId), eq(item.householdId, v.householdId)));
 }
 
 const replySchema = {

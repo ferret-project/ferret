@@ -7,15 +7,12 @@
  *   walk through a room, import, blank QR labels — into the room (or category, tag) being looked at.
  * - HouseholdBadge: the household's name in the top bar: switches between households, or makes another.
  */
-import type { CustomFieldValues, ItemTemplate, PlacesTree } from "@ferret/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { PlacesTree } from "@ferret/shared";
+import { useQuery } from "@tanstack/react-query";
 import { useRouterState } from "@tanstack/react-router";
-import { createContext, type FormEvent, type ReactNode, useContext, useEffect, useRef, useState } from "react";
+import { createContext, type ReactNode, useContext, useEffect, useRef, useState } from "react";
 import { APPEARANCES } from "./App";
-import { PlacePicker } from "./Combobox";
 import { LanguageChoice } from "./Language";
-import { CustomFieldInputs } from "./Catalog";
-import { TemplatePicker, useTemplates } from "./Templates";
 import { api } from "./lib/api";
 import { useAppearance } from "./lib/appearance";
 import { authClient, useCanEdit, signOut } from "./lib/auth";
@@ -24,7 +21,7 @@ import {
   COVERAGE_HREF,
   WARRANTIES_HREF,
   HEIRS_HREF,
-  AI_FILLED_HREF,
+  TO_CONFIRM_HREF,
   DUPLICATES_HREF,
   PAPERLESS_HREF,
   DELETED_HREF,
@@ -46,20 +43,19 @@ import {
   CATEGORIES_HREF,
   COLLECTIONS_HREF,
   HOME_HREF,
-  itemHref,
   walkthroughHref,
   scanRoomHref,
 } from "./lib/route";
 import { useRoomScanOn } from "./lib/room-scan";
 import { Logo } from "./AuthLayout";
 import { AddFromPhotos } from "./PhotoAdd";
+import { QuickAdd } from "./QuickAdd";
 import { Modal } from "./Modal";
 import { NewHouseholdDialog } from "./NewHousehold";
 import { COMMAND_K, searchFromAnywhere } from "./Search";
 import { navigateTo, goBack } from "./lib/navigate";
 import { HouseholdContext } from "./lib/household";
 import { AttentionBell } from "./AttentionBell";
-import { currencySymbol, toCents } from "./lib/money";
 import { t, ph, msg } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
@@ -96,7 +92,7 @@ export const NAV_GROUPS: { title: MessageDescriptor; links: Link[] }[] = [
       { href: CATEGORIES_HREF, label: msg`Categories & tags`, icon: "icon-[tabler--folders]" },
       { href: PROVIDERS_HREF, label: msg`Service providers`, icon: "icon-[tabler--address-book]" },
       { href: DUPLICATES_HREF, label: msg`Possible duplicates`, icon: "icon-[tabler--copy]" },
-      { href: AI_FILLED_HREF, label: msg`Filled in by AI`, icon: "icon-[tabler--sparkles]" },
+      { href: TO_CONFIRM_HREF, label: msg`To confirm`, icon: "icon-[tabler--sparkles]" },
     ],
   },
   {
@@ -723,91 +719,6 @@ function AddSheet({ householdId, route, context, onClose }: { householdId: strin
         </div>
       )}
     </Modal>
-  );
-}
-
-function QuickAdd({ householdId, context, onDone, onBack }: { householdId: string; context: AddContext; onDone: () => void; onBack: () => void }) {
-  const qc = useQueryClient();
-  const [place, setPlace] = useState<string | null>(context.locationId ?? null);
-  const templates = useTemplates(householdId);
-  const [template, setTemplate] = useState<ItemTemplate | null>(null);
-  const [custom, setCustom] = useState<CustomFieldValues>({});
-  const create = useMutation({
-    mutationFn: api.createItem,
-    onSuccess: async (made) => {
-      for (const k of ["items", "places", "overview"]) await qc.invalidateQueries({ queryKey: [k, householdId] });
-      onDone();
-      navigateTo(itemHref(made.id));
-    },
-  });
-  function onSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const f = new FormData(e.currentTarget);
-
-    create.mutate({
-      name: String(f.get("name")).trim(),
-      brand: String(f.get("brand") || "").trim() || null,
-      valueCents: toCents(f.get("value")),
-      isContainer: f.get("box") === "on",
-      locationId: place,
-      // Left out, a template's category and tags apply (the server fills them in).
-      ...(context.categoryId && { categoryId: context.categoryId }),
-      tags: context.tag ? [context.tag] : [],
-      ...(template && { templateId: template.id, customFields: custom }),
-    });
-  }
-  return (
-    <form className="flex flex-col gap-4" onSubmit={onSubmit}>
-      <div>
-        <label className="label-text" htmlFor="quick-name">
-          <Trans>What is it?</Trans>
-        </label>
-        <input id="quick-name" name="name" className="input" required maxLength={200} autoFocus placeholder={t`e.g. Cordless drill`} />
-      </div>
-      <PlacePicker householdId={householdId} id="quick-place" name="place" label={t`Where is it?`} value={place} onChange={setPlace} noneLabel={t`Not in a place yet`} />
-      {Boolean(templates.data?.length) && (
-        <TemplatePicker
-          householdId={householdId}
-          value={template?.id ?? null}
-          onChange={(tpl) => {
-            setTemplate(tpl);
-            setCustom({});
-          }}
-        />
-      )}
-      {template && <CustomFieldInputs fields={template.fields} values={custom} onChange={setCustom} />}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="label-text" htmlFor="quick-brand">
-            <Trans>Brand</Trans>
-          </label>
-          <input id="quick-brand" name="brand" className="input" maxLength={120} />
-        </div>
-        <div>
-          <label className="label-text" htmlFor="quick-value">
-            <Trans>Worth</Trans>
-          </label>
-          <div className="input">
-            <span className="my-auto me-1 text-base-content/70">{currencySymbol()}</span>
-            <input id="quick-value" name="value" className="grow" inputMode="decimal" />
-          </div>
-        </div>
-      </div>
-      <label className="flex cursor-pointer items-center gap-2">
-        <input type="checkbox" name="box" className="checkbox checkbox-primary" />
-        <Trans>It's a box (other things go in it)</Trans>
-      </label>
-      {create.isError && <div className="alert alert-soft alert-error">{create.error.message}</div>}
-      <div className="flex flex-wrap justify-between gap-2">
-        <button type="button" className="btn btn-text" onClick={onBack}>
-          <Trans>Other ways</Trans>
-        </button>
-        <button type="submit" className="btn btn-primary" disabled={create.isPending}>
-          {create.isPending && <span className="loading loading-spinner loading-sm" />}
-          <Trans>Add</Trans>
-        </button>
-      </div>
-    </form>
   );
 }
 

@@ -326,11 +326,12 @@ export const PLAN_FEATURE_NAMES: Record<PlanFeature, string> = {
   calendarFeeds: "Calendar feeds",
 };
 
-export const aiFillKinds = ["details", "returnBy", "warranty"] as const;
+export const aiFillKinds = ["details", "category", "returnBy", "warranty"] as const;
 export type AiFillKind = (typeof aiFillKinds)[number];
 export type AiFillSwitches = Partial<Record<AiFillKind, boolean>>;
 export const AI_FILL_KIND_NAMES: Record<AiFillKind, { label: string; hint: string }> = {
   details: { label: "Details from photos and receipts", hint: "Brand, model, serial number, barcode, purchase date and price paid — only empty fields" },
+  category: { label: "Categories", hint: "Which of your categories a thing belongs in, from its photos and receipts — only when it has none" },
   returnBy: { label: "Return-by dates", hint: "The last day to return it, from a receipt" },
   warranty: { label: "Warranties", hint: "From a receipt or warranty card, when the purchase date is known" },
 };

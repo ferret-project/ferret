@@ -387,6 +387,24 @@ describe("toAnalysis", () => {
         { task: "Have it serviced", every: 1, unit: "year" },
       ],
     });
+    // A category only if it's one of the household's; receipt lines only when there are several products.
+    const lookup = new Map([["tools › power tools", "cat-1"], ["power tools", "cat-1"]]);
+    expect(toAnalysis({ description: "x", category: "Power Tools" }, { lookup }).suggestions).toEqual({ categoryId: "cat-1" });
+    expect(toAnalysis({ description: "x", category: "Kitchen" }, { lookup }).suggestions).toEqual({});
+    const order = toAnalysis({
+      description: "Costco receipt.",
+      lines: [
+        { name: "Stand mixer", brand: "KitchenAid", model: null, quantity: 1, price: 299.99 },
+        { name: "Air fryer", brand: null, model: "AF101", quantity: 2, price: 89.5 },
+        { name: "x", quantity: 1, price: 3 }, // too short: dropped
+      ],
+    });
+    expect(order.suggestions.lines).toEqual([
+      { name: "Stand mixer", brand: "KitchenAid", quantity: 1, priceCents: 29999 },
+      { name: "Air fryer", model: "AF101", quantity: 2, priceCents: 8950 },
+    ]);
+    expect(toAnalysis({ description: "x", lines: [{ name: "Stand mixer", quantity: 1, price: 299.99 }] }).suggestions).toEqual({});
+
     expect(manual.suggestions.maintenance).toEqual([
       { title: "Replace the air filter", intervalCount: 3, intervalUnit: "month" },
       { title: "Have it serviced", intervalCount: 1, intervalUnit: "year" },

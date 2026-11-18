@@ -19,6 +19,7 @@ import { type Caller, createItem, locationIn, locationPaths, logActivity, notFou
 import { allow, recordUsage, requireAllowed, requireRoom } from "./plan";
 import { sniffContentType } from "./sniff";
 import { inList } from "./sql";
+import { categoryPaths } from "./category-paths";
 
 export const ROOM_SCAN_JOB = "room.scan";
 export const MAX_ROOM_PHOTOS = 5;
@@ -301,25 +302,6 @@ export function toCandidates(raw: unknown, photo: number, categoryByPath: Map<st
 export function withBoxes(candidates: RoomScanCandidate[], raw: unknown): RoomScanCandidate[] {
   const boxes = z.object({ boxes: z.array(z.unknown()).catch([]) }).catch({ boxes: [] }).parse(raw).boxes;
   return candidates.map((c, i) => ({ ...c, box: toBox(boxes[i]) }));
-}
-
-/** The household's categories by path ("Electronics › TV") and by bare name, lower-cased → id. */
-async function categoryPaths(db: Db, householdId: string) {
-  const rows = await db
-    .select({ id: category.id, name: category.name, parentId: category.parentId })
-    .from(category)
-    .where(and(eq(category.householdId, householdId), isNull(category.deletedAt)));
-  const byId = new Map(rows.map((r) => [r.id, r]));
-  const pathOf = (id: string) => {
-    const parts: string[] = [];
-    for (let at = byId.get(id), hops = 0; at && hops < 20; at = at.parentId ? byId.get(at.parentId) : undefined, hops++) parts.unshift(at.name);
-    return parts.join(" › ");
-  };
-  const paths = rows.map((r) => ({ id: r.id, path: pathOf(r.id), name: r.name }));
-  const lookup = new Map<string, string>();
-  for (const p of paths) lookup.set(p.name.toLowerCase(), p.id);
-  for (const p of paths) lookup.set(p.path.toLowerCase(), p.id); // a full path wins over a repeated name
-  return { list: paths.map((p) => p.path).sort().slice(0, 150), lookup };
 }
 
 export function analyzeRoomScan(deps: { db: Db; files: FileStore; ai?: Deps["ai"]; entitlements?: Deps["entitlements"] }): JobHandler {

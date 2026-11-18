@@ -7,6 +7,49 @@ action on a hosted Ferret ([Plan and usage](./plan-and-usage)).
 The rule throughout: **the AI suggests, you decide.** The one exception is filling in empty fields, and only if your
 household switches it on.
 
+## To confirm {#to-confirm}
+
+**To confirm** (in the menu, and in the bell when something's waiting) gathers what the AI suggested that nobody has
+looked at yet, so tidying up after adding things is one list:
+
+- each thing whose photos or receipts say something it doesn't, with **Apply**, **Apply all** and **Dismiss** as on its
+  page;
+- [replacement-cost estimates](#replacement-cost) not used yet: **Use**, **Use all** or **Not this**;
+- links to the other lists with something waiting: details [AI filled in](#let-ai-fill-in), possible duplicates,
+  suggested maintenance and documents from Paperless.
+
+## Describe it in your own words {#describe-it}
+
+**+ Add → Type it in** has a box at the top: describe the thing as you'd say it — *"DeWalt drill, garage top shelf,
+bought last March for $129, tagged DIY"* — and tap **Fill in** (or Enter). The AI fills the name, brand and place, and
+shows the rest as chips: model, serial number, how many, the box it's in, its category, tags, when you bought it, what
+you paid, a note. Places, boxes, categories and tags come only from your own; one you don't have is left out, never
+made up. Tap ✕ on a chip to leave it out, change any field, then **Add**. Where your server has
+[speech to text](#saying-it-instead-of-typing), the microphone beside **Fill in** lets you say it instead.
+
+## Read a label or receipt {#read-a-label}
+
+In a thing's **Edit**, **Read a label or receipt** takes a photo of its rating plate, label or receipt. A few seconds
+later what the AI read is in the form: **empty fields are filled in**, and a different value for a field you'd already
+filled is offered with **Use**. Nothing is saved until **Save**. The photo stays with the thing's photos.
+
+## Several photos of one thing {#several-photos}
+
+Pick several photos in **Add from photos** and Ferret asks: **Each is a different thing**, or **All of one thing** —
+its front, its label, its receipt, together as one new thing. On a [walkthrough](./walkthrough), **Another photo of
+the same thing** adds the next photo to the thing you just photographed. The AI reads every photo, and the
+suggestions come together: each detail from the photo that read it plainly (the label's *Cordless drill* over the
+front's *Tool*).
+
+## A receipt with several things on it {#receipt-lines}
+
+A receipt, invoice or order with several products on it — a Costco run, an Amazon order — lists them under the
+thing's suggestions: **Add the other things on this receipt…** Each line comes with its brand, model, how many, its
+price and a category; correct any, untick what you don't want (the line that's probably this thing starts unticked),
+choose where they are, and **Add**. Each becomes a thing of its own, bought the same day with the receipt's return
+window, and gets its own copy of the receipt. A receipt photographed on its own as a *New item* becomes the first
+line. **Not these** stops offering them.
+
 ## Reading a photo or document again
 
 If the AI got a photo wrong, or your server has a better model now, tap the sparkles in the corner of the photo on the
@@ -23,7 +66,8 @@ Normally what the AI reads from a photo or receipt waits on the thing's page as 
 **Settings → Household → Let AI fill in** an owner or admin can let some kinds fill in by themselves:
 
 - **Details from photos and receipts**: brand, model, serial number, barcode, purchase date and price paid (and the
-  name of an unnamed *New item*);
+  name of an unnamed *New item* — a better reading from another of its photos can replace a name the AI gave);
+- **Categories**: which of your categories a thing belongs in, from its photos and receipts, when it has none;
 - **Return-by dates** from a receipt;
 - **Warranties** from a receipt or warranty card, once the purchase date is known.
 
@@ -34,7 +78,7 @@ They're all **off** unless you switch them on. Even then, the AI:
 - says so in the thing's history (*Filled in by AI from receipt.pdf: brand DeWalt*).
 
 Each field it filled has a **Filled in by AI** card on the thing's page until someone taps **Looks right** or
-**Undo** (or edits that field). **Filled in by AI** in the menu lists them all.
+**Undo** (or edits that field). **Filled in by AI** (linked from [To confirm](#to-confirm)) lists them all.
 
 It never: merges duplicates, sets a value or replacement cost, renames something you named, marks things gone, adds
 maintenance, or sends anything outside Ferret.
@@ -78,6 +122,10 @@ reasoning. It's always an **estimate**: check a current price. **Use** puts it i
 your own in **Edit → To replace new**). The [insurance report](./insurance-report) and its spreadsheet show it beside
 the value.
 
+For many at once, **Estimate values with AI** (under [To confirm](#to-confirm), and on **Everything**'s list of things
+without a value) asks about every thing with no value, price paid or replacement cost — up to 50 at a time. The
+estimates wait under **To confirm**; **Use** sets the replacement cost, and the value too when it has none.
+
 ## Listing text for selling
 
 Selling something? On its page, **Write a listing to sell it** (also under **Sold it** when you mark it sold) drafts
@@ -106,6 +154,7 @@ bell. Insurers ask for serial numbers first. Photograph the label or serial plat
 
 ## Saying it instead of typing
 
-On a [walkthrough](./walkthrough), the microphone beside **What is it?** lets you say the name. Tap, speak, tap again
+On a [walkthrough](./walkthrough), the microphone beside **What is it?** lets you say the name; in **+ Add → Type it
+in**, the one beside **Fill in** lets you [describe the whole thing](#describe-it). Tap, speak, tap again
 (it stops by itself after 10 seconds). It shows only when your server has speech to text (`SPEECH_URL`, see
 [Configuration](../hosting/configuration)). The recording goes to your server's speech model and isn't kept.
