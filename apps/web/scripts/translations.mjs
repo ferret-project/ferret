@@ -17,6 +17,8 @@
  *   FERRET_TRANSLATIONS_DIR=<path>   a local clone of ferret-translations (for translators trying their work).
  *   FERRET_TRANSLATIONS_REF=<ref>    a branch, tag or commit of the repo on GitHub (default: main).
  * If they can't be fetched (no network), the build goes on in English.
+ * A language less than LISTED_FROM % translated is left out of the build (it's still on Weblate, ready for whoever
+ * takes it up), except from a local clone, where translators want to see their work however far along it is.
  */
 import { spawnSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -28,6 +30,8 @@ import { generateMessageId } from "@lingui/message-utils/generateMessageId";
 import { parsePo, stringifyPo } from "pofile-ts";
 
 const REPO = "ferret-project/ferret-translations";
+/** How much of a language must be translated before the app offers it. */
+const LISTED_FROM = 50;
 const web = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const out = path.join(web, "src/locales");
 const lingui = path.join(web, "node_modules/.bin/lingui");
@@ -154,11 +158,19 @@ async function prepare() {
   }
   // English from the code, and every language brought up to date with it (lingui.config.ts lists what's there).
   run(["extract", "--clean"]);
-  const languages = readdirSync(out)
+  const all = readdirSync(out)
     .filter((f) => LANGUAGE_FILE.test(f))
     .map((f) => {
       const code = f.slice(0, -3);
       return { code, name: languageName(code), percent: code === "en" ? 100 : checkLanguage(path.join(out, f)) };
+    });
+  const tryingOut = Boolean(process.env.FERRET_TRANSLATIONS_DIR);
+  const languages = all
+    .filter((l) => {
+      if (tryingOut || l.percent >= LISTED_FROM) return true;
+      rmSync(path.join(out, `${l.code}.po`));
+      say(`${l.code} left out: ${l.percent}% translated (it's offered from ${LISTED_FROM}%)`);
+      return false;
     })
     .sort((a, b) => (a.code === "en" ? -1 : b.code === "en" ? 1 : a.name.localeCompare(b.name)));
   writeFileSync(path.join(out, "languages.json"), `${JSON.stringify(languages, null, 2)}\n`);
