@@ -84,7 +84,7 @@ export function Settings(props: { section: SettingsSection; householdName: strin
         </nav>
       </header>
 
-      <main className="mx-auto flex max-w-3xl flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <main className={`mx-auto flex ${section === "server" && serverAdmin ? "max-w-6xl" : "max-w-3xl"} flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]`}>
         {section === "household" && (
           <>
             <Household householdName={householdName} />

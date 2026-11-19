@@ -22,25 +22,33 @@ import { copyText } from "./lib/secure-context";
 export function Server() {
   // The demo has no backups of its own: it's planted afresh every night.
   const demo = useQuery({ queryKey: ["auth-options"], queryFn: api.authOptions, staleTime: Infinity }).data?.demo;
+  // Two columns on a wide screen: what the server is doing (backups, its check, errors) on the left, the switches for
+  // its outside lookups on the right. One column on a phone, in that order.
   return (
     <>
       <AddressNotice />
-      <DemoUsage />
-      <HostingUsageCard />
-      <DemoSwitches />
-      {!demo && <Backups />}
-      <ServerCheck />
-      <ServiceErrors />
-      <SearchIndex />
-      <AskLimits />
-      <BarcodeLookups />
-      <RecallChecks />
-      <VehicleLookups />
-      <RepairGuideLinks />
-      <BookLookups />
-      <ServerAiFillCard />
-      {!demo && <Certificates />}
-      <ServerAdmin />
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        <div className="flex min-w-0 flex-col gap-4">
+          <DemoUsage />
+          <HostingUsageCard />
+          <DemoSwitches />
+          {!demo && <Backups />}
+          <ServerCheck />
+          <ServiceErrors />
+          <ServerAdmin />
+        </div>
+        <div className="flex min-w-0 flex-col gap-4">
+          <SearchIndex />
+          <AskLimits />
+          <ServerAiFillCard />
+          <BarcodeLookups />
+          <RecallChecks />
+          <VehicleLookups />
+          <RepairGuideLinks />
+          <BookLookups />
+          {!demo && <Certificates />}
+        </div>
+      </div>
     </>
   );
 }
@@ -694,6 +702,9 @@ function LastRun({ last, lastOk, asked }: { last: BackupRun | null; lastOk: Back
   );
 }
 
+/** The newest copies shown; older ones fold away under a line that says how many. */
+const RECENT_COPIES = 3;
+
 function Snapshots({ data, loading, error }: { data?: BackupSnapshot[]; loading: boolean; error?: string }) {
   return (
     <div className="space-y-2">
@@ -703,10 +714,23 @@ function Snapshots({ data, loading, error }: { data?: BackupSnapshot[]; loading:
       {data && data.length === 0 && <p className="text-sm text-base-content/70"><Trans>None yet.</Trans></p>}
       {data && data.length > 0 && (
         <ul className="divide-y divide-base-content/10">
-          {data.map((snap) => (
+          {data.slice(0, RECENT_COPIES).map((snap) => (
             <SnapshotRow key={snap.name} snap={snap} />
           ))}
         </ul>
+      )}
+      {data && data.length > RECENT_COPIES && (
+        <details className="group">
+          <summary className="tap flex cursor-pointer list-none items-center gap-1 text-sm font-medium text-primary">
+            <span className="icon-[tabler--chevron-right] size-4 transition-transform group-open:rotate-90" />
+            {plural(data.length - RECENT_COPIES, { one: "# older copy", other: "# older copies" })}
+          </summary>
+          <ul className="divide-y divide-base-content/10">
+            {data.slice(RECENT_COPIES).map((snap) => (
+              <SnapshotRow key={snap.name} snap={snap} />
+            ))}
+          </ul>
+        </details>
       )}
     </div>
   );
