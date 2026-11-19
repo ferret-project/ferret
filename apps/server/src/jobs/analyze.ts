@@ -281,12 +281,30 @@ const reply = z.object({
     .transform((list) => [...new Set((list ?? []).filter((f): f is string => typeof f === "string" && (SURE_FIELDS as readonly string[]).includes(f)))]),
 });
 
+const sameWords = (a?: string | null, b?: string | null) => !!a && !!b && a.trim().toLowerCase() === b.trim().toLowerCase();
+
+/**
+ * A receipt's lines with its main product among them. Models put the dearest product in the top-level fields and then
+ * leave it out of `lines` (asked for every product), and the app offers only the lines once there are several — so
+ * the main product would be lost. When the top-level product is none of the lines (by name, model or price), it goes
+ * first.
+ */
+function withMainProduct(r: z.infer<typeof reply>) {
+  if (!r.lines.length || !r.name || r.name.length < 2) return r.lines;
+  const price = r.purchasePrice ?? null;
+  const listed = r.lines.some((l) => sameWords(l.name, r.name) || sameWords(l.model, r.model) || (price != null && l.price === price));
+  if (listed) return r.lines;
+  const main = { name: r.name.slice(0, 200), brand: r.brand, model: r.model, quantity: 1, price, category: r.category };
+  return [main, ...r.lines].slice(0, MAX_LINES);
+}
+
 /**
  * Turns the model's reply into a stored analysis, dropping anything malformed. `categories`: the household's, to turn
  * the category the model named back into one of theirs (anything else is dropped).
  */
 export function toAnalysis(raw: unknown, categories?: Pick<CategoryPaths, "lookup">): AttachmentAnalysis {
   const r = reply.parse(raw);
+  const lines = withMainProduct(r);
   const suggestions: AttachmentSuggestions = {
     name: r.name,
     brand: r.brand,
@@ -306,8 +324,8 @@ export function toAnalysis(raw: unknown, categories?: Pick<CategoryPaths, "looku
     categoryId: (categories && categoryNamed(categories, r.category)) || undefined,
     // Only a receipt with several products: one is just the thing itself.
     lines:
-      r.lines.length > 1
-        ? r.lines.map((l) => {
+      lines.length > 1
+        ? lines.map((l) => {
             const categoryId = categories && categoryNamed(categories, l.category);
             return { name: l.name, ...(l.brand && { brand: l.brand }), ...(l.model && { model: l.model }), quantity: l.quantity, ...(l.price != null && { priceCents: Math.round(l.price * 100) }), ...(categoryId && { categoryId }) };
           })

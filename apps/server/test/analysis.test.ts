@@ -405,6 +405,30 @@ describe("toAnalysis", () => {
     ]);
     expect(toAnalysis({ description: "x", lines: [{ name: "Stand mixer", quantity: 1, price: 299.99 }] }).suggestions).toEqual({});
 
+    // The model puts the dearest product at the top and leaves it out of the lines (mistral-small, 5 runs of 5):
+    // it goes back in first, or "Add the things on this receipt" would lose it.
+    const slip = toAnalysis({
+      description: "A till receipt.",
+      name: "Blender",
+      brand: "Vitamix",
+      model: "E310",
+      purchaseDate: "2026-11-14",
+      purchasePrice: 349.95,
+      lines: [
+        { name: "Dutch oven", brand: "Lodge", model: null, quantity: 1, price: 79.9 },
+        { name: "Kitchen scale", brand: "OXO", model: null, quantity: 1, price: 49.99 },
+      ],
+      sure: ["name", "purchaseDate", "purchasePrice"],
+    });
+    expect(slip.suggestions.lines).toEqual([
+      { name: "Blender", brand: "Vitamix", model: "E310", quantity: 1, priceCents: 34995 },
+      { name: "Dutch oven", brand: "Lodge", quantity: 1, priceCents: 7990 },
+      { name: "Kitchen scale", brand: "OXO", quantity: 1, priceCents: 4999 },
+    ]);
+    // Already one of the lines (here by price): not added twice. One product at the top + one line = two things.
+    expect(toAnalysis({ description: "x", name: "Blender", purchasePrice: 349.95, lines: [{ name: "Vitamix blender", quantity: 1, price: 349.95 }, { name: "Dutch oven", quantity: 1, price: 79.9 }] }).suggestions.lines).toHaveLength(2);
+    expect(toAnalysis({ description: "x", name: "Blender", purchasePrice: 349.95, lines: [{ name: "Dutch oven", quantity: 1, price: 79.9 }] }).suggestions.lines?.map((l) => l.name)).toEqual(["Blender", "Dutch oven"]);
+
     expect(manual.suggestions.maintenance).toEqual([
       { title: "Replace the air filter", intervalCount: 3, intervalUnit: "month" },
       { title: "Have it serviced", intervalCount: 1, intervalUnit: "year" },
