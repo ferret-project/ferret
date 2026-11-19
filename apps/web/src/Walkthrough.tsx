@@ -285,6 +285,8 @@ function ReviewCard({
     queryFn: () => api.listAttachments(item.id),
     // Still being read: look again until it's done.
     refetchInterval: (q) => (q.state.data?.data.some((a) => a.analysisStatus === "pending") ? 3000 : false),
+    // Also in a background tab: it stops by itself once everything is read, and the page is right when it's looked at again.
+    refetchIntervalInBackground: true,
   });
   const photos: Attachment[] = (files.data?.data ?? []).filter((a) => a.kind === "photo");
   const reading = photos.some((a) => a.analysisStatus === "pending");

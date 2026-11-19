@@ -92,6 +92,8 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
     queryFn: () => api.listAttachments(itemId),
     // Photo analysis finishes in the background; check back until it's done.
     refetchInterval: (q) => (q.state.data?.data.some((a) => a.analysisStatus === "pending") ? 4000 : false),
+    // Also in a background tab: it stops by itself once everything is read, and the page is right when it's looked at again.
+    refetchIntervalInBackground: true,
   });
   const refreshAttachments = () => qc.invalidateQueries({ queryKey: attachmentsKey });
   const remove = useMutation({ mutationFn: api.deleteAttachment, onSuccess: refreshAttachments });
