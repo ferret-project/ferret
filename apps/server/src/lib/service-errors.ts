@@ -107,7 +107,7 @@ export async function recordServiceError(db: Db, service: string, operation: str
 export function watched<T extends object>(db: Db, service: string, port: T | undefined): T | undefined {
   if (!port) return port;
   const record = (operation: string, err: unknown, started: number, site: string | undefined) =>
-    void recordServiceError(db, service, operation, err, new Date(), { ms: Date.now() - started, site }).catch(() => {});
+    recordServiceError(db, service, operation, err, new Date(), { ms: Date.now() - started, site }).catch(() => {});
   return new Proxy(port, {
     get(target, prop, receiver) {
       const value = Reflect.get(target, prop, receiver);
@@ -118,10 +118,16 @@ export function watched<T extends object>(db: Db, service: string, port: T | und
         const site = new Error().stack;
         try {
           const out = value.apply(target, args);
-          if (out instanceof Promise) return out.catch((err: unknown) => (record(String(prop), err, started, site), Promise.reject(err)));
+          // Recorded before the caller hears of it: a Worker's queue consumer can end the moment its job throws, and a
+          // write still in flight is lost — most failures never reached the log there.
+          if (out instanceof Promise)
+            return out.catch(async (err: unknown) => {
+              await record(String(prop), err, started, site);
+              throw err;
+            });
           return out;
         } catch (err) {
-          record(String(prop), err, started, site);
+          void record(String(prop), err, started, site);
           throw err;
         }
       };

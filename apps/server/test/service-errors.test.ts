@@ -23,8 +23,9 @@ describe("service errors", () => {
       },
     })!;
     await expect(reranker.rerank("q", ["a"])).rejects.toThrow("ECONNREFUSED");
+    expect(await listServiceErrors(db, about)).toHaveLength(1);
     await expect(reranker.rerank("q", ["b"])).rejects.toThrow("ECONNREFUSED");
-    await new Promise((r) => setTimeout(r, 20)); // recorded in the background
+    // Already recorded when the call rejects — nothing left running that a Worker could cut off.
     expect(calls).toBe(2);
     expect(await listServiceErrors(db, about)).toEqual([
       expect.objectContaining({ service: "reranker", serviceName: "Reranker", operation: "rerank", message: "connect ECONNREFUSED 10.0.0.9:8002 (token=…)", count: 2 }),
