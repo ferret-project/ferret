@@ -47,9 +47,19 @@ function ReceiptLinesDialog({ item, receipt, householdId, onClose }: { item: Ite
   const paths = new Map(flattenCategories(categories.data ?? []).map((c) => [c.id, c.path]));
   const lines = receipt.analysis?.suggestions.lines ?? [];
   const mine = thisOne(lines, item, receipt);
-  const [rows, setRows] = useState<Row[]>(() =>
-    lines.map((l, key) => ({ ...l, key, ticked: key !== mine, thisOne: key === mine, price: l.priceCents != null ? (l.priceCents / 100).toFixed(2) : "" })),
-  );
+  // A named thing already is its line, so that one starts unticked. An unnamed "New item" becomes the first line ticked,
+  // so every line starts ticked and its own line goes first — otherwise the next line would take its place and its own
+  // (often the dearest) would never be added.
+  const [rows, setRows] = useState<Row[]>(() => {
+    const all = lines.map((l, key) => ({
+      ...l,
+      key,
+      ticked: unnamed(item) || key !== mine,
+      thisOne: key === mine,
+      price: l.priceCents != null ? (l.priceCents / 100).toFixed(2) : "",
+    }));
+    return unnamed(item) && mine > 0 ? [all[mine]!, ...all.filter((r) => r.key !== mine)] : all;
+  });
   const [place, setPlace] = useState<string | null>(item.locationId ?? null);
   const change = (key: number, patch: Partial<Row>) => setRows((all) => all.map((r) => (r.key === key ? { ...r, ...patch } : r)));
   const ticked = rows.filter((r) => r.ticked && r.name.trim());
