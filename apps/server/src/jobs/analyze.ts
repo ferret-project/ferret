@@ -281,6 +281,9 @@ const reply = z.object({
     .transform((list) => [...new Set((list ?? []).filter((f): f is string => typeof f === "string" && (SURE_FIELDS as readonly string[]).includes(f)))]),
 });
 
+/** A top-level name that's the document itself, not a product on it. */
+const DOCUMENT_NAME = /^(?:(?:sales|till|store|shop|purchase|order|gift)\s+)?(?:receipt|invoice|bill|order|order confirmation|packing slip)s?$/i;
+
 const sameWords = (a?: string | null, b?: string | null) => !!a && !!b && a.trim().toLowerCase() === b.trim().toLowerCase();
 
 /**
@@ -291,7 +294,13 @@ const sameWords = (a?: string | null, b?: string | null) => !!a && !!b && a.trim
  */
 function withMainProduct(r: z.infer<typeof reply>) {
   if (!r.lines.length || !r.name || r.name.length < 2) return r.lines;
+  // Some models name the document instead ("Receipt", priced at its total): that's no product.
+  if (DOCUMENT_NAME.test(r.name.trim())) return r.lines;
   const price = r.purchasePrice ?? null;
+  // A price that's exactly the lines' sum is the receipt's subtotal. (Not "at least the sum": the dearest product often
+  // costs more than the rest together.)
+  const linesTotal = r.lines.reduce((sum, l) => sum + (l.price ?? 0) * (l.quantity ?? 1), 0);
+  if (price != null && linesTotal > 0 && Math.abs(price - linesTotal) < 0.01) return r.lines;
   const listed = r.lines.some((l) => sameWords(l.name, r.name) || sameWords(l.model, r.model) || (price != null && l.price === price));
   if (listed) return r.lines;
   const main = { name: r.name.slice(0, 200), brand: r.brand, model: r.model, quantity: 1, price, category: r.category };

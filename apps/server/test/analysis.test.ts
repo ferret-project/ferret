@@ -428,6 +428,15 @@ describe("toAnalysis", () => {
     // Already one of the lines (here by price): not added twice. One product at the top + one line = two things.
     expect(toAnalysis({ description: "x", name: "Blender", purchasePrice: 349.95, lines: [{ name: "Vitamix blender", quantity: 1, price: 349.95 }, { name: "Dutch oven", quantity: 1, price: 79.9 }] }).suggestions.lines).toHaveLength(2);
     expect(toAnalysis({ description: "x", name: "Blender", purchasePrice: 349.95, lines: [{ name: "Dutch oven", quantity: 1, price: 79.9 }] }).suggestions.lines?.map((l) => l.name)).toEqual(["Blender", "Dutch oven"]);
+    // Others name the document itself, at its total (qwen3-vl): no "Receipt" line.
+    const kitchen = [
+      { name: "Vitamix Blender", quantity: 1, price: 349.95 },
+      { name: "Oxo Good Grips Peeler", quantity: 2, price: 9.99 },
+    ];
+    expect(toAnalysis({ description: "x", name: "Receipt", purchasePrice: 395.12, lines: kitchen }).suggestions.lines).toHaveLength(2);
+    expect(toAnalysis({ description: "x", name: "Sales receipt", lines: kitchen }).suggestions.lines).toHaveLength(2);
+    // A price that's exactly the lines' sum is the subtotal, whatever it's called.
+    expect(toAnalysis({ description: "x", name: "Kitchen shopping", purchasePrice: 369.93, lines: kitchen }).suggestions.lines).toHaveLength(2);
 
     expect(manual.suggestions.maintenance).toEqual([
       { title: "Replace the air filter", intervalCount: 3, intervalUnit: "month" },
