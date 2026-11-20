@@ -32,6 +32,14 @@ It's off until you switch it on, because it sends each **VIN** to NHTSA's decode
 vehicle's **make, model and year** to its recall search (api.nhtsa.gov) at most once a week — nothing else. Switching
 it on reads the VINs already in Ferret straight away.
 
+## Device support
+
+**Settings → Server → Device support** offers, on the pages of phones, tablets, watches, e-readers and the like,
+when their security updates stop ([what people see](../guide/replacements#software-updates)), from
+[endoflife.date](https://endoflife.date). Once someone confirms the model, the bell warns them 90 days ahead. Ferret
+downloads endoflife.date's public device lists once a day and matches things itself, so nothing about anyone's things
+is sent. It's off until you switch it on.
+
 ## Groceries and household goods
 
 **Settings → Server → Groceries and household goods** asks [Open Food Facts](https://openfoodfacts.org),

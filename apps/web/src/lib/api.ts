@@ -141,7 +141,7 @@ import type { TaskVideo, VideoHit,
   ImportTriageInput,
   ImportTriageRow,
   MergeInput,
-  SuggestedTask, OAuthConnectInput, OAuthConnectRequest, OAuthGrantSummary, VehicleLookupStatus, RepairGuideStatus, AskSettings, PromptKind, PromptSetting, BookLookupStatus, MusicLookupStatus, ScanCandidate, SearchIndexStatus, CardGame, CardInfo, CardLookupStatus, CardPrice, CardReadStatus, CardValue, ItemCard, OpenFactsStatus } from "@ferret/shared";
+  SuggestedTask, OAuthConnectInput, OAuthConnectRequest, OAuthGrantSummary, VehicleLookupStatus, RepairGuideStatus, AskSettings, PromptKind, PromptSetting, BookLookupStatus, MusicLookupStatus, ScanCandidate, SearchIndexStatus, CardGame, CardInfo, CardLookupStatus, CardPrice, CardReadStatus, CardValue, ItemCard, OpenFactsStatus, ItemSupportStatus, SupportLookupStatus } from "@ferret/shared";
 import { photoCopies } from "./photo-copies";
 import { t, ph } from "@lingui/core/macro";
 
@@ -333,6 +333,12 @@ export const api = {
   recallStatus: () => request<RecallStatus>("/server/recalls"),
   bookLookupStatus: () => request<BookLookupStatus>("/server/books"),
   setBookLookups: (enabled: boolean) => request<BookLookupStatus>("/server/books", { method: "PUT", body: JSON.stringify({ enabled }) }),
+  supportLookupStatus: () => request<SupportLookupStatus>("/server/support"),
+  setSupportLookups: (enabled: boolean) => request<SupportLookupStatus>("/server/support", { method: "PUT", body: JSON.stringify({ enabled }) }),
+  /** A device's software support (endoflife.date): tracked, a model to confirm, or none. */
+  itemSupport: (itemId: string) => request<ItemSupportStatus>(`/items/${itemId}/support`),
+  trackSupport: (itemId: string, pick: { product: string; release: string }) => request<ItemSupportStatus>(`/items/${itemId}/support`, { method: "PUT", body: JSON.stringify(pick) }),
+  untrackSupport: (itemId: string) => request<ItemSupportStatus>(`/items/${itemId}/support`, { method: "DELETE" }),
   openFactsStatus: () => request<OpenFactsStatus>("/server/open-facts"),
   setOpenFacts: (enabled: boolean) => request<OpenFactsStatus>("/server/open-facts", { method: "PUT", body: JSON.stringify({ enabled }) }),
   cardLookupStatus: () => request<CardLookupStatus>("/server/cards"),

@@ -47,6 +47,7 @@ export function Server() {
           <VehicleLookups />
           <RepairGuideLinks />
           <OpenFactsLookups />
+          <SupportLookups />
           <BookLookups />
           <MusicLookups />
           <CardLookups />
@@ -582,6 +583,41 @@ function BookLookups() {
           <span>{s.enabled ? t`On` : t`Off`}</span>
         </label>
         {s.enabled && <p className="text-sm text-base-content/70">{plural(s.books, { one: "# book found", other: "# books found" })}.</p>}
+        {toggle.isError && <div className="alert alert-soft alert-error">{toggle.error.message}</div>}
+      </div>
+    </section>
+  );
+}
+
+/** Device support (endoflife.date): off until switched on. Only its public device lists are downloaded. */
+function SupportLookups() {
+  const qc = useQueryClient();
+  const status = useQuery({ queryKey: ["server-support"], queryFn: api.supportLookupStatus });
+  const toggle = useMutation({ mutationFn: api.setSupportLookups, onSuccess: (data) => qc.setQueryData(["server-support"], data) });
+  const s = status.data;
+  if (!s) return null;
+  return (
+    <section className="card" aria-labelledby="support-title">
+      <div className="card-body gap-3">
+        <h2 id="support-title" className="card-title flex items-center gap-2">
+          <span className="icon-[tabler--device-mobile-cog] size-5 text-primary" />
+          <Trans>Device support</Trans>
+          <HelpLink page="guide/replacements.html#software-updates" label={t`Device support`} />
+        </h2>
+        <p className="text-sm text-base-content/70">
+          <Trans>When phones, tablets, watches, e-readers and the like stop getting security updates, from endoflife.date. A thing that looks like one
+          of its devices is offered on its page to confirm; once confirmed, the bell warns 90 days before its updates stop. Ferret downloads
+          endoflife.date's public device lists once a day — nothing about your things is sent.</Trans>
+        </p>
+        <label className="flex cursor-pointer items-center gap-3">
+          <input type="checkbox" className="switch switch-primary" checked={s.enabled} disabled={toggle.isPending || !s.available} onChange={(e) => toggle.mutate(e.target.checked)} />
+          <span>{s.enabled ? t`On` : t`Off`}</span>
+        </label>
+        {s.enabled && (
+          <p className="text-sm text-base-content/70">
+            {plural(s.devices, { one: "# device model known", other: "# device models known" })} · {plural(s.tracked, { one: "# thing tracked", other: "# things tracked" })}
+          </p>
+        )}
         {toggle.isError && <div className="alert alert-soft alert-error">{toggle.error.message}</div>}
       </div>
     </section>

@@ -824,6 +824,8 @@ export interface Item extends Omit<ItemInput, "origin"> {
   vehicle?: VehicleInfo | null;
   /** A trading card: which one, and the finish owned (lib/cards.ts). */
   card?: ItemCard | null;
+  /** A device whose software support is tracked (lib/support.ts). */
+  support?: ItemSupport | null;
 }
 
 /** A VIN decoded by NHTSA's vPIC (the server admin switches vehicle look-ups on in Settings → Server). */
@@ -1295,7 +1297,7 @@ export interface Label {
 // ── Needs attention (the bell) ──────────────────────────────────────────────
 /** Something to act on now; it disappears once it's dealt with (no read/unread state). */
 export interface AttentionItem {
-  kind: "maintenance" | "warranty" | "return" | "claim" | "review" | "roomscan" | "backup" | "shopping" | "loan" | "recall" | "coverage" | "service" | "ai" | "seen" | "paperless";
+  kind: "maintenance" | "warranty" | "return" | "claim" | "review" | "roomscan" | "backup" | "shopping" | "loan" | "recall" | "coverage" | "service" | "ai" | "seen" | "paperless" | "support";
   /** urgent: overdue / today; soon: coming up or waiting. */
   severity: "urgent" | "soon";
   /** The thing it's about (task, warranty, claim or item id; a backup's run id). */
@@ -1678,6 +1680,7 @@ export const WEBHOOK_EVENTS = [
   "task.due",
   "task.overdue",
   "warranty.ending",
+  "support.ending",
   "return.closing",
   "recall.found",
   "loan.due",
@@ -2277,6 +2280,40 @@ export interface OpenFactsStatus {
   enabled: boolean;
   /** Products found and kept in the shared barcode book. */
   products: number;
+}
+
+/** A device whose software support ends on a date (endoflife.date), tracked on a thing. */
+export interface ItemSupport {
+  /** endoflife.date's product ("pixel") and release ("6pro"). */
+  product: string;
+  release: string;
+  /** "Google Pixel 6 Pro". */
+  label: string;
+  /** When security updates stop (yyyy-mm-dd), or null when not announced. */
+  eolFrom: string | null;
+}
+
+/** A device's support from endoflife.date, for a thing's page. */
+export interface SupportInfo extends ItemSupport {
+  releaseDate: string | null;
+  /** It no longer gets updates. */
+  ended: boolean;
+  url: string;
+}
+
+/** A thing's software support: tracked, a match to confirm, or nothing known. */
+export interface ItemSupportStatus {
+  status: "off" | "pending" | "tracked" | "suggested" | "none";
+  support?: SupportInfo | null;
+}
+
+/** Device support look-ups (endoflife.date) for Settings → Server. */
+export interface SupportLookupStatus {
+  available: boolean;
+  enabled: boolean;
+  /** Device models known, and things tracked across the server. */
+  devices: number;
+  tracked: number;
 }
 
 /** Music look-ups (MusicBrainz, for "Scan music") for Settings → Server. */

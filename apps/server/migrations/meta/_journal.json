@@ -512,6 +512,13 @@
       "when": 1795214021750,
       "tag": "0072_fearless_mephisto",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "6",
+      "when": 1795215208237,
+      "tag": "0073_funny_typhoid_mary",
+      "breakpoints": true
     }
   ]
 }

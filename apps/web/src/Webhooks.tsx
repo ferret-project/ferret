@@ -33,6 +33,7 @@ const EVENT_GROUPS: { label: MessageDescriptor; events: { event: WebhookEvent; l
       { event: "task.due", label: msg`Maintenance is due within a week` },
       { event: "task.overdue", label: msg`Maintenance is overdue` },
       { event: "warranty.ending", label: msg`A warranty ends within a month` },
+      { event: "support.ending", label: msg`A device's security updates stop within 90 days` },
       { event: "return.closing", label: msg`A return window is closing` },
       { event: "recall.found", label: msg`A recall matches a thing` },
       { event: "loan.due", label: msg`Something lent or borrowed is due back` },

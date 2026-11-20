@@ -10,6 +10,7 @@
  * Written in the reader's language (`tr`, lib/language.ts): the app's bell and the reminders pass the person's; Claude,
  * webhooks and scripts get English. Names, error messages and recall notices stay as they are.
  */
+import { supportEnding } from "./support";
 import { type AttentionItem, addDays } from "@ferret/shared";
 import { and, count, desc, eq, gte, isNull, lte } from "drizzle-orm";
 import { attachment, backupRun, item } from "../db/schema";
@@ -179,6 +180,20 @@ export async function needsAttention(v: Caller, tr: Tr = translator(undefined, n
     } else if (l.direction === "lent" && !l.dueOn && dayDiff(l.since, on) >= LENT_LONG_DAYS) {
       out.push({ ...base, severity: "soon", title: tr("{thing} is still with {person}", names), detail: tr("{days, plural, one {# day} other {# days}}, since {since}", { ...names, days: dayDiff(l.since, on) }), date: l.since });
     }
+  }
+
+  // Devices whose software updates stop soon, or stopped lately (tracked from endoflife.date — lib/support.ts).
+  for (const d of await supportEnding(v, on)) {
+    const days = dayDiff(on, d.support!.eolFrom!);
+    out.push({
+      kind: "support",
+      severity: "soon",
+      id: `support-${d.id}`,
+      title: days > 0 ? tr("{thing} stops getting security updates", { thing: d.name }) : tr("{thing} no longer gets security updates", { thing: d.name }),
+      detail: days > 0 ? tr("On {date} ({device}) — time to plan a replacement", { date: tr.date(d.support!.eolFrom!), device: d.support!.label }) : tr("Since {date} ({device}) — worth replacing", { date: tr.date(d.support!.eolFrom!), device: d.support!.label }),
+      itemId: d.id,
+      date: d.support!.eolFrom,
+    });
   }
 
   for (const w of warranties) {
@@ -418,7 +433,7 @@ export async function needsAttention(v: Caller, tr: Tr = translator(undefined, n
   }
 
   // Urgent first; then by kind (things with a deadline before things waiting on someone); then soonest.
-  const order: Record<AttentionItem["kind"], number> = { backup: 0, service: 0, recall: 1, maintenance: 2, return: 3, loan: 3, warranty: 4, shopping: 5, coverage: 6, claim: 7, review: 8, roomscan: 8, paperless: 8, ai: 9, seen: 10 };
+  const order: Record<AttentionItem["kind"], number> = { backup: 0, service: 0, recall: 1, maintenance: 2, return: 3, loan: 3, warranty: 4, support: 4, shopping: 5, coverage: 6, claim: 7, review: 8, roomscan: 8, paperless: 8, ai: 9, seen: 10 };
   return out.sort(
     (a, b) =>
       (a.severity === b.severity ? 0 : a.severity === "urgent" ? -1 : 1) ||

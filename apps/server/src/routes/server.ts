@@ -21,6 +21,7 @@ import { DEMO_PARTS, partsOff, setPartsOff } from "../lib/demo-switches";
 import { HTTPException } from "hono/http-exception";
 import { aboutServer, clearServiceErrors, listServiceErrors } from "../lib/service-errors";
 import { cardLookupStatus, setCardsEnabled } from "../lib/cards";
+import { SUPPORT_REFRESH_JOB, setSupportEnabled, supportStatus } from "../lib/support";
 import { barcodeLookupStatus, bookLookupStatus, musicLookupStatus, openFactsStatus, setBooksEnabled, setMusicEnabled, setOpenFactsEnabled } from "../lib/products";
 import { runServerCheck } from "../lib/server-check";
 import { reindexEverything, searchIndexStatus } from "../lib/search-index";
@@ -148,6 +149,17 @@ server.put("/books", async (c) => {
   const { enabled } = await body(c.req.raw, z.object({ enabled: z.boolean() }));
   await setBooksEnabled(c.var.db, enabled);
   return c.json(await bookLookupStatus(c.var.deps));
+});
+
+/** Device support (endoflife.date): whether it's on, device models known and things tracked. */
+server.get("/support", async (c) => c.json(await supportStatus(c.var.deps)));
+
+/** Switch device support on (the device lists are downloaded straight away, then daily) or off. */
+server.put("/support", async (c) => {
+  const { enabled } = await body(c.req.raw, z.object({ enabled: z.boolean() }));
+  await setSupportEnabled(c.var.db, enabled);
+  if (enabled && c.var.deps.support && c.var.deps.jobs) await c.var.deps.jobs.enqueue(SUPPORT_REFRESH_JOB, {});
+  return c.json(await supportStatus(c.var.deps));
 });
 
 /** Open Food Facts look-ups (groceries, household goods, toiletries): whether they're on, and how many products are kept. */

@@ -18,6 +18,7 @@ import type { MessageDescriptor } from "@lingui/core";
 const KIND: Record<AttentionItem["kind"], { icon: string; label: MessageDescriptor }> = {
   maintenance: { icon: "icon-[tabler--tool]", label: msg`Maintenance` },
   warranty: { icon: "icon-[tabler--shield-check]", label: msg`Warranty` },
+  support: { icon: "icon-[tabler--device-mobile-off]", label: msg`Software updates` },
   return: { icon: "icon-[tabler--receipt-refund]", label: msg`Return` },
   claim: { icon: "icon-[tabler--file-alert]", label: msg`Claim` },
   review: { icon: "icon-[tabler--photo-check]", label: msg`To name` },

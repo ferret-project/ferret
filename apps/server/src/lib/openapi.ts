@@ -444,6 +444,11 @@ export const OPERATIONS: Operation[] = [
   { method: "get", path: "/items/{id}/card", tag: "Trading cards", summary: "A card thing's card, with today's prices", returns: "{ card, info: CardInfo | null, price: CardPrice | null }" },
   { method: "post", path: "/items/{id}/card/photo", tag: "Trading cards", summary: "Keep the card's own picture as the thing's photo", writes: true, status: 201, returns: "Attachment" },
 
+  // ── Device support (endoflife.date) ────────────────────────────────────────
+  { method: "get", path: "/items/{id}/support", tag: "Items", summary: "A device's software support: tracked (when security updates stop), a model to confirm, or none; off when the server doesn't look", returns: "ItemSupportStatus" },
+  { method: "put", path: "/items/{id}/support", tag: "Items", summary: "Track a model's end of support on the thing (the suggestion's product and release)", body: z.object({ product: z.string(), release: z.string() }), writes: true, returns: "ItemSupportStatus" },
+  { method: "delete", path: "/items/{id}/support", tag: "Items", summary: "Stop tracking, or say a suggested model isn't it (it isn't offered again)", writes: true, returns: "ItemSupportStatus" },
+
   // ── Room scans ─────────────────────────────────────────────────────────────
   { method: "get", path: "/room-scans", tag: "Room scans", summary: "Room scans still to finish: being looked at, ready to review, or failed", returns: "{ data: RoomScan[] }" },
   {
@@ -569,6 +574,8 @@ export const OPERATIONS: Operation[] = [
   { method: "get", path: "/server/ai-fill", tag: "Server", summary: "Let AI fill in: which kinds are on by default for this server's households (server admin)", returns: "Record<AiFillKind, boolean>" },
   { method: "put", path: "/server/ai-fill", tag: "Server", summary: "Turn kinds of AI filling-in on or off by default for households that haven't chosen (server admin)", writes: true, returns: "Record<AiFillKind, boolean>" },
   { method: "get", path: "/server/books", tag: "Server", summary: "Book look-ups (Open Library, by ISBN): on or off, books kept (server admin)", returns: "BookLookupStatus" },
+  { method: "get", path: "/server/support", tag: "Server", summary: "Device support look-ups (endoflife.date): on or off, device models known, things tracked (server admin)", returns: "SupportLookupStatus" },
+  { method: "put", path: "/server/support", tag: "Server", summary: "Switch device support look-ups on (endoflife.date's device lists are downloaded daily; nothing about households is sent) or off: { enabled } (server admin)", writes: true, returns: "SupportLookupStatus" },
   { method: "get", path: "/server/open-facts", tag: "Server", summary: "Open Food Facts look-ups (groceries, household goods, toiletries): on or off, products kept (server admin)", returns: "OpenFactsStatus" },
   { method: "put", path: "/server/open-facts", tag: "Server", summary: "Switch Open Food Facts look-ups on (a barcode the product database doesn't know is sent to the Open Food Facts databases) or off: { enabled } (server admin)", writes: true, returns: "OpenFactsStatus" },
   { method: "get", path: "/server/cards", tag: "Server", summary: "Trading card look-ups (TCGdex, Scryfall): on or off, cards kept (server admin)", returns: "CardLookupStatus" },

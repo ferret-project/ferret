@@ -400,6 +400,8 @@ async function currentStates(v: Caller): Promise<StateEvent[]> {
       out.push({ key: `warranty.ending:${e.id}:${e.date}`, type: "warranty.ending", data: { warranty: { ...base, url: "/#/warranties" } } });
     } else if (e.kind === "return" && e.date) {
       out.push({ key: `return.closing:${e.id}:${e.date}`, type: "return.closing", data: { return: { ...base, url: `/#/items/${encodeURIComponent(e.id)}` } } });
+    } else if (e.kind === "support" && e.date) {
+      out.push({ key: `support.ending:${e.id}:${e.date}`, type: "support.ending", data: { support: { ...base, url: e.itemId ? `/#/items/${encodeURIComponent(e.itemId)}` : null } } });
     } else if (e.kind === "recall") {
       out.push({ key: `recall.found:${e.id}`, type: "recall.found", data: { recall: { ...base, url: e.itemId ? `/#/items/${encodeURIComponent(e.itemId)}` : null } } });
     }

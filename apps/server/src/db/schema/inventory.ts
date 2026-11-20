@@ -6,7 +6,7 @@
 import { sql } from "drizzle-orm";
 import { check, index, integer, primaryKey, real, sqliteTable, text, uniqueIndex, type AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import type { SightingHow, SightingKind } from "@ferret/shared/utils";
-import type { CardInfo, ItemCard, VideoHit, VehicleInfo, AiFill, AiFillSwitches, AnalysisStatus, AttachmentAnalysis, CategoryField, CustomFieldValues, HaSnapshot, ItemLink, ItemOrigin, ProductInfo, ReviewOutcome, RoomScanCandidate, RoomScanStatus } from "@ferret/shared";
+import type { CardInfo, ItemCard, ItemSupport, VideoHit, VehicleInfo, AiFill, AiFillSwitches, AnalysisStatus, AttachmentAnalysis, CategoryField, CustomFieldValues, HaSnapshot, ItemLink, ItemOrigin, ProductInfo, ReviewOutcome, RoomScanCandidate, RoomScanStatus } from "@ferret/shared";
 import { invitation, organization, session, user } from "./auth";
 
 const id = () =>
@@ -215,6 +215,10 @@ export const item = sqliteTable(
     vehicle: text("vehicle", { mode: "json" }).$type<VehicleInfo>(),
     /** A trading card: which one in its game's catalog, and the finish owned (lib/cards.ts) — its price is looked up by it. */
     card: text("card", { mode: "json" }).$type<ItemCard>(),
+    /** A device whose software support is tracked (endoflife.date, confirmed by a person — lib/support.ts). */
+    support: text("support", { mode: "json" }).$type<ItemSupport>(),
+    /** The suggested device someone said this isn't ("pixel/6pro"), so it isn't offered again. */
+    supportDismissed: text("support_dismissed"),
     /**
      * What a spreadsheet said this line was ("amazon:<order>:<ASIN>:<n>", n for the same product shipped twice in one
      * order), so importing a newer copy of the file skips what's already here (lib/imports.ts).
@@ -1014,6 +1018,17 @@ export const label = sqliteTable(
  * optional). It outlives the items. A name someone saved wins over the database.
  * Global, so no household-only data here: no categories, no (encrypted) photos.
  */
+/** One model in a product line, as endoflife.date says. */
+export type SupportRelease = { name: string; label: string; releaseDate: string | null; eolFrom: string | null; isEol: boolean };
+
+/** endoflife.date's device product lines and their releases (public, shared by the server, refreshed daily). */
+export const supportProduct = sqliteTable("support_product", {
+  name: text("name").primaryKey(),
+  label: text("label").notNull(),
+  releases: text("releases", { mode: "json" }).$type<SupportRelease[]>().notNull(),
+  fetchedAt: integer("fetched_at", { mode: "timestamp_ms" }).notNull(),
+});
+
 /** The card book: what a card catalog (TCGdex, Scryfall) said about a card — public, shared by the server, kept a day for prices. */
 export const cardInfo = sqliteTable("card_info", {
   /** "<game>:<catalog id>". */

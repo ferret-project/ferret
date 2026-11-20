@@ -36,6 +36,7 @@ import { backup } from "./routes/backup";
 import { server } from "./routes/server";
 import { barcodes } from "./routes/barcodes";
 import { cards } from "./routes/cards";
+import { support } from "./routes/support";
 import { downloads } from "./routes/downloads";
 import { calendar, calendarSettings } from "./routes/calendar";
 import { catalog } from "./routes/catalog";
@@ -432,6 +433,7 @@ export function createApp(deps: Deps, config: Config, opts: AppOptions = {}) {
   app.route("/api/v1", claims);
   app.route("/api/v1", barcodes);
   app.route("/api/v1", cards);
+  app.route("/api/v1", support);
   app.route("/api/v1", downloads);
   app.route("/api/v1", stock);
   app.route("/api/v1", pairing);

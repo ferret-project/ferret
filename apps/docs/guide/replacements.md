@@ -38,3 +38,20 @@ dashboard shows the next five years at a glance.
 Things Ferret has no typical life for are counted at the bottom. Give their category a lifespan to include them.
 
 [Claude](./claude) can answer *"what big expenses are coming up?"* from the same forecast.
+
+## Software updates
+
+A phone, tablet, watch or e-reader can still work fine and stop being safe to use: once its maker stops sending
+security updates, it's time to plan a replacement. When whoever runs your Ferret has switched on
+[device support](../hosting/server-admin#device-support), a thing that looks like a device
+[endoflife.date](https://endoflife.date) knows (a Pixel, iPhone, iPad, Galaxy, Apple Watch, Kindle, Surface,
+Raspberry Pi…) gets a **Software updates** card on its page: *Is this a Google Pixel 6 Pro? Security updates until
+October 1, 2026.*
+
+- **Yes — remind me before updates stop** tracks it. The card then shows the date, and the [bell](./attention) says
+  so from 90 days before until 30 days after. Makers sometimes extend support, and the date follows.
+- **It isn't** if the model is wrong: it isn't offered for that thing again. Fixing the thing's name or model (with
+  the generation, e.g. "Kindle Paperwhite (11th generation)") gets a better match.
+
+A match needs the model's whole name in the thing's brand, name and model, so a vague name like "Kindle" gets
+nothing. Ferret downloads endoflife.date's public lists; nothing about your things is sent.

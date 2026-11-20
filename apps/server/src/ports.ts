@@ -22,6 +22,7 @@
  */
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import type { CardGame, CardInfo, PlanLimits } from "@ferret/shared";
+import type { SupportRelease } from "./db/schema/inventory";
 import type * as schema from "./db/schema";
 import type { Catalogs } from "./lib/language";
 
@@ -152,6 +153,14 @@ export interface Reranker {
 export interface Documents {
   /** Converts a PDF or document image to Markdown. Slow (minutes for long PDFs): call it from a job. */
   toMarkdown(data: Uint8Array, filename: string, contentType: string): Promise<string>;
+}
+
+/** endoflife.date: device product lines (phones, tablets, watches…) and each model's end of support. */
+export interface SupportLifecycles {
+  /** The device product lines: name ("pixel") and label ("Google Pixel"). */
+  devices(): Promise<{ name: string; label: string }[]>;
+  /** One product line's models; null when there's no such product. */
+  releases(product: string): Promise<{ label: string; releases: SupportRelease[] } | null>;
 }
 
 /** A trading card game's catalog (TCGdex for Pokémon, Scryfall for Magic): cards by what's printed on them, and prices. */
@@ -594,6 +603,8 @@ export interface Deps {
   vehicles?: VehicleData;
   /** Open Library: books by ISBN, a second barcode book source (switched on by the server admin: Settings → Server). */
   books?: ProductLookup;
+  /** endoflife.date: when devices stop getting software updates (switched on in Settings → Server). */
+  support?: SupportLifecycles;
   /** Trading card catalogs (Pokémon: TCGdex; Magic: Scryfall), for "Scan cards" (switched on in Settings → Server). */
   cards?: Partial<Record<CardGame, CardCatalog>>;
   /** Open Food Facts, Open Products Facts, Open Beauty Facts: asked when the product database doesn't know a code (switched on in Settings → Server). */

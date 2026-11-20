@@ -12,6 +12,7 @@ things to do, not messages: an entry disappears once it's dealt with.
 | Warranties | Ending within a month (urgent within a week) |
 | Returns | The last day to [return something](./warranties#return-windows) is within a week (urgent for the last two days) |
 | Claims | No news for two weeks — time to follow up |
+| Software updates | A phone, tablet or the like whose [security updates stop](./replacements#software-updates) within 90 days, or stopped in the last 30 (never urgent) |
 | New items to name | Added from photos and not confirmed yet |
 | Things to buy | One entry for the [shopping list](./stock#shopping-list) — urgent once something's run out |
 | Keeping track | Things nobody can find, and things not seen in a year — [review a room](./room-review) (never urgent) |

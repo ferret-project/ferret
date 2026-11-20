@@ -23,6 +23,7 @@ import { IMPORT_TRIAGE_JOB, importTriageJob } from "../lib/ai-runs";
 import { REPLACEMENT_JOB, replacementJob } from "../lib/replacement";
 import { TYPICAL_UPKEEP_JOB, typicalUpkeepJob } from "../lib/typical-upkeep";
 import { ROOM_SCAN_JOB, analyzeRoomScan } from "../lib/room-scans";
+import { SUPPORT_REFRESH_JOB, supportRefreshJob } from "../lib/support";
 import { CARD_READ_JOB, CARD_VALUES_JOB, cardReadJob, cardValuesJob } from "../lib/cards";
 import { BACKFILL_JOB, INDEX_JOB, backfillIndex, indexItem } from "./index-item";
 import { PDF_BACKFILL_JOB, PDF_THUMB_JOB, pdfThumbnail, pdfThumbnailBackfill } from "./pdf-thumbnail";
@@ -110,6 +111,7 @@ export function jobSchedule({
     [ROOM_SCAN_JOB]: analyzeRoomScan({ db, files, ai: deps.ai, entitlements: deps.entitlements }),
     [CARD_READ_JOB]: cardReadJob({ ...deps, files }),
     [CARD_VALUES_JOB]: cardValuesJob(deps),
+    [SUPPORT_REFRESH_JOB]: supportRefreshJob(deps),
     [DOWNLOAD_JOB]: downloadJob({ ...deps, files, maxBytes: config.MAX_UPLOAD_MB * 1024 * 1024 }),
     [SECURITY_ALERT_JOB]: securityAlert({ ...deps, files, appUrl }),
     [NEW_PLACE_JOB]: newPlaceAlert({ ...deps, files, appUrl, mailUrl }),
@@ -185,6 +187,7 @@ export function jobSchedule({
     // also daily, since a runtime with no start (Workers) never runs atStart's.
     if (search) await enqueue(BACKFILL_JOB);
     await enqueue(RECALL_SYNC_JOB);
+    if (deps.support) await enqueue(SUPPORT_REFRESH_JOB); // device lists from endoflife.date (when switched on)
     await enqueue(PURGE_JOB);
     await extra?.daily?.().catch((err) => console.warn(`An extension's daily work failed: ${String(err)}`));
   };

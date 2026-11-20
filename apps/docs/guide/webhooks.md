@@ -38,6 +38,7 @@ network it runs on. A Ferret run as a service for you can only post to internet 
 | `task.due` | Maintenance is due within a week (or a month, if you're short of the part it uses) |
 | `task.overdue` | Maintenance is past its day |
 | `warranty.ending` | A warranty ends within 30 days |
+| `support.ending` | A tracked device's [security updates stop](./replacements#software-updates) within 90 days (or stopped in the last 30) |
 | `return.closing` | A return window closes within a week |
 | `recall.found` | A product recall matches one of your things |
 | `loan.due` | Something you borrowed is due back within 3 days, or something you lent is past its day |
