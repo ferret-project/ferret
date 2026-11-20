@@ -125,8 +125,8 @@ const replySchema = {
 };
 
 /** The fields to read, for a household that keeps its money in `currency` (ISO 4217) and has these `categories`. */
-const fieldRules = (currency: string, categories: string[] = []) => `- name: a short, generic name for the item, like "Cordless drill" or "Stand mixer" — not the brand. For a receipt, the main item bought.
-- brand, model, serialNumber: exactly as printed on a label or document; null if not clearly visible. The brand is the product's maker — never the store a receipt is from.
+const fieldRules = (currency: string, categories: string[] = []) => `- name: a short, generic name for the item, like "Cordless drill" or "Stand mixer" — not the brand. But for something with its own title printed on it — a book, video game, film, music album or board game — its title as printed, like "Kirby: Mouse Attack". For a receipt, the main item bought.
+- brand, model, serialNumber: exactly as printed on a label, the item, its box or a document; null if not clearly visible. The brand is the product's maker — for a book, game or film its publisher, not the platform it plays on (like "Nintendo DS") — written or shown by its logo; never the store a receipt is from.
 - barcode: the digits of a UPC/EAN barcode if printed; otherwise null.
 - purchaseDate: the purchase date as YYYY-MM-DD, only from a receipt or invoice; otherwise null.
 - purchasePrice: the price paid for the main item as a number (e.g. 129.99), only from a receipt or invoice — never the receipt's total when it lists several products; otherwise null. The household's money is ${currency}: give the amount as printed in it, without the symbol; null if the receipt is clearly in another currency.
@@ -138,7 +138,7 @@ const fieldRules = (currency: string, categories: string[] = []) => `- name: a s
 - parts: replacement parts and supplies the owner will buy again, only where the document prints their part numbers (a parts list, optional accessories, maintenance): consumables and wear parts like bags, filters, belts, blades, bulbs, batteries, brushes, cartridges — e.g. {"name": "Drum collection bag", "partNumber": "717531", "packSize": 5}. name is short and generic; partNumber is the part or stock number exactly as printed (like "717531" or "JCDC3-63") — never a drawing's index or item number; packSize how many come in one package only when a package is printed ("pkg. of 5", "package of 5"), else null — never a parts list's quantity column. Not screws, bolts, hardware, motors, switches or structural parts. At most ${MAX_PARTS}, most often bought first; [] if none.
 - category: ${categories.length ? `the one of the household's categories below the item belongs in, copied exactly as written — null when none clearly fits` : "null"}.
 - lines: only for a receipt, invoice or order that lists several different products: each product bought — not tax, shipping, fees, discounts, deposits, bags or protection plans — with name (short and generic, like the name above), brand and model as printed (else null), quantity, price (what one cost, as a number in ${currency}, else null) and category (like category above, for that product). The most expensive first, at most ${MAX_LINES}. [] for anything else, or when it lists only one product.
-- sure: the names of the fields above that you read plainly and in full, printed on the label or document itself — not inferred, guessed or partly legible. For name: only when the item is unmistakable. [] if none.
+- sure: the names of the fields above that you read plainly and in full, printed on the label or document itself — not inferred, guessed or partly legible. For name: only when the item is unmistakable, or its title is printed in full. [] if none.
 Never guess: use null when unsure.${categories.length ? `\n\nThe household's categories:\n${categories.map((c) => `- ${c}`).join("\n")}` : ""}`;
 
 const imageContext = {

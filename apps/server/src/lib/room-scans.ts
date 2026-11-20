@@ -247,7 +247,7 @@ export function roomScanPrompt(categories: string[]) {
   // Short on purpose: qwen3-vl thinks before it answers, and every extra rule is more to deliberate over.
   return `This is a photo of a room — or a shelf, cupboard or open box — in someone's home. List the distinct things in it worth keeping in a home inventory: furniture, appliances, electronics, tools, lamps, decor, collectibles. Skip walls, floors, windows, curtains, built-in fixtures, plants and small clutter.
 Reply with JSON only: items, at most ${MAX_PER_PHOTO}, the most valuable first, each with:
-- name: short and generic ("Floor lamp", "Office chair"); the brand only if clearly readable.
+- name: short and generic ("Floor lamp", "Office chair"); the brand only if clearly readable; a book's, game's or film's title if clearly readable.
 - category: ${categories.length ? "one of the categories below, exactly as written, or null" : "null"}.
 - count: how many you see.${categories.length ? `\n\nCategories:\n${categories.map((c) => `- ${c}`).join("\n")}` : ""}`;
 }
