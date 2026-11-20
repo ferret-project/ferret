@@ -42,6 +42,7 @@ import { type Appearance, useAppearance } from "./lib/appearance";
 import { ShareButton } from "./Shares";
 import { RecallAlert } from "./PayOff";
 import { ORIGIN_FILTER, itemOriginList } from "./lib/origin";
+import { foreignMoneyText, useRates } from "./lib/foreign-money";
 import { type AddContext, AddButton, AddFab, BarAccount, DesktopLinks, HouseholdBadge, MenuGroups, Sidebar, switchHousehold, useScanRequests, useSidebarFolded } from "./Nav";
 import { SearchBox, useSearchDocuments, useSearchHotkeys, useSearchText } from "./Search";
 import { Everything, Pager } from "./Everything";
@@ -1496,6 +1497,7 @@ function useDebounced<T>(value: T, ms: number) {
 function UnknownBarcode({ code, onDone, locationId }: { code: string; onDone: () => void; locationId?: string }) {
   const qc = useQueryClient();
   const known = useQuery({ queryKey: ["barcode", code], queryFn: () => api.barcode(code), staleTime: Infinity, retry: false });
+  const rates = useRates();
   const [other, setOther] = useState(false);
   const add = useMutation({
     mutationFn: (fields: { name: string; brand?: string | null; model?: string | null }) =>
@@ -1540,7 +1542,7 @@ function UnknownBarcode({ code, onDone, locationId }: { code: string; onDone: ()
               <p className="truncate text-sm text-base-content/70">{[match.brand, match.model].filter(Boolean).join(" · ")}</p>
               <p className="text-xs text-base-content/70">
                 {match.source === "ferret" ? t`Saved in Ferret before` : t`From ${ph({ database: match.sourceName ?? "UPCitemdb" })}`}
-                {match.typicalPriceCents ? t` · usually ${ph({ amount: money(match.typicalPriceCents) })}` : ""}
+                {match.typicalPriceCents ? t` · usually ${ph({ amount: foreignMoneyText(match.typicalPriceCents, match.priceCurrency ?? "USD", rates) })}` : ""}
               </p>
             </div>
           </div>

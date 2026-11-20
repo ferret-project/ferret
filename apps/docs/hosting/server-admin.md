@@ -32,6 +32,15 @@ It's off until you switch it on, because it sends each **VIN** to NHTSA's decode
 vehicle's **make, model and year** to its recall search (api.nhtsa.gov) at most once a week — nothing else. Switching
 it on reads the VINs already in Ferret straight away.
 
+## Exchange rates
+
+**Settings → Server → Exchange rates** shows prices that come in another currency in each household's own. UPCitemdb's
+typical prices are US dollars from US stores, and card prices are dollars (TCGplayer) or euros (Cardmarket). Converted
+prices are marked ≈ with the original beside them (*≈ 40,58 zł ($9.99)*), and they can be used as a thing's value.
+The rates are the European Central Bank's, fetched once a day from [Frankfurter](https://frankfurter.dev); nothing
+about anyone is sent. It's off until you switch it on. Without it, such prices show in their own currency and aren't
+offered as a value in another one, and a household in a currency other than dollars or euros gets no card prices.
+
 ## Device support
 
 **Settings → Server → Device support** offers, on the pages of phones, tablets, watches, e-readers and the like,

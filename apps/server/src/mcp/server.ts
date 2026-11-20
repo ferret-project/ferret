@@ -451,7 +451,7 @@ function buildServer(v: McpCaller) {
     {
       title: "Look up a barcode",
       description:
-        "Says what product a UPC/EAN barcode is, and whether the household already has it. Use it when the person reads out or scans a barcode, before create_item; to find a thing by name use search_inventory. Looks in Ferret's own barcode book (learned from items saved on this server) first, then the online product database if it's switched on. Returns match (name, brand, model, source, photos — null when nobody knows the code) and youHave (the household's items with this code: id, name, quantity, place). When youHave isn't empty, offer adjust_stock on one of those rather than a duplicate, unless the person wants a separate item.",
+        "Says what product a UPC/EAN barcode is, and whether the household already has it. Use it when the person reads out or scans a barcode, before create_item; to find a thing by name use search_inventory. Looks in Ferret's own barcode book (learned from items saved on this server) first, then the online product database if it's switched on. Returns match (name, brand, model, source, photos, typicalPriceCents in priceCurrency — usually USD, not necessarily the household's — null when nobody knows the code) and youHave (the household's items with this code: id, name, quantity, place). When youHave isn't empty, offer adjust_stock on one of those rather than a duplicate, unless the person wants a separate item.",
       inputSchema: z.object({ barcode: z.string().trim().min(8).max(20).describe("The digits under the barcode (UPC-A, EAN-13 or EAN-8)") }),
       annotations: { ...read, openWorldHint: true },
     },

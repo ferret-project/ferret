@@ -196,6 +196,7 @@ export const OPERATIONS: Operation[] = [
       "From Ferret's own barcode book (learned from saved items, shared by the server), else the online product database when it's switched on. `?as=music` for a CD's or record's barcode: MusicBrainz is asked first (when the server admin switched music look-ups on). `match` is null when nobody knows it. `have` lists the household's things with this code already — offer to add to one (POST /scan with its itemId, mode restock) before adding another.",
     returns: "{ match: BarcodeMatch | null, online, have: ScanCandidate[] }",
   },
+  { method: "get", path: "/exchange-rates", tag: "Items", summary: "The day's exchange rates (the European Central Bank's), to show prices in other currencies in yours; rates is null when the server doesn't fetch them", returns: "{ rates: ExchangeRates | null }" },
   { method: "get", path: "/items/{id}/product", tag: "Items", summary: "The online database's details for an item's barcode", returns: "ItemProduct" },
   {
     method: "post",
@@ -574,6 +575,8 @@ export const OPERATIONS: Operation[] = [
   { method: "get", path: "/server/ai-fill", tag: "Server", summary: "Let AI fill in: which kinds are on by default for this server's households (server admin)", returns: "Record<AiFillKind, boolean>" },
   { method: "put", path: "/server/ai-fill", tag: "Server", summary: "Turn kinds of AI filling-in on or off by default for households that haven't chosen (server admin)", writes: true, returns: "Record<AiFillKind, boolean>" },
   { method: "get", path: "/server/books", tag: "Server", summary: "Book look-ups (Open Library, by ISBN): on or off, books kept (server admin)", returns: "BookLookupStatus" },
+  { method: "get", path: "/server/exchange-rates", tag: "Server", summary: "Exchange rates (Frankfurter: the European Central Bank's): on or off, and the day they're from (server admin)", returns: "ExchangeRateStatus" },
+  { method: "put", path: "/server/exchange-rates", tag: "Server", summary: "Switch exchange rates on (fetched daily; nothing about anyone is sent) or off: { enabled } (server admin)", writes: true, returns: "ExchangeRateStatus" },
   { method: "get", path: "/server/support", tag: "Server", summary: "Device support look-ups (endoflife.date): on or off, device models known, things tracked (server admin)", returns: "SupportLookupStatus" },
   { method: "put", path: "/server/support", tag: "Server", summary: "Switch device support look-ups on (endoflife.date's device lists are downloaded daily; nothing about households is sent) or off: { enabled } (server admin)", writes: true, returns: "SupportLookupStatus" },
   { method: "get", path: "/server/open-facts", tag: "Server", summary: "Open Food Facts look-ups (groceries, household goods, toiletries): on or off, products kept (server admin)", returns: "OpenFactsStatus" },

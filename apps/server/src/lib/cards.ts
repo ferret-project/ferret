@@ -10,7 +10,7 @@
  *   value, and a collection's "Update values" lists every card's — a person applies them; prices never change a
  *   value by themselves.
  */
-import { type CardGame, type CardInfo, type CardLookupStatus, type CardPrice, type CardRead, type CardReadStatus, type CardValue, cardGames, uploadTypes } from "@ferret/shared";
+import { convertCents, type ExchangeRates, type CardGame, type CardInfo, type CardLookupStatus, type CardPrice, type CardRead, type CardReadStatus, type CardValue, cardGames, uploadTypes } from "@ferret/shared";
 import { and, count, eq, isNotNull, lt } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
@@ -20,6 +20,7 @@ import { addAttachment } from "./attachments";
 import type { FileStore } from "./files";
 import { type Caller, getItem, itemScope, notFound } from "./inventory";
 import { allow, recordUsage, requireAllowed } from "./plan";
+import { currentRates } from "./exchange";
 import { sniffContentType } from "./sniff";
 import { inList } from "./sql";
 
@@ -232,12 +233,26 @@ export async function cardPhotoKeys(db: Db, where: { householdIds?: string[]; be
 
 // ── A thing that's a card ────────────────────────────────────────────────────────────────────────────────────
 
-/** The price of a card in this finish and currency: TCGplayer for dollars, Cardmarket for euros; null for others. */
-export function priceFor(info: Pick<CardInfo, "prices">, finish: string | null | undefined, currency: string): CardPrice | null {
-  const mine = info.prices.filter((p) => p.currency === currency);
-  if (!mine.length) return null;
+/**
+ * A card's price in this finish, in the household's currency: the marketplace that prices in it (TCGplayer for
+ * dollars, Cardmarket for euros), else TCGplayer's (then Cardmarket's) converted with the day's rates — marked with
+ * its `original`. Null without a price for that finish, or without rates for another currency.
+ */
+export function priceFor(info: Pick<CardInfo, "prices">, finish: string | null | undefined, currency: string, rates?: ExchangeRates | null): CardPrice | null {
   const want = (finish ?? "Normal").toLowerCase();
-  return mine.find((p) => p.finish.toLowerCase() === want) ?? (finish ? null : (mine.find((p) => p.finish === "Normal") ?? mine[0]!));
+  const inCurrency = (c: string) => {
+    const mine = info.prices.filter((p) => p.currency === c);
+    if (!mine.length) return null;
+    return mine.find((p) => p.finish.toLowerCase() === want) ?? (finish ? null : (mine.find((p) => p.finish === "Normal") ?? mine[0]!));
+  };
+  const own = inCurrency(currency);
+  if (own) return own;
+  for (const from of ["USD", "EUR"]) {
+    const p = inCurrency(from);
+    const cents = p ? convertCents(p.cents, p.currency, currency, rates) : null;
+    if (p && cents != null) return { ...p, currency, cents, original: { cents: p.cents, currency: p.currency } };
+  }
+  return null;
 }
 
 /** A card thing's card, with today's prices: for its page's Card section. Null when it isn't a card. */
@@ -245,7 +260,7 @@ export async function itemCard(v: Caller, itemId: string) {
   const it = await getItem(v, itemId);
   if (!it.card) return { card: null, info: null, price: null };
   const info = await cardFor(v.deps, it.card.game, it.card.id).catch(() => null);
-  return { card: it.card, info, price: info ? priceFor(info, it.card.finish, v.currency) : null };
+  return { card: it.card, info, price: info ? priceFor(info, it.card.finish, v.currency, await currentRates(v.deps)) : null };
 }
 
 /** Keep the card's own picture as the thing's photo: downloaded from the catalog's address, never one a client sent. */
@@ -285,10 +300,11 @@ export async function cardValues(v: Caller, collectionId: string | null): Promis
   const kept = keys.length ? await v.db.select().from(cardInfo).where(inList(cardInfo.key, keys)) : [];
   const book = new Map(kept.map((k) => [k.key, k]));
   const stale: string[] = [];
+  const rates = await currentRates(v.deps);
   const data = things.map((t) => {
     const k = book.get(bookKey(t.card!.game, t.card!.id));
     if (!k || Date.now() - k.fetchedAt.getTime() >= FRESH_MS) stale.push(bookKey(t.card!.game, t.card!.id));
-    return { itemId: t.id, name: t.name, valueCents: t.valueCents, price: k ? priceFor(k.info, t.card!.finish, v.currency) : null };
+    return { itemId: t.id, name: t.name, valueCents: t.valueCents, price: k ? priceFor(k.info, t.card!.finish, v.currency, rates) : null };
   });
   if (stale.length && v.deps.jobs && (await cardGamesOn(v.deps)).length) await v.deps.jobs.enqueue(CARD_VALUES_JOB, { keys: [...new Set(stale)] });
   return { data, checking: new Set(stale).size };

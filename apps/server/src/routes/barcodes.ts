@@ -3,11 +3,13 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { type AppEnv, body, callerOf, requireHousehold, requireUser, requireWriter } from "../lib/context";
 import * as svc from "../lib/products";
+import { currentRates } from "../lib/exchange";
 import { itemsWithCode } from "../lib/stock";
 
 export const barcodes = new Hono<AppEnv>();
 barcodes.use("/barcodes/*", requireUser, requireHousehold);
 barcodes.use("/items/:id/product", requireUser, requireHousehold);
+barcodes.use("/exchange-rates", requireUser, requireHousehold);
 barcodes.use("/items/:id/product/*", requireUser, requireHousehold);
 
 /**
@@ -23,6 +25,9 @@ barcodes.get("/barcodes/:code", async (c) => {
   const online = Boolean(c.var.deps.products) || (as === "music" && (await svc.musicLookupsOn(c.var.deps)));
   return c.json({ match, online, have });
 });
+
+/** The day's exchange rates (null when the server doesn't fetch them): the app shows other currencies' prices in the household's. */
+barcodes.get("/exchange-rates", async (c) => c.json({ rates: await currentRates(c.var.deps) }));
 
 barcodes.get("/items/:id/product", async (c) => c.json(await svc.itemProduct(callerOf(c), c.req.param("id"))));
 

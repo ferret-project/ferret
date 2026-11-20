@@ -22,6 +22,7 @@ import { HTTPException } from "hono/http-exception";
 import { aboutServer, clearServiceErrors, listServiceErrors } from "../lib/service-errors";
 import { cardLookupStatus, setCardsEnabled } from "../lib/cards";
 import { SUPPORT_REFRESH_JOB, setSupportEnabled, supportStatus } from "../lib/support";
+import { EXCHANGE_RATES_JOB, exchangeRateStatus, setExchangeRatesEnabled } from "../lib/exchange";
 import { barcodeLookupStatus, bookLookupStatus, musicLookupStatus, openFactsStatus, setBooksEnabled, setMusicEnabled, setOpenFactsEnabled } from "../lib/products";
 import { runServerCheck } from "../lib/server-check";
 import { reindexEverything, searchIndexStatus } from "../lib/search-index";
@@ -149,6 +150,17 @@ server.put("/books", async (c) => {
   const { enabled } = await body(c.req.raw, z.object({ enabled: z.boolean() }));
   await setBooksEnabled(c.var.db, enabled);
   return c.json(await bookLookupStatus(c.var.deps));
+});
+
+/** Exchange rates (the European Central Bank's, via Frankfurter): whether they're on, and the day they're from. */
+server.get("/exchange-rates", async (c) => c.json(await exchangeRateStatus(c.var.deps)));
+
+/** Switch exchange rates on (fetched straight away, then daily) or off. */
+server.put("/exchange-rates", async (c) => {
+  const { enabled } = await body(c.req.raw, z.object({ enabled: z.boolean() }));
+  await setExchangeRatesEnabled(c.var.db, enabled);
+  if (enabled && c.var.deps.exchangeRates && c.var.deps.jobs) await c.var.deps.jobs.enqueue(EXCHANGE_RATES_JOB, {});
+  return c.json(await exchangeRateStatus(c.var.deps));
 });
 
 /** Device support (endoflife.date): whether it's on, device models known and things tracked. */

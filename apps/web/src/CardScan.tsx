@@ -17,6 +17,7 @@ import { HelpLink } from "./HelpLink";
 import { TopBar } from "./Nav";
 import { CardPicture, cardLine, cardPrice, priceText } from "./Cards";
 import { api } from "./lib/api";
+import { useRates } from "./lib/foreign-money";
 import { useCanEdit } from "./lib/auth";
 import { currentCurrency } from "./lib/money";
 import { photoCopies } from "./lib/photo-copies";
@@ -126,6 +127,7 @@ export function CardScanScreen({ householdId, locationId, categoryId, tag, colle
 function Binder({ householdId, games, photos, covers, into }: { householdId: string; games: CardGame[]; photos: boolean; covers: boolean; into: { locationId: string | null; categoryId: string | null; tag: string | null; collectionId: string | null } }) {
   const qc = useQueryClient();
   const [game, setGame] = useGame(games);
+  const rates = useRates();
   const [rows, setRows] = useState<Row[]>(() => loadRows(householdId));
   useEffect(() => saveRows(householdId, rows), [householdId, rows]);
   const [place, setPlace] = useState<string | null>(into.locationId);
@@ -211,7 +213,7 @@ function Binder({ householdId, games, photos, covers, into }: { householdId: str
       let done = 0;
       for (const r of toSave) {
         const c = r.candidates[r.pick]!;
-        const price = withValues ? cardPrice(c, r.finish) : null;
+        const price = withValues ? cardPrice(c, r.finish, rates) : null;
         const created = await api.createItem({
           name: c.name,
           brand: GAME_BRANDS[c.game],
@@ -242,7 +244,7 @@ function Binder({ householdId, games, photos, covers, into }: { householdId: str
   });
 
   const cards = rows.reduce((n, r) => n + (r.status === "ready" ? r.quantity : 0), 0);
-  const worth = toSave.reduce((sum, r) => sum + (cardPrice(r.candidates[r.pick]!, r.finish)?.cents ?? 0) * r.quantity, 0);
+  const worth = toSave.reduce((sum, r) => sum + (cardPrice(r.candidates[r.pick]!, r.finish, rates)?.cents ?? 0) * r.quantity, 0);
 
   return (
     <>
@@ -432,8 +434,9 @@ function TypeCard({ game, onChoose }: { game: CardGame; onChoose: (found: CardIn
 
 function CardRow({ row, busy, onChange, onRemove, onFound }: { row: Row; busy: boolean; onChange: (patch: Partial<Row>) => void; onRemove: () => void; onFound: (found: CardInfo[]) => void }) {
   const [choosing, setChoosing] = useState(false);
+  const rates = useRates();
   const c = row.candidates[row.pick];
-  const price = c ? cardPrice(c, row.finish) : null;
+  const price = c ? cardPrice(c, row.finish, rates) : null;
   const label = c?.name ?? row.readName ?? t`Card`;
   return (
     <li className="flex flex-col gap-2 py-3">

@@ -1236,6 +1236,8 @@ export interface ProductInfo {
   lowestPriceCents?: number;
   highestPriceCents?: number;
   source: string;
+  /** The prices' currency (ISO 4217): UPCitemdb's are US dollars, from US stores. Assume USD when missing. */
+  currency?: string;
   /** A book (looked up by its ISBN): `brand` holds its author(s). Music (a CD's or record's barcode, from
    * MusicBrainz): `brand` holds the artist, `description` the format, year and label. */
   kind?: "book" | "music";
@@ -1254,6 +1256,8 @@ export interface BarcodeMatch {
   /** From the online database, when it was asked. */
   images: string[];
   typicalPriceCents?: number;
+  /** typicalPriceCents' currency (UPCitemdb: USD) — not necessarily the household's. */
+  priceCurrency?: string;
   category?: string;
   /** The online database's "about" line (a record's format, year and label). */
   description?: string;
@@ -2212,9 +2216,27 @@ export interface BookLookupStatus {
 export interface CardPrice {
   /** "Normal", "Holofoil", "Reverse holofoil", "Foil"… */
   finish: string;
-  currency: "USD" | "EUR";
+  /** ISO 4217. A catalog's own prices are USD or EUR; a price offered as a value is in the household's currency. */
+  currency: string;
   cents: number;
   source: string;
+  /** Converted with the day's exchange rate: the marketplace's own price. */
+  original?: { cents: number; currency: string };
+}
+
+/** The day's exchange rates (the European Central Bank's, via Frankfurter): units of each currency per one `base`. */
+export interface ExchangeRates {
+  base: string;
+  /** yyyy-mm-dd: the day the bank published them. */
+  date: string;
+  rates: Record<string, number>;
+}
+
+/** Exchange rates for Settings → Server. */
+export interface ExchangeRateStatus {
+  available: boolean;
+  enabled: boolean;
+  date: string | null;
 }
 
 /** A card from its game's catalog. */

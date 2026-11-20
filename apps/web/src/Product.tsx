@@ -8,7 +8,7 @@ import type { ItemListing, ItemPatch } from "@ferret/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { api } from "./lib/api";
-import { money } from "./lib/money";
+import { foreignMoneyText, inHousehold, useRates } from "./lib/foreign-money";
 import { t, ph } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 
@@ -22,6 +22,7 @@ export function ProductSuggestions({ item, householdId }: { item: ItemListing; h
     // The lookup runs in the background: check back while it does.
     refetchInterval: (q) => (q.state.data?.status === "pending" ? 3000 : false),
   });
+  const rates = useRates();
   const refreshItem = () =>
     Promise.all([
       qc.invalidateQueries({ queryKey: ["item", householdId, item.id] }),
@@ -48,13 +49,15 @@ export function ProductSuggestions({ item, householdId }: { item: ItemListing; h
   const p = product.data?.status === "found" ? product.data.product : undefined;
   if (!p) return null;
 
+  const worth = p.typicalPriceCents ? inHousehold(p.typicalPriceCents, p.currency ?? "USD", rates) : null;
   const same = (a: unknown, b: unknown) => String(a ?? "").trim().toLowerCase() === String(b ?? "").trim().toLowerCase();
   const rows: { label: string; display: string; patch: ItemPatch }[] = [
     !same(item.name, p.title) && { label: t`Name`, display: p.title, patch: { name: p.title } },
     // A book's "brand" is its author (Open Library, by ISBN); a record's, its artist (MusicBrainz).
     p.brand && !same(item.brand, p.brand) && { label: p.kind === "book" ? t`Author` : p.kind === "music" ? t`Artist` : t`Brand`, display: p.brand, patch: { brand: p.brand } },
     p.model && !same(item.model, p.model) && { label: t`Model`, display: p.model, patch: { model: p.model } },
-    p.typicalPriceCents && item.valueCents == null && { label: t`Worth`, display: t`${ph({ price: money(p.typicalPriceCents) })} (typical price)`, patch: { valueCents: p.typicalPriceCents } },
+    // The database's price is in its own currency (UPCitemdb: US dollars): offered only when it can be the household's.
+    worth && item.valueCents == null && { label: t`Worth`, display: t`${ph({ price: foreignMoneyText(p.typicalPriceCents!, p.currency ?? "USD", rates) })} (typical price)`, patch: { valueCents: worth.cents } },
     p.description && !item.description && { label: t`About`, display: p.description, patch: { description: p.description } },
   ].filter(Boolean) as { label: string; display: string; patch: ItemPatch }[];
   if (!rows.length && !p.images.length) return null;

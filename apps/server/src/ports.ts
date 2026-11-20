@@ -21,7 +21,7 @@
  *   Speech    → a Whisper-style transcription server (OpenAI-compatible /v1/audio/transcriptions)
  */
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
-import type { CardGame, CardInfo, PlanLimits } from "@ferret/shared";
+import type { CardGame, CardInfo, ExchangeRates, PlanLimits } from "@ferret/shared";
 import type { SupportRelease } from "./db/schema/inventory";
 import type * as schema from "./db/schema";
 import type { Catalogs } from "./lib/language";
@@ -153,6 +153,11 @@ export interface Reranker {
 export interface Documents {
   /** Converts a PDF or document image to Markdown. Slow (minutes for long PDFs): call it from a job. */
   toMarkdown(data: Uint8Array, filename: string, contentType: string): Promise<string>;
+}
+
+/** The day's exchange rates. */
+export interface ExchangeRateSource {
+  latest(): Promise<ExchangeRates>;
 }
 
 /** endoflife.date: device product lines (phones, tablets, watches…) and each model's end of support. */
@@ -603,6 +608,8 @@ export interface Deps {
   vehicles?: VehicleData;
   /** Open Library: books by ISBN, a second barcode book source (switched on by the server admin: Settings → Server). */
   books?: ProductLookup;
+  /** The day's exchange rates (Frankfurter: the European Central Bank's), to show other currencies' prices in the household's (switched on in Settings → Server). */
+  exchangeRates?: ExchangeRateSource;
   /** endoflife.date: when devices stop getting software updates (switched on in Settings → Server). */
   support?: SupportLifecycles;
   /** Trading card catalogs (Pokémon: TCGdex; Magic: Scryfall), for "Scan cards" (switched on in Settings → Server). */

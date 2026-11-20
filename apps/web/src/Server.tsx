@@ -46,6 +46,7 @@ export function Server() {
           <RecallChecks />
           <VehicleLookups />
           <RepairGuideLinks />
+          <ExchangeRateLookups />
           <OpenFactsLookups />
           <SupportLookups />
           <BookLookups />
@@ -583,6 +584,43 @@ function BookLookups() {
           <span>{s.enabled ? t`On` : t`Off`}</span>
         </label>
         {s.enabled && <p className="text-sm text-base-content/70">{plural(s.books, { one: "# book found", other: "# books found" })}.</p>}
+        {toggle.isError && <div className="alert alert-soft alert-error">{toggle.error.message}</div>}
+      </div>
+    </section>
+  );
+}
+
+/** Exchange rates (the European Central Bank's, via Frankfurter): off until switched on. */
+function ExchangeRateLookups() {
+  const qc = useQueryClient();
+  const status = useQuery({ queryKey: ["server-exchange-rates"], queryFn: api.exchangeRateStatus, refetchInterval: (q) => (q.state.data?.enabled && !q.state.data.date ? 3000 : false) });
+  const toggle = useMutation({
+    mutationFn: api.setExchangeRates,
+    onSuccess: (data) => {
+      qc.setQueryData(["server-exchange-rates"], data);
+      void qc.invalidateQueries({ queryKey: ["exchange-rates"] });
+    },
+  });
+  const s = status.data;
+  if (!s) return null;
+  return (
+    <section className="card" aria-labelledby="exchange-rates-title">
+      <div className="card-body gap-3">
+        <h2 id="exchange-rates-title" className="card-title flex items-center gap-2">
+          <span className="icon-[tabler--currency-euro] size-5 text-primary" />
+          <Trans>Exchange rates</Trans>
+          <HelpLink page="hosting/server-admin.html#exchange-rates" label={t`Exchange rates`} />
+        </h2>
+        <p className="text-sm text-base-content/70">
+          <Trans>Some prices come in another currency: the online product database's are US dollars, card prices dollars or euros. With exchange rates on,
+          they show in each household's own currency (marked ≈, the original beside it) and can be used as a thing's value. The European Central Bank's
+          rates, fetched once a day from Frankfurter (frankfurter.dev) — nothing about anyone is sent.</Trans>
+        </p>
+        <label className="flex cursor-pointer items-center gap-3">
+          <input type="checkbox" className="switch switch-primary" checked={s.enabled} disabled={toggle.isPending || !s.available} onChange={(e) => toggle.mutate(e.target.checked)} />
+          <span>{s.enabled ? t`On` : t`Off`}</span>
+        </label>
+        {s.enabled && s.date && <p className="text-sm text-base-content/70">{t`Rates from ${ph({ date: s.date })}.`}</p>}
         {toggle.isError && <div className="alert alert-soft alert-error">{toggle.error.message}</div>}
       </div>
     </section>

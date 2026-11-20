@@ -119,7 +119,8 @@ top, then:
 
 Each card comes up with its picture, set, number, rarity and **today's market price**. Pokémon prices come from
 [TCGdex](https://tcgdex.dev) and Magic prices from [Scryfall](https://scryfall.com): TCGplayer's price in dollars,
-Cardmarket's in euros. Check the list:
+Cardmarket's in euros. In any other currency they're converted (≈) when whoever runs your Ferret has switched on
+[exchange rates](../hosting/server-admin#exchange-rates). Check the list:
 
 - **Not this printing?** shows the other cards with that name and number (reprints, promos). Pick yours.
 - Choose the **finish** you have (Normal, Holofoil, Reverse holofoil, Foil…), since the price depends on it.

@@ -72,6 +72,7 @@ export class UpcItemDb implements ProductLookup {
       category: text(it.category),
       images: (it.images ?? []).filter((u) => /^https:\/\//.test(u)).slice(0, 8),
       typicalPriceCents: cents(median(prices)),
+      currency: "USD", // US stores' prices
       lowestPriceCents: cents(it.lowest_recorded_price),
       highestPriceCents: cents(it.highest_recorded_price),
       source: "UPCitemdb",

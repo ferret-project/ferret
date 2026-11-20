@@ -73,6 +73,8 @@ function toMatch(
     source: own ? "ferret" : (shared?.source ?? "upcitemdb"),
     images: shared?.external?.images ?? [],
     typicalPriceCents: shared?.external?.typicalPriceCents,
+    // Kept before currencies were noted: UPCitemdb's were always US dollars.
+    ...(shared?.external?.typicalPriceCents && { priceCurrency: shared.external.currency ?? "USD" }),
     category: shared?.external?.category,
     ...(shared?.external?.description && { description: shared.external.description }),
     ...(shared?.external?.kind && { kind: shared.external.kind }),

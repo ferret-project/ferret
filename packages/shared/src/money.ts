@@ -116,3 +116,17 @@ export function currencyChoices() {
   const all = (Intl as { supportedValuesOf?: (key: string) => string[] }).supportedValuesOf?.("currency") ?? common;
   return { common: common.filter((c) => all.includes(c)), rest: all.filter((c) => !common.includes(c)) };
 }
+
+/**
+ * An amount in another currency with the day's rates (units of each currency per one `fx.base`), rounded to the cent;
+ * the same amount when the currencies match; null when a rate is missing (or there are no rates).
+ */
+export function convertCents(cents: number, from: string, to: string, fx: { base: string; rates: Record<string, number> } | null | undefined): number | null {
+  if (from === to) return cents;
+  if (!fx) return null;
+  const rate = (c: string) => (c === fx.base ? 1 : fx.rates[c]);
+  const a = rate(from);
+  const b = rate(to);
+  if (!a || !b) return null;
+  return Math.round((cents / a) * b);
+}

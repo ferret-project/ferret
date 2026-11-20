@@ -2,25 +2,42 @@
  * Trading cards on a thing's page and a collection's: the card's picture and today's price (Use it as its value), and
  * "Update values" for every card in a collection (lib/cards.ts on the server). Shared with Scan cards (CardScan.tsx).
  */
-import type { CardInfo, CardPrice, Item } from "@ferret/shared";
-import { formatMoney } from "@ferret/shared/utils";
+import type { CardInfo, CardPrice, ExchangeRates, Item } from "@ferret/shared";
+import { convertCents, formatMoney } from "@ferret/shared/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Modal } from "./Modal";
 import { api } from "./lib/api";
+import { useRates } from "./lib/foreign-money";
 import { currentCurrency, money } from "./lib/money";
 import { t, ph, plural } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 
-/** The price of a card in this finish, in the household's currency — the one offered as its value. */
-export function cardPrice(info: Pick<CardInfo, "prices">, finish: string | null | undefined, currency = currentCurrency()): CardPrice | null {
-  const mine = info.prices.filter((p) => p.currency === currency);
-  if (!mine.length) return null;
+/**
+ * A card's price in this finish, in the household's currency: the marketplace that prices in it (TCGplayer for
+ * dollars, Cardmarket for euros), else TCGplayer's (then Cardmarket's) converted with the day's rates, keeping the
+ * `original`. Null without a price for that finish, or without rates for another currency (as on the server).
+ */
+export function cardPrice(info: Pick<CardInfo, "prices">, finish: string | null | undefined, rates: ExchangeRates | null, currency = currentCurrency()): CardPrice | null {
   const want = (finish ?? "Normal").toLowerCase();
-  return mine.find((p) => p.finish.toLowerCase() === want) ?? (finish ? null : (mine.find((p) => p.finish === "Normal") ?? mine[0]!));
+  const inCurrency = (c: string) => {
+    const mine = info.prices.filter((p) => p.currency === c);
+    if (!mine.length) return null;
+    return mine.find((p) => p.finish.toLowerCase() === want) ?? (finish ? null : (mine.find((p) => p.finish === "Normal") ?? mine[0]!));
+  };
+  const own = inCurrency(currency);
+  if (own) return own;
+  for (const from of ["USD", "EUR"]) {
+    const p = inCurrency(from);
+    const cents = p ? convertCents(p.cents, p.currency, currency, rates) : null;
+    if (p && cents != null) return { ...p, currency, cents, original: { cents: p.cents, currency: p.currency } };
+  }
+  return null;
 }
 
-export const priceText = (p: CardPrice) => formatMoney(p.cents, p.currency, { exact: true });
+/** "$0.76"; "≈ 3,23 zł ($0.76)" when converted. */
+export const priceText = (p: CardPrice) =>
+  p.original ? `≈ ${formatMoney(p.cents, p.currency, { exact: true })} (${formatMoney(p.original.cents, p.original.currency, { exact: true })})` : formatMoney(p.cents, p.currency, { exact: true });
 
 /** "151 · 025/165 · Common" */
 export const cardLine = (c: CardInfo) => [c.set, c.setTotal ? `${c.number}/${c.setTotal}` : c.number, c.rarity].filter(Boolean).join(" · ");
@@ -52,9 +69,10 @@ export function CardDetails({ item, canEdit, hasPhoto }: { item: Item; canEdit: 
       void qc.invalidateQueries({ queryKey: ["attachments"] });
     },
   });
+  const rates = useRates();
   if (!item.card) return null;
   const info = card.data?.info;
-  const price = info ? cardPrice(info, item.card.finish) : null;
+  const price = info ? cardPrice(info, item.card.finish, rates) : null;
   return (
     <section className="card border border-primary/20" aria-labelledby="item-card-title">
       <div className="card-body gap-3 p-4">
@@ -75,7 +93,7 @@ export function CardDetails({ item, canEdit, hasPhoto }: { item: Item; canEdit: 
                   <span className="text-sm text-base-content/70">{t`market price today (${ph({ source: price.source })})`}</span>
                 </p>
               ) : (
-                <p className="text-sm text-base-content/70"><Trans>No price for this finish in your currency.</Trans></p>
+                <p className="text-sm text-base-content/70"><Trans>No price for this finish in your currency (the server admin can switch on exchange rates).</Trans></p>
               )}
               {info.prices.filter((p) => p !== price).length > 0 && (
                 <p className="text-xs text-base-content/70">{info.prices.filter((p) => p !== price).map((p) => `${p.finish} ${priceText(p)} (${p.source})`).join(" · ")}</p>
