@@ -36,6 +36,7 @@ export type Route =
   | { name: "walkthrough"; locationId: string | null; step: "photos" | "review" }
   | { name: "roomscan"; id: string }
   | { name: "music" }
+  | { name: "cards" }
   | { name: "collections" }
   | { name: "collection"; id: string }
   | { name: "import"; source: "csv" | "homeassistant" | null }
@@ -113,6 +114,16 @@ export const scanMusicHref = (into: { locationId?: string | null; categoryId?: s
   if (into.tag) q.set("tag", into.tag);
   const s = q.toString();
   return `#/scan-music${s ? `?${s}` : ""}`;
+};
+/** "Scan cards": Pokémon and Magic cards, photographed or typed, priced (CardScan.tsx) — into a room, category, tag or collection. */
+export const scanCardsHref = (into: { locationId?: string | null; categoryId?: string | null; tag?: string | null; collectionId?: string | null } = {}) => {
+  const q = new URLSearchParams();
+  if (into.locationId) q.set("in", into.locationId);
+  if (into.categoryId) q.set("category", into.categoryId);
+  if (into.tag) q.set("tag", into.tag);
+  if (into.collectionId) q.set("collection", into.collectionId);
+  const s = q.toString();
+  return `#/scan-cards${s ? `?${s}` : ""}`;
 };
 /** Phones: the More tab — everything that isn't a tab, grouped (Nav.tsx). */
 export const MORE_HREF = "#/more";

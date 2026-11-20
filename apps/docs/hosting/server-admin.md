@@ -39,6 +39,15 @@ it on reads the VINs already in Ferret straight away.
 allowance, so it isn't counted against any lookup limit. It's off until you switch it on, because a book's **ISBN** is
 sent to Open Library — nothing else — once for the whole server.
 
+## Trading cards
+
+**Settings → Server → Trading cards** adds **Scan cards** to everyone's **+ Add**
+([what people see](../guide/adding-things#trading-cards)). Pokémon cards are looked up on [TCGdex](https://tcgdex.dev)
+and Magic: The Gathering cards on [Scryfall](https://scryfall.com), with their pictures and market prices. Both are free,
+need no key and have no allowance. It's off until you switch it on, because what's printed on a card (its name, number
+and set) is sent to them. Prices are kept a day for the whole server. Reading a photo of a card uses your vision model
+(`VISION_URL`) and counts as an AI action. Without a vision model, people type the cards instead.
+
 ## Music look-ups
 
 **Settings → Server → Music look-ups** adds **Scan music** to everyone's **+ Add**

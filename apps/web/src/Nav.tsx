@@ -46,6 +46,7 @@ import {
   walkthroughHref,
   scanRoomHref,
   scanMusicHref,
+  scanCardsHref,
 } from "./lib/route";
 import { useRoomScanOn } from "./lib/room-scan";
 import { Logo } from "./AuthLayout";
@@ -679,6 +680,16 @@ function AddSheet({ householdId, route, context, onClose }: { householdId: strin
             label: t`Scan music`,
             detail: t`CDs and records, one after another: Ferret looks each up on MusicBrainz`,
             href: scanMusicHref({ locationId: context.locationId, categoryId: context.categoryId, tag: context.tag }),
+          },
+        ]
+      : []),
+    ...(me.data?.features.cards?.length
+      ? [
+          {
+            icon: "icon-[tabler--cards]",
+            label: t`Scan cards`,
+            detail: t`Pokémon and Magic cards: photograph or type each one, with today's price`,
+            href: scanCardsHref({ locationId: context.locationId, categoryId: context.categoryId, tag: context.tag }),
           },
         ]
       : []),

@@ -186,9 +186,20 @@ export const itemDispositions = ["sold", "given", "donated", "discarded", "lost"
 export type ItemDisposition = (typeof itemDispositions)[number];
 
 /** Where a thing came from. The first five are the app's own ways to add one (it says which); the rest are set by the server. */
-export const itemOrigins = ["app", "photos", "walkthrough", "roomscan", "scan", "label", "receipt", "words", "spreadsheet", "homeassistant", "paperless", "claude", "api"] as const;
+export const itemOrigins = ["app", "photos", "walkthrough", "roomscan", "scan", "cards", "label", "receipt", "words", "spreadsheet", "homeassistant", "paperless", "claude", "api"] as const;
 export type ItemOrigin = (typeof itemOrigins)[number];
-export const appOrigins = ["app", "photos", "walkthrough", "scan", "label", "receipt", "words"] as const;
+export const appOrigins = ["app", "photos", "walkthrough", "scan", "cards", "label", "receipt", "words"] as const;
+
+// ── Trading cards (Pokémon: TCGdex; Magic: Scryfall) ──────────────────────
+export const cardGames = ["pokemon", "magic"] as const;
+export type CardGame = (typeof cardGames)[number];
+/** Which card a thing is (its id in the game's catalog) and the finish owned — what its price is looked up by. */
+export const itemCard = z.object({
+  game: z.enum(cardGames),
+  id: z.string().trim().min(1).max(80),
+  finish: z.string().trim().max(40).optional().nullable(),
+});
+export type ItemCard = z.infer<typeof itemCard>;
 
 const itemFields = z.object({
   name: z.string().trim().min(1).max(200).describe('What it is, the way people would look for it: "Cordless drill"'),
@@ -240,6 +251,7 @@ const itemFields = z.object({
   replacementCents: cents.describe("What it would cost to replace today, in cents (for the insurance report)"),
   lifespanYears: z.number().int().min(1).max(100).optional().nullable().describe("How many years this one should last, if not its category's or the typical lifespan — for the replacement forecast"),
   replacedById: z.string().min(1).optional().nullable().describe("What replaced it, once it's gone: the new item's id — both pages link the other"),
+  card: itemCard.optional().nullable().describe("A trading card: which one in its game's catalog (Pokémon: TCGdex id like sv01-025; Magic: Scryfall id) and the finish owned"),
 });
 export const itemInput = itemFields.extend({
   origin: z.enum(appOrigins).optional().describe("Which of the app's ways added it; ignored for Claude and API keys (recorded by the server)"),
@@ -810,6 +822,8 @@ export interface Item extends Omit<ItemInput, "origin"> {
   missingSince?: string | null;
   /** What NHTSA says about its VIN (a Vehicles field, or a serial number that is one) — suggestions, applied by tapping. */
   vehicle?: VehicleInfo | null;
+  /** A trading card: which one, and the finish owned (lib/cards.ts). */
+  card?: ItemCard | null;
 }
 
 /** A VIN decoded by NHTSA's vPIC (the server admin switches vehicle look-ups on in Settings → Server). */
@@ -2187,6 +2201,72 @@ export interface BookLookupStatus {
   enabled: boolean;
   /** Books kept in the shared barcode book. */
   books: number;
+}
+
+/** One price for a card in one finish, from a marketplace (TCGplayer in USD, Cardmarket in EUR). */
+export interface CardPrice {
+  /** "Normal", "Holofoil", "Reverse holofoil", "Foil"… */
+  finish: string;
+  currency: "USD" | "EUR";
+  cents: number;
+  source: string;
+}
+
+/** A card from its game's catalog. */
+export interface CardInfo {
+  game: CardGame;
+  id: string;
+  name: string;
+  set: string;
+  /** The set's code, e.g. "sv01", "MKM". */
+  setCode: string;
+  /** As printed, e.g. "025" (of the set's `setTotal`). */
+  number: string;
+  setTotal?: number | null;
+  rarity?: string | null;
+  /** The card's picture: small for lists, large to keep as a photo. */
+  image?: string | null;
+  imageLarge?: string | null;
+  /** The finishes it was printed in, e.g. ["Normal", "Reverse holofoil"]. */
+  finishes: string[];
+  prices: CardPrice[];
+  /** Its page on the catalog's site. */
+  url?: string | null;
+  released?: string | null;
+}
+
+/** What the vision model read off a photo of a card. */
+export interface CardRead {
+  game: CardGame | null;
+  name: string | null;
+  number: string | null;
+  setTotal: string | null;
+  setCode: string | null;
+}
+
+/** A card photo being read (a job the browser polls), and the catalog's cards that match. */
+export interface CardReadStatus {
+  id: string;
+  status: "pending" | "done" | "failed";
+  read?: CardRead | null;
+  candidates?: CardInfo[];
+  error?: string | null;
+}
+
+/** Trading card look-ups for Settings → Server. */
+export interface CardLookupStatus {
+  available: boolean;
+  enabled: boolean;
+  /** Cards kept in the server's shared card book. */
+  cards: number;
+}
+
+/** A thing that's a trading card, next to the card's price today (Update values). */
+export interface CardValue {
+  itemId: string;
+  name: string;
+  valueCents: number | null;
+  price: CardPrice | null;
 }
 
 /** Music look-ups (MusicBrainz, for "Scan music") for Settings → Server. */

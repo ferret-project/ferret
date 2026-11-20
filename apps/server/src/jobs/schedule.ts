@@ -23,6 +23,7 @@ import { IMPORT_TRIAGE_JOB, importTriageJob } from "../lib/ai-runs";
 import { REPLACEMENT_JOB, replacementJob } from "../lib/replacement";
 import { TYPICAL_UPKEEP_JOB, typicalUpkeepJob } from "../lib/typical-upkeep";
 import { ROOM_SCAN_JOB, analyzeRoomScan } from "../lib/room-scans";
+import { CARD_READ_JOB, CARD_VALUES_JOB, cardReadJob, cardValuesJob } from "../lib/cards";
 import { BACKFILL_JOB, INDEX_JOB, backfillIndex, indexItem } from "./index-item";
 import { PDF_BACKFILL_JOB, PDF_THUMB_JOB, pdfThumbnail, pdfThumbnailBackfill } from "./pdf-thumbnail";
 import { PURGE_JOB, purgeJob } from "./purge";
@@ -107,6 +108,8 @@ export function jobSchedule({
     [PHOTO_JOB]: analyze,
     [DOCUMENT_JOB]: analyze,
     [ROOM_SCAN_JOB]: analyzeRoomScan({ db, files, ai: deps.ai, entitlements: deps.entitlements }),
+    [CARD_READ_JOB]: cardReadJob({ ...deps, files }),
+    [CARD_VALUES_JOB]: cardValuesJob(deps),
     [DOWNLOAD_JOB]: downloadJob({ ...deps, files, maxBytes: config.MAX_UPLOAD_MB * 1024 * 1024 }),
     [SECURITY_ALERT_JOB]: securityAlert({ ...deps, files, appUrl }),
     [NEW_PLACE_JOB]: newPlaceAlert({ ...deps, files, appUrl, mailUrl }),

@@ -55,6 +55,7 @@ const Shopping = lazyRouteComponent(() => import("./Shopping"), "Shopping");
 const Walkthrough = lazyRouteComponent(() => import("./Walkthrough"), "Walkthrough");
 const RoomScanScreen = lazyRouteComponent(() => import("./RoomScan"), "RoomScanScreen");
 const MusicScanScreen = lazyRouteComponent(() => import("./MusicScan"), "MusicScanScreen");
+const CardScanScreen = lazyRouteComponent(() => import("./CardScan"), "CardScanScreen");
 const CollectionsScreen = lazyRouteComponent(() => import("./Collections"), "CollectionsScreen");
 const CollectionScreen = lazyRouteComponent(() => import("./Collections"), "CollectionScreen");
 
@@ -331,6 +332,22 @@ const musicScanRoute = createRoute({
     return <MusicScanScreen householdId={useHousehold().householdId} locationId={search.in ?? null} categoryId={search.category ?? null} tag={search.tag ?? null} />;
   },
 });
+const cardScanRoute = createRoute({
+  getParentRoute: () => screensRoute,
+  path: "scan-cards",
+  staticData: { name: "cards" },
+  validateSearch: (search: Record<string, unknown>): { in?: string; category?: string; tag?: string; collection?: string } => ({
+    ...(typeof search.in === "string" && { in: search.in }),
+    ...(typeof search.category === "string" && { category: search.category }),
+    ...(typeof search.tag === "string" && { tag: search.tag }),
+    ...(typeof search.collection === "string" && { collection: search.collection }),
+  }),
+  loader: () => CardScanScreen.preload?.(),
+  component: function CardScanRoute() {
+    const search = cardScanRoute.useSearch();
+    return <CardScanScreen householdId={useHousehold().householdId} locationId={search.in ?? null} categoryId={search.category ?? null} tag={search.tag ?? null} collectionId={search.collection ?? null} />;
+  },
+});
 const collectionsRoute = createRoute({
   getParentRoute: () => screensRoute,
   path: "collections",
@@ -404,6 +421,7 @@ const routeTree = rootRoute.addChildren([
     walkthroughRoute,
     roomScanRoute,
     musicScanRoute,
+    cardScanRoute,
     collectionsRoute,
     collectionRoute,
     walkthroughRoomRoute,

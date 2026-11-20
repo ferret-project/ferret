@@ -20,6 +20,7 @@ import { demoReport } from "../lib/demo";
 import { DEMO_PARTS, partsOff, setPartsOff } from "../lib/demo-switches";
 import { HTTPException } from "hono/http-exception";
 import { aboutServer, clearServiceErrors, listServiceErrors } from "../lib/service-errors";
+import { cardLookupStatus, setCardsEnabled } from "../lib/cards";
 import { barcodeLookupStatus, bookLookupStatus, musicLookupStatus, setBooksEnabled, setMusicEnabled } from "../lib/products";
 import { runServerCheck } from "../lib/server-check";
 import { reindexEverything, searchIndexStatus } from "../lib/search-index";
@@ -147,6 +148,16 @@ server.put("/books", async (c) => {
   const { enabled } = await body(c.req.raw, z.object({ enabled: z.boolean() }));
   await setBooksEnabled(c.var.db, enabled);
   return c.json(await bookLookupStatus(c.var.deps));
+});
+
+/** Trading card look-ups (TCGdex for Pokémon, Scryfall for Magic): whether they're on, and how many cards are kept. */
+server.get("/cards", async (c) => c.json(await cardLookupStatus(c.var.deps)));
+
+/** Switch card look-ups on ("Scan cards": what's printed on a card is sent to TCGdex or Scryfall) or off. */
+server.put("/cards", async (c) => {
+  const { enabled } = await body(c.req.raw, z.object({ enabled: z.boolean() }));
+  await setCardsEnabled(c.var.db, enabled);
+  return c.json(await cardLookupStatus(c.var.deps));
 });
 
 /** Music look-ups (MusicBrainz, for "Scan music"): whether they're on, and how many records are kept. */

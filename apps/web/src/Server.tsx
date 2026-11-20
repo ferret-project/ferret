@@ -48,6 +48,7 @@ export function Server() {
           <RepairGuideLinks />
           <BookLookups />
           <MusicLookups />
+          <CardLookups />
           {!demo && <Certificates />}
           {!demo && <AiPrompts />}
         </div>
@@ -580,6 +581,43 @@ function BookLookups() {
           <span>{s.enabled ? t`On` : t`Off`}</span>
         </label>
         {s.enabled && <p className="text-sm text-base-content/70">{plural(s.books, { one: "# book found", other: "# books found" })}.</p>}
+        {toggle.isError && <div className="alert alert-soft alert-error">{toggle.error.message}</div>}
+      </div>
+    </section>
+  );
+}
+
+/** Trading card look-ups (TCGdex, Scryfall): off until switched on, because what's printed on a card is sent to them. */
+function CardLookups() {
+  const qc = useQueryClient();
+  const status = useQuery({ queryKey: ["server-cards"], queryFn: api.cardLookupStatus });
+  const toggle = useMutation({
+    mutationFn: api.setCardLookups,
+    onSuccess: (data) => {
+      qc.setQueryData(["server-cards"], data);
+      void qc.invalidateQueries({ queryKey: ["me"] }); // + Add's "Scan cards" tile
+    },
+  });
+  const s = status.data;
+  if (!s) return null;
+  return (
+    <section className="card" aria-labelledby="cards-title">
+      <div className="card-body gap-3">
+        <h2 id="cards-title" className="card-title flex items-center gap-2">
+          <span className="icon-[tabler--cards] size-5 text-primary" />
+          <Trans>Trading cards</Trans>
+          <HelpLink page="guide/adding-things.html#trading-cards" label={t`Trading cards`} />
+        </h2>
+        <p className="text-sm text-base-content/70">
+          <Trans>Adds "Scan cards" to + Add: Pokémon cards are looked up on TCGdex (tcgdex.dev) and Magic cards on Scryfall (scryfall.com) — the
+          card, its picture and today's market price. Free, with no allowance. Only what's printed on a card (its name, number and set) is sent;
+          reading a photo of one uses this server's vision model and counts as an AI action.</Trans>
+        </p>
+        <label className="flex cursor-pointer items-center gap-3">
+          <input type="checkbox" className="switch switch-primary" checked={s.enabled} disabled={toggle.isPending || !s.available} onChange={(e) => toggle.mutate(e.target.checked)} />
+          <span>{s.enabled ? t`On` : t`Off`}</span>
+        </label>
+        {s.enabled && <p className="text-sm text-base-content/70">{plural(s.cards, { one: "# card looked up", other: "# cards looked up" })}.</p>}
         {toggle.isError && <div className="alert alert-soft alert-error">{toggle.error.message}</div>}
       </div>
     </section>

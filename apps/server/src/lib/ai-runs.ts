@@ -13,6 +13,8 @@ import { categoryInfo } from "./catalog";
 import { householdLocale } from "./household-time";
 import { askInJob, textModelOf } from "./text-ai";
 import { requireAllowed } from "./plan";
+import { cardPhotoKeys } from "./cards";
+import type { FileStore } from "./files";
 
 
 export const IMPORT_TRIAGE_JOB = "ai.import-triage";
@@ -118,7 +120,9 @@ export function importTriageJob(deps: Deps): JobHandler {
   };
 }
 
-/** Old runs: gone after a day (from the daily purge). */
-export async function purgeAiRuns(deps: Pick<Deps, "db">, now = new Date()) {
-  await deps.db.delete(aiRun).where(lt(aiRun.createdAt, new Date(now.getTime() - KEEP_MS)));
+/** Old runs: gone after a day (from the daily purge), with the photo of a card whose reading never finished. */
+export async function purgeAiRuns(deps: Pick<Deps, "db">, files?: FileStore, now = new Date()) {
+  const before = new Date(now.getTime() - KEEP_MS);
+  if (files) for (const key of await cardPhotoKeys(deps.db, { before })) await files.delete(key).catch(() => {});
+  await deps.db.delete(aiRun).where(lt(aiRun.createdAt, before));
 }

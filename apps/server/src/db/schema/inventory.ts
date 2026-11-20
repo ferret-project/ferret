@@ -6,7 +6,7 @@
 import { sql } from "drizzle-orm";
 import { check, index, integer, primaryKey, real, sqliteTable, text, uniqueIndex, type AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import type { SightingHow, SightingKind } from "@ferret/shared/utils";
-import type { VideoHit, VehicleInfo, AiFill, AiFillSwitches, AnalysisStatus, AttachmentAnalysis, CategoryField, CustomFieldValues, HaSnapshot, ItemLink, ItemOrigin, ProductInfo, ReviewOutcome, RoomScanCandidate, RoomScanStatus } from "@ferret/shared";
+import type { CardInfo, ItemCard, VideoHit, VehicleInfo, AiFill, AiFillSwitches, AnalysisStatus, AttachmentAnalysis, CategoryField, CustomFieldValues, HaSnapshot, ItemLink, ItemOrigin, ProductInfo, ReviewOutcome, RoomScanCandidate, RoomScanStatus } from "@ferret/shared";
 import { invitation, organization, session, user } from "./auth";
 
 const id = () =>
@@ -213,6 +213,8 @@ export const item = sqliteTable(
     haDeviceId: text("ha_device_id"),
     /** What NHTSA said about its VIN (lib/vehicles.ts): offered as suggestions on its page, and used for vehicle recalls. */
     vehicle: text("vehicle", { mode: "json" }).$type<VehicleInfo>(),
+    /** A trading card: which one in its game's catalog, and the finish owned (lib/cards.ts) — its price is looked up by it. */
+    card: text("card", { mode: "json" }).$type<ItemCard>(),
     /**
      * What a spreadsheet said this line was ("amazon:<order>:<ASIN>:<n>", n for the same product shipped twice in one
      * order), so importing a newer copy of the file skips what's already here (lib/imports.ts).
@@ -1012,6 +1014,14 @@ export const label = sqliteTable(
  * optional). It outlives the items. A name someone saved wins over the database.
  * Global, so no household-only data here: no categories, no (encrypted) photos.
  */
+/** The card book: what a card catalog (TCGdex, Scryfall) said about a card — public, shared by the server, kept a day for prices. */
+export const cardInfo = sqliteTable("card_info", {
+  /** "<game>:<catalog id>". */
+  key: text("key").primaryKey(),
+  info: text("info", { mode: "json" }).$type<CardInfo>().notNull(),
+  fetchedAt: integer("fetched_at", { mode: "timestamp_ms" }).notNull(),
+});
+
 export const barcodeProduct = sqliteTable("barcode_product", {
   barcode: text("barcode").primaryKey(), // digits only
   /** Null while nothing is known (see notFoundAt). */

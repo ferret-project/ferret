@@ -31,7 +31,7 @@ export const PURGE_JOB = "trash.purge";
 export function purgeJob(deps: Deps & { files: FileStore }): JobHandler {
   return async () => {
     const counts = { ...(await purgeDeleted({ db: deps.db, deps, files: deps.files })), "unconfirmed accounts": await purgeUnverified(deps.db), "failed jobs": await purgeFailedJobs(deps.db), "webhook deliveries": await pruneDeliveries(deps.db), "OAuth leftovers": await purgeOAuth(deps.db) };
-    await purgeAiRuns(deps);
+    await purgeAiRuns(deps, deps.files);
     const gone = Object.entries(counts).filter(([, n]) => n > 0);
     if (gone.length) console.log(`Purged deleted ${gone.map(([what, n]) => `${what}: ${n}`).join(", ")}`);
   };

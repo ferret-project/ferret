@@ -505,6 +505,13 @@
       "when": 1795021673323,
       "tag": "0071_crazy_hercules",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "6",
+      "when": 1795214021750,
+      "tag": "0072_fearless_mephisto",
+      "breakpoints": true
     }
   ]
 }

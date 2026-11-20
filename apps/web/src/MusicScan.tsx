@@ -212,7 +212,7 @@ function Crate({ householdId, locationId, categoryId, tag, covers }: { household
         <section className="card" aria-labelledby="music-list">
           <div className="card-body gap-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 id="music-list" className="card-title">
+              <h2 id="music-list" className="card-title flex flex-wrap items-baseline gap-x-2">
                 {plural(rows.length, { one: "# scanned", other: "# scanned" })}
                 {found < rows.length && <span className="text-sm font-normal text-base-content/70">{t`(${ph({ found })} found)`}</span>}
               </h2>

@@ -31,6 +31,8 @@ import { IfixitGuides } from "./adapters/local/ifixit";
 import { YouTubeVideos } from "./adapters/local/youtube";
 import { OpenLibraryBooks } from "./adapters/local/openlibrary";
 import { MusicBrainzReleases } from "./adapters/local/musicbrainz";
+import { ScryfallCards } from "./adapters/local/scryfall";
+import { TcgdexCards } from "./adapters/local/tcgdex";
 import { QdrantVectors } from "./adapters/local/qdrant";
 import { VllmReranker } from "./adapters/local/reranker";
 import { OpenAiSpeech } from "./adapters/local/speech";
@@ -167,6 +169,7 @@ const deps = {
   videos: watched(db, "youtube", videos),
   books: watched(db, "books", books),
   music: watched(db, "music", new MusicBrainzReleases()),
+  cards: { pokemon: watched(db, "cards (TCGdex)", new TcgdexCards()), magic: watched(db, "cards (Scryfall)", new ScryfallCards()) },
   tls: new NodeTls(),
   secrets: { sources: secrets.sources, file: path.join(dataDir, SECRETS_FILE), filesKeyId: keys.set },
 };
@@ -240,6 +243,7 @@ serve(
   console.log("   Recalls:        the US CPSC's recalls, if the server admin switches them on (Settings → Server)");
   console.log("   Paperless-ngx:  each household can connect its own (Settings → Household)");
   console.log("   Books:          Open Library for ISBNs, if the server admin switches it on (Settings → Server)");
+  console.log("   Trading cards:  TCGdex (Pokémon) and Scryfall (Magic) for Scan cards, if the server admin switches them on (Settings → Server)");
   console.log("   Music:          MusicBrainz for Scan music (CDs, records), if the server admin switches it on (Settings → Server)");
   console.log("   Repair guides:  iFixit links for things' brand and model, if the server admin switches them on (Settings → Server)");
   console.log("   Vehicles:       NHTSA's VIN decoding and vehicle recalls, if the server admin switches them on (Settings → Server)");

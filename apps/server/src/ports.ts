@@ -21,7 +21,7 @@
  *   Speech    → a Whisper-style transcription server (OpenAI-compatible /v1/audio/transcriptions)
  */
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
-import type { PlanLimits } from "@ferret/shared";
+import type { CardGame, CardInfo, PlanLimits } from "@ferret/shared";
 import type * as schema from "./db/schema";
 import type { Catalogs } from "./lib/language";
 
@@ -152,6 +152,14 @@ export interface Reranker {
 export interface Documents {
   /** Converts a PDF or document image to Markdown. Slow (minutes for long PDFs): call it from a job. */
   toMarkdown(data: Uint8Array, filename: string, contentType: string): Promise<string>;
+}
+
+/** A trading card game's catalog (TCGdex for Pokémon, Scryfall for Magic): cards by what's printed on them, and prices. */
+export interface CardCatalog {
+  /** Cards matching what was read or typed, best first (at most a dozen). Empty when none. */
+  find(q: { name?: string | null; number?: string | null; setTotal?: string | null; setCode?: string | null }): Promise<CardInfo[]>;
+  /** One card by its catalog id, with today's prices. Null when the catalog has no such card. */
+  get(id: string): Promise<CardInfo | null>;
 }
 
 export interface Jobs {
@@ -586,6 +594,8 @@ export interface Deps {
   vehicles?: VehicleData;
   /** Open Library: books by ISBN, a second barcode book source (switched on by the server admin: Settings → Server). */
   books?: ProductLookup;
+  /** Trading card catalogs (Pokémon: TCGdex; Magic: Scryfall), for "Scan cards" (switched on in Settings → Server). */
+  cards?: Partial<Record<CardGame, CardCatalog>>;
   /** MusicBrainz: CDs and records by barcode, asked when someone scans as music (switched on in Settings → Server). */
   music?: ProductLookup;
   /** iFixit: a "Repair guides" link for things whose brand and model it knows (switched on in Settings → Server). */

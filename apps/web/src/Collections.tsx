@@ -18,7 +18,9 @@ import { HelpLink } from "./HelpLink";
 import { api } from "./lib/api";
 import { useCanEdit } from "./lib/auth";
 import { navigateTo } from "./lib/navigate";
-import { COLLECTIONS_HREF, collectionHref, itemHref } from "./lib/route";
+import { COLLECTIONS_HREF, collectionHref, itemHref, scanCardsHref } from "./lib/route";
+import { UpdateCardValues } from "./Cards";
+import { useFeatures } from "./lib/features";
 import { DialogActions, Modal } from "./Modal";
 import { TopBar } from "./Nav";
 import { templateIcon, useTemplates } from "./Templates";
@@ -172,6 +174,8 @@ export function CollectionScreen({ householdId, id, show }: { householdId: strin
   const [fit, pickFit] = useDeviceChoice("ferret.collectionPhotoFit", ["crop", "whole"] as const, "crop");
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [valuing, setValuing] = useState(false);
+  const cardsOn = Boolean(useFeatures()?.cards?.length);
   const refresh = () => Promise.all([qc.invalidateQueries({ queryKey: collectionsKey(householdId) }), qc.invalidateQueries({ queryKey: ["items", householdId] })]);
   const got = useMutation({ mutationFn: (itemId: string) => api.updateItem(itemId, { wanted: false }), onSuccess: refresh });
 
@@ -209,10 +213,24 @@ export function CollectionScreen({ householdId, id, show }: { householdId: strin
                   {c.description && <p className="mt-1 max-w-prose text-base-content/80">{c.description}</p>}
                 </div>
                 {canEdit && (
-                  <button type="button" className="btn btn-soft btn-sm" onClick={() => setEditing(true)}>
-                    <span className="icon-[tabler--pencil] size-4" />
-                    <Trans>Edit</Trans>
-                  </button>
+                  <div className="flex flex-wrap gap-2">
+                    {cardsOn && (
+                      <>
+                        <a className="btn btn-soft btn-sm" href={scanCardsHref({ collectionId: id })}>
+                          <span className="icon-[tabler--cards] size-4" />
+                          <Trans>Scan cards</Trans>
+                        </a>
+                        <button type="button" className="btn btn-soft btn-sm" onClick={() => setValuing(true)}>
+                          <span className="icon-[tabler--refresh] size-4" />
+                          <Trans>Update values</Trans>
+                        </button>
+                      </>
+                    )}
+                    <button type="button" className="btn btn-soft btn-sm" onClick={() => setEditing(true)}>
+                      <span className="icon-[tabler--pencil] size-4" />
+                      <Trans>Edit</Trans>
+                    </button>
+                  </div>
                 )}
               </div>
               <dl className="grid grid-cols-2 gap-3 @container sm:grid-cols-4">
@@ -338,6 +356,7 @@ export function CollectionScreen({ householdId, id, show }: { householdId: strin
           <Pager page={page} pages={Math.ceil(total / COLLECTION_PAGE)} total={total} onPage={setPage} size={COLLECTION_PAGE} />
         )}
       </main>
+      {valuing && <UpdateCardValues collectionId={id} onClose={() => setValuing(false)} />}
       {editing && c && <CollectionDialog householdId={householdId} collection={c} onClose={() => setEditing(false)} onSaved={() => (setEditing(false), void refresh())} />}
       {adding && c && <AddToCollection householdId={householdId} collection={c} wanted={show === "wanted"} onClose={() => setAdding(false)} onSaved={() => (setAdding(false), void refresh())} />}
     </div>

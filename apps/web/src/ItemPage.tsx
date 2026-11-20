@@ -44,6 +44,7 @@ import { AiFilledCard } from "./AiFill";
 import { ReplacementCard } from "./Replacement";
 import { ClaimDialog } from "./Claims";
 import { ProductSuggestions, VehicleSuggestions } from "./Product";
+import { CardDetails } from "./Cards";
 import { Suggestions } from "./Suggestions";
 import { Warranties } from "./Warranties";
 import { ItemLinks } from "./Links";
@@ -431,7 +432,8 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
         ]}
       />
 
-      {canEdit && <ProductSuggestions item={item.data} householdId={householdId} />}
+      <CardDetails item={item.data} canEdit={canEdit} hasPhoto={photos.length > 0} />
+      {canEdit && !item.data.card && <ProductSuggestions item={item.data} householdId={householdId} />}
       {canEdit && <VehicleSuggestions item={item.data} householdId={householdId} />}
       {canEdit && attachments.data && (
         <Suggestions

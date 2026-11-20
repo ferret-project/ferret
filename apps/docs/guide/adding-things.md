@@ -102,6 +102,34 @@ cover** to skip those).
 Nothing is added until you save, and the list survives the page reloading. When a barcode belongs to several pressings
 (reissues often share one), Ferret takes the earliest official one; the description shows which.
 
+## Trading cards
+
+Pokémon and Magic: The Gathering cards have no barcode, so **+ Add → Scan cards** reads them instead. It's there when
+whoever runs your Ferret has switched on [card look-ups](../hosting/server-admin#trading-cards). Pick the game at the
+top, then:
+
+- **Photograph a card**: front on, filling the photo. Ferret reads its name and number while you take the next one.
+  **Choose photos** reads several you've already taken. Each photo counts as an AI action.
+- **Or type it**: the name, and the number if you know it (*Pikachu 025/165*, *Lightning Bolt M10 146*). Then tap the
+  right card.
+
+Each card comes up with its picture, set, number, rarity and **today's market price**. Pokémon prices come from
+[TCGdex](https://tcgdex.dev) and Magic prices from [Scryfall](https://scryfall.com): TCGplayer's price in dollars,
+Cardmarket's in euros. Check the list:
+
+- **Not this printing?** shows the other cards with that name and number (reprints, promos). Pick yours.
+- Choose the **finish** you have (Normal, Holofoil, Reverse holofoil, Foil…), since the price depends on it.
+- **+ / −** sets how many. The same card again adds to its count instead of making another.
+
+Choose a **collection**, category and place, then **Save**. Each card becomes a thing: its name, the game as the brand,
+set and number as the model, and the card's own picture as its photo. Today's price becomes its value unless you
+untick **Use today's market price**. Prices are for ungraded cards; a graded one can be worth much more, so set its
+value yourself.
+
+A card's page shows today's price, with **Update its value** when it has changed. A collection's **Update values**
+lists every card whose price has moved and updates them in one go. Prices only change when you tap that; Ferret
+never changes a value on its own.
+
 ## Several of the same
 
 Bought three of something, like a TV box for each room? Usually each should be its own thing, with its own serial

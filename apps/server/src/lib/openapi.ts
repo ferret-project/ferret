@@ -18,6 +18,7 @@ import {
   webhookPatch,
   itemsBulk,
   usageReadingInput,
+  cardGames,
   coverageInput,
   weeklyDigestInput,
   languageInput,
@@ -424,6 +425,25 @@ export const OPERATIONS: Operation[] = [
   { method: "patch", path: "/templates/{id}", tag: "Categories & tags", summary: "Change a template (its things are re-indexed)", body: templatePatch, writes: true, returns: "ItemTemplate" },
   { method: "delete", path: "/templates/{id}", tag: "Categories & tags", summary: "Remove a template (things keep their values)", writes: true },
 
+  // ── Trading cards ──────────────────────────────────────────────────────────
+  { method: "get", path: "/cards/search", tag: "Trading cards", summary: "Cards in a game's catalog (Pokémon: TCGdex; Magic: Scryfall) matching a name, and a number if typed (\"Pikachu 025/165\", \"Lightning Bolt M10 146\")", query: z.object({ game: z.enum(cardGames), q: z.string() }), returns: "{ data: CardInfo[] }" },
+  {
+    method: "post",
+    path: "/cards/read",
+    status: 202,
+    tag: "Trading cards",
+    summary: "Read a photo of a card: the vision model reads its name, number and set, then the catalog's matching cards",
+    description: "multipart/form-data: `photo`, and optionally `game` (pokemon or magic). One AI action (402 when the plan has none left; 501 without the vision model; 409 when card look-ups are off). Answers at once with an `id`: GET /cards/read/{id} until `status` is done.",
+    upload: true,
+    form: { type: "object", required: ["photo"], properties: { photo: { type: "string", format: "binary" }, game: { type: "string", enum: [...cardGames] } } },
+    writes: true,
+    returns: "{ id }",
+  },
+  { method: "get", path: "/cards/read/{id}", tag: "Trading cards", summary: "A card photo being read: what was read, and the matching cards", returns: "CardReadStatus" },
+  { method: "get", path: "/cards/values", tag: "Trading cards", summary: "Your cards (or one collection's) beside today's price, for Update values; `checking`: prices still being fetched — ask again", query: z.object({ collectionId: z.string().optional() }), returns: "{ data: CardValue[], checking }" },
+  { method: "get", path: "/items/{id}/card", tag: "Trading cards", summary: "A card thing's card, with today's prices", returns: "{ card, info: CardInfo | null, price: CardPrice | null }" },
+  { method: "post", path: "/items/{id}/card/photo", tag: "Trading cards", summary: "Keep the card's own picture as the thing's photo", writes: true, status: 201, returns: "Attachment" },
+
   // ── Room scans ─────────────────────────────────────────────────────────────
   { method: "get", path: "/room-scans", tag: "Room scans", summary: "Room scans still to finish: being looked at, ready to review, or failed", returns: "{ data: RoomScan[] }" },
   {
@@ -549,6 +569,8 @@ export const OPERATIONS: Operation[] = [
   { method: "get", path: "/server/ai-fill", tag: "Server", summary: "Let AI fill in: which kinds are on by default for this server's households (server admin)", returns: "Record<AiFillKind, boolean>" },
   { method: "put", path: "/server/ai-fill", tag: "Server", summary: "Turn kinds of AI filling-in on or off by default for households that haven't chosen (server admin)", writes: true, returns: "Record<AiFillKind, boolean>" },
   { method: "get", path: "/server/books", tag: "Server", summary: "Book look-ups (Open Library, by ISBN): on or off, books kept (server admin)", returns: "BookLookupStatus" },
+  { method: "get", path: "/server/cards", tag: "Server", summary: "Trading card look-ups (TCGdex, Scryfall): on or off, cards kept (server admin)", returns: "CardLookupStatus" },
+  { method: "put", path: "/server/cards", tag: "Server", summary: "Switch trading card look-ups on (card names and numbers are sent to TCGdex and Scryfall) or off: { enabled } (server admin)", writes: true, returns: "CardLookupStatus" },
   { method: "get", path: "/server/music", tag: "Server", summary: "Music look-ups (MusicBrainz, for Scan music): on or off, records kept (server admin)", returns: "MusicLookupStatus" },
   { method: "put", path: "/server/music", tag: "Server", summary: "Switch music look-ups on (a barcode scanned as music is sent to MusicBrainz) or off: { enabled } (server admin)", writes: true, returns: "MusicLookupStatus" },
   { method: "put", path: "/server/books", tag: "Server", summary: "Switch book look-ups on (a book's ISBN is sent to Open Library) or off: { enabled } (server admin)", writes: true, returns: "BookLookupStatus" },

@@ -141,7 +141,7 @@ import type { TaskVideo, VideoHit,
   ImportTriageInput,
   ImportTriageRow,
   MergeInput,
-  SuggestedTask, OAuthConnectInput, OAuthConnectRequest, OAuthGrantSummary, VehicleLookupStatus, RepairGuideStatus, AskSettings, PromptKind, PromptSetting, BookLookupStatus, MusicLookupStatus, ScanCandidate, SearchIndexStatus } from "@ferret/shared";
+  SuggestedTask, OAuthConnectInput, OAuthConnectRequest, OAuthGrantSummary, VehicleLookupStatus, RepairGuideStatus, AskSettings, PromptKind, PromptSetting, BookLookupStatus, MusicLookupStatus, ScanCandidate, SearchIndexStatus, CardGame, CardInfo, CardLookupStatus, CardPrice, CardReadStatus, CardValue, ItemCard } from "@ferret/shared";
 import { photoCopies } from "./photo-copies";
 import { t, ph } from "@lingui/core/macro";
 
@@ -250,6 +250,17 @@ async function startRoomScan(photos: File[], at: { locationId?: string; containe
   return json as RoomScan;
 }
 
+/** A photo of a trading card to read (the vision model, in a job): poll cardRead with the id. Multipart, so not `request`. */
+async function startCardRead(photo: Blob, game: CardGame | null) {
+  const form = new FormData();
+  form.set("photo", photo, "card.jpg");
+  if (game) form.set("game", game);
+  const res = await fetch("/api/v1/cards/read", { method: "POST", body: form, credentials: "include" });
+  const json = (await res.json()) as { id: string } | ApiError;
+  if (!res.ok) throw Object.assign(new Error((json as ApiError).error?.message ?? res.statusText), { status: res.status });
+  return json as { id: string };
+}
+
 /**
  * A photo cut from another — a room scan's box, or one of the item's own photos cropped (PhotoCrop.tsx): not read again
  * by the model; with `main`, the item's picture from now on (the original is kept).
@@ -311,7 +322,7 @@ export const api = {
   /** Whether you're the server admin (who sees Settings → Server). */
   /** The language Ferret writes to you in (emails, push) — saved with the account. */
   setMyLanguage: (language: string | null) => request<{ language: string | null }>("/me/language", { method: "PUT", body: JSON.stringify({ language }) }),
-  me: () => request<{ serverAdmin: boolean; language: string | null; features: { fromWeb: boolean; homeAssistant: boolean; roomScan: boolean; textAi: boolean; speech: boolean; photoAi?: boolean; paperless?: boolean; videoSearch?: boolean; music?: boolean } }>("/me"),
+  me: () => request<{ serverAdmin: boolean; language: string | null; features: { fromWeb: boolean; homeAssistant: boolean; roomScan: boolean; textAi: boolean; speech: boolean; photoAi?: boolean; paperless?: boolean; videoSearch?: boolean; music?: boolean; cards?: CardGame[]; cardPhotos?: boolean } }>("/me"),
   backupStatus: () => request<BackupStatus>("/backup"),
   serverSecrets: () => request<ServerSecrets>("/server/secrets"),
   serverAddress: () => request<ServerAddress>("/server/address"),
@@ -322,6 +333,15 @@ export const api = {
   recallStatus: () => request<RecallStatus>("/server/recalls"),
   bookLookupStatus: () => request<BookLookupStatus>("/server/books"),
   setBookLookups: (enabled: boolean) => request<BookLookupStatus>("/server/books", { method: "PUT", body: JSON.stringify({ enabled }) }),
+  cardLookupStatus: () => request<CardLookupStatus>("/server/cards"),
+  setCardLookups: (enabled: boolean) => request<CardLookupStatus>("/server/cards", { method: "PUT", body: JSON.stringify({ enabled }) }),
+  /** Trading cards: typed, read off a photo (a job: poll cardRead), a card thing's price, Update values. */
+  searchCards: (game: CardGame, q: string) => request<{ data: CardInfo[] }>(`/cards/search?${new URLSearchParams({ game, q })}`),
+  startCardRead,
+  cardRead: (id: string) => request<CardReadStatus>(`/cards/read/${encodeURIComponent(id)}`),
+  cardValues: (collectionId?: string) => request<{ data: CardValue[]; checking: number }>(`/cards/values${collectionId ? `?collectionId=${encodeURIComponent(collectionId)}` : ""}`),
+  itemCard: (itemId: string) => request<{ card: ItemCard | null; info: CardInfo | null; price: CardPrice | null }>(`/items/${itemId}/card`),
+  useCardImage: (itemId: string) => request<Attachment>(`/items/${itemId}/card/photo`, { method: "POST" }),
   musicLookupStatus: () => request<MusicLookupStatus>("/server/music"),
   setMusicLookups: (enabled: boolean) => request<MusicLookupStatus>("/server/music", { method: "PUT", body: JSON.stringify({ enabled }) }),
   askSettings: () => request<AskSettings>("/server/ask"),
