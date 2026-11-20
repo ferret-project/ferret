@@ -18,6 +18,9 @@ looked at yet, so tidying up after adding things is one list:
 - links to the other lists with something waiting: details [AI filled in](#let-ai-fill-in), possible duplicates,
   suggested maintenance and documents from Paperless.
 
+![To confirm: a receipt's suggestions with Add the 4 things on this receipt, then AI's replacement-cost estimates, each with Use and Not this](/screenshots/to-confirm-light.webp){.shot .light-only}
+![To confirm: a receipt's suggestions with Add the 4 things on this receipt, then AI's replacement-cost estimates, each with Use and Not this](/screenshots/to-confirm-dark.webp){.shot .dark-only}
+
 ## Describe it in your own words {#describe-it}
 
 **+ Add → Type it in** has a box at the top: describe the thing as you'd say it — *"DeWalt drill, garage top shelf,
@@ -26,6 +29,9 @@ shows the rest as chips: model, serial number, how many, the box it's in, its ca
 you paid, a note. Places, boxes, categories and tags come only from your own; one you don't have is left out, never
 made up. Tap ✕ on a chip to leave it out, change any field, then **Add**. Where your server has
 [speech to text](#saying-it-instead-of-typing), the microphone beside **Fill in** lets you say it instead.
+
+![Add, with Ryobi cordless leaf blower, garage, bought in May for $179 typed in: the name, place and brand filled in, and its category, purchase date and price as chips](/screenshots/describe-light.webp){.shot .light-only}
+![Add, with Ryobi cordless leaf blower, garage, bought in May for $179 typed in: the name, place and brand filled in, and its category, purchase date and price as chips](/screenshots/describe-dark.webp){.shot .dark-only}
 
 ## Read a label or receipt {#read-a-label}
 
@@ -47,8 +53,12 @@ A receipt, invoice or order with several products on it — a Costco run, an Ama
 thing's suggestions: **Add the other things on this receipt…** Each line comes with its brand, model, how many, its
 price and a category; correct any, untick what you don't want (the line that's probably this thing starts unticked),
 choose where they are, and **Add**. Each becomes a thing of its own, bought the same day with the receipt's return
-window, and gets its own copy of the receipt. A receipt photographed on its own as a *New item* becomes the first
-line. **Not these** stops offering them.
+window, and gets its own copy of the receipt. A receipt photographed on its own as a *New item* offers **Add the
+things on this receipt…** with every line ticked, its own first: the first one ticked becomes that *New item*.
+**Not these** stops offering them.
+
+![On this receipt: a blender, a Dutch oven, a scale and two peelers, each ticked, with how many and the price, and Add 4 things](/screenshots/receipt-lines-light.webp){.shot .light-only}
+![On this receipt: a blender, a Dutch oven, a scale and two peelers, each ticked, with how many and the price, and Add 4 things](/screenshots/receipt-lines-dark.webp){.shot .dark-only}
 
 ## Reading a photo or document again
 
