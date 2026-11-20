@@ -21,7 +21,7 @@ import { DEMO_PARTS, partsOff, setPartsOff } from "../lib/demo-switches";
 import { HTTPException } from "hono/http-exception";
 import { aboutServer, clearServiceErrors, listServiceErrors } from "../lib/service-errors";
 import { cardLookupStatus, setCardsEnabled } from "../lib/cards";
-import { barcodeLookupStatus, bookLookupStatus, musicLookupStatus, setBooksEnabled, setMusicEnabled } from "../lib/products";
+import { barcodeLookupStatus, bookLookupStatus, musicLookupStatus, openFactsStatus, setBooksEnabled, setMusicEnabled, setOpenFactsEnabled } from "../lib/products";
 import { runServerCheck } from "../lib/server-check";
 import { reindexEverything, searchIndexStatus } from "../lib/search-index";
 import { BACKFILL_JOB } from "../jobs/index-item";
@@ -148,6 +148,16 @@ server.put("/books", async (c) => {
   const { enabled } = await body(c.req.raw, z.object({ enabled: z.boolean() }));
   await setBooksEnabled(c.var.db, enabled);
   return c.json(await bookLookupStatus(c.var.deps));
+});
+
+/** Open Food Facts look-ups (groceries, household goods, toiletries): whether they're on, and how many products are kept. */
+server.get("/open-facts", async (c) => c.json(await openFactsStatus(c.var.deps)));
+
+/** Switch them on (a barcode the product database doesn't know is asked of the Open Food Facts databases) or off. */
+server.put("/open-facts", async (c) => {
+  const { enabled } = await body(c.req.raw, z.object({ enabled: z.boolean() }));
+  await setOpenFactsEnabled(c.var.db, enabled);
+  return c.json(await openFactsStatus(c.var.deps));
 });
 
 /** Trading card look-ups (TCGdex for Pokémon, Scryfall for Magic): whether they're on, and how many cards are kept. */

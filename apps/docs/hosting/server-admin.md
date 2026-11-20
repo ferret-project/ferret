@@ -32,6 +32,15 @@ It's off until you switch it on, because it sends each **VIN** to NHTSA's decode
 vehicle's **make, model and year** to its recall search (api.nhtsa.gov) at most once a week — nothing else. Switching
 it on reads the VINs already in Ferret straight away.
 
+## Groceries and household goods
+
+**Settings → Server → Groceries and household goods** asks [Open Food Facts](https://openfoodfacts.org),
+[Open Products Facts](https://world.openproductsfacts.org) and [Open Beauty Facts](https://world.openbeautyfacts.org)
+about a barcode the online product database doesn't know, or about every barcode if `BARCODE_LOOKUP` isn't set. That
+covers groceries, cleaning supplies, batteries, light bulbs and toiletries. They're open databases, free, with no key
+and no allowance, so they aren't counted against any lookup limit and they save UPCitemdb's 100 a day for the rest.
+It's off until you switch it on, because the **barcode** is sent to them, once for the whole server.
+
 ## Book look-ups
 
 **Settings → Server → Book look-ups** switches on asking [Open Library](https://openlibrary.org) about books' ISBNs

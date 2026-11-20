@@ -141,7 +141,7 @@ import type { TaskVideo, VideoHit,
   ImportTriageInput,
   ImportTriageRow,
   MergeInput,
-  SuggestedTask, OAuthConnectInput, OAuthConnectRequest, OAuthGrantSummary, VehicleLookupStatus, RepairGuideStatus, AskSettings, PromptKind, PromptSetting, BookLookupStatus, MusicLookupStatus, ScanCandidate, SearchIndexStatus, CardGame, CardInfo, CardLookupStatus, CardPrice, CardReadStatus, CardValue, ItemCard } from "@ferret/shared";
+  SuggestedTask, OAuthConnectInput, OAuthConnectRequest, OAuthGrantSummary, VehicleLookupStatus, RepairGuideStatus, AskSettings, PromptKind, PromptSetting, BookLookupStatus, MusicLookupStatus, ScanCandidate, SearchIndexStatus, CardGame, CardInfo, CardLookupStatus, CardPrice, CardReadStatus, CardValue, ItemCard, OpenFactsStatus } from "@ferret/shared";
 import { photoCopies } from "./photo-copies";
 import { t, ph } from "@lingui/core/macro";
 
@@ -333,6 +333,8 @@ export const api = {
   recallStatus: () => request<RecallStatus>("/server/recalls"),
   bookLookupStatus: () => request<BookLookupStatus>("/server/books"),
   setBookLookups: (enabled: boolean) => request<BookLookupStatus>("/server/books", { method: "PUT", body: JSON.stringify({ enabled }) }),
+  openFactsStatus: () => request<OpenFactsStatus>("/server/open-facts"),
+  setOpenFacts: (enabled: boolean) => request<OpenFactsStatus>("/server/open-facts", { method: "PUT", body: JSON.stringify({ enabled }) }),
   cardLookupStatus: () => request<CardLookupStatus>("/server/cards"),
   setCardLookups: (enabled: boolean) => request<CardLookupStatus>("/server/cards", { method: "PUT", body: JSON.stringify({ enabled }) }),
   /** Trading cards: typed, read off a photo (a job: poll cardRead), a card thing's price, Update values. */

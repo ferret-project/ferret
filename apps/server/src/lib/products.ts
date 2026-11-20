@@ -8,13 +8,16 @@
  *   and kept for every household on this server. Books (an ISBN: EAN-13 978/979)
  *   are asked of Open Library instead (deps.books), when the server admin has
  *   switched book look-ups on — free, so not counted against a plan's lookups.
+ *   When the product database doesn't know a code (or there's none), the Open Food Facts
+ *   databases (deps.openFacts: groceries, household goods, toiletries) are asked, when
+ *   the server admin has switched them on — also free.
  *   A CD's or record's barcode looks like any other, so MusicBrainz (deps.music) is
  *   asked only when someone scans as music ("Scan music"), also free.
  *
  * A name the household saved wins. What the database says is only ever
  * offered; a person applies it.
  */
-import { type BarcodeLookupStatus, type BarcodeMatch, type BookLookupStatus, type ItemProduct, type MusicLookupStatus, uploadTypes } from "@ferret/shared";
+import { type BarcodeLookupStatus, type BarcodeMatch, type BookLookupStatus, type ItemProduct, type MusicLookupStatus, type OpenFactsStatus, uploadTypes } from "@ferret/shared";
 import { and, count, eq, isNotNull } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { barcodeProduct, householdBarcode, item, serverSetting } from "../db/schema";
@@ -73,6 +76,7 @@ function toMatch(
     category: shared?.external?.category,
     ...(shared?.external?.description && { description: shared.external.description }),
     ...(shared?.external?.kind && { kind: shared.external.kind }),
+    ...(shared?.external?.source && !own && { sourceName: shared.external.source }),
   };
 }
 
@@ -130,6 +134,24 @@ export async function bookLookupStatus(deps: Pick<Deps, "db" | "books">): Promis
   return { available: Boolean(deps.books), enabled: await booksEnabled(deps.db), books: kept?.n ?? 0 };
 }
 
+// ── The Open Food Facts databases (groceries, household goods, toiletries) ─────────────────────────────────────
+
+const OPEN_FACTS_KEY = "openfacts.enabled";
+
+export async function openFactsEnabled(db: Db) {
+  const [row] = await db.select().from(serverSetting).where(eq(serverSetting.key, OPEN_FACTS_KEY));
+  return row?.value === "true";
+}
+
+export async function setOpenFactsEnabled(db: Db, enabled: boolean) {
+  await db.insert(serverSetting).values({ key: OPEN_FACTS_KEY, value: String(enabled) }).onConflictDoUpdate({ target: serverSetting.key, set: { value: String(enabled) } });
+}
+
+export async function openFactsStatus(deps: Pick<Deps, "db" | "openFacts">): Promise<OpenFactsStatus> {
+  const [kept] = await deps.db.select({ n: count() }).from(barcodeProduct).where(and(eq(barcodeProduct.source, "openfacts"), isNotNull(barcodeProduct.external)));
+  return { available: Boolean(deps.openFacts), enabled: await openFactsEnabled(deps.db), products: kept?.n ?? 0 };
+}
+
 // ── Music (MusicBrainz, when scanning as music) ──────────────────────────────────────────────────────────────
 
 const MUSIC_KEY = "music.enabled";
@@ -156,16 +178,22 @@ export async function musicLookupStatus(deps: Pick<Deps, "db" | "music">): Promi
 /** What a code is scanned as: anything (the usual), or music ("Scan music" — asked of MusicBrainz first). */
 export type ScanAs = "any" | "music";
 
-type Source = { lookup: ProductLookup; name: "upcitemdb" | "openlibrary" | "musicbrainz"; counted: boolean };
+type Source = { lookup: ProductLookup; name: "upcitemdb" | "openlibrary" | "musicbrainz" | "openfacts"; counted: boolean };
 
-/** Who to ask about a code: Open Library for an ISBN (books switched on), else the online product database, or nobody. */
-async function sourceFor(deps: Pick<Deps, "db" | "products" | "books">, barcode: string): Promise<Source | null> {
-  if (isIsbn(barcode) && deps.books && (await booksEnabled(deps.db))) return { lookup: deps.books, name: "openlibrary", counted: false };
-  return deps.products ? { lookup: deps.products, name: "upcitemdb", counted: true } : null;
+/**
+ * Who to ask about a code, in turn: Open Library for an ISBN (books switched on); else the online product database
+ * (UPCitemdb), then the Open Food Facts databases (switched on). Empty: nobody.
+ */
+async function sourcesFor(deps: Pick<Deps, "db" | "products" | "books" | "openFacts">, barcode: string): Promise<Source[]> {
+  if (isIsbn(barcode) && deps.books && (await booksEnabled(deps.db))) return [{ lookup: deps.books, name: "openlibrary", counted: false }];
+  const sources: Source[] = [];
+  if (deps.products) sources.push({ lookup: deps.products, name: "upcitemdb", counted: true });
+  if (deps.openFacts && (await openFactsEnabled(deps.db))) sources.push({ lookup: deps.openFacts, name: "openfacts", counted: false });
+  return sources;
 }
 
-/** Ask the source about a code (and remember the answer, found or not). */
-async function askDatabase(deps: Pick<Deps, "db" | "products">, barcode: string, source: Source) {
+/** Ask one source about a code; remember what it said. False when it didn't know (remembered as unknown under `unknownAs`, if given). */
+async function askDatabase(deps: Pick<Deps, "db" | "products">, barcode: string, source: Source, unknownAs: Source["name"] | null = source.name) {
   let product;
   try {
     product = await source.lookup.lookup(barcode);
@@ -173,19 +201,43 @@ async function askDatabase(deps: Pick<Deps, "db" | "products">, barcode: string,
     if (source.name === "upcitemdb") await keepQuota(deps).catch(() => {});
   }
   if (!product) {
-    // Another source's answer stays: MusicBrainz not knowing a code UPCitemdb named doesn't unname it.
-    if ((await entry(deps.db, barcode))?.external) return;
-    await deps.db
-      .insert(barcodeProduct)
-      .values({ barcode, notFoundAt: new Date(), source: source.name })
-      .onConflictDoUpdate({ target: barcodeProduct.barcode, set: { notFoundAt: new Date(), source: source.name } });
-    return;
+    if (unknownAs) await rememberUnknown(deps.db, barcode, unknownAs);
+    return false;
   }
   const fields = { name: product.title, brand: product.brand ?? null, model: product.model ?? null, source: source.name, external: product };
   await deps.db
     .insert(barcodeProduct)
     .values({ barcode, ...fields })
     .onConflictDoUpdate({ target: barcodeProduct.barcode, set: { ...fields, notFoundAt: null } });
+  return true;
+}
+
+async function rememberUnknown(db: Db, barcode: string, source: Source["name"]) {
+  // Another source's answer stays: MusicBrainz not knowing a code UPCitemdb named doesn't unname it.
+  if ((await entry(db, barcode))?.external) return;
+  await db
+    .insert(barcodeProduct)
+    .values({ barcode, notFoundAt: new Date(), source })
+    .onConflictDoUpdate({ target: barcodeProduct.barcode, set: { notFoundAt: new Date(), source } });
+}
+
+/**
+ * Ask each source in turn until one knows the code. When none does, it's remembered as unknown under the first one's
+ * name (so the line is asked again in a month) — unless one failed, which throws (a job tries again later).
+ */
+async function askInTurn(deps: Pick<Deps, "db" | "products">, barcode: string, sources: Source[], counted?: () => Promise<unknown>) {
+  let failed: unknown = null;
+  for (const source of sources) {
+    try {
+      if (source.counted && counted) await counted();
+      if (await askDatabase(deps, barcode, source, null)) return true;
+    } catch (err) {
+      failed = err;
+    }
+  }
+  if (failed) throw failed;
+  if (sources[0]) await rememberUnknown(deps.db, barcode, sources[0].name);
+  return false;
 }
 
 /**
@@ -212,12 +264,13 @@ export async function lookupBarcode(v: Pick<Caller, "db" | "deps" | "householdId
       row = await entry(deps.db, barcode);
     }
   }
-  const source = await sourceFor({ ...deps, books: v.deps.books }, barcode);
-  // A plan may limit the online lookups (lib/plan.ts; books are free); Ferret's own barcode book always answers.
-  if (!own && !row?.name && source && worthAsking(row, source) && (!source.counted || (await allow(v, "barcode.lookup")).ok)) {
+  const sources = await sourcesFor({ ...deps, books: v.deps.books, openFacts: v.deps.openFacts }, barcode);
+  if (!own && !row?.name && sources[0] && worthAsking(row, sources[0])) {
+    // A plan may limit the online product database's lookups (lib/plan.ts); the free sources are asked anyway, and
+    // Ferret's own barcode book always answers.
+    const usable = sources[0].counted && !(await allow(v, "barcode.lookup")).ok ? sources.filter((s) => !s.counted) : sources;
     try {
-      if (source.counted) await recordUsage(v, "barcode.lookup");
-      await askDatabase(deps, barcode, source);
+      await askInTurn(deps, barcode, usable, () => recordUsage(v, "barcode.lookup"));
     } catch (err) {
       console.warn(`Barcode lookup failed for ${barcode}: ${String(err)}`);
     }
@@ -241,11 +294,14 @@ export async function rememberBarcode(
 }
 
 /** Background job: ask the online database about a code (for an item page's photos and price). Retried on errors. */
-export function productLookupJob(deps: Pick<Deps, "db" | "products" | "books">): JobHandler {
+export function productLookupJob(deps: Pick<Deps, "db" | "products" | "books" | "openFacts">): JobHandler {
   return async (payload) => {
-    const barcode = productCode((payload as { barcode?: string }).barcode);
-    const source = barcode ? await sourceFor(deps, barcode) : null;
-    if (barcode && source && worthAsking(await entry(deps.db, barcode), source)) await askDatabase(deps, barcode, source);
+    const { barcode: raw, free } = payload as { barcode?: string; free?: boolean };
+    const barcode = productCode(raw);
+    if (!barcode) return;
+    const sources = await sourcesFor(deps, barcode);
+    // `free`: the plan's online lookups were used up when it was queued — only the free sources.
+    if (sources[0] && worthAsking(await entry(deps.db, barcode), sources[0])) await askInTurn(deps, barcode, free ? sources.filter((s) => !s.counted) : sources);
   };
 }
 
@@ -253,25 +309,27 @@ export function productLookupJob(deps: Pick<Deps, "db" | "products" | "books">):
 export async function queueProductLookup(v: Pick<Caller, "db" | "deps" | "householdId" | "userId">, raw: string | null | undefined) {
   const barcode = productCode(raw);
   if (!barcode || !v.deps.jobs) return;
-  const source = await sourceFor({ db: v.db, products: v.deps.products, books: v.deps.books }, barcode);
-  if (!source || !worthAsking(await entry(v.db, barcode), source)) return;
-  if (source.counted) {
-    if (!(await allow(v, "barcode.lookup")).ok) return;
-    await recordUsage(v, "barcode.lookup");
+  const sources = await sourcesFor({ db: v.db, products: v.deps.products, books: v.deps.books, openFacts: v.deps.openFacts }, barcode);
+  if (!sources[0] || !worthAsking(await entry(v.db, barcode), sources[0])) return;
+  let free = false;
+  if (sources[0].counted) {
+    if ((await allow(v, "barcode.lookup")).ok) await recordUsage(v, "barcode.lookup");
+    else if (sources.some((s) => !s.counted)) free = true;
+    else return;
   }
-  await v.deps.jobs.enqueue(PRODUCT_JOB, { barcode });
+  await v.deps.jobs.enqueue(PRODUCT_JOB, free ? { barcode, free } : { barcode });
 }
 
 /** The online database's details for an item's barcode, offered on its page. */
 export async function itemProduct(v: Caller, itemId: string): Promise<ItemProduct> {
   const it = await getItem(v, itemId);
   const barcode = productCode(it.barcode);
-  if (!barcode) return v.deps.products ? { status: "none" } : { status: "off" };
-  const source = await sourceFor({ db: v.db, products: v.deps.products, books: v.deps.books }, barcode);
-  if (!source) return { status: "off" };
+  if (!barcode) return v.deps.products || v.deps.openFacts ? { status: "none" } : { status: "off" };
+  const sources = await sourcesFor({ db: v.db, products: v.deps.products, books: v.deps.books, openFacts: v.deps.openFacts }, barcode);
+  if (!sources[0]) return { status: "off" };
   const row = await entry(v.db, barcode);
   if (row?.external) return { status: it.productDismissedFor === barcode ? "dismissed" : "found", product: row.external };
-  if (worthAsking(row, source)) {
+  if (worthAsking(row, sources[0])) {
     await queueProductLookup(v, barcode); // e.g. a barcode saved before lookups were turned on
     return { status: "pending" };
   }

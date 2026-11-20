@@ -1246,7 +1246,9 @@ export interface BarcodeMatch {
   brand?: string | null;
   model?: string | null;
   /** "ferret": someone saved an item with it; "upcitemdb": from the online database. */
-  source: "ferret" | "upcitemdb" | "openlibrary" | "musicbrainz";
+  source: "ferret" | "upcitemdb" | "openlibrary" | "musicbrainz" | "openfacts";
+  /** Which database said so, in words ("Open Food Facts", "UPCitemdb"…), when it wasn't the household. */
+  sourceName?: string;
   /** From the online database, when it was asked. */
   images: string[];
   typicalPriceCents?: number;
@@ -2267,6 +2269,14 @@ export interface CardValue {
   name: string;
   valueCents: number | null;
   price: CardPrice | null;
+}
+
+/** Open Food Facts look-ups (groceries, household goods, toiletries) for Settings → Server. */
+export interface OpenFactsStatus {
+  available: boolean;
+  enabled: boolean;
+  /** Products found and kept in the shared barcode book. */
+  products: number;
 }
 
 /** Music look-ups (MusicBrainz, for "Scan music") for Settings → Server. */

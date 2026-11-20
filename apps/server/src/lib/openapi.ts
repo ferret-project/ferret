@@ -569,6 +569,8 @@ export const OPERATIONS: Operation[] = [
   { method: "get", path: "/server/ai-fill", tag: "Server", summary: "Let AI fill in: which kinds are on by default for this server's households (server admin)", returns: "Record<AiFillKind, boolean>" },
   { method: "put", path: "/server/ai-fill", tag: "Server", summary: "Turn kinds of AI filling-in on or off by default for households that haven't chosen (server admin)", writes: true, returns: "Record<AiFillKind, boolean>" },
   { method: "get", path: "/server/books", tag: "Server", summary: "Book look-ups (Open Library, by ISBN): on or off, books kept (server admin)", returns: "BookLookupStatus" },
+  { method: "get", path: "/server/open-facts", tag: "Server", summary: "Open Food Facts look-ups (groceries, household goods, toiletries): on or off, products kept (server admin)", returns: "OpenFactsStatus" },
+  { method: "put", path: "/server/open-facts", tag: "Server", summary: "Switch Open Food Facts look-ups on (a barcode the product database doesn't know is sent to the Open Food Facts databases) or off: { enabled } (server admin)", writes: true, returns: "OpenFactsStatus" },
   { method: "get", path: "/server/cards", tag: "Server", summary: "Trading card look-ups (TCGdex, Scryfall): on or off, cards kept (server admin)", returns: "CardLookupStatus" },
   { method: "put", path: "/server/cards", tag: "Server", summary: "Switch trading card look-ups on (card names and numbers are sent to TCGdex and Scryfall) or off: { enabled } (server admin)", writes: true, returns: "CardLookupStatus" },
   { method: "get", path: "/server/music", tag: "Server", summary: "Music look-ups (MusicBrainz, for Scan music): on or off, records kept (server admin)", returns: "MusicLookupStatus" },

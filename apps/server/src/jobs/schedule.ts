@@ -135,7 +135,7 @@ export function jobSchedule({
     handlers[PDF_THUMB_JOB] = pdfThumbnail({ db, files, pdfPages: deps.pdfPages, images: deps.images });
     handlers[PDF_BACKFILL_JOB] = pdfThumbnailBackfill({ db, jobs });
   }
-  if (deps.products || deps.books) handlers[PRODUCT_JOB] = productLookupJob(deps);
+  if (deps.products || deps.books || deps.openFacts) handlers[PRODUCT_JOB] = productLookupJob(deps);
   // The AI helpers that read words (lib/text-ai.ts).
   if (deps.chat ?? deps.ai) {
     handlers[IMPORT_TRIAGE_JOB] = importTriageJob(deps);

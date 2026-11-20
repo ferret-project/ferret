@@ -72,7 +72,11 @@ go in its **How-to videos** instead (**How-to video** on its page), where they p
 ## Scanning a barcode
 
 **+ Add → Scan a barcode** opens the camera. If Ferret knows the code — someone in your household saved something with
-it before, or the online product database has it — it offers the name, brand and model to add in one tap.
+it before, or the online product database has it — it offers the name, brand and model to add in one tap. Groceries,
+cleaning supplies, batteries, light bulbs and toiletries are also looked up on
+[Open Food Facts](https://openfoodfacts.org) and its sister databases, when whoever runs your Ferret has switched
+[that](../hosting/server-admin#groceries-and-household-goods) on. These are the things people scan to keep
+[stock](./stock) and the shopping list.
 
 If you **already have it**, Ferret says so instead of making a second one: **Add 1 (now 3)** puts one more on the
 count of the thing you have (it shows in its history), and **Add as a separate item** makes a new one — say, the same

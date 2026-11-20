@@ -46,6 +46,7 @@ export function Server() {
           <RecallChecks />
           <VehicleLookups />
           <RepairGuideLinks />
+          <OpenFactsLookups />
           <BookLookups />
           <MusicLookups />
           <CardLookups />
@@ -581,6 +582,37 @@ function BookLookups() {
           <span>{s.enabled ? t`On` : t`Off`}</span>
         </label>
         {s.enabled && <p className="text-sm text-base-content/70">{plural(s.books, { one: "# book found", other: "# books found" })}.</p>}
+        {toggle.isError && <div className="alert alert-soft alert-error">{toggle.error.message}</div>}
+      </div>
+    </section>
+  );
+}
+
+/** The Open Food Facts databases: off until switched on, because barcodes the product database doesn't know are sent to them. */
+function OpenFactsLookups() {
+  const qc = useQueryClient();
+  const status = useQuery({ queryKey: ["server-open-facts"], queryFn: api.openFactsStatus });
+  const toggle = useMutation({ mutationFn: api.setOpenFacts, onSuccess: (data) => qc.setQueryData(["server-open-facts"], data) });
+  const s = status.data;
+  if (!s) return null;
+  return (
+    <section className="card" aria-labelledby="open-facts-title">
+      <div className="card-body gap-3">
+        <h2 id="open-facts-title" className="card-title flex items-center gap-2">
+          <span className="icon-[tabler--basket] size-5 text-primary" />
+          <Trans>Groceries and household goods</Trans>
+          <HelpLink page="guide/adding-things.html#scanning-a-barcode" label={t`Groceries and household goods`} />
+        </h2>
+        <p className="text-sm text-base-content/70">
+          <Trans>A barcode the online product database doesn't know — or every barcode, if there isn't one — is asked of Open Food Facts, Open Products
+          Facts and Open Beauty Facts (openfoodfacts.org): groceries, cleaning supplies, batteries, light bulbs, toiletries. Free, with no allowance, and
+          once for the whole server. Only the barcode is sent.</Trans>
+        </p>
+        <label className="flex cursor-pointer items-center gap-3">
+          <input type="checkbox" className="switch switch-primary" checked={s.enabled} disabled={toggle.isPending || !s.available} onChange={(e) => toggle.mutate(e.target.checked)} />
+          <span>{s.enabled ? t`On` : t`Off`}</span>
+        </label>
+        {s.enabled && <p className="text-sm text-base-content/70">{plural(s.products, { one: "# product found", other: "# products found" })}.</p>}
         {toggle.isError && <div className="alert alert-soft alert-error">{toggle.error.message}</div>}
       </div>
     </section>

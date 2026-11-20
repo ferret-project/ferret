@@ -596,6 +596,8 @@ export interface Deps {
   books?: ProductLookup;
   /** Trading card catalogs (Pokémon: TCGdex; Magic: Scryfall), for "Scan cards" (switched on in Settings → Server). */
   cards?: Partial<Record<CardGame, CardCatalog>>;
+  /** Open Food Facts, Open Products Facts, Open Beauty Facts: asked when the product database doesn't know a code (switched on in Settings → Server). */
+  openFacts?: ProductLookup;
   /** MusicBrainz: CDs and records by barcode, asked when someone scans as music (switched on in Settings → Server). */
   music?: ProductLookup;
   /** iFixit: a "Repair guides" link for things whose brand and model it knows (switched on in Settings → Server). */

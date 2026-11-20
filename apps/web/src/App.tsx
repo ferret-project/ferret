@@ -1539,7 +1539,7 @@ function UnknownBarcode({ code, onDone, locationId }: { code: string; onDone: ()
               <p className="line-clamp-2 font-medium text-base-content">{match.name}</p>
               <p className="truncate text-sm text-base-content/70">{[match.brand, match.model].filter(Boolean).join(" · ")}</p>
               <p className="text-xs text-base-content/70">
-                {match.source === "ferret" ? t`Saved in Ferret before` : t`From the UPCitemdb product database`}
+                {match.source === "ferret" ? t`Saved in Ferret before` : t`From ${ph({ database: match.sourceName ?? "UPCitemdb" })}`}
                 {match.typicalPriceCents ? t` · usually ${ph({ amount: money(match.typicalPriceCents) })}` : ""}
               </p>
             </div>
