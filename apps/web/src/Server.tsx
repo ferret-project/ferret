@@ -47,6 +47,7 @@ export function Server() {
           <VehicleLookups />
           <RepairGuideLinks />
           <BookLookups />
+          <MusicLookups />
           {!demo && <Certificates />}
           {!demo && <AiPrompts />}
         </div>
@@ -579,6 +580,43 @@ function BookLookups() {
           <span>{s.enabled ? t`On` : t`Off`}</span>
         </label>
         {s.enabled && <p className="text-sm text-base-content/70">{plural(s.books, { one: "# book found", other: "# books found" })}.</p>}
+        {toggle.isError && <div className="alert alert-soft alert-error">{toggle.error.message}</div>}
+      </div>
+    </section>
+  );
+}
+
+/** Music look-ups (MusicBrainz): off until switched on, because a barcode scanned with "Scan music" is sent to MusicBrainz. */
+function MusicLookups() {
+  const qc = useQueryClient();
+  const status = useQuery({ queryKey: ["server-music"], queryFn: api.musicLookupStatus });
+  const toggle = useMutation({
+    mutationFn: api.setMusicLookups,
+    onSuccess: (data) => {
+      qc.setQueryData(["server-music"], data);
+      void qc.invalidateQueries({ queryKey: ["me"] }); // + Add's "Scan music" tile
+    },
+  });
+  const s = status.data;
+  if (!s) return null;
+  return (
+    <section className="card" aria-labelledby="music-title">
+      <div className="card-body gap-3">
+        <h2 id="music-title" className="card-title flex items-center gap-2">
+          <span className="icon-[tabler--vinyl] size-5 text-primary" />
+          <Trans>Music look-ups</Trans>
+          <HelpLink page="guide/adding-things.html#music" label={t`Music look-ups`} />
+        </h2>
+        <p className="text-sm text-base-content/70">
+          <Trans>Adds "Scan music" to + Add: scan a shelf of CDs or records one after another, and each barcode is asked of MusicBrainz
+          (musicbrainz.org) for the album, artist, format, year and cover — once for the whole server, free, and not counted against any lookup
+          allowance. Only the barcode is sent.</Trans>
+        </p>
+        <label className="flex cursor-pointer items-center gap-3">
+          <input type="checkbox" className="switch switch-primary" checked={s.enabled} disabled={toggle.isPending || !s.available} onChange={(e) => toggle.mutate(e.target.checked)} />
+          <span>{s.enabled ? t`On` : t`Off`}</span>
+        </label>
+        {s.enabled && <p className="text-sm text-base-content/70">{plural(s.releases, { one: "# record found", other: "# records found" })}.</p>}
         {toggle.isError && <div className="alert alert-soft alert-error">{toggle.error.message}</div>}
       </div>
     </section>

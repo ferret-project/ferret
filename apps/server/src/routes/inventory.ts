@@ -3,6 +3,7 @@
  * which the MCP tools call too, so the app and Claude always agree.
  * Accepts a session cookie or an API key (see lib/context.ts).
  */
+import { musicLookupsOn } from "../lib/products";
 import { householdSummary } from "../lib/summary";
 import { addItemVideo, canSearchVideos, itemVideosOf, removeItemVideo } from "../lib/videos";
 import { PHOTO_ORDER } from "../lib/photo-order";
@@ -72,6 +73,8 @@ inventory.get("/me", requireUser, async (c) =>
       videoSearch: canSearchVideos(c.var.deps),
       // A household can connect its Paperless-ngx (lib/paperless.ts).
       paperless: Boolean(c.var.deps.paperless),
+      // "Scan music": CDs and records looked up on MusicBrainz (the server admin switches it on).
+      music: await musicLookupsOn(c.var.deps),
       // Photos read by the vision model (an unread one offers "Analyze").
       photoAi: Boolean(c.var.deps.ai && c.var.deps.images && c.var.deps.jobs),
     },

@@ -45,6 +45,7 @@ import {
   HOME_HREF,
   walkthroughHref,
   scanRoomHref,
+  scanMusicHref,
 } from "./lib/route";
 import { useRoomScanOn } from "./lib/room-scan";
 import { Logo } from "./AuthLayout";
@@ -658,6 +659,7 @@ function AddSheet({ householdId, route, context, onClose }: { householdId: strin
     if (page !== openedOn.current) onClose();
   }, [page, onClose]);
   const roomScan = useRoomScanOn(householdId);
+  const me = useQuery({ queryKey: ["me"], queryFn: api.me, staleTime: 60_000 });
   const PHOTOS = (
     <AddFromPhotos
                 householdId={householdId}
@@ -670,6 +672,16 @@ function AddSheet({ householdId, route, context, onClose }: { householdId: strin
   const options: { icon: string; label: string; detail: string; onClick?: () => void; href?: string }[] = [
     { icon: "icon-[tabler--keyboard]", label: t`Type it in`, detail: t`A name, and whatever else you know`, onClick: () => setTyping(true) },
     { icon: "icon-[tabler--barcode]", label: t`Scan a barcode`, detail: t`Ferret looks it up`, onClick: () => (onClose(), requestScan(route, true)) },
+    ...(me.data?.features.music
+      ? [
+          {
+            icon: "icon-[tabler--vinyl]",
+            label: t`Scan music`,
+            detail: t`CDs and records, one after another: Ferret looks each up on MusicBrainz`,
+            href: scanMusicHref({ locationId: context.locationId, categoryId: context.categoryId, tag: context.tag }),
+          },
+        ]
+      : []),
     ...(roomScan
       ? [
           {

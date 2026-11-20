@@ -39,6 +39,16 @@ it on reads the VINs already in Ferret straight away.
 allowance, so it isn't counted against any lookup limit. It's off until you switch it on, because a book's **ISBN** is
 sent to Open Library — nothing else — once for the whole server.
 
+## Music look-ups
+
+**Settings → Server → Music look-ups** adds **Scan music** to everyone's **+ Add**
+([what people see](../guide/adding-things#music)): barcodes scanned there are asked of
+[MusicBrainz](https://musicbrainz.org), and covers come from the [Cover Art Archive](https://coverartarchive.org).
+It's free, with no key and no allowance, so it isn't counted against any lookup limit. It's off until you switch it
+on, because the **barcode** is sent to MusicBrainz — nothing else — once for the whole server. Only barcodes scanned
+with Scan music go there; an ordinary scan never does. MusicBrainz answers about one question a second, so Ferret asks
+one at a time.
+
 ## Repair guides
 
 **Settings → Server → Repair guides** switches on [links to iFixit](../guide/repairs#repair-guides) for things whose

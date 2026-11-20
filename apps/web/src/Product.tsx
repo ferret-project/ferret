@@ -51,8 +51,8 @@ export function ProductSuggestions({ item, householdId }: { item: ItemListing; h
   const same = (a: unknown, b: unknown) => String(a ?? "").trim().toLowerCase() === String(b ?? "").trim().toLowerCase();
   const rows: { label: string; display: string; patch: ItemPatch }[] = [
     !same(item.name, p.title) && { label: t`Name`, display: p.title, patch: { name: p.title } },
-    // A book's "brand" is its author (Open Library, by ISBN).
-    p.brand && !same(item.brand, p.brand) && { label: p.kind === "book" ? t`Author` : t`Brand`, display: p.brand, patch: { brand: p.brand } },
+    // A book's "brand" is its author (Open Library, by ISBN); a record's, its artist (MusicBrainz).
+    p.brand && !same(item.brand, p.brand) && { label: p.kind === "book" ? t`Author` : p.kind === "music" ? t`Artist` : t`Brand`, display: p.brand, patch: { brand: p.brand } },
     p.model && !same(item.model, p.model) && { label: t`Model`, display: p.model, patch: { model: p.model } },
     p.typicalPriceCents && item.valueCents == null && { label: t`Worth`, display: t`${ph({ price: money(p.typicalPriceCents) })} (typical price)`, patch: { valueCents: p.typicalPriceCents } },
     p.description && !item.description && { label: t`About`, display: p.description, patch: { description: p.description } },

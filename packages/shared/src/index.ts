@@ -1220,8 +1220,9 @@ export interface ProductInfo {
   lowestPriceCents?: number;
   highestPriceCents?: number;
   source: string;
-  /** A book (looked up by its ISBN): `brand` holds its author(s). */
-  kind?: "book";
+  /** A book (looked up by its ISBN): `brand` holds its author(s). Music (a CD's or record's barcode, from
+   * MusicBrainz): `brand` holds the artist, `description` the format, year and label. */
+  kind?: "book" | "music";
 }
 
 /** What Ferret knows about a scanned barcode: from its own barcode book, or the online database. */
@@ -1231,11 +1232,14 @@ export interface BarcodeMatch {
   brand?: string | null;
   model?: string | null;
   /** "ferret": someone saved an item with it; "upcitemdb": from the online database. */
-  source: "ferret" | "upcitemdb" | "openlibrary";
+  source: "ferret" | "upcitemdb" | "openlibrary" | "musicbrainz";
   /** From the online database, when it was asked. */
   images: string[];
   typicalPriceCents?: number;
   category?: string;
+  /** The online database's "about" line (a record's format, year and label). */
+  description?: string;
+  kind?: ProductInfo["kind"];
 }
 
 /** An item's product suggestions from its barcode. */
@@ -2183,6 +2187,14 @@ export interface BookLookupStatus {
   enabled: boolean;
   /** Books kept in the shared barcode book. */
   books: number;
+}
+
+/** Music look-ups (MusicBrainz, for "Scan music") for Settings → Server. */
+export interface MusicLookupStatus {
+  available: boolean;
+  enabled: boolean;
+  /** Records found and kept in the shared barcode book. */
+  releases: number;
 }
 
 /** Search by meaning's index for Settings → Server: which models made it, and how far a re-index has got. */

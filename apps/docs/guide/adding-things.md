@@ -85,6 +85,23 @@ A book's barcode is its **ISBN**. When whoever runs your Ferret has switched on
 Ferret offers the **title** and **author** — the author goes in the brand — and the **cover** as a photo, like any
 barcode's suggestions.
 
+## Music
+
+Got a shelf of CDs or a crate of records? When whoever runs your Ferret has switched on
+[music look-ups](../hosting/server-admin#music-look-ups), **+ Add → Scan music** scans them one after another: tap
+**Start scanning** and go through the barcodes on the back. The camera keeps going, beeping for each one, and Ferret
+looks each up on [MusicBrainz](https://musicbrainz.org) while you carry on. Tap **Done** when you're through the pile.
+
+Then check the list. Each album shows its **cover**, **artist**, and format, year and label (*CD · 1997 · Capitol
+Records*). Untick any you don't want, or remove them with **✕**. One MusicBrainz doesn't know can still be added: type
+its name. One you **have already** is listed but left unticked, so it isn't added twice. Choose **where they are** and a
+**category** (Ferret picks your "Music" category if you have one), then **Save**. Each becomes a thing: the album is its
+name, the artist its brand, format · year · label its description, and the cover its photo (untick **Add each album's
+cover** to skip those).
+
+Nothing is added until you save, and the list survives the page reloading. When a barcode belongs to several pressings
+(reissues often share one), Ferret takes the earliest official one; the description shows which.
+
 ## Several of the same
 
 Bought three of something, like a TV box for each room? Usually each should be its own thing, with its own serial

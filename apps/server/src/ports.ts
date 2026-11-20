@@ -586,6 +586,8 @@ export interface Deps {
   vehicles?: VehicleData;
   /** Open Library: books by ISBN, a second barcode book source (switched on by the server admin: Settings → Server). */
   books?: ProductLookup;
+  /** MusicBrainz: CDs and records by barcode, asked when someone scans as music (switched on in Settings → Server). */
+  music?: ProductLookup;
   /** iFixit: a "Repair guides" link for things whose brand and model it knows (switched on in Settings → Server). */
   repairGuides?: RepairGuides;
   /** YouTube: how-to videos on maintenance tasks (lib/videos.ts) — describe a pasted link; search with a key. */

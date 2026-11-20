@@ -54,6 +54,7 @@ const Shared = lazyRouteComponent(() => import("./Shared"), "Shared");
 const Shopping = lazyRouteComponent(() => import("./Shopping"), "Shopping");
 const Walkthrough = lazyRouteComponent(() => import("./Walkthrough"), "Walkthrough");
 const RoomScanScreen = lazyRouteComponent(() => import("./RoomScan"), "RoomScanScreen");
+const MusicScanScreen = lazyRouteComponent(() => import("./MusicScan"), "MusicScanScreen");
 const CollectionsScreen = lazyRouteComponent(() => import("./Collections"), "CollectionsScreen");
 const CollectionScreen = lazyRouteComponent(() => import("./Collections"), "CollectionScreen");
 
@@ -315,6 +316,21 @@ const roomScanRoute = createRoute({
     return <RoomScanScreen householdId={useHousehold().householdId} id={roomScanRoute.useParams().id} locationId={search.in ?? null} boxId={search.box ?? null} />;
   },
 });
+const musicScanRoute = createRoute({
+  getParentRoute: () => screensRoute,
+  path: "scan-music",
+  staticData: { name: "music" },
+  validateSearch: (search: Record<string, unknown>): { in?: string; category?: string; tag?: string } => ({
+    ...(typeof search.in === "string" && { in: search.in }),
+    ...(typeof search.category === "string" && { category: search.category }),
+    ...(typeof search.tag === "string" && { tag: search.tag }),
+  }),
+  loader: () => MusicScanScreen.preload?.(),
+  component: function MusicScanRoute() {
+    const search = musicScanRoute.useSearch();
+    return <MusicScanScreen householdId={useHousehold().householdId} locationId={search.in ?? null} categoryId={search.category ?? null} tag={search.tag ?? null} />;
+  },
+});
 const collectionsRoute = createRoute({
   getParentRoute: () => screensRoute,
   path: "collections",
@@ -387,6 +403,7 @@ const routeTree = rootRoute.addChildren([
     labelsRoute,
     walkthroughRoute,
     roomScanRoute,
+    musicScanRoute,
     collectionsRoute,
     collectionRoute,
     walkthroughRoomRoute,

@@ -141,7 +141,7 @@ import type { TaskVideo, VideoHit,
   ImportTriageInput,
   ImportTriageRow,
   MergeInput,
-  SuggestedTask, OAuthConnectInput, OAuthConnectRequest, OAuthGrantSummary, VehicleLookupStatus, RepairGuideStatus, AskSettings, PromptKind, PromptSetting, BookLookupStatus, SearchIndexStatus } from "@ferret/shared";
+  SuggestedTask, OAuthConnectInput, OAuthConnectRequest, OAuthGrantSummary, VehicleLookupStatus, RepairGuideStatus, AskSettings, PromptKind, PromptSetting, BookLookupStatus, MusicLookupStatus, ScanCandidate, SearchIndexStatus } from "@ferret/shared";
 import { photoCopies } from "./photo-copies";
 import { t, ph } from "@lingui/core/macro";
 
@@ -311,7 +311,7 @@ export const api = {
   /** Whether you're the server admin (who sees Settings → Server). */
   /** The language Ferret writes to you in (emails, push) — saved with the account. */
   setMyLanguage: (language: string | null) => request<{ language: string | null }>("/me/language", { method: "PUT", body: JSON.stringify({ language }) }),
-  me: () => request<{ serverAdmin: boolean; language: string | null; features: { fromWeb: boolean; homeAssistant: boolean; roomScan: boolean; textAi: boolean; speech: boolean; photoAi?: boolean; paperless?: boolean; videoSearch?: boolean } }>("/me"),
+  me: () => request<{ serverAdmin: boolean; language: string | null; features: { fromWeb: boolean; homeAssistant: boolean; roomScan: boolean; textAi: boolean; speech: boolean; photoAi?: boolean; paperless?: boolean; videoSearch?: boolean; music?: boolean } }>("/me"),
   backupStatus: () => request<BackupStatus>("/backup"),
   serverSecrets: () => request<ServerSecrets>("/server/secrets"),
   serverAddress: () => request<ServerAddress>("/server/address"),
@@ -322,6 +322,8 @@ export const api = {
   recallStatus: () => request<RecallStatus>("/server/recalls"),
   bookLookupStatus: () => request<BookLookupStatus>("/server/books"),
   setBookLookups: (enabled: boolean) => request<BookLookupStatus>("/server/books", { method: "PUT", body: JSON.stringify({ enabled }) }),
+  musicLookupStatus: () => request<MusicLookupStatus>("/server/music"),
+  setMusicLookups: (enabled: boolean) => request<MusicLookupStatus>("/server/music", { method: "PUT", body: JSON.stringify({ enabled }) }),
   askSettings: () => request<AskSettings>("/server/ask"),
   setAskSettings: (contextTokens: number | null) => request<AskSettings>("/server/ask", { method: "PUT", body: JSON.stringify({ contextTokens }) }),
   promptSettings: () => request<{ data: PromptSetting[] }>("/server/prompts"),
@@ -354,8 +356,8 @@ export const api = {
   clearServiceErrors: (id?: string) => request<void>(id ? `/server/errors/${id}` : "/server/errors", { method: "DELETE" }),
   setRecallChecks: (enabled: boolean) => request<RecallStatus>("/server/recalls", { method: "PUT", body: JSON.stringify({ enabled }) }),
   setServerAdmin: (email: string) => request<{ id: string; name: string; email: string }>("/server/admin", { method: "PUT", body: JSON.stringify({ email }) }),
-  /** What a scanned barcode is (Ferret's barcode book, then the online database). */
-  barcode: (code: string) => request<{ match: BarcodeMatch | null; online: boolean }>(`/barcodes/${encodeURIComponent(code)}`),
+  /** What a scanned barcode is (Ferret's barcode book, then the online database; as music: MusicBrainz first). */
+  barcode: (code: string, as?: "music") => request<{ match: BarcodeMatch | null; online: boolean; have?: ScanCandidate[] }>(`/barcodes/${encodeURIComponent(code)}${as ? `?as=${as}` : ""}`),
   itemProduct: (itemId: string) => request<ItemProduct>(`/items/${itemId}/product`),
   useProductPhoto: (itemId: string, index: number) =>
     request<Attachment>(`/items/${itemId}/product/photo`, { method: "POST", body: JSON.stringify({ index }) }),

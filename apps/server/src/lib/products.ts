@@ -8,11 +8,13 @@
  *   and kept for every household on this server. Books (an ISBN: EAN-13 978/979)
  *   are asked of Open Library instead (deps.books), when the server admin has
  *   switched book look-ups on — free, so not counted against a plan's lookups.
+ *   A CD's or record's barcode looks like any other, so MusicBrainz (deps.music) is
+ *   asked only when someone scans as music ("Scan music"), also free.
  *
  * A name the household saved wins. What the database says is only ever
  * offered; a person applies it.
  */
-import { type BarcodeLookupStatus, type BarcodeMatch, type BookLookupStatus, type ItemProduct, uploadTypes } from "@ferret/shared";
+import { type BarcodeLookupStatus, type BarcodeMatch, type BookLookupStatus, type ItemProduct, type MusicLookupStatus, uploadTypes } from "@ferret/shared";
 import { and, count, eq, isNotNull } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { barcodeProduct, householdBarcode, item, serverSetting } from "../db/schema";
@@ -69,6 +71,8 @@ function toMatch(
     images: shared?.external?.images ?? [],
     typicalPriceCents: shared?.external?.typicalPriceCents,
     category: shared?.external?.category,
+    ...(shared?.external?.description && { description: shared.external.description }),
+    ...(shared?.external?.kind && { kind: shared.external.kind }),
   };
 }
 
@@ -126,7 +130,33 @@ export async function bookLookupStatus(deps: Pick<Deps, "db" | "books">): Promis
   return { available: Boolean(deps.books), enabled: await booksEnabled(deps.db), books: kept?.n ?? 0 };
 }
 
-type Source = { lookup: ProductLookup; name: "upcitemdb" | "openlibrary"; counted: boolean };
+// ── Music (MusicBrainz, when scanning as music) ──────────────────────────────────────────────────────────────
+
+const MUSIC_KEY = "music.enabled";
+
+export async function musicEnabled(db: Db) {
+  const [row] = await db.select().from(serverSetting).where(eq(serverSetting.key, MUSIC_KEY));
+  return row?.value === "true";
+}
+
+export async function setMusicEnabled(db: Db, enabled: boolean) {
+  await db.insert(serverSetting).values({ key: MUSIC_KEY, value: String(enabled) }).onConflictDoUpdate({ target: serverSetting.key, set: { value: String(enabled) } });
+}
+
+/** "Scan music" can be offered: the server has MusicBrainz and its admin switched it on. */
+export async function musicLookupsOn(deps: Pick<Deps, "db" | "music">) {
+  return Boolean(deps.music) && (await musicEnabled(deps.db));
+}
+
+export async function musicLookupStatus(deps: Pick<Deps, "db" | "music">): Promise<MusicLookupStatus> {
+  const [kept] = await deps.db.select({ n: count() }).from(barcodeProduct).where(and(eq(barcodeProduct.source, "musicbrainz"), isNotNull(barcodeProduct.external)));
+  return { available: Boolean(deps.music), enabled: await musicEnabled(deps.db), releases: kept?.n ?? 0 };
+}
+
+/** What a code is scanned as: anything (the usual), or music ("Scan music" — asked of MusicBrainz first). */
+export type ScanAs = "any" | "music";
+
+type Source = { lookup: ProductLookup; name: "upcitemdb" | "openlibrary" | "musicbrainz"; counted: boolean };
 
 /** Who to ask about a code: Open Library for an ISBN (books switched on), else the online product database, or nobody. */
 async function sourceFor(deps: Pick<Deps, "db" | "products" | "books">, barcode: string): Promise<Source | null> {
@@ -143,6 +173,8 @@ async function askDatabase(deps: Pick<Deps, "db" | "products">, barcode: string,
     if (source.name === "upcitemdb") await keepQuota(deps).catch(() => {});
   }
   if (!product) {
+    // Another source's answer stays: MusicBrainz not knowing a code UPCitemdb named doesn't unname it.
+    if ((await entry(deps.db, barcode))?.external) return;
     await deps.db
       .insert(barcodeProduct)
       .values({ barcode, notFoundAt: new Date(), source: source.name })
@@ -161,12 +193,25 @@ async function askDatabase(deps: Pick<Deps, "db" | "products">, barcode: string,
  * one, else (if configured) asked of the online database now — the person is
  * waiting at the scanner, and it's one request with a timeout. Null when nobody knows.
  */
-export async function lookupBarcode(v: Pick<Caller, "db" | "deps" | "householdId" | "userId">, raw: string): Promise<BarcodeMatch | null> {
+export async function lookupBarcode(v: Pick<Caller, "db" | "deps" | "householdId" | "userId">, raw: string, as: ScanAs = "any"): Promise<BarcodeMatch | null> {
   const barcode = productCode(raw);
   if (!barcode) return null;
   const deps = { db: v.db, products: v.deps.products };
   const own = await ownEntry(v, barcode);
   let row = await entry(deps.db, barcode);
+  // Scanned as music: MusicBrainz first — its answer (artist, format, year, cover) beats a shop database's, so it
+  // replaces one; if it doesn't know the code, the usual source below still gets asked.
+  if (as === "music" && !own && v.deps.music && (await musicEnabled(v.db))) {
+    const music: Source = { lookup: v.deps.music, name: "musicbrainz", counted: false };
+    if (!row || row.source !== "musicbrainz" || worthAsking(row, music)) {
+      try {
+        await askDatabase(deps, barcode, music);
+      } catch (err) {
+        console.warn(`Music lookup failed for ${barcode}: ${String(err)}`);
+      }
+      row = await entry(deps.db, barcode);
+    }
+  }
   const source = await sourceFor({ ...deps, books: v.deps.books }, barcode);
   // A plan may limit the online lookups (lib/plan.ts; books are free); Ferret's own barcode book always answers.
   if (!own && !row?.name && source && worthAsking(row, source) && (!source.counted || (await allow(v, "barcode.lookup")).ok)) {

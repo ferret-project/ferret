@@ -20,7 +20,7 @@ import { demoReport } from "../lib/demo";
 import { DEMO_PARTS, partsOff, setPartsOff } from "../lib/demo-switches";
 import { HTTPException } from "hono/http-exception";
 import { aboutServer, clearServiceErrors, listServiceErrors } from "../lib/service-errors";
-import { barcodeLookupStatus, bookLookupStatus, setBooksEnabled } from "../lib/products";
+import { barcodeLookupStatus, bookLookupStatus, musicLookupStatus, setBooksEnabled, setMusicEnabled } from "../lib/products";
 import { runServerCheck } from "../lib/server-check";
 import { reindexEverything, searchIndexStatus } from "../lib/search-index";
 import { BACKFILL_JOB } from "../jobs/index-item";
@@ -147,6 +147,16 @@ server.put("/books", async (c) => {
   const { enabled } = await body(c.req.raw, z.object({ enabled: z.boolean() }));
   await setBooksEnabled(c.var.db, enabled);
   return c.json(await bookLookupStatus(c.var.deps));
+});
+
+/** Music look-ups (MusicBrainz, for "Scan music"): whether they're on, and how many records are kept. */
+server.get("/music", async (c) => c.json(await musicLookupStatus(c.var.deps)));
+
+/** Switch music look-ups on (a barcode scanned with "Scan music" is asked of MusicBrainz) or off. */
+server.put("/music", async (c) => {
+  const { enabled } = await body(c.req.raw, z.object({ enabled: z.boolean() }));
+  await setMusicEnabled(c.var.db, enabled);
+  return c.json(await musicLookupStatus(c.var.deps));
 });
 
 /** Repair guide links (iFixit): whether they're on, brands + models asked about and matched. */

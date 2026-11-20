@@ -35,6 +35,7 @@ export type Route =
   | { name: "heirs" }
   | { name: "walkthrough"; locationId: string | null; step: "photos" | "review" }
   | { name: "roomscan"; id: string }
+  | { name: "music" }
   | { name: "collections" }
   | { name: "collection"; id: string }
   | { name: "import"; source: "csv" | "homeassistant" | null }
@@ -104,6 +105,15 @@ export const collectionHref = (id: string, view?: "wanted") => `#/collection/${e
 export const roomScanHref = (id: string) => `#/room-scan/${encodeURIComponent(id)}`;
 export const scanRoomHref = (at: { locationId?: string | null; containerItemId?: string | null } = {}) =>
   `#/room-scan/new${at.locationId ? `?in=${encodeURIComponent(at.locationId)}` : at.containerItemId ? `?box=${encodeURIComponent(at.containerItemId)}` : ""}`;
+/** "Scan music": CDs and records one after another, looked up on MusicBrainz (MusicScan.tsx) — into a room, category or tag. */
+export const scanMusicHref = (into: { locationId?: string | null; categoryId?: string | null; tag?: string | null } = {}) => {
+  const q = new URLSearchParams();
+  if (into.locationId) q.set("in", into.locationId);
+  if (into.categoryId) q.set("category", into.categoryId);
+  if (into.tag) q.set("tag", into.tag);
+  const s = q.toString();
+  return `#/scan-music${s ? `?${s}` : ""}`;
+};
 /** Phones: the More tab — everything that isn't a tab, grouped (Nav.tsx). */
 export const MORE_HREF = "#/more";
 /** Insurance limits next to what things are worth (PayOff.tsx). */

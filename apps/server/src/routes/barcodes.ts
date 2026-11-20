@@ -17,8 +17,11 @@ barcodes.use("/items/:id/product/*", requireUser, requireHousehold);
 barcodes.get("/barcodes/:code", async (c) => {
   const v = callerOf(c);
   const code = c.req.param("code");
-  const [match, have] = await Promise.all([svc.lookupBarcode(v, code), itemsWithCode(v, code)]);
-  return c.json({ match, online: Boolean(c.var.deps.products), have });
+  // ?as=music: a CD's or record's barcode ("Scan music"), asked of MusicBrainz first when it's switched on.
+  const as = c.req.query("as") === "music" ? "music" : "any";
+  const [match, have] = await Promise.all([svc.lookupBarcode(v, code, as), itemsWithCode(v, code)]);
+  const online = Boolean(c.var.deps.products) || (as === "music" && (await svc.musicLookupsOn(c.var.deps)));
+  return c.json({ match, online, have });
 });
 
 barcodes.get("/items/:id/product", async (c) => c.json(await svc.itemProduct(callerOf(c), c.req.param("id"))));
