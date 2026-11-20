@@ -343,3 +343,6 @@ export * from "./youtube";
 export function labelCodeIn(scanned: string): string | null {
   return /\/l\/([0-9A-Za-z]{4,12})\/?$/.exec(scanned.trim())?.[1] ?? null;
 }
+
+/** Longest extra instructions the server admin can add to one AI prompt (Settings → Server → AI prompts). */
+export const PROMPT_EXTRA_MAX = 2000;

@@ -5,6 +5,7 @@
  * Results are stored on the attachment as suggestions; maintenance schedules go to Suggested maintenance. Fields are
  * only filled in by themselves where the household switched that on (lib/ai-fill.ts).
  */
+import { promptExtra, withExtra } from "../lib/ai-prompts";
 import { type AttachmentAnalysis, type AttachmentKind, type AttachmentSuggestions, intervalUnits } from "@ferret/shared";
 import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
@@ -416,6 +417,7 @@ export function analyzeAttachment(deps: {
       // A thing's file: the household's categories, for the model to pick one (not for files read for their words).
       const categories = wordsOnly ? undefined : await categoryPaths(deps.db, row.householdId);
       const currency = await householdCurrency(deps.db, row.householdId);
+      const extra = await promptExtra(deps.db, kind);
       // A scanned PDF (a picture of a receipt or a warranty card), or one docling mostly took for a picture: the vision
       // model reads its first page instead.
       // Read for its words only (not a thing's): any text docling found will do; the vision model only for a real scan.
@@ -428,18 +430,18 @@ export function analyzeAttachment(deps: {
       const preview = row.contentType.startsWith("image/") ? await deps.files.get(row.householdId, previewKey(row.blobKey)).catch(() => null) : null;
       if (scanned) {
         asked = true;
-        analysis = toAnalysis(await deps.ai!.json({ prompt: imagePrompt(kind, currency, categories?.list), schema: replySchema, image: { data: scanned, contentType: "image/jpeg" }, maxTokens: VISION_REPLY_TOKENS }), categories);
+        analysis = toAnalysis(await deps.ai!.json({ prompt: withExtra(imagePrompt(kind, currency, categories?.list), extra), schema: replySchema, image: { data: scanned, contentType: "image/jpeg" }, maxTokens: VISION_REPLY_TOKENS }), categories);
       } else if (row.contentType.startsWith("image/") && deps.ai && (preview || deps.images)) {
         const image = preview ?? (await deps.images!.resize(bytes, VISION_PX, "jpeg"));
         if (image) {
           asked = true;
           const contentType = preview ? (sniffContentType(preview) ?? "image/jpeg") : "image/jpeg";
-          analysis = toAnalysis(await deps.ai.json({ prompt: imagePrompt(kind, currency, categories?.list), schema: replySchema, image: { data: image, contentType }, maxTokens: VISION_REPLY_TOKENS }), categories);
+          analysis = toAnalysis(await deps.ai.json({ prompt: withExtra(imagePrompt(kind, currency, categories?.list), extra), schema: replySchema, image: { data: image, contentType }, maxTokens: VISION_REPLY_TOKENS }), categories);
         }
       } else if (markdown && !wordsOnly && (deps.chat ?? deps.ai)) {
         asked = true;
         // Capped: the reply is short (the text is already stored), so a model stuck repeating itself stops in seconds, not at the timeout.
-        analysis = toAnalysis(await (deps.chat ?? deps.ai)!.json({ prompt: textPrompt(markdown, currency, categories?.list), schema: replySchema, maxTokens: DOCUMENT_REPLY_TOKENS }), categories);
+        analysis = toAnalysis(await (deps.chat ?? deps.ai)!.json({ prompt: withExtra(textPrompt(markdown, currency, categories?.list), extra), schema: replySchema, maxTokens: DOCUMENT_REPLY_TOKENS }), categories);
       }
       if (!analysis && markdown !== undefined) analysis = { description: "", text: "", suggestions: {} };
       if (!analysis) return void (await save(null)); // couldn't decode it (e.g. HEIC); retrying won't help

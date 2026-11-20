@@ -5,6 +5,7 @@
  */
 import type { BackupRun, BackupSnapshot, BackupStatus, ServerCertificate, ServerSecrets } from "@ferret/shared";
 import { ServerAiFillCard } from "./AiFill";
+import { AiPrompts, PROMPT_NAMES } from "./Prompts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { DemoSwitches, DemoUsage, HostingUsageCard } from "./Demo";
 import { type FormEvent, useState } from "react";
@@ -47,6 +48,7 @@ export function Server() {
           <RepairGuideLinks />
           <BookLookups />
           {!demo && <Certificates />}
+          {!demo && <AiPrompts />}
         </div>
       </div>
     </>
@@ -178,6 +180,7 @@ const CHECK_WORDS: Record<string, MessageDescriptor> = {
   "imports.ai": msg`Imports sorted with AI that never finished.`,
   "downloads.stuck": msg`Downloads from a web address still waiting after a day.`,
   "roomscans.stuck": msg`Room scans that never finished.`,
+  "prompts.changed": msg`AI prompts with your own extra instructions (AI prompts, below) — if AI answers look odd, try without them.`,
 };
 
 /** Server check: on demand, read-only — files, rows pointing at nothing, unfinished work, backups. */
@@ -226,7 +229,7 @@ function ServerCheck() {
                     {f.examples.length > 0 && (
                       <ul className="ms-7 mt-1 list-disc ps-4 text-sm text-base-content/70">
                         {f.examples.map((e, i) => (
-                          <li key={i} className="break-words">{e}</li>
+                          <li key={i} className="break-words">{f.kind === "prompts.changed" && e in PROMPT_NAMES ? t(PROMPT_NAMES[e as keyof typeof PROMPT_NAMES]) : e}</li>
                         ))}
                         {f.count > f.examples.length && <li className="list-none">{t`and ${ph({ more: (f.count - f.examples.length).toLocaleString() })} more`}</li>}
                       </ul>

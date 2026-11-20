@@ -17,6 +17,7 @@ import { member, organization } from "../db/schema/auth";
 import { aiRun, attachment, backupRun, category, item, job, location, maintenanceTask, pendingDownload, property, roomScan } from "../db/schema";
 import type { Blobs, Db } from "../ports";
 import type { FileStore } from "./files";
+import { changedPrompts } from "./ai-prompts";
 
 export type CheckFinding = {
   /** A stable name for the kind of problem. */
@@ -220,6 +221,10 @@ export async function runServerCheck({ db, blobs, files, now = new Date() }: Dep
       findings.push({ kind: "backups.stale", level: "problem", count: 1, text: ok ? `The last good backup is from ${ok.at.toISOString().slice(0, 10)} — over two days ago.` : "No backup has succeeded yet.", examples: [] });
     }
   }
+
+  // ── AI prompts the admin added to (Settings → Server → AI prompts): worth knowing when AI answers look odd ──
+  const changed = await changedPrompts(db);
+  if (changed.length) findings.push({ kind: "prompts.changed", level: "note", count: changed.length, text: "AI prompts with your own extra instructions (AI prompts, below) — if AI answers look odd, try without them.", examples: changed });
 
   return {
     at: now.toISOString(),

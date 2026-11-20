@@ -7,6 +7,7 @@
  * One AI action per photo (lib/plan.ts, counted as a photo), never per thing found. The photos are kept (encrypted,
  * the vision-sized copy only) so the review can show them and each item found can link back to its room photo.
  */
+import { promptExtra, withExtra } from "./ai-prompts";
 import { itemInput, type RoomScan, type RoomScanCandidate, type RoomScanCommit } from "@ferret/shared";
 import { and, desc, eq, inArray, isNull, lt, isNotNull } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
@@ -313,6 +314,7 @@ export function analyzeRoomScan(deps: { db: Db; files: FileStore; ai?: Deps["ai"
     if (!deps.ai) return void (await fail("The vision model isn't set up on this server"));
     try {
       const categories = await categoryPaths(deps.db, row.householdId);
+      const prompt = withExtra(roomScanPrompt(categories.list), await promptExtra(deps.db, "roomScan"));
       const candidates: RoomScanCandidate[] = [];
       const who = { db: deps.db, deps, householdId: row.householdId, userId: row.createdBy };
       let stopped: string | null = null;
@@ -326,7 +328,7 @@ export function analyzeRoomScan(deps: { db: Db; files: FileStore; ai?: Deps["ai"
         const image = await deps.files.get(row.householdId, roomPhotoKey(row.householdId, row.id, n));
         if (!image) continue;
         const photo = { data: image, contentType: "image/jpeg" };
-        const reply = await deps.ai.json({ prompt: roomScanPrompt(categories.list), schema: roomScanSchema, image: photo, maxTokens: MAX_TOKENS });
+        const reply = await deps.ai.json({ prompt, schema: roomScanSchema, image: photo, maxTokens: MAX_TOKENS });
         let found = toCandidates(reply, n, categories.lookup);
         if (found.length) {
           try {

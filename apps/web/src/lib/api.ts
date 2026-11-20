@@ -141,7 +141,7 @@ import type { TaskVideo, VideoHit,
   ImportTriageInput,
   ImportTriageRow,
   MergeInput,
-  SuggestedTask, OAuthConnectInput, OAuthConnectRequest, OAuthGrantSummary, VehicleLookupStatus, RepairGuideStatus, AskSettings, BookLookupStatus, SearchIndexStatus } from "@ferret/shared";
+  SuggestedTask, OAuthConnectInput, OAuthConnectRequest, OAuthGrantSummary, VehicleLookupStatus, RepairGuideStatus, AskSettings, PromptKind, PromptSetting, BookLookupStatus, SearchIndexStatus } from "@ferret/shared";
 import { photoCopies } from "./photo-copies";
 import { t, ph } from "@lingui/core/macro";
 
@@ -324,6 +324,8 @@ export const api = {
   setBookLookups: (enabled: boolean) => request<BookLookupStatus>("/server/books", { method: "PUT", body: JSON.stringify({ enabled }) }),
   askSettings: () => request<AskSettings>("/server/ask"),
   setAskSettings: (contextTokens: number | null) => request<AskSettings>("/server/ask", { method: "PUT", body: JSON.stringify({ contextTokens }) }),
+  promptSettings: () => request<{ data: PromptSetting[] }>("/server/prompts"),
+  setPromptExtra: (kind: PromptKind, extra: string | null) => request<{ data: PromptSetting[] }>(`/server/prompts/${kind}`, { method: "PUT", body: JSON.stringify({ extra }) }),
   repairGuideStatus: () => request<RepairGuideStatus>("/server/repair-guides"),
   setRepairGuides: (enabled: boolean) => request<RepairGuideStatus>("/server/repair-guides", { method: "PUT", body: JSON.stringify({ enabled }) }),
   searchIndexStatus: () => request<SearchIndexStatus>("/server/search-index"),

@@ -91,3 +91,25 @@ The default, 8K tokens, works with nearly every server.
 
 The card shows about how many characters a question reads with the size chosen. Ferret estimates tokens from
 characters (about three a token), so leave some headroom for text that isn't English.
+
+## AI prompts
+
+**Settings → Server → AI prompts** (the server admin) lets you add your own instructions to the end of what Ferret asks
+its models, one prompt at a time: photos of things, documents, Describe it, room scans and Ask Ferret. Pick a prompt,
+look at **Ferret's built-in prompt** (household details such as categories show as placeholders), and write your
+instructions underneath — for example:
+
+- *Photos of things:* "For video games, the brand is the publisher and the model is the platform, like Nintendo DS."
+- *Ask Ferret:* "Answer in British English."
+
+Your instructions are **added to** Ferret's, never replace them: the reply's format, what Ferret counts as sure enough
+to fill in by itself, and improvements to the prompts in later releases all still apply. They're used for every
+household on the server.
+
+- A small model follows a long list of extra rules less well than a short one — keep them to a line or two.
+- Instructions that contradict Ferret's ("always guess the price") make answers worse rather than better.
+- **Reset to default** removes them. The [server check](server-check) lists prompts that have extra instructions, so
+  they're easy to find when AI answers look odd.
+
+The search judge's prompt isn't offered: it was chosen by measuring search results, and changing it would quietly make
+search worse.

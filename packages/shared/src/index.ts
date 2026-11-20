@@ -21,6 +21,7 @@ import {
   type MissingDetail,
   missingDetails,
   NOTIFICATION_SERVICES,
+  PROMPT_EXTRA_MAX,
   type UsageUnit,
   usageUnits,
   type WarrantyStatus,
@@ -877,6 +878,21 @@ export interface AskSettings {
   /** About how many characters of things and documents a question reads — and a how-to question (more room for the reply). */
   readChars: number;
   readCharsHowTo: number;
+}
+
+/**
+ * Settings → Server → AI prompts (the server admin): extra instructions added to the end of one of Ferret's built-in
+ * prompts. Added to, never replacing — the reply's shape and Ferret's rules stay, and fixes to the prompts still arrive.
+ */
+export const promptKinds = ["photo", "document", "describe", "roomScan", "ask"] as const;
+export type PromptKind = (typeof promptKinds)[number];
+export const promptExtraInput = z.object({ extra: z.string().trim().max(PROMPT_EXTRA_MAX).nullable() });
+export interface PromptSetting {
+  kind: PromptKind;
+  /** The admin's extra instructions; null = the built-in prompt as it is. */
+  extra: string | null;
+  /** The built-in prompt as the model gets it, with placeholders where a household's own details go. */
+  builtIn: string;
 }
 
 export interface AskAnswer {

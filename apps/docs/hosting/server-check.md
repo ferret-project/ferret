@@ -14,5 +14,6 @@ every night — this checks the live server.
 | **Households have members** | Nobody can open a household | Usually left from deleting accounts; it can be ignored |
 | **Work finished** — background jobs, imports sorted with AI, downloads from a web address, room scans | Something was interrupted (a restart, an AI model that was off) | Failed jobs (from the last week; older ones are cleared after 30 days) are in the **service error log** on the same page — if the cause is fixed, they need nothing. Stuck ones are tried again at the next start; otherwise do the step again |
 | **Backups are recent** | The last backup failed, or the last good one is over two days old | See **Backups** above it on the page and [Backups and restoring](./backups) |
+| **AI prompts with your own instructions** (a note, not a problem) | Some prompts have extra instructions added in [AI prompts](./ai#ai-prompts) | Nothing, if AI answers look right. If they look odd, reset those prompts and try again |
 
 On a large server it looks for at most 20,000 files in one go and says if it stopped there.

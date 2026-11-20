@@ -3,7 +3,7 @@
  * whether things are checked against product recalls.
  */
 import { Hono } from "hono";
-import { askSettingsInput, type ServerAddress, type ServerSecrets, serverAdminInput } from "@ferret/shared";
+import { askSettingsInput, promptExtraInput, promptKinds, type ServerAddress, type ServerSecrets, serverAdminInput } from "@ferret/shared";
 import { type AppEnv, body, requireServerAdmin, requireUser } from "../lib/context";
 import { serverAdmin, setServerAdmin } from "../lib/server-admin";
 import { z } from "zod";
@@ -11,6 +11,8 @@ import { RECALL_SYNC_JOB } from "../jobs/recalls";
 import { recallStatus, setRecallsEnabled } from "../lib/recalls";
 import { repairGuideStatus, setRepairGuidesEnabled } from "../lib/repair-guides";
 import { askSettings, setAskContextTokens } from "../lib/ask-settings";
+import { setPromptExtra } from "../lib/ai-prompts";
+import { promptSettings } from "../lib/prompt-settings";
 import { setVehiclesEnabled, VIN_BACKFILL_JOB, vehicleStatus } from "../lib/vehicles";
 import { serverAiFillDefaults, setServerAiFillDefaults } from "../lib/ai-fill";
 import { aiFillKinds } from "@ferret/shared";
@@ -165,6 +167,18 @@ server.put("/ask", async (c) => {
   const { contextTokens } = await body(c.req.raw, askSettingsInput);
   await setAskContextTokens(c.var.db, contextTokens);
   return c.json(await askSettings(c.var.db));
+});
+
+/** AI prompts: each built-in prompt and the extra instructions the admin added to it. */
+server.get("/prompts", async (c) => c.json({ data: await promptSettings(c.var.db) }));
+
+/** Set (or clear, with null) the extra instructions added to the end of one built-in prompt. */
+server.put("/prompts/:kind", async (c) => {
+  const kind = z.enum(promptKinds).safeParse(c.req.param("kind"));
+  if (!kind.success) throw new HTTPException(404, { message: "No such prompt" });
+  const { extra } = await body(c.req.raw, promptExtraInput);
+  await setPromptExtra(c.var.db, kind.data, extra);
+  return c.json({ data: await promptSettings(c.var.db) });
 });
 
 /** Vehicle look-ups (NHTSA): whether they're on, how many vehicles decoded and their recalls kept. */
