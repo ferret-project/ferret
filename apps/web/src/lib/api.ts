@@ -343,6 +343,7 @@ export const api = {
   serverAdmin: () => request<{ id: string; name: string; email: string }>("/server/admin"),
   recallStatus: () => request<RecallStatus>("/server/recalls"),
   bookLookupStatus: () => request<BookLookupStatus>("/server/books"),
+  setGoogleBooksKey: (key: string | null) => request<BookLookupStatus>("/server/books/google", { method: "PUT", body: JSON.stringify({ key }) }),
   setBookLookups: (enabled: boolean) => request<BookLookupStatus>("/server/books", { method: "PUT", body: JSON.stringify({ enabled }) }),
   exchangeRates: () => request<{ rates: ExchangeRates | null }>("/exchange-rates"),
   exchangeRateStatus: () => request<ExchangeRateStatus>("/server/exchange-rates"),

@@ -18,7 +18,7 @@
  * offered; a person applies it.
  */
 import { type BarcodeLookupStatus, type BarcodeMatch, type BookLookupStatus, type ItemProduct, type MusicLookupStatus, type OpenFactsStatus, uploadTypes } from "@ferret/shared";
-import { and, count, eq, isNotNull } from "drizzle-orm";
+import { and, count, eq, isNotNull, isNull } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { barcodeProduct, householdBarcode, item, serverSetting } from "../db/schema";
 import { type Db, type Deps, DownloadError, type JobHandler, type ProductLookup } from "../ports";
@@ -26,7 +26,9 @@ import { addAttachment } from "./attachments";
 import { allow, recordUsage } from "./plan";
 import type { FileStore } from "./files";
 import { type Caller, getItem, itemScope, notFound } from "./inventory";
+import { savedKeyHints, saveServerKey } from "./server-keys";
 import { sniffContentType } from "./sniff";
+import { inList } from "./sql";
 import { isPairingPayload } from "@ferret/shared/utils";
 
 export const PRODUCT_JOB = "product.lookup";
@@ -130,10 +132,33 @@ export async function setBooksEnabled(db: Db, enabled: boolean) {
   await db.insert(serverSetting).values({ key: BOOKS_KEY, value: String(enabled) }).onConflictDoUpdate({ target: serverSetting.key, set: { value: String(enabled) } });
 }
 
+/** Where the server admin's Google Books key is kept (sealed: lib/server-keys.ts). */
+export const GOOGLE_BOOKS_KEY = "books.google.key";
+
 /** For Settings → Server. */
-export async function bookLookupStatus(deps: Pick<Deps, "db" | "books">): Promise<BookLookupStatus> {
-  const [kept] = await deps.db.select({ n: count() }).from(barcodeProduct).where(and(eq(barcodeProduct.source, "openlibrary"), isNotNull(barcodeProduct.external)));
-  return { available: Boolean(deps.books), enabled: await booksEnabled(deps.db), books: kept?.n ?? 0 };
+export async function bookLookupStatus(deps: Pick<Deps, "db" | "books" | "googleBooks">): Promise<BookLookupStatus> {
+  const [kept] = await deps.db.select({ n: count() }).from(barcodeProduct).where(and(inList(barcodeProduct.source, ["openlibrary", "googlebooks"]), isNotNull(barcodeProduct.external)));
+  return {
+    available: Boolean(deps.books),
+    enabled: await booksEnabled(deps.db),
+    books: kept?.n ?? 0,
+    google: { available: Boolean(deps.googleBooks), hint: (await savedKeyHints(deps.db, GOOGLE_BOOKS_KEY)).get(GOOGLE_BOOKS_KEY) ?? null },
+  };
+}
+
+/** Save the Google Books key (checked with Google first), or remove it with null. */
+export async function setGoogleBooksKey(deps: Pick<Deps, "db" | "books" | "googleBooks">, filesKey: string, key: string | null) {
+  if (!deps.googleBooks) throw new HTTPException(409, { message: "Google Books isn't available on this server" });
+  if (key != null) {
+    const ok = await deps.googleBooks.check(key).catch(() => {
+      throw new HTTPException(502, { message: "Couldn't reach Google Books to check the key — try again in a while" });
+    });
+    if (!ok) throw new HTTPException(422, { message: "Google didn't accept that key — check the Books API is enabled for its project" });
+  }
+  await saveServerKey(deps.db, filesKey, GOOGLE_BOOKS_KEY, key);
+  // Books Open Library didn't know are asked again — of Google too, now.
+  if (key != null) await deps.db.delete(barcodeProduct).where(and(eq(barcodeProduct.source, "openlibrary"), isNull(barcodeProduct.external)));
+  return bookLookupStatus(deps);
 }
 
 // ── The Open Food Facts databases (groceries, household goods, toiletries) ─────────────────────────────────────
@@ -180,14 +205,17 @@ export async function musicLookupStatus(deps: Pick<Deps, "db" | "music">): Promi
 /** What a code is scanned as: anything (the usual), or music ("Scan music" — asked of MusicBrainz first). */
 export type ScanAs = "any" | "music";
 
-type Source = { lookup: ProductLookup; name: "upcitemdb" | "openlibrary" | "musicbrainz" | "openfacts"; counted: boolean };
+type Source = { lookup: ProductLookup; name: "upcitemdb" | "openlibrary" | "googlebooks" | "musicbrainz" | "openfacts"; counted: boolean };
 
 /**
- * Who to ask about a code, in turn: Open Library for an ISBN (books switched on); else the online product database
- * (UPCitemdb), then the Open Food Facts databases (switched on). Empty: nobody.
+ * Who to ask about a code, in turn: Open Library for an ISBN (books switched on), then Google Books (with its key);
+ * else the online product database (UPCitemdb), then the Open Food Facts databases (switched on). Empty: nobody.
  */
-async function sourcesFor(deps: Pick<Deps, "db" | "products" | "books" | "openFacts">, barcode: string): Promise<Source[]> {
-  if (isIsbn(barcode) && deps.books && (await booksEnabled(deps.db))) return [{ lookup: deps.books, name: "openlibrary", counted: false }];
+async function sourcesFor(deps: Pick<Deps, "db" | "products" | "books" | "openFacts" | "googleBooks">, barcode: string): Promise<Source[]> {
+  if (isIsbn(barcode) && deps.books && (await booksEnabled(deps.db))) {
+    const google = deps.googleBooks && (await savedKeyHints(deps.db, GOOGLE_BOOKS_KEY)).size ? [{ lookup: deps.googleBooks, name: "googlebooks" as const, counted: false }] : [];
+    return [{ lookup: deps.books, name: "openlibrary", counted: false }, ...google];
+  }
   const sources: Source[] = [];
   if (deps.products) sources.push({ lookup: deps.products, name: "upcitemdb", counted: true });
   if (deps.openFacts && (await openFactsEnabled(deps.db))) sources.push({ lookup: deps.openFacts, name: "openfacts", counted: false });
@@ -266,7 +294,7 @@ export async function lookupBarcode(v: Pick<Caller, "db" | "deps" | "householdId
       row = await entry(deps.db, barcode);
     }
   }
-  const sources = await sourcesFor({ ...deps, books: v.deps.books, openFacts: v.deps.openFacts }, barcode);
+  const sources = await sourcesFor({ ...deps, books: v.deps.books, openFacts: v.deps.openFacts, googleBooks: v.deps.googleBooks }, barcode);
   if (!own && !row?.name && sources[0] && worthAsking(row, sources[0])) {
     // A plan may limit the online product database's lookups (lib/plan.ts); the free sources are asked anyway, and
     // Ferret's own barcode book always answers.
@@ -296,7 +324,7 @@ export async function rememberBarcode(
 }
 
 /** Background job: ask the online database about a code (for an item page's photos and price). Retried on errors. */
-export function productLookupJob(deps: Pick<Deps, "db" | "products" | "books" | "openFacts">): JobHandler {
+export function productLookupJob(deps: Pick<Deps, "db" | "products" | "books" | "openFacts" | "googleBooks">): JobHandler {
   return async (payload) => {
     const { barcode: raw, free } = payload as { barcode?: string; free?: boolean };
     const barcode = productCode(raw);
@@ -311,7 +339,7 @@ export function productLookupJob(deps: Pick<Deps, "db" | "products" | "books" | 
 export async function queueProductLookup(v: Pick<Caller, "db" | "deps" | "householdId" | "userId">, raw: string | null | undefined) {
   const barcode = productCode(raw);
   if (!barcode || !v.deps.jobs) return;
-  const sources = await sourcesFor({ db: v.db, products: v.deps.products, books: v.deps.books, openFacts: v.deps.openFacts }, barcode);
+  const sources = await sourcesFor({ db: v.db, products: v.deps.products, books: v.deps.books, openFacts: v.deps.openFacts, googleBooks: v.deps.googleBooks }, barcode);
   if (!sources[0] || !worthAsking(await entry(v.db, barcode), sources[0])) return;
   let free = false;
   if (sources[0].counted) {
@@ -327,7 +355,7 @@ export async function itemProduct(v: Caller, itemId: string): Promise<ItemProduc
   const it = await getItem(v, itemId);
   const barcode = productCode(it.barcode);
   if (!barcode) return v.deps.products || v.deps.openFacts ? { status: "none" } : { status: "off" };
-  const sources = await sourcesFor({ db: v.db, products: v.deps.products, books: v.deps.books, openFacts: v.deps.openFacts }, barcode);
+  const sources = await sourcesFor({ db: v.db, products: v.deps.products, books: v.deps.books, openFacts: v.deps.openFacts, googleBooks: v.deps.googleBooks }, barcode);
   if (!sources[0]) return { status: "off" };
   const row = await entry(v.db, barcode);
   if (row?.external) return { status: it.productDismissedFor === barcode ? "dismissed" : "found", product: row.external };

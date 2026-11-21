@@ -3,7 +3,7 @@
  * backups (status, "Back up now", the copies kept, each one's restore check, how to restore), the server check, recall checks (on or off),
  * certificates for the server's own connections, and handing the admin role to someone else. Restoring is a command on the server, not a button: see restoreCommands below.
  */
-import type { BackupRun, BackupSnapshot, BackupStatus, CollectibleCatalogStatus, CollectibleKind, ServerCertificate, ServerSecrets } from "@ferret/shared";
+import type { BackupRun, BackupSnapshot, BackupStatus, BookLookupStatus, CollectibleCatalogStatus, CollectibleKind, ServerCertificate, ServerSecrets } from "@ferret/shared";
 import { ServerAiFillCard } from "./AiFill";
 import { AiPrompts, PROMPT_NAMES } from "./Prompts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -586,8 +586,55 @@ function BookLookups() {
         </label>
         {s.enabled && <p className="text-sm text-base-content/70">{plural(s.books, { one: "# book found", other: "# books found" })}.</p>}
         {toggle.isError && <div className="alert alert-soft alert-error">{toggle.error.message}</div>}
+        {s.enabled && s.google?.available && <GoogleBooksKey hint={s.google.hint} onSaved={(data) => qc.setQueryData(["server-books"], data)} />}
       </div>
     </section>
+  );
+}
+
+/** Google Books: optional, asked after Open Library (better for recent and non-English books) once its free key is saved. */
+function GoogleBooksKey({ hint, onSaved }: { hint: string | null; onSaved: (data: BookLookupStatus) => void }) {
+  const [key, setKey] = useState("");
+  const [editing, setEditing] = useState(false);
+  const save = useMutation({
+    mutationFn: (value: string | null) => api.setGoogleBooksKey(value),
+    onSuccess: (data) => {
+      setKey("");
+      setEditing(false);
+      onSaved(data);
+    },
+  });
+  return (
+    <div className="flex flex-col gap-2 border-t border-base-content/10 pt-3">
+      <p className="text-sm text-base-content/70">
+        <Trans>Google Books (optional): asked when Open Library doesn't know a book — better for recent and non-English ones. It needs a free API key
+        from a Google Cloud project with the Books API enabled.</Trans>
+      </p>
+      {hint && !editing ? (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="badge badge-soft badge-success">{t`On`} · {hint}</span>
+          <button type="button" className="btn btn-text btn-sm" onClick={() => setEditing(true)}><Trans>Change key</Trans></button>
+          <button type="button" className="btn btn-text btn-sm text-error" disabled={save.isPending} onClick={() => confirm(t`Remove the Google Books key? Only Open Library will be asked.`) && save.mutate(null)}>
+            <Trans>Remove</Trans>
+          </button>
+        </div>
+      ) : (
+        <form
+          className="flex flex-wrap gap-2"
+          onSubmit={(e: FormEvent) => {
+            e.preventDefault();
+            if (key.trim()) save.mutate(key.trim());
+          }}
+        >
+          <input className="input min-w-0 flex-1 font-mono" type="password" autoComplete="off" value={key} onChange={(e) => setKey(e.target.value)} placeholder={t`Paste the API key`} aria-label={t`Google Books API key`} />
+          <button className="btn btn-soft btn-primary" disabled={save.isPending || !key.trim()}>
+            {save.isPending ? <span className="loading loading-spinner loading-sm" /> : <Trans>Check and save</Trans>}
+          </button>
+          {editing && <button type="button" className="btn btn-text" onClick={() => setEditing(false)}><Trans>Cancel</Trans></button>}
+        </form>
+      )}
+      {save.isError && <div className="alert alert-soft alert-error">{save.error.message}</div>}
+    </div>
   );
 }
 

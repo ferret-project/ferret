@@ -3,8 +3,7 @@
  * deps.collectibles. Each needs a free key that the server admin pastes in Settings → Server; a catalog is on once its
  * key is saved, and hidden without one.
  *
- * - The keys are kept in `server_setting` sealed with a key made from FILES_KEY (HKDF), so backups keep them and
- *   nothing sends them back out (Settings shows the last four characters).
+ * - The keys are kept sealed (lib/server-keys.ts): backups keep them, nothing sends them back out.
  * - What a catalog says is public: kept in the server's shared collector book (collectible_info) — Numista's free
  *   allowance is monthly, so a coin's details are kept a month and its prices a week; sets and comics three months.
  * - A thing that's a set, coin or comic remembers which one (item.collectible); a coin also its issue (year and mint)
@@ -28,16 +27,17 @@ import {
   collectibleKinds,
   uploadTypes,
 } from "@ferret/shared";
-import { and, eq, isNotNull, like, lt } from "drizzle-orm";
+import { and, eq, isNotNull, lt } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
-import { aiRun, collectibleInfo, item, serverSetting } from "../db/schema";
+import { aiRun, collectibleInfo, item } from "../db/schema";
 import { CatalogKeyError, CatalogLimitError, type CollectibleCatalog, type Db, type Deps, DownloadError, type JobHandler } from "../ports";
 import { addAttachment } from "./attachments";
 import type { FileStore } from "./files";
 import { type Caller, getItem, itemScope, notFound } from "./inventory";
 import { allow, recordUsage, requireAllowed } from "./plan";
 import { sniffContentType } from "./sniff";
+import { savedKeyHints, saveServerKey, serverKey } from "./server-keys";
 import { inList } from "./sql";
 
 export const COLLECTIBLE_READ_JOB = "collectibles.read";
@@ -63,44 +63,11 @@ export const collectiblePhotoKey = (householdId: string, runId: string) => `${ho
 
 // ── The keys ─────────────────────────────────────────────────────────────────────────────────────────────────
 
-const utf8 = new TextEncoder();
-const IV_BYTES = 12;
 const settingKey = (kind: CollectibleKind) => `collectibles.${kind}.key`;
-type SavedKey = { sealed: string; hint: string };
 
-async function sealingKey(filesKey: string) {
-  const raw = Uint8Array.from(atob(filesKey), (c) => c.charCodeAt(0));
-  const base = await crypto.subtle.importKey("raw", raw, "HKDF", false, ["deriveKey"]);
-  raw.fill(0);
-  return crypto.subtle.deriveKey({ name: "HKDF", hash: "SHA-256", salt: new Uint8Array(0), info: utf8.encode("ferret-catalog-keys-v1") }, base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
-}
-
-const toBase64 = (bytes: Uint8Array) => btoa(Array.from(bytes, (b) => String.fromCharCode(b)).join(""));
-const fromBase64 = (text: string) => Uint8Array.from(atob(text), (c) => c.charCodeAt(0));
-
-async function seal(filesKey: string, kind: CollectibleKind, secret: string) {
-  const iv = crypto.getRandomValues(new Uint8Array(IV_BYTES));
-  const sealed = await crypto.subtle.encrypt({ name: "AES-GCM", iv, additionalData: utf8.encode(settingKey(kind)) }, await sealingKey(filesKey), utf8.encode(secret));
-  const out = new Uint8Array(IV_BYTES + sealed.byteLength);
-  out.set(iv);
-  out.set(new Uint8Array(sealed), IV_BYTES);
-  return toBase64(out);
-}
-
-async function unseal(filesKey: string, kind: CollectibleKind, sealed: string) {
-  const bytes = fromBase64(sealed);
-  const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: bytes.subarray(0, IV_BYTES), additionalData: utf8.encode(settingKey(kind)) }, await sealingKey(filesKey), bytes.subarray(IV_BYTES));
-  return new TextDecoder().decode(plain);
-}
-
-async function savedKeys(db: Db): Promise<Map<CollectibleKind, SavedKey>> {
-  const rows = await db.select().from(serverSetting).where(like(serverSetting.key, "collectibles.%.key"));
-  const out = new Map<CollectibleKind, SavedKey>();
-  for (const r of rows) {
-    const kind = collectibleKinds.find((k) => settingKey(k) === r.key);
-    if (kind) out.set(kind, JSON.parse(r.value) as SavedKey);
-  }
-  return out;
+async function savedKeys(db: Db): Promise<Map<CollectibleKind, string>> {
+  const hints = await savedKeyHints(db, "collectibles.%.key");
+  return new Map(collectibleKinds.filter((k) => hints.has(settingKey(k))).map((k) => [k, hints.get(settingKey(k))!]));
 }
 
 /** The catalogs people can use: this server has the adapter and the server admin saved a key. */
@@ -117,7 +84,7 @@ export async function catalogStatus(deps: CatalogDeps): Promise<CollectibleCatal
     kind,
     available: Boolean(deps.collectibles?.[kind]),
     on: Boolean(deps.collectibles?.[kind] && saved.has(kind)),
-    hint: saved.get(kind)?.hint ?? null,
+    hint: saved.get(kind) ?? null,
     kept: kept.filter((k) => k.key.startsWith(`${kind}:`)).length,
   }));
 }
@@ -127,7 +94,7 @@ export async function saveCatalogKey(deps: CatalogDeps, filesKey: string, kind: 
   const catalog = deps.collectibles?.[kind];
   if (!catalog) throw new HTTPException(409, { message: `${CATALOG_NAMES[kind]} isn't available on this server` });
   if (key == null) {
-    await deps.db.delete(serverSetting).where(eq(serverSetting.key, settingKey(kind)));
+    await saveServerKey(deps.db, filesKey, settingKey(kind), null);
     return catalogStatus(deps);
   }
   const ok = await catalog.check(key).catch((err: unknown) => {
@@ -135,17 +102,16 @@ export async function saveCatalogKey(deps: CatalogDeps, filesKey: string, kind: 
     throw new HTTPException(502, { message: `Couldn't reach ${CATALOG_NAMES[kind]} to check the key — try again in a while` });
   });
   if (!ok) throw new HTTPException(422, { message: `${CATALOG_NAMES[kind]} didn't accept that key — copy it again from your account there` });
-  const value = JSON.stringify({ sealed: await seal(filesKey, kind, key), hint: `…${key.slice(-4)}` } satisfies SavedKey);
-  await deps.db.insert(serverSetting).values({ key: settingKey(kind), value }).onConflictDoUpdate({ target: serverSetting.key, set: { value } });
+  await saveServerKey(deps.db, filesKey, settingKey(kind), key);
   return catalogStatus(deps);
 }
 
 /** A catalog and its key, or 409 when it isn't on. */
 async function catalogOf(deps: CatalogDeps, filesKey: string, kind: CollectibleKind): Promise<{ catalog: CollectibleCatalog; key: string }> {
   const catalog = deps.collectibles?.[kind];
-  const saved = catalog ? (await savedKeys(deps.db)).get(kind) : undefined;
-  if (!catalog || !saved) throw new HTTPException(409, { message: `${CATALOG_NAMES[kind]} look-ups aren't switched on on this server` });
-  return { catalog, key: await unseal(filesKey, kind, saved.sealed) };
+  const key = catalog ? await serverKey(deps.db, filesKey, settingKey(kind)) : null;
+  if (!catalog || !key) throw new HTTPException(409, { message: `${CATALOG_NAMES[kind]} look-ups aren't switched on on this server` });
+  return { catalog, key };
 }
 
 /** A catalog's own trouble in words people can act on (and the server admin can fix). */

@@ -25,7 +25,7 @@ import { catalogStatus, saveCatalogKey } from "../lib/collectibles";
 import { collectibleKeyInput, collectibleKinds } from "@ferret/shared";
 import { SUPPORT_REFRESH_JOB, setSupportEnabled, supportStatus } from "../lib/support";
 import { EXCHANGE_RATES_JOB, exchangeRateStatus, setExchangeRatesEnabled } from "../lib/exchange";
-import { barcodeLookupStatus, bookLookupStatus, musicLookupStatus, openFactsStatus, setBooksEnabled, setMusicEnabled, setOpenFactsEnabled } from "../lib/products";
+import { setGoogleBooksKey, barcodeLookupStatus, bookLookupStatus, musicLookupStatus, openFactsStatus, setBooksEnabled, setMusicEnabled, setOpenFactsEnabled } from "../lib/products";
 import { runServerCheck } from "../lib/server-check";
 import { reindexEverything, searchIndexStatus } from "../lib/search-index";
 import { BACKFILL_JOB } from "../jobs/index-item";
@@ -205,6 +205,12 @@ server.put("/collectibles/:kind", async (c) => {
   if (!kind.success) throw new HTTPException(404, { message: "No such catalog" });
   const { key } = await body(c.req.raw, collectibleKeyInput);
   return c.json({ data: await saveCatalogKey(c.var.deps, c.var.config.FILES_KEY, kind.data, key) });
+});
+
+/** Google Books, asked after Open Library: save its free key (checked with Google first), or `{ key: null }` to remove it. */
+server.put("/books/google", async (c) => {
+  const { key } = await body(c.req.raw, collectibleKeyInput);
+  return c.json(await setGoogleBooksKey(c.var.deps, c.var.config.FILES_KEY, key));
 });
 
 /** Music look-ups (MusicBrainz, for "Scan music"): whether they're on, and how many records are kept. */

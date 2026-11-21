@@ -85,8 +85,8 @@ drill for the cabin. If several of your things have that code, pick which one to
 ## Books
 
 A book's barcode is its **ISBN**. When whoever runs your Ferret has switched on
-[book look-ups](../hosting/server-admin#book-look-ups), scanning it (or saving a thing with it) asks Open Library, and
-Ferret offers the **title** and **author** — the author goes in the brand — and the **cover** as a photo, like any
+[book look-ups](../hosting/server-admin#book-look-ups), scanning it (or saving a thing with it) asks Open Library (and,
+if it doesn't know the book, Google Books when your server has its key), and Ferret offers the **title** and **author** — the author goes in the brand — and the **cover** as a photo, like any
 barcode's suggestions.
 
 ## Music

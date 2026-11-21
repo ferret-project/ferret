@@ -2,6 +2,7 @@
 import type { BarcodeMatch, ItemProduct, ProductInfo } from "@ferret/shared";
 import { describe, expect, it } from "vitest";
 import type { ProductLookup } from "../src/ports";
+import { GoogleBooks, coverUrl, toBook } from "../src/adapters/local/googlebooks";
 import { FakeProducts, setup } from "./helpers";
 
 type User = Awaited<ReturnType<Awaited<ReturnType<typeof setup>>["user"]>>;
@@ -54,6 +55,50 @@ describe("book look-ups", () => {
     await scan(ann, "012345678905");
     expect(products.calls.at(-1)).toBe("0012345678905");
     expect(await json(ann.as("/api/v1/server/books"))).toMatchObject({ books: 1 });
+  });
+
+  it("ask Google Books after Open Library once the server admin saves its key, and keep the key sealed", async () => {
+    const books = new FakeBooks();
+    const keys: string[] = [];
+    const google = Object.assign(new FakeBooks(), {
+      check: async (key: string) => key === "good-google-key",
+      lookup: async (isbn: string): Promise<ProductInfo | null> => {
+        keys.push(isbn);
+        return isbn === "9780593135204" ? { barcode: isbn, title: "Project Hail Mary", brand: "Andy Weir", category: "Books", images: [], source: "Google Books", kind: "book" } : null;
+      },
+    });
+    const s = await setup({ books, googleBooks: google });
+    const ann = await s.user("ann");
+    await send(ann, "PUT", "/api/v1/server/books", { enabled: true });
+    // No key yet: Open Library alone.
+    await scan(ann, "9780593135204");
+    expect(keys).toEqual([]);
+    expect((await send(ann, "PUT", "/api/v1/server/books/google", { key: "a-wrong-key" })).status).toBe(422);
+    expect(await json(send(ann, "PUT", "/api/v1/server/books/google", { key: "good-google-key" }))).toMatchObject({ google: { available: true, hint: "…-key" } });
+    expect(JSON.stringify(await json(ann.as("/api/v1/server/books")))).not.toContain("good-google-key");
+    const found = await scan(ann, "9780593135204");
+    expect(found.match).toMatchObject({ name: "Project Hail Mary", source: "googlebooks" });
+    // Open Library knew it: Google isn't asked.
+    await scan(ann, LEAN_STARTUP);
+    expect(keys).toEqual(["9780593135204"]);
+    const bob = await s.user("bob");
+    expect((await send(bob, "PUT", "/api/v1/server/books/google", { key: "good-google-key" })).status).toBe(403);
+  });
+
+  it("take only a Google Books answer that really has the ISBN, over https", async () => {
+    expect(coverUrl("http://books.google.com/books/content?id=X&printsec=frontcover&img=1&zoom=1&edge=curl&source=gbs_api")).toBe("https://books.google.com/books/content?id=X&printsec=frontcover&img=1&zoom=1&source=gbs_api");
+    const volume = { volumeInfo: { title: "Project Hail Mary", authors: ["Andy Weir"], pageCount: 497, publisher: "Ballantine Books", publishedDate: "2021-05-04", industryIdentifiers: [{ type: "ISBN_13", identifier: "9780593135204" }] } };
+    expect(toBook("9780593135204", volume)).toMatchObject({ title: "Project Hail Mary", brand: "Andy Weir", description: "497 pages · Ballantine Books, 2021-05-04", source: "Google Books" });
+    expect(toBook("9780000000002", volume)).toBeNull();
+    const urls: URL[] = [];
+    const fetcher = (async (input: string | URL | Request) => {
+      urls.push(new URL(String(input)));
+      return new Response(JSON.stringify({ items: [{ volumeInfo: { title: "Something else", industryIdentifiers: [{ type: "ISBN_13", identifier: "9781111111111" }] } }, volume] }), { status: 200 });
+    }) as typeof fetch;
+    expect(await new GoogleBooks(async () => null, fetcher).lookup("9780593135204")).toBeNull(); // no key: not asked
+    expect(urls).toHaveLength(0);
+    expect(await new GoogleBooks(async () => "k", fetcher).lookup("9780593135204")).toMatchObject({ title: "Project Hail Mary" });
+    expect(urls[0]!.searchParams.get("q")).toBe("isbn:9780593135204");
   });
 
   it("offer a saved book's title, author and cover on its page", async () => {

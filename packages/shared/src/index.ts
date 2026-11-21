@@ -1280,7 +1280,7 @@ export interface BarcodeMatch {
   brand?: string | null;
   model?: string | null;
   /** "ferret": someone saved an item with it; "upcitemdb": from the online database. */
-  source: "ferret" | "upcitemdb" | "openlibrary" | "musicbrainz" | "openfacts";
+  source: "ferret" | "upcitemdb" | "openlibrary" | "googlebooks" | "musicbrainz" | "openfacts";
   /** Which database said so, in words ("Open Food Facts", "UPCitemdb"…), when it wasn't the household. */
   sourceName?: string;
   /** From the online database, when it was asked. */
@@ -2240,6 +2240,8 @@ export interface BookLookupStatus {
   enabled: boolean;
   /** Books kept in the shared barcode book. */
   books: number;
+  /** Google Books, asked after Open Library: on with a key (its last four characters shown). */
+  google: { available: boolean; hint: string | null };
 }
 
 /** One price for a card in one finish, from a marketplace (TCGplayer in USD, Cardmarket in EUR). */

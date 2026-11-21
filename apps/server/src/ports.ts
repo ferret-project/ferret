@@ -637,6 +637,8 @@ export interface Deps {
   support?: SupportLifecycles;
   /** Trading card catalogs (Pokémon: TCGdex; Magic: Scryfall), for "Scan cards" (switched on in Settings → Server). */
   cards?: Partial<Record<CardGame, CardCatalog>>;
+  /** Google Books: a second book source after Open Library, on once the server admin saves its key (the adapter fetches it). */
+  googleBooks?: ProductLookup & { check(key: string): Promise<boolean> };
   /** Collector catalogs (LEGO: Rebrickable; coins: Numista; comics: Comic Vine) — each on once the server admin saves its key. */
   collectibles?: Partial<Record<CollectibleKind, CollectibleCatalog>>;
   /** Open Food Facts, Open Products Facts, Open Beauty Facts: asked when the product database doesn't know a code (switched on in Settings → Server). */
