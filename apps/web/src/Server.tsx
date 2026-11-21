@@ -54,6 +54,7 @@ export function Server() {
           <CardLookups />
           <CollectorCatalogs />
           <EnergyStarLookups />
+          <BikeIndexLookups />
           {!demo && <Certificates />}
           {!demo && <AiPrompts />}
         </div>
@@ -899,6 +900,37 @@ function CatalogKey({ status, onSaved }: { status: CollectibleCatalogStatus; onS
       )}
       {save.isError && <div className="alert alert-soft alert-error">{save.error.message}</div>}
     </li>
+  );
+}
+
+/** Bike Index look-ups: off until switched on, because bikes' serial numbers are sent to bikeindex.org. */
+function BikeIndexLookups() {
+  const qc = useQueryClient();
+  const status = useQuery({ queryKey: ["server-bike-index"], queryFn: api.bikeIndexStatus });
+  const toggle = useMutation({ mutationFn: api.setBikeIndex, onSuccess: (data) => qc.setQueryData(["server-bike-index"], data) });
+  const s = status.data;
+  if (!s?.available) return null;
+  return (
+    <section className="card" aria-labelledby="bike-index-server-title">
+      <div className="card-body gap-3">
+        <h2 id="bike-index-server-title" className="card-title flex items-center gap-2">
+          <span className="icon-[tabler--bike] size-5 text-primary" />
+          <Trans>Bike Index look-ups</Trans>
+          <HelpLink page="hosting/server-admin.html#bike-index-look-ups" label={t`Bike Index look-ups`} />
+        </h2>
+        <p className="text-sm text-base-content/70">
+          <Trans>On a bike's page, says whether a bike with its serial number is reported stolen on Bike Index (bikeindex.org, a non-profit registry) —
+          worth knowing about one bought second-hand — with links to register it there, or report it once it's marked stolen. Free, no key. Only
+          bikes' serial numbers are sent.</Trans>
+        </p>
+        <label className="flex cursor-pointer items-center gap-3">
+          <input type="checkbox" className="switch switch-primary" checked={s.enabled} disabled={toggle.isPending} onChange={(e) => toggle.mutate(e.target.checked)} />
+          <span>{s.enabled ? t`On` : t`Off`}</span>
+        </label>
+        {s.enabled && <p className="text-sm text-base-content/70">{plural(s.checked, { one: "# serial number checked", other: "# serial numbers checked" })}.</p>}
+        {toggle.isError && <div className="alert alert-soft alert-error">{toggle.error.message}</div>}
+      </div>
+    </section>
   );
 }
 

@@ -2546,6 +2546,33 @@ export interface EnergyStarStatus {
   kept: number;
 }
 
+/** A bike reported stolen on Bike Index. */
+export interface StolenBikeReport {
+  id: string;
+  serial: string;
+  maker: string | null;
+  model: string | null;
+  year: number | null;
+  /** yyyy-mm-dd. */
+  stolenOn: string | null;
+  location: string | null;
+  url: string;
+}
+
+/** A bike's Bike Index card: off (not a bike, or look-ups off), no serial, being checked, clear, or reported stolen. */
+export interface ItemBikeIndex {
+  status: "off" | "none" | "pending" | "clear" | "stolen";
+  reports?: StolenBikeReport[];
+}
+
+/** Bike Index look-ups for Settings → Server. */
+export interface BikeIndexStatus {
+  available: boolean;
+  enabled: boolean;
+  /** Serial numbers checked and kept. */
+  checked: number;
+}
+
 /** Music look-ups (MusicBrainz, for "Scan music") for Settings → Server. */
 export interface MusicLookupStatus {
   available: boolean;

@@ -453,6 +453,7 @@ export const OPERATIONS: Operation[] = [
   { method: "put", path: "/items/{id}/support", tag: "Items", summary: "Track a model's end of support on the thing (the suggestion's product and release)", body: z.object({ product: z.string(), release: z.string() }), writes: true, returns: "ItemSupportStatus" },
   { method: "delete", path: "/items/{id}/support", tag: "Items", summary: "Stop tracking, or say a suggested model isn't it (it isn't offered again)", writes: true, returns: "ItemSupportStatus" },
 
+  { method: "get", path: "/items/{id}/bike-index", tag: "Items", summary: "For a bike with a serial number: whether Bike Index has a bike with that serial reported stolen; `pending` while it's checked — ask again", returns: "ItemBikeIndex" },
   { method: "get", path: "/items/{id}/energy", tag: "Items", summary: "A thing's ENERGY STAR entry by its brand and model (or barcode): certified energy use a year and how it compares with the US standard; `pending` while it's looked up — ask again", returns: "ItemEnergy" },
 
   // ── Collector catalogs ─────────────────────────────────────────────────────
@@ -610,6 +611,8 @@ export const OPERATIONS: Operation[] = [
   { method: "put", path: "/server/open-facts", tag: "Server", summary: "Switch Open Food Facts look-ups on (a barcode the product database doesn't know is sent to the Open Food Facts databases) or off: { enabled } (server admin)", writes: true, returns: "OpenFactsStatus" },
   { method: "get", path: "/server/cards", tag: "Server", summary: "Trading card look-ups (TCGdex, Scryfall): on or off, cards kept (server admin)", returns: "CardLookupStatus" },
   { method: "put", path: "/server/cards", tag: "Server", summary: "Switch trading card look-ups on (card names and numbers are sent to TCGdex and Scryfall) or off: { enabled } (server admin)", writes: true, returns: "CardLookupStatus" },
+  { method: "get", path: "/server/bike-index", tag: "Server", summary: "Bike Index look-ups: on or off, serials checked (server admin)", returns: "BikeIndexStatus" },
+  { method: "put", path: "/server/bike-index", tag: "Server", summary: "Switch Bike Index look-ups on (bikes' serial numbers are sent to bikeindex.org) or off: { enabled } (server admin)", writes: true, returns: "BikeIndexStatus" },
   { method: "get", path: "/server/energy-star", tag: "Server", summary: "ENERGY STAR look-ups: on or off, brands and models kept (server admin)", returns: "EnergyStarStatus" },
   { method: "put", path: "/server/energy-star", tag: "Server", summary: "Switch ENERGY STAR look-ups on (things' brands and models, or barcodes, are sent to data.energystar.gov) or off: { enabled } (server admin)", writes: true, returns: "EnergyStarStatus" },
   { method: "put", path: "/server/books/google", tag: "Server", summary: "Save the Google Books key (asked after Open Library for ISBNs), checked with Google first ({ key }), or remove it ({ key: null }) (server admin)", body: collectibleKeyInput, writes: true, returns: "BookLookupStatus" },

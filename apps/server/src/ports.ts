@@ -21,7 +21,7 @@
  *   Speech    → a Whisper-style transcription server (OpenAI-compatible /v1/audio/transcriptions)
  */
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
-import type { EnergyStarMatch, CardGame, CardInfo, CoinIssuer, CollectibleInfo, CollectibleKind, CollectiblePrice, ExchangeRates, PlanLimits } from "@ferret/shared";
+import type { StolenBikeReport, EnergyStarMatch, CardGame, CardInfo, CoinIssuer, CollectibleInfo, CollectibleKind, CollectiblePrice, ExchangeRates, PlanLimits } from "@ferret/shared";
 import type { SupportRelease } from "./db/schema/inventory";
 import type * as schema from "./db/schema";
 import type { Catalogs } from "./lib/language";
@@ -281,6 +281,11 @@ export interface FdaRecalls {
 export interface EnergyStar {
   forModel(brand: string, model: string): Promise<EnergyStarMatch[]>;
   forBarcode(code: string): Promise<EnergyStarMatch[]>;
+}
+
+/** Bike Index: bikes reported stolen, by serial number. */
+export interface StolenBikes {
+  stolenWithSerial(serial: string): Promise<StolenBikeReport[]>;
 }
 
 /** Product recalls (the CPSC's public data). */
@@ -668,6 +673,8 @@ export interface Deps {
   support?: SupportLifecycles;
   /** Trading card catalogs (Pokémon: TCGdex; Magic: Scryfall), for "Scan cards" (switched on in Settings → Server). */
   cards?: Partial<Record<CardGame, CardCatalog>>;
+  /** Bike Index: whether a bike's serial is reported stolen, once the server admin switches it on. */
+  stolenBikes?: StolenBikes;
   /** ENERGY STAR's certified appliances: a thing's energy use, once the server admin switches it on. */
   energyStar?: EnergyStar;
   /** The FDA's food and medicine recalls (openFDA), matched by barcode, with recall checks switched on. */

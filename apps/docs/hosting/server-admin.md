@@ -85,6 +85,15 @@ need no key and have no allowance. It's off until you switch it on, because what
 and set) is sent to them. Prices are kept a day for the whole server. Reading a photo of a card uses your vision model
 (`VISION_URL`) and counts as an AI action. Without a vision model, people type the cards instead.
 
+## Bike Index look-ups
+
+**Settings → Server → Bike Index look-ups** shows, on a bike's page, whether a bike with its serial number is
+reported stolen on [Bike Index](https://bikeindex.org), a non-profit bike registry, with links to register it there or
+to report it when it's marked stolen ([what people see](../guide/past-things#stolen-bikes)). Free, no key. It's off
+until you switch it on, because a bike's **serial number** is sent, and only for things that look like bikes (by their
+name or category). Each answer is kept for the whole server for a day. Ferret never signs in to Bike Index for anyone:
+registering and reporting happen on their site.
+
 ## ENERGY STAR look-ups
 
 **Settings → Server → ENERGY STAR look-ups** shows an appliance's certified energy use on its page: a fridge's, freezer's,

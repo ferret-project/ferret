@@ -23,6 +23,7 @@ import { aboutServer, clearServiceErrors, listServiceErrors } from "../lib/servi
 import { cardLookupStatus, setCardsEnabled } from "../lib/cards";
 import { catalogStatus, saveCatalogKey } from "../lib/collectibles";
 import { energyStatus, setEnergyEnabled } from "../lib/energy";
+import { bikeIndexStatus, setBikeIndexEnabled } from "../lib/bikes";
 import { collectibleKeyInput, collectibleKinds } from "@ferret/shared";
 import { SUPPORT_REFRESH_JOB, setSupportEnabled, supportStatus } from "../lib/support";
 import { EXCHANGE_RATES_JOB, exchangeRateStatus, setExchangeRatesEnabled } from "../lib/exchange";
@@ -206,6 +207,16 @@ server.put("/collectibles/:kind", async (c) => {
   if (!kind.success) throw new HTTPException(404, { message: "No such catalog" });
   const { key } = await body(c.req.raw, collectibleKeyInput);
   return c.json({ data: await saveCatalogKey(c.var.deps, c.var.config.FILES_KEY, kind.data, key) });
+});
+
+/** Bike Index look-ups: whether they're on, and how many serials are kept. */
+server.get("/bike-index", async (c) => c.json(await bikeIndexStatus(c.var.deps)));
+
+/** Switch Bike Index look-ups on (bikes' serial numbers are sent to bikeindex.org) or off. */
+server.put("/bike-index", async (c) => {
+  const { enabled } = await body(c.req.raw, z.object({ enabled: z.boolean() }));
+  await setBikeIndexEnabled(c.var.db, enabled);
+  return c.json(await bikeIndexStatus(c.var.deps));
 });
 
 /** ENERGY STAR look-ups: whether they're on, and how many brands and models are kept. */

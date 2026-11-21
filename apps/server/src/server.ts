@@ -45,6 +45,7 @@ import { DiscogsRecords } from "./adapters/local/discogs";
 import { GoogleBooks } from "./adapters/local/googlebooks";
 import { OpenFdaRecalls } from "./adapters/local/openfda";
 import { EnergyStarProducts } from "./adapters/local/energystar";
+import { BikeIndexRegistry } from "./adapters/local/bikeindex";
 import { serverKey } from "./lib/server-keys";
 import { GOOGLE_BOOKS_KEY } from "./lib/products";
 import { QdrantVectors } from "./adapters/local/qdrant";
@@ -185,6 +186,7 @@ const deps = {
   // Asked after Open Library once the server admin saves a key; it fetches the key sealed in the database.
   fdaRecalls: watched(db, "recalls (FDA)", new OpenFdaRecalls()),
   energyStar: watched(db, "ENERGY STAR", new EnergyStarProducts()),
+  stolenBikes: watched(db, "Bike Index", new BikeIndexRegistry()),
   googleBooks: watched(db, "books (Google)", new GoogleBooks(() => serverKey(db, config.FILES_KEY, GOOGLE_BOOKS_KEY))),
   music: watched(db, "music", new MusicBrainzReleases()),
   openFacts: watched(db, "Open Food Facts", new OpenFactsProducts()),
@@ -269,6 +271,7 @@ serve(
   console.log("   Exchange rates: the European Central Bank's, for prices in other currencies, if the server admin switches them on (Settings → Server)");
   console.log("   Device support: endoflife.date's dates for when phones, tablets and the like stop getting updates, if the server admin switches it on (Settings → Server)");
   console.log("   Collectors:     Rebrickable (LEGO), Numista (coins), Comic Vine (comics), TMDB (films, TV), IGDB (games) and Discogs (records), once the server admin saves their free keys (Settings → Server)");
+  console.log("   Bike Index:     whether a bike's serial is reported stolen, if the server admin switches it on (Settings → Server)");
   console.log("   ENERGY STAR:    appliances' certified energy use, if the server admin switches it on (Settings → Server)");
   console.log("   Trading cards:  TCGdex (Pokémon) and Scryfall (Magic) for Scan cards, if the server admin switches them on (Settings → Server)");
   console.log("   Music:          MusicBrainz for Scan music (CDs, records), if the server admin switches it on (Settings → Server)");

@@ -27,6 +27,16 @@ If anything was lost or stolen, Past things offers **Download for a claim (CSV)*
 when first, then everything else the [insurance report](./insurance-report) has — where it was, make, model, serial
 number, what you paid, what it was worth, its photos and receipts.
 
+## Stolen bikes
+
+When whoever runs your Ferret has switched on [Bike Index look-ups](../hosting/server-admin#bike-index-look-ups), a
+bike marked stolen offers **Report it stolen on Bike Index**, the registry bike shops, police and buyers check, which
+is how stolen bikes come back. Its serial number from Ferret is what to give them.
+
+Any bike with a serial number also shows whether Bike Index has a bike with that serial reported stolen. That's worth
+checking for one you bought second-hand. If it isn't reported, **Register it on Bike Index** gets it on the registry
+before anything happens.
+
 ## Donations
 
 Choose **Donated it** for things given to a charity or organisation. Say who it went to (**Given to**), what it was
