@@ -12,6 +12,10 @@
  *   docker compose exec ferret node dist/cli.js certificates list               what Ferret trusts for its own connections
  *   docker compose exec -T ferret node dist/cli.js certificates trust - "Home CA" < home-ca.pem
  *   docker compose exec ferret node dist/cli.js certificates remove <id or name>
+ *   docker compose exec ferret node dist/cli.js service-keys list               outside services' keys (last four only)
+ *   docker compose exec -it ferret node dist/cli.js service-keys set tmdb       asks for the key, checks it, saves it
+ *   docker compose exec -T ferret node dist/cli.js service-keys set tmdb < tmdb.key
+ *   docker compose exec ferret node dist/cli.js service-keys remove tmdb
  * Reads .env (DATA_DIR, BACKUP_DIR, and the secrets — else the ones Ferret made, in DATA_DIR/secrets.json).
  * In dev: pnpm --filter @ferret/server cli admin
  */
@@ -29,11 +33,28 @@ import { recordKeyFile } from "./lib/key-file-log";
 import { DbJobs } from "./adapters/local/jobs";
 import { NodeTls } from "./adapters/local/certificates";
 import { addTrusted, listCertificates, removeCertificate } from "./lib/certificates";
+import { RebrickableSets } from "./adapters/local/rebrickable";
+import { NumistaCoins } from "./adapters/local/numista";
+import { ComicVineIssues } from "./adapters/local/comicvine";
+import { TmdbVideos } from "./adapters/local/tmdb";
+import { IgdbGames } from "./adapters/local/igdb";
+import { DiscogsRecords } from "./adapters/local/discogs";
+import { GoogleBooks } from "./adapters/local/googlebooks";
+import { EiaElectricity, EiaFuel } from "./adapters/local/eia";
+import { PcgsGrading } from "./adapters/local/pcgs";
+import { PsaGrading } from "./adapters/local/psa";
+import { saveCatalogKey } from "./lib/collectibles";
+import { saveGradingKey } from "./lib/graded";
+import { EIA_KEY, setElectricityKey } from "./lib/energy";
+import { GOOGLE_BOOKS_KEY, setGoogleBooksKey } from "./lib/products";
+import { savedKeyHints } from "./lib/server-keys";
+import type { Db } from "./ports";
 import { SECRETS_FILE, currentSecrets, readStoredSecrets, replaceAuthSecret, writeStoredSecrets } from "./adapters/local/secrets";
 
 const USAGE = `Usage: cli.js admin [email] | backup list | backup check [snapshot] | backup restore <data folder> [snapshot]
        | key fingerprint | key export <folder or file> | key recover <key file> [data folder] | secrets new AUTH_SECRET
-       | certificates list | certificates trust <pem file, or - for stdin> [name] | certificates remove <id or name>`;
+       | certificates list | certificates trust <pem file, or - for stdin> [name] | certificates remove <id or name>
+       | service-keys list | service-keys set <service> | service-keys remove <service>`;
 const [command, ...args] = process.argv.slice(2);
 const dataDir = () => path.resolve(process.env.DATA_DIR?.trim() || "./data");
 const env = (name: string) => {
@@ -252,8 +273,73 @@ async function certificates(sub: string | undefined, rest: string[]) {
   }
 }
 
+/**
+ * `service-keys list | set | remove`: the outside services' keys Settings → Server takes (collector catalogs, Google
+ * Books, the EIA, PCGS/PSA), for a server admin at a shell. Each goes through the same code as Settings: checked with
+ * the service before it's saved, sealed (lib/server-keys.ts), and whatever saving it starts (the EIA's prices) queued.
+ * The key is asked for without showing it, or read from stdin — never an argument, so it stays out of shell history
+ * and `ps`. A running Ferret uses it at once (keys are read from the database each time).
+ */
+type ServiceKey = { name: string; note?: string; setting: string; save: (db: Db, filesKey: string, key: string | null) => Promise<unknown> };
+const catalogKey = (name: string, kind: "lego" | "coin" | "comic" | "video" | "game" | "record", catalog: object): ServiceKey => ({
+  name,
+  setting: `collectibles.${kind}.key`,
+  save: (db, filesKey, key) => saveCatalogKey({ db, collectibles: { [kind]: catalog } }, filesKey, kind, key),
+});
+const noKey = async () => null;
+const SERVICE_KEYS: Record<string, ServiceKey> = {
+  rebrickable: catalogKey("Rebrickable (LEGO sets)", "lego", new RebrickableSets()),
+  numista: catalogKey("Numista (coins)", "coin", new NumistaCoins()),
+  comicvine: catalogKey("Comic Vine (comics)", "comic", new ComicVineIssues()),
+  tmdb: catalogKey("TMDB (films and TV)", "video", new TmdbVideos()),
+  igdb: { ...catalogKey("IGDB (video games)", "game", new IgdbGames()), note: "the Twitch app's client ID and secret, separated by a space" },
+  discogs: catalogKey("Discogs (records and CDs)", "record", new DiscogsRecords()),
+  "google-books": {
+    name: "Google Books",
+    setting: GOOGLE_BOOKS_KEY,
+    save: (db, filesKey, key) => setGoogleBooksKey({ db, googleBooks: new GoogleBooks(noKey) }, filesKey, key),
+  },
+  eia: {
+    name: "EIA (electricity and fuel prices)",
+    setting: EIA_KEY,
+    save: (db, filesKey, key) => setElectricityKey({ db, electricity: new EiaElectricity(noKey), fuelPrices: new EiaFuel(noKey), jobs: new DbJobs(db) }, filesKey, key),
+  },
+  pcgs: { name: "PCGS (graded coins)", setting: "graded.pcgs.key", save: (db, filesKey, key) => saveGradingKey({ db, grading: { pcgs: new PcgsGrading() } }, filesKey, "pcgs", key) },
+  psa: { name: "PSA (graded cards)", setting: "graded.psa.key", save: (db, filesKey, key) => saveGradingKey({ db, grading: { psa: new PsaGrading() } }, filesKey, "psa", key) },
+};
+
+async function serviceKeys(sub: string | undefined, rest: string[]) {
+  const dbFile = path.join(dataDir(), "ferret.db");
+  if (!existsSync(dbFile)) throw new Error(`No Ferret database in ${dataDir()}.`);
+  const service = rest[0] ? SERVICE_KEYS[rest[0]] : undefined;
+  if ((sub === "set" || sub === "remove") && !service) {
+    throw new Error(`Which service? One of: ${Object.keys(SERVICE_KEYS).join(", ")}`);
+  }
+  const { db, client } = createLocalDb(`file:${dbFile}`);
+  try {
+    if (sub === "list") {
+      const hints = await savedKeyHints(db, "%.key");
+      for (const [id, s] of Object.entries(SERVICE_KEYS)) console.log(`${id.padEnd(13)} ${(hints.get(s.setting) ?? "—").padEnd(7)} ${s.name}`);
+    } else if (sub === "set" && service) {
+      // Piped in, every line counts (IGDB's two parts may be on two lines), joined with a space.
+      const key = process.stdin.isTTY ? (await askHidden(`${service.name} key${service.note ? ` (${service.note})` : ""}: `)).trim() : (await readStdin()).trim().split(/\s+/).join(" ");
+      if (!key) throw new Error("No key given.");
+      await service.save(db, filesKeyInUse(), key);
+      console.log(`Saved the ${service.name} key (…${key.slice(-4)}), after ${service.name.split(" ")[0]} accepted it.`);
+    } else if (sub === "remove" && service) {
+      await service.save(db, filesKeyInUse(), null);
+      console.log(`Removed the ${service.name} key.`);
+    } else {
+      throw new Error(USAGE);
+    }
+  } finally {
+    client.close();
+  }
+}
+
 try {
   if (command === "certificates") await certificates(args[0], args.slice(1));
+  else if (command === "service-keys") await serviceKeys(args[0], args.slice(1));
   else if (command === "admin") await admin(args[0]);
   else if (command === "key") await key(args[0], args.slice(1));
   else if (command === "secrets") await secretsCommand(args[0], args.slice(1));

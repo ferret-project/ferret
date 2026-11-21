@@ -159,7 +159,7 @@ vehicles' fuel each week ([fuel economy](#fuel-economy)).
 to everyone's **+ Add**
 ([what people see](../guide/adding-things#lego-coins-and-comics)). Each catalog needs a free key from an account there.
 Paste it in and Ferret checks it with the catalog before saving it. That catalog is on from then, and **Remove** turns
-it off again.
+it off again. Keys can also be saved from [the command line](#the-command-line).
 
 | Catalog | For | Where to get a key | Allowance |
 | --- | --- | --- | --- |
@@ -234,8 +234,16 @@ docker compose exec ferret node dist/cli.js admin [email]            # who the s
 docker compose exec ferret node dist/cli.js certificates list        # certificates for Ferret's own connections
 docker compose exec -T ferret node dist/cli.js certificates trust - "Home CA" < home-ca.pem
 docker compose exec ferret node dist/cli.js certificates remove "Home CA"
+docker compose exec ferret node dist/cli.js service-keys list        # outside services' keys (last four only)
+docker compose exec -it ferret node dist/cli.js service-keys set tmdb  # asks for the key, checks it, saves it
+docker compose exec -T ferret node dist/cli.js service-keys set tmdb < tmdb.key
 docker compose exec ferret node dist/cli.js key fingerprint          # which FILES_KEY is in use
 docker compose run --rm ferret node dist/cli.js backup list          # and backup check / restore
 ```
 
-[Certificates](./certificates) and [Backups](./backups) say more about theirs.
+[Certificates](./certificates) and [Backups](./backups) say more about theirs. `service-keys` saves the keys
+[Collector catalogs](#collector-catalogs), [Google Books](#book-look-ups), the EIA's
+[electricity and fuel prices](#energy-star-look-ups) and [graded coins and cards](#graded-coins-and-cards) take —
+`rebrickable`, `numista`, `comicvine`, `tmdb`, `igdb`, `discogs`, `google-books`, `eia`, `pcgs`, `psa` — checked
+with the service first, as in Settings. A key is typed at the hidden prompt or piped in, never given as an argument,
+so it stays out of your shell's history. A running Ferret uses it straight away.
