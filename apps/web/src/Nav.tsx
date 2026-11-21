@@ -698,6 +698,7 @@ function AddSheet({ householdId, route, context, onClose }: { householdId: strin
       const into = { locationId: context.locationId, categoryId: context.categoryId, tag: context.tag };
       if (kind === "lego") return { icon: "icon-[tabler--lego]", label: t`LEGO sets`, detail: t`By set number or name, or a photo of the box — from Rebrickable`, href: collectHref(kind, into) };
       if (kind === "coin") return { icon: "icon-[tabler--coin]", label: t`Coins`, detail: t`By country, year and name, or a photo — from Numista, with prices by grade`, href: collectHref(kind, into) };
+      if (kind === "book") return { icon: "icon-[tabler--book-2]", label: t`Books by title`, detail: t`Older books without a barcode, by title and author or a photo — from Open Library`, href: collectHref(kind, into) };
       if (kind === "record") return { icon: "icon-[tabler--vinyl]", label: t`Records & CDs`, detail: t`The exact pressing by barcode, sleeve photo or name, with prices by condition — from Discogs`, href: collectHref(kind, into) };
       if (kind === "game") return { icon: "icon-[tabler--device-gamepad-2]", label: t`Video games`, detail: t`By title or a photo of the case, for the console you have — from IGDB`, href: collectHref(kind, into) };
       if (kind === "video") return { icon: "icon-[tabler--movie]", label: t`Movies & TV`, detail: t`DVDs, Blu-rays and box sets, by title or a photo of the case — from TMDB`, href: collectHref(kind, into) };

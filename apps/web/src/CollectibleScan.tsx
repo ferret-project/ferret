@@ -30,7 +30,7 @@ import { Trans } from "@lingui/react/macro";
 const WAIT_MS = 3 * 60_000;
 const EVERY_MS = 2500;
 /** A category for each kind, if the household has one by a usual name. */
-const CATEGORY_NAMES: Record<CollectibleKind, RegExp> = { lego: /^(lego|lego sets?|building sets?)$/i, coin: /^(coins?|coin collection|numismatics)$/i, comic: /^(comics?|comic books?)$/i, video: /^(movies?|films?|dvds?|blu-?rays?|movies (&|and) (tv|shows))$/i, game: /^(video ?games?|games|gaming)$/i, record: /^(music|records?|vinyl|cds?|records (&|and) cds)$/i };
+const CATEGORY_NAMES: Record<CollectibleKind, RegExp> = { lego: /^(lego|lego sets?|building sets?)$/i, coin: /^(coins?|coin collection|numismatics)$/i, comic: /^(comics?|comic books?)$/i, video: /^(movies?|films?|dvds?|blu-?rays?|movies (&|and) (tv|shows))$/i, game: /^(video ?games?|games|gaming)$/i, record: /^(music|records?|vinyl|cds?|records (&|and) cds)$/i, book: /^(books?|library|rare books)$/i };
 /** A template for each kind: one with this field (the starter "LEGO set", "Coin", "Comic book" have them). */
 const TEMPLATE_FIELD: Partial<Record<CollectibleKind, string>> = { lego: "set_number", coin: "denomination", comic: "series", record: "artist" };
 
@@ -134,6 +134,8 @@ function itemFields(c: CollectibleInfo, row: Row) {
     return { name: c.name, brand: "LEGO" /* not translated */, model: c.setNumber ?? c.id, description: [c.year, c.theme, c.pieces ? plural(c.pieces, { one: "# piece", other: "# pieces" }) : null].filter(Boolean).join(" · ") };
   if (c.kind === "coin")
     return { name: issue ? `${c.name} (${issue.label})` : c.name, brand: c.issuer ?? null, model: null, description: [c.denomination, c.composition, c.diameterMm ? `${c.diameterMm} mm` : null, row.grade ? t(GRADE_NAMES[row.grade]) : null].filter(Boolean).join(" · ") };
+  if (c.kind === "book")
+    return { name: c.title ? `${c.name}: ${c.title}` : c.name, brand: c.author ?? null, model: null, description: [c.year ? t`First published ${ph({ year: c.year })}` : null, c.publisher].filter(Boolean).join(" · ") };
   if (c.kind === "record")
     return { name: c.name, brand: c.artist ?? null, model: c.label ?? null, description: [c.formatText, c.year, c.country, row.condition].filter(Boolean).join(" · ") };
   if (c.kind === "game")
@@ -291,7 +293,9 @@ function Shelf({ householdId, kind, photos, pictures, into }: { householdId: str
 
   const count = rows.reduce((n, r) => n + (r.status === "ready" ? r.quantity : 0), 0);
   const howMany =
-    kind === "record"
+    kind === "book"
+      ? plural(count, { one: "# book", other: "# books" })
+      : kind === "record"
       ? plural(count, { one: "# record", other: "# records" })
       : kind === "game"
       ? plural(count, { one: "# game", other: "# games" })
@@ -312,6 +316,8 @@ function Shelf({ householdId, kind, photos, pictures, into }: { householdId: str
               <Trans>Photograph each box (or its instructions) so the set number shows, or type the number or name. Sets come from Rebrickable.</Trans>
             ) : kind === "coin" ? (
               <Trans>Photograph each coin, or type its country, year and name. Coins come from Numista, with an estimate for each year and grade.</Trans>
+            ) : kind === "book" ? (
+              <Trans>For books without a barcode — older ones printed before ISBNs: photograph the cover, spine or title page, or type the title and author. Books come from Open Library. (A book with a barcode is quicker scanned.)</Trans>
             ) : kind === "record" ? (
               <Trans>Photograph each sleeve or case (the back, with its catalogue number, finds the exact pressing best), or type its barcode, or the artist and title. Records come from Discogs.</Trans>
             ) : kind === "game" ? (
@@ -327,7 +333,7 @@ function Shelf({ householdId, kind, photos, pictures, into }: { householdId: str
             <div className="flex flex-wrap gap-2">
               <button type="button" className="btn btn-primary btn-lg btn-wrap flex-1" onClick={() => camera.current?.click()}>
                 <span className="icon-[tabler--camera] size-6" />
-                {kind === "lego" ? t`Photograph a box` : kind === "coin" ? t`Photograph a coin` : kind === "comic" ? t`Photograph a cover` : kind === "record" ? t`Photograph a sleeve` : t`Photograph a case`}
+                {kind === "lego" ? t`Photograph a box` : kind === "coin" ? t`Photograph a coin` : kind === "comic" ? t`Photograph a cover` : kind === "record" ? t`Photograph a sleeve` : kind === "book" ? t`Photograph a book` : t`Photograph a case`}
               </button>
               <button type="button" className="btn btn-soft btn-lg" onClick={() => library.current?.click()}>
                 <span className="icon-[tabler--photo] size-6" />
@@ -445,7 +451,7 @@ function TypeIt({ kind, onChoose }: { kind: CollectibleKind; onChoose: (found: C
     }
   };
   const placeholder =
-    kind === "lego" ? t`Set number or name, e.g. 75192` : kind === "coin" ? t`e.g. Washington quarter` : kind === "comic" ? t`Series and issue, e.g. Amazing Spider-Man 300` : kind === "game" ? t`Title, e.g. Mario Kart 8 Deluxe` : kind === "record" ? t`Barcode, or artist and title` : t`Title, e.g. Breaking Bad season 2`;
+    kind === "lego" ? t`Set number or name, e.g. 75192` : kind === "coin" ? t`e.g. Washington quarter` : kind === "comic" ? t`Series and issue, e.g. Amazing Spider-Man 300` : kind === "game" ? t`Title, e.g. Mario Kart 8 Deluxe` : kind === "record" ? t`Barcode, or artist and title` : kind === "book" ? t`Title and author, e.g. The Hobbit Tolkien` : t`Title, e.g. Breaking Bad season 2`;
   return (
     <div className="flex flex-col gap-2">
       {kind === "coin" && (

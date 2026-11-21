@@ -587,7 +587,8 @@ function BookLookups() {
         </h2>
         <p className="text-sm text-base-content/70">
           <Trans>A book's barcode is its ISBN: scanned or saved, it's asked of Open Library (openlibrary.org) for the title, author and cover — each
-          once for the whole server, free, and not counted against any lookup allowance. Only the ISBN is sent.</Trans>
+          once for the whole server, free, and not counted against any lookup allowance. Only the ISBN is sent. It also adds "Books by title" to + Add, for
+          older books without a barcode (the words searched for are sent).</Trans>
         </p>
         <label className="flex cursor-pointer items-center gap-3">
           <input type="checkbox" className="switch switch-primary" checked={s.enabled} disabled={toggle.isPending || !s.available} onChange={(e) => toggle.mutate(e.target.checked)} />
@@ -797,7 +798,7 @@ function CardLookups() {
 }
 
 // not translated (names of services)
-const CATALOGS: Record<CollectibleKind, { service: string; what: MessageDescriptor; icon: string; signup: string; keyAt: string }> = {
+const CATALOGS: Partial<Record<CollectibleKind, { service: string; what: MessageDescriptor; icon: string; signup: string; keyAt: string }>> = {
   lego: { service: "Rebrickable", what: msg`LEGO sets`, icon: "icon-[tabler--lego]", signup: "https://rebrickable.com", keyAt: "https://rebrickable.com/api/" },
   coin: { service: "Numista", what: msg`Coins`, icon: "icon-[tabler--coin]", signup: "https://en.numista.com", keyAt: "https://en.numista.com/api/" },
   comic: { service: "Comic Vine", what: msg`Comics`, icon: "icon-[tabler--book]", signup: "https://comicvine.gamespot.com", keyAt: "https://comicvine.gamespot.com/api/" },
@@ -810,7 +811,8 @@ const CATALOGS: Record<CollectibleKind, { service: string; what: MessageDescript
 function CollectorCatalogs() {
   const qc = useQueryClient();
   const status = useQuery({ queryKey: ["server-collectibles"], queryFn: api.collectibleCatalogs });
-  const rows = status.data?.data.filter((c) => c.available);
+  // Keyless ones (books by title) come with their own switch elsewhere.
+  const rows = status.data?.data.filter((c) => c.available && !c.keyless);
   if (!rows?.length) return null;
   return (
     <section className="card" aria-labelledby="collectors-title">
@@ -846,7 +848,7 @@ function CollectorCatalogs() {
 }
 
 function CatalogKey({ status, onSaved }: { status: CollectibleCatalogStatus; onSaved: (data: CollectibleCatalogStatus[]) => void }) {
-  const c = CATALOGS[status.kind];
+  const c = CATALOGS[status.kind]!;
   const [key, setKey] = useState("");
   const [editing, setEditing] = useState(false);
   const save = useMutation({

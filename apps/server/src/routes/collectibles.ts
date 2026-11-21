@@ -41,7 +41,7 @@ collectibles.post("/collectibles/read", requireWriter, photoLimit, async (c) => 
   });
   if (!(form.photo instanceof File)) throw new HTTPException(422, { message: "Send the photo as `photo`" });
   const chosen = kind.safeParse(form.kind);
-  if (!chosen.success) throw new HTTPException(422, { message: "Say what it is as `kind`: lego, coin, comic, video, game or record" });
+  if (!chosen.success) throw new HTTPException(422, { message: "Say what it is as `kind`: lego, coin, comic, video, game, record or book" });
   const run = await svc.startCollectibleRead(callerOf(c), c.var.files, c.var.config.FILES_KEY, new Uint8Array(await form.photo.arrayBuffer()), chosen.data);
   return c.json(run, 202);
 });

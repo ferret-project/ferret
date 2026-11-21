@@ -42,6 +42,7 @@ import { ComicVineIssues } from "./adapters/local/comicvine";
 import { TmdbVideos } from "./adapters/local/tmdb";
 import { IgdbGames } from "./adapters/local/igdb";
 import { DiscogsRecords } from "./adapters/local/discogs";
+import { OpenLibraryWorks } from "./adapters/local/openlibrary-works";
 import { GoogleBooks } from "./adapters/local/googlebooks";
 import { OpenFdaRecalls } from "./adapters/local/openfda";
 import { EnergyStarProducts } from "./adapters/local/energystar";
@@ -197,7 +198,7 @@ const deps = {
   support: watched(db, "endoflife.date", new EndOfLife()),
   exchangeRates: watched(db, "exchange rates", new FrankfurterRates()),
   cards: { pokemon: watched(db, "cards (TCGdex)", new TcgdexCards()), magic: watched(db, "cards (Scryfall)", new ScryfallCards()) },
-  collectibles: { lego: watched(db, "LEGO (Rebrickable)", new RebrickableSets()), coin: watched(db, "coins (Numista)", new NumistaCoins()), comic: watched(db, "comics (Comic Vine)", new ComicVineIssues()), video: watched(db, "films and TV (TMDB)", new TmdbVideos()), game: watched(db, "video games (IGDB)", new IgdbGames()), record: watched(db, "records (Discogs)", new DiscogsRecords()) },
+  collectibles: { lego: watched(db, "LEGO (Rebrickable)", new RebrickableSets()), coin: watched(db, "coins (Numista)", new NumistaCoins()), comic: watched(db, "comics (Comic Vine)", new ComicVineIssues()), video: watched(db, "films and TV (TMDB)", new TmdbVideos()), game: watched(db, "video games (IGDB)", new IgdbGames()), record: watched(db, "records (Discogs)", new DiscogsRecords()), book: watched(db, "books by title (Open Library)", new OpenLibraryWorks()) },
   tls: new NodeTls(),
   secrets: { sources: secrets.sources, file: path.join(dataDir, SECRETS_FILE), filesKeyId: keys.set },
 };

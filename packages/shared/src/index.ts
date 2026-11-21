@@ -201,8 +201,8 @@ export const itemCard = z.object({
 });
 export type ItemCard = z.infer<typeof itemCard>;
 
-// ── Collector catalogs (LEGO: Rebrickable; coins: Numista; comics: Comic Vine; films and TV: TMDB; games: IGDB; records: Discogs) ──
-export const collectibleKinds = ["lego", "coin", "comic", "video", "game", "record"] as const;
+// ── Collector catalogs (LEGO: Rebrickable; coins: Numista; comics: Comic Vine; films and TV: TMDB; games: IGDB; records: Discogs; books by title: Open Library) ──
+export const collectibleKinds = ["lego", "coin", "comic", "video", "game", "record", "book"] as const;
 export type CollectibleKind = (typeof collectibleKinds)[number];
 /** Numista's grades, worst to best: good, very good, fine, very fine, extremely fine, about uncirculated, uncirculated. */
 export const coinGrades = ["g", "vg", "f", "vf", "xf", "au", "unc"] as const;
@@ -279,7 +279,7 @@ const itemFields = z.object({
   collectible: itemCollectible
     .optional()
     .nullable()
-    .describe("A LEGO set (Rebrickable set number like 75192-1), coin (Numista type id, with its issue id and grade), comic (Comic Vine issue id) film or show (TMDB, movie-603 or tv-1396, with the format and a show's season) video game (IGDB id, with the platform as format) or record (Discogs release id, with its condition) — which one in its collector catalog"),
+    .describe("A LEGO set (Rebrickable set number like 75192-1), coin (Numista type id, with its issue id and grade), comic (Comic Vine issue id) film or show (TMDB, movie-603 or tv-1396, with the format and a show's season) video game (IGDB id, with the platform as format) record (Discogs release id, with its condition) or book (Open Library work id, e.g. OL27482W) — which one in its collector catalog"),
 });
 export const itemInput = itemFields.extend({
   origin: z.enum(appOrigins).optional().describe("Which of the app's ways added it; ignored for Claude and API keys (recorded by the server)"),
@@ -2434,6 +2434,10 @@ export interface CollectibleInfo {
   country?: string | null;
   /** "CD Album Reissue", "2×Vinyl LP Album". */
   formatText?: string | null;
+  // Books (title above is the subtitle; publisher, year as above)
+  author?: string | null;
+  pages?: number | null;
+  editions?: number | null;
 }
 
 /** A price in the currency asked for: a coin's in one grade, a record's in one condition, or the lowest a record is for sale at now. */
@@ -2497,6 +2501,8 @@ export interface CollectibleCatalogStatus {
   on: boolean;
   /** "…b7e2". */
   hint: string | null;
+  /** Needs no key: on with a switch of its own (books by title: Book look-ups). */
+  keyless?: boolean;
   /** Sets, coins or comics kept in the server's shared book. */
   kept: number;
 }

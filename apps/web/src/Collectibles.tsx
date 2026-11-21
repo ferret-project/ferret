@@ -13,10 +13,10 @@ import { Trans } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
 
 // not translated (names of services)
-export const CATALOG_NAMES: Record<CollectibleKind, string> = { lego: "Rebrickable", coin: "Numista", comic: "Comic Vine", video: "TMDB", game: "IGDB", record: "Discogs" };
-export const KIND_ICONS: Record<CollectibleKind, string> = { lego: "icon-[tabler--lego]", coin: "icon-[tabler--coin]", comic: "icon-[tabler--book]", video: "icon-[tabler--movie]", game: "icon-[tabler--device-gamepad-2]", record: "icon-[tabler--vinyl]" };
-export const KIND_NAMES: Record<CollectibleKind, MessageDescriptor> = { lego: msg`LEGO sets`, coin: msg`Coins`, comic: msg`Comics`, video: msg`Movies & TV`, game: msg`Video games`, record: msg`Records & CDs` };
-export const KIND_HEADINGS: Record<CollectibleKind, MessageDescriptor> = { lego: msg`LEGO set`, coin: msg`Coin`, comic: msg`Comic`, video: msg`Movie or show`, game: msg`Video game`, record: msg`Record` };
+export const CATALOG_NAMES: Record<CollectibleKind, string> = { lego: "Rebrickable", coin: "Numista", comic: "Comic Vine", video: "TMDB", game: "IGDB", record: "Discogs", book: "Open Library" };
+export const KIND_ICONS: Record<CollectibleKind, string> = { lego: "icon-[tabler--lego]", coin: "icon-[tabler--coin]", comic: "icon-[tabler--book]", video: "icon-[tabler--movie]", game: "icon-[tabler--device-gamepad-2]", record: "icon-[tabler--vinyl]", book: "icon-[tabler--book-2]" };
+export const KIND_NAMES: Record<CollectibleKind, MessageDescriptor> = { lego: msg`LEGO sets`, coin: msg`Coins`, comic: msg`Comics`, video: msg`Movies & TV`, game: msg`Video games`, record: msg`Records & CDs`, book: msg`Books` };
+export const KIND_HEADINGS: Record<CollectibleKind, MessageDescriptor> = { lego: msg`LEGO set`, coin: msg`Coin`, comic: msg`Comic`, video: msg`Movie or show`, game: msg`Video game`, record: msg`Record`, book: msg`Book` };
 
 /** Formats a film or show is owned in (as the server reads them off a case); names of formats, not translated. */
 // not translated
@@ -61,6 +61,7 @@ export function priceSays(p: CollectiblePrice) {
 /** "2017 · Star Wars › Ultimate Collector Series · 7,541 pieces"; "United States · 1965–1998"; "Marvel · May 1988 · Venom". */
 export function collectibleLine(c: CollectibleInfo) {
   if (c.kind === "lego") return [c.setNumber, c.year, c.theme, c.pieces ? plural(c.pieces, { one: "# piece", other: "# pieces" }) : null].filter(Boolean).join(" · ");
+  if (c.kind === "book") return [c.author, c.year, c.editions && c.editions > 1 ? plural(c.editions, { one: "# edition", other: "# editions" }) : null].filter(Boolean).join(" · ");
   if (c.kind === "record") return [c.formatText, c.year, c.country, c.label].filter(Boolean).join(" · ");
   if (c.kind === "game") return [c.year, c.publisher, c.platforms?.slice(0, 4).join(", ")].filter(Boolean).join(" · ");
   if (c.kind === "video")
@@ -73,7 +74,7 @@ export function collectibleLine(c: CollectibleInfo) {
 
 export function CollectiblePicture({ info, kind, className = "" }: { info: CollectibleInfo | undefined; kind: CollectibleKind; className?: string }) {
   const [broken, setBroken] = useState(false);
-  const shape = kind === "coin" ? "aspect-square rounded-full" : kind === "record" ? "aspect-square rounded" : kind === "comic" || kind === "video" || kind === "game" ? "aspect-[3/4] rounded" : "aspect-[4/3] rounded";
+  const shape = kind === "coin" ? "aspect-square rounded-full" : kind === "record" ? "aspect-square rounded" : kind === "comic" || kind === "video" || kind === "game" || kind === "book" ? "aspect-[3/4] rounded" : "aspect-[4/3] rounded";
   return info?.image && !broken ? (
     <img src={info.image} alt="" referrerPolicy="no-referrer" loading="lazy" onError={() => setBroken(true)} className={`${shape} bg-base-200 ${kind === "lego" ? "object-contain" : "object-cover"} ${className}`} />
   ) : (

@@ -89,6 +89,11 @@ A book's barcode is its **ISBN**. When whoever runs your Ferret has switched on
 if it doesn't know the book, Google Books when your server has its key), and Ferret offers the **title** and **author** — the author goes in the brand — and the **cover** as a photo, like any
 barcode's suggestions.
 
+Older books, printed before ISBNs, have no barcode: **+ Add → Books by title** finds them on Open Library by title and
+author (*Little Women Alcott*), or from a photo of the cover, spine or title page. It works like the
+[collector catalogs](#lego-coins-and-comics): check the list, then save them all, each with its author, first year
+published and cover, and a link back to Open Library.
+
 ## Music
 
 Got a shelf of CDs or a crate of records? When whoever runs your Ferret has switched on

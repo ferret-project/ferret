@@ -457,7 +457,7 @@ export const OPERATIONS: Operation[] = [
   { method: "get", path: "/items/{id}/energy", tag: "Items", summary: "A thing's ENERGY STAR entry by its brand and model (or barcode): certified energy use a year, how it compares with the US standard, and (with an EIA key) what it costs a year at the average home rate; `pending` while it's looked up — ask again", returns: "ItemEnergy" },
 
   // ── Collector catalogs ─────────────────────────────────────────────────────
-  { method: "get", path: "/collectibles/search", tag: "Collector catalogs", summary: "LEGO sets (Rebrickable: a set number or name), coins (Numista: words, and an issuer code and year) comics (Comic Vine: series and issue number, \"Amazing Spider-Man 300\") films and shows (TMDB: a title, and a year) video games (IGDB: a title) or records (Discogs: a barcode, or artist and title) matching; 409 when that catalog has no key on this server", query: collectibleSearch, returns: "{ data: CollectibleInfo[] }" },
+  { method: "get", path: "/collectibles/search", tag: "Collector catalogs", summary: "LEGO sets (Rebrickable: a set number or name), coins (Numista: words, and an issuer code and year) comics (Comic Vine: series and issue number, \"Amazing Spider-Man 300\") films and shows (TMDB: a title, and a year) video games (IGDB: a title) records (Discogs: a barcode, or artist and title) or books (Open Library: title and author, with book look-ups on) matching; 409 when that catalog has no key on this server", query: collectibleSearch, returns: "{ data: CollectibleInfo[] }" },
   { method: "get", path: "/collectibles/issuers", tag: "Collector catalogs", summary: "Coin issuers (countries…) whose name has these words, for a coin search's `issuer`", query: z.object({ q: z.string() }), returns: "{ data: CoinIssuer[] }" },
   {
     method: "post",
@@ -465,7 +465,7 @@ export const OPERATIONS: Operation[] = [
     status: 202,
     tag: "Collector catalogs",
     summary: "Read a photo of a LEGO box, a coin, a comic's cover, a film's or game's case, or a record's sleeve: the vision model reads it, then the catalog's matches",
-    description: "multipart/form-data: `photo` and `kind` (lego, coin, comic, video, game or record). One AI action (402 when the plan has none left; 501 without the vision model; 409 when that catalog has no key). Answers at once with an `id`: GET /collectibles/read/{id} until `status` is done.",
+    description: "multipart/form-data: `photo` and `kind` (lego, coin, comic, video, game, record or book). One AI action (402 when the plan has none left; 501 without the vision model; 409 when that catalog has no key). Answers at once with an `id`: GET /collectibles/read/{id} until `status` is done.",
     upload: true,
     form: { type: "object", required: ["photo", "kind"], properties: { photo: { type: "string", format: "binary" }, kind: { type: "string", enum: [...collectibleKinds] } } },
     writes: true,

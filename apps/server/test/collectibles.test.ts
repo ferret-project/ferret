@@ -25,6 +25,7 @@ const BREAKING_BAD: CollectibleInfo = { kind: "video", id: "tv-1396", name: "Bre
 const ZELDA: CollectibleInfo = { kind: "game", id: "7346", name: "The Legend of Zelda: Breath of the Wild", year: 2017, platforms: ["Wii U", "Nintendo Switch"], publisher: "Nintendo", url: "https://www.igdb.com/games/zelda" };
 const NEVERMIND: CollectibleInfo = { kind: "record", id: "367084", name: "Nirvana – Nevermind", artist: "Nirvana", title: "Nevermind", year: 1991, formatText: "CD, Album", label: "DGC DGCD-24425", url: "https://www.discogs.com/release/367084" };
 const NEVERMIND_LP: CollectibleInfo = { ...NEVERMIND, id: "1813006", formatText: "Vinyl, LP, Album" };
+const HOBBIT: CollectibleInfo = { kind: "book", id: "OL27482W", name: "The Hobbit", author: "J.R.R. Tolkien", year: 1937, url: "https://openlibrary.org/works/OL27482W" };
 const ASM300: CollectibleInfo = { kind: "comic", id: "29584", name: "The Amazing Spider-Man #300", series: "The Amazing Spider-Man", issueNumber: "300", publisher: "Marvel", title: "Venom", year: 1988, url: "https://comicvine.gamespot.com/x/4000-29584/" };
 const ISSUERS: CoinIssuer[] = [
   { code: "united-states", name: "United States" },
@@ -88,12 +89,13 @@ async function catalogs(opts: Parameters<typeof setup>[0] = {}) {
       { lowest: true, forSale: 7, cents: 658, currency, source: "Discogs" },
     ];
   };
-  const s = await setup({ collectibles: { lego, coin, comic, video, game, record }, ...opts });
+  const book = new FakeCatalog([HOBBIT]);
+  const s = await setup({ collectibles: { lego, coin, comic, video, game, record, book }, ...opts });
   const ann = await s.user("ann");
   const on = async (...kinds: string[]) => {
     for (const k of kinds) expect((await send(ann, "PUT", `/api/v1/server/collectibles/${k}`, { key: KEY })).status).toBe(200);
   };
-  return { ...s, ann, lego, coin, comic, video, game, record, on };
+  return { ...s, ann, lego, coin, comic, video, game, record, book, on };
 }
 
 const readPhoto = async (u: User, kind: string) => {
@@ -118,6 +120,7 @@ describe("collector catalogs", () => {
       { kind: "video", available: true, on: false, hint: null, kept: 0 },
       { kind: "game", available: true, on: false, hint: null, kept: 0 },
       { kind: "record", available: true, on: false, hint: null, kept: 0 },
+      { kind: "book", available: true, on: false, hint: null, kept: 0, keyless: true },
     ]);
     const [row] = await db.select().from(serverSetting).where(eq(serverSetting.key, "collectibles.lego.key"));
     expect(row!.value).not.toContain(KEY);
@@ -276,6 +279,22 @@ describe("collector catalogs", () => {
     // Records join Update values.
     const values = await json<{ data: CollectibleValue[]; checking: number }>(ann.as("/api/v1/collectibles/values"));
     expect(values.data.map((v) => v.price?.cents).sort()).toEqual([1500, 658].sort());
+  });
+
+  it("find books by title with book look-ups on — no key", async () => {
+    const ai = new FakeAi([{ title: "The Hobbit", author: "J.R.R. Tolkien", year: 1966 }]);
+    const { ann, jobs, book } = await catalogs({ ai });
+    expect((await ann.as("/api/v1/collectibles/search?kind=book&q=hobbit")).status).toBe(409);
+    expect((await send(ann, "PUT", "/api/v1/server/collectibles/book", { key: "some-key-123" })).status).toBe(422); // needs none
+    await send(ann, "PUT", "/api/v1/server/books", { enabled: true });
+    expect(await features(ann)).toMatchObject({ collectibles: ["book"] });
+    expect((await json<{ data: CollectibleInfo[] }>(ann.as("/api/v1/collectibles/search?kind=book&q=hobbit"))).data.map((b) => b.id)).toEqual(["OL27482W"]);
+    expect(book.keys).toEqual([""]);
+    const { id } = await json<{ id: string }>(readPhoto(ann, "book"));
+    await jobs.drain();
+    // "The Hobbit J.R.R. Tolkien" finds nothing in the fake (the author isn't in its words): then the title alone.
+    expect(book.finds.slice(1).map((f) => f.text)).toEqual(["The Hobbit J.R.R. Tolkien", "The Hobbit"]);
+    expect((await json<CollectibleReadStatus>(ann.as(`/api/v1/collectibles/read/${id}`))).candidates?.map((c) => c.id)).toEqual(["OL27482W"]);
   });
 
   it("list a collection's coins beside today's prices, fetching the old ones in the background", async () => {

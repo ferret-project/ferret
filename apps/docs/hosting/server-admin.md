@@ -68,7 +68,8 @@ It's off until you switch it on, because the **barcode** is sent to them, once f
 **Settings → Server → Book look-ups** switches on asking [Open Library](https://openlibrary.org) about books' ISBNs
 ([what people see](../guide/adding-things#books)), instead of the online product database. It's free and has no
 allowance, so it isn't counted against any lookup limit. It's off until you switch it on, because a book's **ISBN** is
-sent to Open Library — nothing else — once for the whole server.
+sent to Open Library — nothing else — once for the whole server. It also adds **Books by title** to + Add, for older
+books without a barcode: the words people search for are sent to Open Library's search.
 
 Optionally add a **Google Books** key there too: then a book Open Library doesn't know is asked of
 [Google Books](https://books.google.com), which knows many more recent and non-English books. Make a Google Cloud
