@@ -2549,9 +2549,11 @@ export interface RecallStatus {
   /** This server can reach a recall list at all. */
   available: boolean;
   enabled: boolean;
-  /** Brands asked about, and recalls kept. */
+  /** Brands asked about, and the CPSC's recalls kept. */
   brands: number;
   recalls: number;
+  /** The FDA's food and medicine recalls naming a barcode, kept (null: this server doesn't fetch them). */
+  fda?: number | null;
   lastCheckedAt: string | null;
 }
 

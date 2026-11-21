@@ -24,6 +24,16 @@ a repair, replacement or refund), with a link to the full notice. Then:
 
 Either way the thing's [history](./finding-things#a-thing-s-history) keeps it.
 
+## Food and medicine
+
+The FDA's food and medicine recalls are checked too, by **barcode**: a can, a box of cereal or a bottle of tablets you
+scanned in (or [counted as stock](./stock)) is flagged when a recall names its barcode. It's barcode only, since a
+maker's name and "cheese" would match far too much.
+
+A barcode match means the product is recalled, not necessarily the one in your cupboard: the recall says which lots or
+best-by dates are affected. Compare them with the package before you throw it out. Then **Not mine** or **Dealt with
+it**, as above.
+
 ## Vehicles
 
 The CPSC doesn't cover cars, trucks or motorcycles, so vehicles are checked against the US National Highway Traffic

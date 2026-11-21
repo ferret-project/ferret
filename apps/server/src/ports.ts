@@ -252,6 +252,31 @@ export interface RawRecall {
   ProductUPCs?: ({ UPC?: string } | string)[];
 }
 
+/** One FDA recall report (openFDA's food or drug enforcement reports), as it comes. */
+export interface RawFdaRecall {
+  kind?: "food" | "drug";
+  recall_number: string;
+  event_id?: string;
+  /** yyyymmdd. */
+  report_date: string;
+  recall_initiation_date?: string;
+  status?: string;
+  classification?: string;
+  product_description?: string;
+  code_info?: string;
+  more_code_info?: string;
+  reason_for_recall?: string;
+  recalling_firm?: string;
+  city?: string;
+  state?: string;
+}
+
+/** The FDA's recall reports for food and medicine (openFDA), by the dates they were reported. */
+export interface FdaRecalls {
+  /** Every report of that kind from `from` to `to` (both yyyymmdd). Throws on network trouble (try again later). */
+  reportedSince(kind: "food" | "drug", from: string, to: string): Promise<RawFdaRecall[]>;
+}
+
 /** Product recalls (the CPSC's public data). */
 export interface Recalls {
   /** Every recall naming this brand (in its title, or as its maker). Throws on network trouble (try again later). */
@@ -637,6 +662,8 @@ export interface Deps {
   support?: SupportLifecycles;
   /** Trading card catalogs (Pokémon: TCGdex; Magic: Scryfall), for "Scan cards" (switched on in Settings → Server). */
   cards?: Partial<Record<CardGame, CardCatalog>>;
+  /** The FDA's food and medicine recalls (openFDA), matched by barcode, with recall checks switched on. */
+  fdaRecalls?: FdaRecalls;
   /** Google Books: a second book source after Open Library, on once the server admin saves its key (the adapter fetches it). */
   googleBooks?: ProductLookup & { check(key: string): Promise<boolean> };
   /** Collector catalogs (LEGO: Rebrickable; coins: Numista; comics: Comic Vine) — each on once the server admin saves its key. */

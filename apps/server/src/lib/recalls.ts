@@ -10,15 +10,19 @@
  * — **possible**: its brand is in the recall's title or companies, and so is a word of what it is ("drill") — "check
  *   the model".
  *
+ * The FDA's food and medicine recalls (`deps.fdaRecalls`, openFDA) come under the same switch: the server fetches the
+ * reports of the last year once a day (nothing about anyone's things is sent) and keeps those naming a barcode
+ * (`fda:` ids). They're matched by **barcode** only — a brand and a word ("cheese") would be far too loose for food.
+ *
  * A match is an `item_recall` row until someone says "not mine" (dismissed) or "dealt with it" (done); either way it
  * isn't offered again. Open ones are in the bell (urgent for barcode/model matches) and on the item's page.
  */
 import type { ItemRecall, RecallStatus } from "@ferret/shared";
 import { barcodeVariants } from "@ferret/shared";
-import { and, count, desc, eq, gt, isNotNull, isNull, max, notLike, or } from "drizzle-orm";
+import { and, count, desc, eq, gt, isNotNull, isNull, like, max, notLike, or } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { item, itemRecall, recall, recallBrand, serverSetting } from "../db/schema";
-import type { Db, Deps, RawRecall } from "../ports";
+import type { Db, Deps, RawFdaRecall, RawRecall } from "../ports";
 import { type Caller, logActivity, notFound } from "./inventory";
 import { checkVehicles, notVehicleRecall } from "./vehicles";
 
@@ -39,12 +43,20 @@ export async function setRecallsEnabled(db: Db, enabled: boolean) {
 }
 
 /** For Settings → Server. */
-export async function recallStatus(deps: Pick<Deps, "db" | "recalls">): Promise<RecallStatus> {
+export async function recallStatus(deps: Pick<Deps, "db" | "recalls" | "fdaRecalls">): Promise<RecallStatus> {
   const [[brands], [kept]] = await Promise.all([
     deps.db.select({ n: count(), last: max(recallBrand.checkedAt) }).from(recallBrand).where(notLike(recallBrand.brand, "vehicle:%")),
     deps.db.select({ n: count() }).from(recall).where(notVehicleRecall),
   ]);
-  return { available: Boolean(deps.recalls), enabled: await recallsEnabled(deps.db), brands: brands?.n ?? 0, recalls: kept?.n ?? 0, lastCheckedAt: brands?.last?.toISOString() ?? null };
+  const [fda] = await deps.db.select({ n: count() }).from(recall).where(like(recall.id, `${FDA_PREFIX}%`));
+  return {
+    available: Boolean(deps.recalls || deps.fdaRecalls),
+    enabled: await recallsEnabled(deps.db),
+    brands: brands?.n ?? 0,
+    recalls: (kept?.n ?? 0) - (fda?.n ?? 0),
+    fda: deps.fdaRecalls ? (fda?.n ?? 0) : null,
+    lastCheckedAt: brands?.last?.toISOString() ?? null,
+  };
 }
 
 /** Lower case, letters and digits, single spaces: "Scotch™ TL-1302Z" → "scotch tl1302z"-ish words. */
@@ -87,6 +99,97 @@ export function toRow(r: RawRecall): typeof recall.$inferInsert {
   };
 }
 
+// ── The FDA's food and medicine recalls ─────────────────────────────────────────────────────────────────────
+
+/** Whether a 12- or 13-digit code (UPC-A, EAN-13) has the right check digit — a lot number almost never does. */
+export function validCode(digits: string) {
+  if (!/^\d{12,13}$/.test(digits)) return false;
+  const body = digits.slice(0, -1).split("").reverse();
+  const sum = body.reduce((s, d, i) => s + Number(d) * (i % 2 === 0 ? 3 : 1), 0);
+  return (10 - (sum % 10)) % 10 === Number(digits.at(-1));
+}
+
+/**
+ * The barcodes a recall report names: when it mentions a UPC (or GTIN, barcode), every 12- or 13-digit code in it
+ * that checks out, written with or without spaces and dashes ("UPC 8 24790 85270 6").
+ */
+export function upcsIn(...texts: (string | undefined)[]) {
+  const text = texts.filter(Boolean).join(" \n ");
+  if (!/\b(?:upc|u\.p\.c|gtin|bar ?code)/i.test(text)) return [];
+  const found = new Set<string>();
+  for (const m of text.matchAll(/\d(?:[ -]?\d){11,12}(?!\d)/g)) {
+    const digits = m[0].replace(/\D/g, "");
+    if (validCode(digits)) found.add(digits);
+  }
+  return [...found];
+}
+
+export const FDA_PREFIX = "fda:";
+const FDA_THROUGH_KEY = "recalls.fda.through";
+/** A recall reported longer ago than this isn't fetched (food is eaten; medicine's shelf life is a few years at most). */
+const FDA_YEARS = 2;
+
+const ymd = (d: Date) => d.toISOString().slice(0, 10).replace(/-/g, "");
+const isoDay = (yyyymmdd: string) => `${yyyymmdd.slice(0, 4)}-${yyyymmdd.slice(4, 6)}-${yyyymmdd.slice(6, 8)}`;
+
+/** "Raw milk cheddar cheese packed in vacuum sealed…, 8oz." → its first phrase, for a title. */
+function shortProduct(description: string) {
+  // Up to the first comma, semicolon or full stop — unless that leaves too little to say what it is.
+  const cut = description.match(/^(.{12,}?)(?:[,;]|\.\s)/)?.[1] ?? description;
+  const first = cut.trim();
+  return first.length > 110 ? `${first.slice(0, 107).trimEnd()}…` : first;
+}
+
+/** An FDA report as a recall row: kept only when it names a barcode (else it can't be matched). Null otherwise. */
+export function fdaRow(r: RawFdaRecall): typeof recall.$inferInsert | null {
+  const upcs = upcsIn(r.product_description, r.code_info, r.more_code_info);
+  if (!upcs.length || !r.recall_number || !/^\d{8}$/.test(r.report_date)) return null;
+  const product = shortProduct(r.product_description ?? "");
+  const firm = r.recalling_firm?.trim() ?? "";
+  const affected = [r.code_info?.trim(), r.more_code_info?.trim()].filter(Boolean).join(" ");
+  return {
+    id: `${FDA_PREFIX}${r.recall_number}`,
+    number: r.recall_number,
+    recalledOn: isoDay(r.report_date),
+    title: firm ? `${firm} recalls ${product}` : product,
+    url: r.event_id ? `https://www.accessdata.fda.gov/scripts/ires/index.cfm?Event=${encodeURIComponent(r.event_id)}` : null,
+    description: [r.product_description?.trim(), affected ? `Affected: ${affected}` : null].filter(Boolean).join("\n\n").slice(0, 4000) || null,
+    hazard: r.reason_for_recall?.trim().slice(0, 2000) || null,
+    remedy: [r.kind === "drug" ? "FDA medicine recall" : "FDA food recall", r.classification, r.status].filter(Boolean).join(" · ") || null,
+    contact: [firm, [r.city, r.state].filter(Boolean).join(", ")].filter(Boolean).join(" — ").slice(0, 1000) || null,
+    products: [{ name: product, model: "" }],
+    companies: firm ? [firm] : [],
+    upcs,
+    imageUrl: null,
+    searchText: normalise([product, firm].join(" ")),
+  };
+}
+
+/**
+ * Fetch the FDA's food and medicine recall reports since the last time (a week back, for late reports), at most once
+ * a day; keep those naming a barcode. Returns how many were kept. Does nothing with recall checks off.
+ */
+export async function refreshFdaRecalls(deps: Pick<Deps, "db" | "fdaRecalls">, now = new Date()) {
+  if (!deps.fdaRecalls || !(await recallsEnabled(deps.db))) return 0;
+  const today = ymd(now);
+  const [row] = await deps.db.select().from(serverSetting).where(eq(serverSetting.key, FDA_THROUGH_KEY));
+  if (row?.value === today) return 0;
+  const oldest = ymd(new Date(now.getTime() - FDA_YEARS * 365 * 24 * 60 * 60 * 1000));
+  const weekBefore = row ? ymd(new Date(new Date(isoDay(row.value)).getTime() - 7 * 24 * 60 * 60 * 1000)) : oldest;
+  const from = weekBefore > oldest ? weekBefore : oldest;
+  let kept = 0;
+  for (const kind of ["food", "drug"] as const) {
+    for (const raw of await deps.fdaRecalls.reportedSince(kind, from, today)) {
+      const r = fdaRow({ ...raw, kind });
+      if (!r) continue;
+      await deps.db.insert(recall).values(r).onConflictDoUpdate({ target: recall.id, set: r });
+      kept++;
+    }
+  }
+  await deps.db.insert(serverSetting).values({ key: FDA_THROUGH_KEY, value: today }).onConflictDoUpdate({ target: serverSetting.key, set: { value: today } });
+  return kept;
+}
+
 /** The brand as asked about and kept: "Black & Decker, Inc." → "black decker". Too short or generic → "". */
 export function brandKey(brand: string | null | undefined) {
   const words = normalise(brand ?? "").split(" ").filter((w) => w && !LEGAL.has(w));
@@ -126,6 +229,8 @@ function indexRecalls(rows: RecallRow[]) {
   };
   for (const r of rows) {
     for (const u of r.upcs) add(byUpc, u.padStart(13, "0"), r);
+    // The FDA's are matched by barcode only: their words never find anything.
+    if (r.id.startsWith(FDA_PREFIX)) continue;
     for (const w of new Set(r.searchText.split(" "))) if (w.length >= 2) add(byWord, w, r);
   }
   return { byUpc, byWord };
@@ -180,12 +285,16 @@ export function matchItem(thing: Thing, idx: ReturnType<typeof indexRecalls>): {
 export async function checkHousehold(v: Caller, itemIds?: string[]) {
   // Vehicles from NHTSA (lib/vehicles.ts) have their own switch.
   const vehicles = await checkVehicles(v);
-  if (!v.deps.recalls || !(await recallsEnabled(v.db))) return vehicles;
-  const owned = await v.db
-    .selectDistinct({ brand: item.brand })
-    .from(item)
-    .where(and(eq(item.householdId, v.householdId), isNull(item.deletedAt), isNull(item.disposition), isNotNull(item.brand)));
-  await refreshBrands(v.deps, owned.map((b) => brandKey(b.brand)));
+  if (!(v.deps.recalls || v.deps.fdaRecalls) || !(await recallsEnabled(v.db))) return vehicles;
+  // Once a day for the whole server, whichever household's check comes first.
+  await refreshFdaRecalls(v.deps).catch(() => 0);
+  if (v.deps.recalls) {
+    const owned = await v.db
+      .selectDistinct({ brand: item.brand })
+      .from(item)
+      .where(and(eq(item.householdId, v.householdId), isNull(item.deletedAt), isNull(item.disposition), isNotNull(item.brand)));
+    await refreshBrands(v.deps, owned.map((b) => brandKey(b.brand)));
+  }
   const recalls = await v.db
     .select({ id: recall.id, title: recall.title, companies: recall.companies, upcs: recall.upcs, searchText: recall.searchText, products: recall.products, recalledOn: recall.recalledOn })
     .from(recall)

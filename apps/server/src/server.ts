@@ -43,6 +43,7 @@ import { TmdbVideos } from "./adapters/local/tmdb";
 import { IgdbGames } from "./adapters/local/igdb";
 import { DiscogsRecords } from "./adapters/local/discogs";
 import { GoogleBooks } from "./adapters/local/googlebooks";
+import { OpenFdaRecalls } from "./adapters/local/openfda";
 import { serverKey } from "./lib/server-keys";
 import { GOOGLE_BOOKS_KEY } from "./lib/products";
 import { QdrantVectors } from "./adapters/local/qdrant";
@@ -181,6 +182,7 @@ const deps = {
   videos: watched(db, "youtube", videos),
   books: watched(db, "books", books),
   // Asked after Open Library once the server admin saves a key; it fetches the key sealed in the database.
+  fdaRecalls: watched(db, "recalls (FDA)", new OpenFdaRecalls()),
   googleBooks: watched(db, "books (Google)", new GoogleBooks(() => serverKey(db, config.FILES_KEY, GOOGLE_BOOKS_KEY))),
   music: watched(db, "music", new MusicBrainzReleases()),
   openFacts: watched(db, "Open Food Facts", new OpenFactsProducts()),
@@ -258,7 +260,7 @@ serve(
   );
   console.log(`   Reranking:      ${on(vectors && reranker, `${config.RERANK_MODEL} at ${config.RERANK_URL}`, "set RERANK_URL")}`);
   console.log(`   Speech to text: ${on(speech, `${config.SPEECH_MODEL} at ${config.SPEECH_URL}`, "set SPEECH_URL")}`);
-  console.log("   Recalls:        the US CPSC's recalls, if the server admin switches them on (Settings → Server)");
+  console.log("   Recalls:        the US CPSC's recalls, and the FDA's food and medicine recalls by barcode, if the server admin switches them on (Settings → Server)");
   console.log("   Paperless-ngx:  each household can connect its own (Settings → Household)");
   console.log("   Books:          Open Library for ISBNs (then Google Books, with a key), if the server admin switches it on (Settings → Server)");
   console.log("   Open Food Facts: groceries, household goods and toiletries the barcode lookup doesn't know, if the server admin switches it on (Settings → Server)");

@@ -24,6 +24,11 @@ Commission's recalls ([what people see](../guide/recalls)). It's off until you s
 saferproducts.gov, each brand at most once a week. The answers are kept on the server and every household is checked
 against them daily. Switching it off stops the asking; recalls already found stay on the things they were found for.
 
+Recall checks also cover the **FDA's food and medicine recalls**, from [openFDA](https://open.fda.gov): once a day the
+server fetches the last two years' recall reports (no key; nothing about anyone's things is sent) and keeps those
+that name a barcode, which are then matched against things' barcodes. (The USDA's meat and poultry recalls aren't
+included: their site turns away software, and those recalls rarely carry a barcode.)
+
 ## Vehicle look-ups
 
 **Settings → Server → Vehicle look-ups** switches on reading vehicles' VINs with the US National Highway Traffic Safety

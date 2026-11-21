@@ -409,6 +409,12 @@ function RecallChecks() {
           thing's page and in the bell. To do that, the brands people own are sent to the CPSC (saferproducts.gov), each at most once a week;
           nothing else is.</Trans>
         </p>
+        {s.fda != null && (
+          <p className="text-sm text-base-content/70">
+            <Trans>Also the FDA's food and medicine recalls: this server fetches the last two years' reports once a day (nothing about anyone's things
+            is sent) and matches them by barcode, so a can or a bottle of pills you scanned in is flagged if it's recalled.</Trans>
+          </p>
+        )}
         <label className="flex cursor-pointer items-center gap-3">
           <input type="checkbox" className="switch switch-primary" checked={s.enabled} disabled={toggle.isPending || !s.available} onChange={(e) => toggle.mutate(e.target.checked)} />
           <span>{s.enabled ? t`On` : t`Off`}</span>
@@ -419,6 +425,7 @@ function RecallChecks() {
             {s.lastCheckedAt ? t` · last asked ${ph({ when: new Date(s.lastCheckedAt).toLocaleString() })}` : t` · checking now`}.
           </p>
         )}
+        {s.enabled && s.fda != null && <p className="text-sm text-base-content/70">{plural(s.fda, { one: "# FDA food or medicine recall with a barcode kept.", other: "# FDA food and medicine recalls with a barcode kept." })}</p>}
         {toggle.isError && <div className="alert alert-soft alert-error">{toggle.error.message}</div>}
       </div>
     </section>
