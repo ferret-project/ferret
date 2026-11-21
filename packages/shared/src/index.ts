@@ -201,18 +201,25 @@ export const itemCard = z.object({
 });
 export type ItemCard = z.infer<typeof itemCard>;
 
-// ── Collector catalogs (LEGO: Rebrickable; coins: Numista; comics: Comic Vine) ──
-export const collectibleKinds = ["lego", "coin", "comic"] as const;
+// ── Collector catalogs (LEGO: Rebrickable; coins: Numista; comics: Comic Vine; films and TV: TMDB) ──
+export const collectibleKinds = ["lego", "coin", "comic", "video"] as const;
 export type CollectibleKind = (typeof collectibleKinds)[number];
 /** Numista's grades, worst to best: good, very good, fine, very fine, extremely fine, about uncirculated, uncirculated. */
 export const coinGrades = ["g", "vg", "f", "vf", "xf", "au", "unc"] as const;
 export type CoinGrade = (typeof coinGrades)[number];
-/** Which LEGO set, coin or comic a thing is (its id in the catalog) — for a coin also the issue (year and mint) and grade, which its price is looked up by. */
+/**
+ * Which LEGO set, coin, comic, film or show a thing is (its id in the catalog) — for a coin also the issue (year and
+ * mint) and grade, which its price is looked up by; for a film or show the format owned, and a show's season.
+ */
 export const itemCollectible = z.object({
   kind: z.enum(collectibleKinds),
   id: z.string().trim().min(1).max(80),
   issue: z.string().trim().max(40).optional().nullable(),
   grade: z.enum(coinGrades).optional().nullable(),
+  /** A film or show: "DVD", "Blu-ray", "4K Ultra HD"… */
+  format: z.string().trim().max(40).optional().nullable(),
+  /** A show: which season (0 for its specials); none for the whole series. */
+  season: z.number().int().min(0).max(200).optional().nullable(),
 });
 export type ItemCollectible = z.infer<typeof itemCollectible>;
 
@@ -270,7 +277,7 @@ const itemFields = z.object({
   collectible: itemCollectible
     .optional()
     .nullable()
-    .describe("A LEGO set (Rebrickable set number like 75192-1), coin (Numista type id, with its issue id and grade) or comic (Comic Vine issue id) — which one in its collector catalog"),
+    .describe("A LEGO set (Rebrickable set number like 75192-1), coin (Numista type id, with its issue id and grade), comic (Comic Vine issue id) or film or show (TMDB, movie-603 or tv-1396, with the format and a show's season) — which one in its collector catalog"),
 });
 export const itemInput = itemFields.extend({
   origin: z.enum(appOrigins).optional().describe("Which of the app's ways added it; ignored for Claude and API keys (recorded by the server)"),
@@ -2404,6 +2411,16 @@ export interface CollectibleInfo {
   coverDate?: string | null;
   /** The issue's own title ("Venom"). */
   title?: string | null;
+  // Films and shows
+  mediaType?: "movie" | "tv" | null;
+  /** A film's length, or a show's episodes'. */
+  runtimeMin?: number | null;
+  genres?: string[];
+  /** A film's first production company, a show's network. */
+  studio?: string | null;
+  seasonCount?: number | null;
+  /** Only when asked for one show. */
+  seasons?: { number: number; name: string; year?: number | null; image?: string | null; imageLarge?: string | null; episodes?: number | null }[];
 }
 
 /** A coin's price in one grade, in the currency asked for. */
@@ -2440,6 +2457,9 @@ export interface CollectibleRead {
   query: string | null;
   issuer?: string | null;
   year?: number | null;
+  /** A film or show: the format on the case ("Blu-ray"), and a show's season. */
+  format?: string | null;
+  season?: number | null;
 }
 
 /** A photo being read (a job the browser polls), and the catalog's matches. */

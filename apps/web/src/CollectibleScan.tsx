@@ -12,7 +12,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { CategoryPicker, flattenCategories, useCategories } from "./Catalog";
 import { useCollections } from "./Collections";
-import { CatalogLink, CoinChoice, CollectiblePicture, GRADE_NAMES, KIND_ICONS, KIND_NAMES, collectibleLine, priceText } from "./Collectibles";
+import { CATALOG_NAMES, CatalogLink, CoinChoice, CollectiblePicture, GRADE_NAMES, KIND_ICONS, KIND_NAMES, VIDEO_FORMATS, collectibleLine, priceText, seasonName } from "./Collectibles";
 import { PlacePicker } from "./Combobox";
 import { HelpLink } from "./HelpLink";
 import { TopBar } from "./Nav";
@@ -30,9 +30,9 @@ import { Trans } from "@lingui/react/macro";
 const WAIT_MS = 3 * 60_000;
 const EVERY_MS = 2500;
 /** A category for each kind, if the household has one by a usual name. */
-const CATEGORY_NAMES: Record<CollectibleKind, RegExp> = { lego: /^(lego|lego sets?|building sets?)$/i, coin: /^(coins?|coin collection|numismatics)$/i, comic: /^(comics?|comic books?)$/i };
+const CATEGORY_NAMES: Record<CollectibleKind, RegExp> = { lego: /^(lego|lego sets?|building sets?)$/i, coin: /^(coins?|coin collection|numismatics)$/i, comic: /^(comics?|comic books?)$/i, video: /^(movies?|films?|dvds?|blu-?rays?|movies (&|and) (tv|shows))$/i };
 /** A template for each kind: one with this field (the starter "LEGO set", "Coin", "Comic book" have them). */
-const TEMPLATE_FIELD: Record<CollectibleKind, string> = { lego: "set_number", coin: "denomination", comic: "series" };
+const TEMPLATE_FIELD: Partial<Record<CollectibleKind, string>> = { lego: "set_number", coin: "denomination", comic: "series" };
 
 type Row = {
   key: string;
@@ -48,7 +48,12 @@ type Row = {
   keep: boolean;
   issue?: string | null;
   grade?: CoinGrade | null;
+  format?: string | null;
+  season?: number | null;
 };
+
+/** What reading a photo (or the words typed) said beyond which one it is. */
+type Hints = { format?: string | null; season?: number | null };
 
 const storeKey = (householdId: string, kind: CollectibleKind) => `ferret:collect:${kind}:${householdId}`;
 
@@ -82,9 +87,9 @@ export function CollectibleScanScreen({ householdId, kind, ...into }: { househol
       <TopBar title={t(KIND_NAMES[kind])} back={back} help={<HelpLink page="guide/adding-things.html#lego-coins-and-comics" label={t(KIND_NAMES[kind])} />} search={false} />
       <main className="mx-auto flex max-w-3xl flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         {kinds.length > 1 && (
-          <nav className="join w-full" aria-label={t`What are you adding?`}>
+          <nav className={`grid gap-2 ${kinds.length > 2 ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-2"}`} aria-label={t`What are you adding?`}>
             {kinds.map((k) => (
-              <a key={k} href={collectHref(k, into)} aria-current={k === kind ? "page" : undefined} className={`btn join-item flex-1 ${k === kind ? "btn-primary" : "btn-soft"}`}>
+              <a key={k} href={collectHref(k, into)} aria-current={k === kind ? "page" : undefined} className={`btn btn-wrap ${k === kind ? "btn-primary" : "btn-soft"}`}>
                 <span className={`${KIND_ICONS[k]} size-5 max-sm:hidden`} />
                 {t(KIND_NAMES[k])}
               </a>
@@ -113,7 +118,9 @@ function templateValues(c: CollectibleInfo, row: Row): Record<string, string | n
       ? { set_number: c.setNumber, theme: c.theme, pieces: c.pieces, year: c.year }
       : c.kind === "coin"
         ? { year: issue?.year ?? (c.yearTo ? null : c.year), mint_mark: issue?.label.split(" · ")[0]?.split(" ")[1]?.match(/^[A-Z]{1,3}$/)?.[0], denomination: c.denomination, country: c.issuer, composition: c.composition, grade: row.grade ? t(GRADE_NAMES[row.grade]) : null }
-        : { series: c.series, issue: c.issueNumber, publisher: c.publisher, year: c.year };
+        : c.kind === "comic"
+          ? { series: c.series, issue: c.issueNumber, publisher: c.publisher, year: c.year }
+          : {};
   return Object.fromEntries(Object.entries(v).filter((e): e is [string, string | number] => e[1] != null && e[1] !== ""));
 }
 
@@ -124,11 +131,22 @@ function itemFields(c: CollectibleInfo, row: Row) {
     return { name: c.name, brand: "LEGO" /* not translated */, model: c.setNumber ?? c.id, description: [c.year, c.theme, c.pieces ? plural(c.pieces, { one: "# piece", other: "# pieces" }) : null].filter(Boolean).join(" · ") };
   if (c.kind === "coin")
     return { name: issue ? `${c.name} (${issue.label})` : c.name, brand: c.issuer ?? null, model: null, description: [c.denomination, c.composition, c.diameterMm ? `${c.diameterMm} mm` : null, row.grade ? t(GRADE_NAMES[row.grade]) : null].filter(Boolean).join(" · ") };
+  if (c.kind === "video") {
+    const show = c.mediaType === "tv";
+    return {
+      name: show ? (row.season != null ? `${c.name} – ${seasonName(row.season)}` : c.name) : c.year ? `${c.name} (${c.year})` : c.name,
+      brand: c.studio ?? null,
+      model: row.format ?? null,
+      description: [show ? t`TV show` : t`Film`, c.year, c.runtimeMin ? t`${ph({ minutes: c.runtimeMin })} min` : null, c.genres?.slice(0, 3).join(", ")].filter(Boolean).join(" · "),
+    };
+  }
   return { name: c.name, brand: c.publisher ?? null, model: c.issueNumber ? `#${c.issueNumber}` : null, description: [c.title, c.coverDate].filter(Boolean).join(" · ") };
 }
 
 function chooseTemplate(kind: CollectibleKind, templates: ItemTemplate[] | undefined, collectionTemplateId: string | null | undefined) {
-  const fits = (tpl: ItemTemplate) => tpl.fields.some((f) => f.key === TEMPLATE_FIELD[kind]);
+  const field = TEMPLATE_FIELD[kind];
+  if (!field) return null;
+  const fits = (tpl: ItemTemplate) => tpl.fields.some((f) => f.key === field);
   const theirs = templates?.find((tpl) => tpl.id === collectionTemplateId);
   if (theirs && fits(theirs)) return theirs;
   return templates?.find(fits) ?? null;
@@ -162,14 +180,14 @@ function Shelf({ householdId, kind, photos, pictures, into }: { householdId: str
   const update = (key: string, patch: Partial<Row> | ((r: Row) => Partial<Row>)) =>
     setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...(typeof patch === "function" ? patch(r) : patch) } : r)));
 
-  /** One chosen: the same set or comic again adds to its count instead of another row (a coin may differ by year and grade). */
-  const addFound = (key: string | null, candidates: CollectibleInfo[]) => {
+  /** One chosen: the same set or comic again adds to its count instead of another row (a coin may differ by year and grade, a film by format). */
+  const addFound = (key: string | null, candidates: CollectibleInfo[], hints: Hints = {}) => {
     const first = candidates[0];
     setSaved(null);
     setRows((rs) => {
-      const same = first && kind !== "coin" ? rs.find((r) => r.key !== key && r.status === "ready" && r.candidates[r.pick]?.id === first.id) : undefined;
+      const same = first && (kind === "lego" || kind === "comic") ? rs.find((r) => r.key !== key && r.status === "ready" && r.candidates[r.pick]?.id === first.id) : undefined;
       if (same) return rs.filter((r) => r.key !== key).map((r) => (r === same ? { ...r, quantity: r.quantity + 1 } : r));
-      const ready: Partial<Row> = { status: "ready", candidates, pick: 0, keep: Boolean(first), issue: null, grade: null };
+      const ready: Partial<Row> = { status: "ready", candidates, pick: 0, keep: Boolean(first), issue: null, grade: null, format: hints.format ?? null, season: first?.mediaType === "tv" ? (hints.season ?? null) : null };
       if (key) return rs.map((r) => (r.key === key ? { ...r, ...ready } : r));
       return [{ key: randomId(), startedAt: Date.now(), quantity: 1, readQuery: null, ...ready } as Row, ...rs];
     });
@@ -190,7 +208,7 @@ function Shelf({ householdId, kind, photos, pictures, into }: { householdId: str
           .then((s) => {
             if (s.status === "failed") update(r.key, { status: "failed", error: s.error ?? null });
             else if (s.status === "done") {
-              if (s.candidates?.length) addFound(r.key, s.candidates);
+              if (s.candidates?.length) addFound(r.key, s.candidates, { format: s.read?.format, season: s.read?.season });
               else update(r.key, { status: "failed", readQuery: s.read?.query ?? null, error: s.read?.query ? null : t`Couldn't read anything to look up in that photo.` });
             }
           })
@@ -231,8 +249,8 @@ function Shelf({ householdId, kind, photos, pictures, into }: { householdId: str
       let done = 0;
       for (const r of toSave) {
         const picked = r.candidates[r.pick]!;
-        // A coin's details (its issues) come from asking for it; sets and comics are whole from the search.
-        const c = kind === "coin" ? await qc.query({ queryKey: ["collectible", kind, picked.id], queryFn: () => api.collectible(kind, picked.id), staleTime: 10 * 60_000 }).catch(() => picked) : picked;
+        // A coin's details (its issues), a film's (runtime, studio) come from asking for it; sets and comics are whole from the search.
+        const c = kind === "coin" || kind === "video" ? await qc.query({ queryKey: ["collectible", kind, picked.id], queryFn: () => api.collectible(kind, picked.id), staleTime: 10 * 60_000 }).catch(() => picked) : picked;
         const price = withValues ? await coinPrice(r) : null;
         const values = templateValues(c, r);
         const fields = template ? Object.fromEntries(Object.entries(values).filter(([k]) => template.fields.some((f) => f.key === k))) : {};
@@ -241,8 +259,8 @@ function Shelf({ householdId, kind, photos, pictures, into }: { householdId: str
           quantity: r.quantity,
           ...(price ? { valueCents: price.cents } : {}),
           ...(template ? { templateId: template.id, customFields: fields } : {}),
-          collectible: { kind, id: c.id, ...(kind === "coin" ? { issue: r.issue ?? null, grade: r.grade ?? null } : {}) },
-          links: c.url ? [{ url: c.url, label: t`On ${ph({ service: { lego: "Rebrickable", coin: "Numista", comic: "Comic Vine" }[kind] })}` }] : undefined,
+          collectible: { kind, id: c.id, ...(kind === "coin" ? { issue: r.issue ?? null, grade: r.grade ?? null } : {}), ...(kind === "video" ? { format: r.format ?? null, season: c.mediaType === "tv" ? (r.season ?? null) : null } : {}) },
+          links: c.url ? [{ url: c.url, label: t`On ${ph({ service: CATALOG_NAMES[kind] })}` }] : undefined,
           locationId: place ?? undefined,
           categoryId: category ?? undefined,
           collectionId: collection ?? undefined,
@@ -265,7 +283,14 @@ function Shelf({ householdId, kind, photos, pictures, into }: { householdId: str
   });
 
   const count = rows.reduce((n, r) => n + (r.status === "ready" ? r.quantity : 0), 0);
-  const howMany = kind === "lego" ? plural(count, { one: "# set", other: "# sets" }) : kind === "coin" ? plural(count, { one: "# coin", other: "# coins" }) : plural(count, { one: "# comic", other: "# comics" });
+  const howMany =
+    kind === "lego"
+      ? plural(count, { one: "# set", other: "# sets" })
+      : kind === "coin"
+        ? plural(count, { one: "# coin", other: "# coins" })
+        : kind === "comic"
+          ? plural(count, { one: "# comic", other: "# comics" })
+          : plural(count, { one: "# film or show", other: "# films and shows" });
 
   return (
     <>
@@ -276,8 +301,10 @@ function Shelf({ householdId, kind, photos, pictures, into }: { householdId: str
               <Trans>Photograph each box (or its instructions) so the set number shows, or type the number or name. Sets come from Rebrickable.</Trans>
             ) : kind === "coin" ? (
               <Trans>Photograph each coin, or type its country, year and name. Coins come from Numista, with an estimate for each year and grade.</Trans>
-            ) : (
+            ) : kind === "comic" ? (
               <Trans>Photograph each cover, or type the series and issue number. Comics come from Comic Vine.</Trans>
+            ) : (
+              <Trans>Photograph each case, or type the title (and the year, or a show's season). Films and shows come from TMDB.</Trans>
             )}{" "}
             <Trans>Check the list, then save them all; nothing is added until you do.</Trans>
           </p>
@@ -285,7 +312,7 @@ function Shelf({ householdId, kind, photos, pictures, into }: { householdId: str
             <div className="flex flex-wrap gap-2">
               <button type="button" className="btn btn-primary btn-lg btn-wrap flex-1" onClick={() => camera.current?.click()}>
                 <span className="icon-[tabler--camera] size-6" />
-                {kind === "lego" ? t`Photograph a box` : kind === "coin" ? t`Photograph a coin` : t`Photograph a cover`}
+                {kind === "lego" ? t`Photograph a box` : kind === "coin" ? t`Photograph a coin` : kind === "comic" ? t`Photograph a cover` : t`Photograph a case`}
               </button>
               <button type="button" className="btn btn-soft btn-lg" onClick={() => library.current?.click()}>
                 <span className="icon-[tabler--photo] size-6" />
@@ -295,7 +322,7 @@ function Shelf({ householdId, kind, photos, pictures, into }: { householdId: str
               <input ref={library} type="file" accept="image/*" multiple className="hidden" onChange={(e) => (void photograph(e.target.files), (e.target.value = ""))} />
             </div>
           )}
-          <TypeIt kind={kind} onChoose={(found) => addFound(null, found)} />
+          <TypeIt kind={kind} onChoose={(found, hints) => addFound(null, found, hints)} />
         </div>
       </section>
 
@@ -383,7 +410,7 @@ function rememberedIssuer(): CoinIssuer | null {
 }
 
 /** Type it: a set number or name, a coin's words (with its country and year), a comic's series and number → matches; tap one. */
-function TypeIt({ kind, onChoose }: { kind: CollectibleKind; onChoose: (found: CollectibleInfo[]) => void }) {
+function TypeIt({ kind, onChoose }: { kind: CollectibleKind; onChoose: (found: CollectibleInfo[], hints?: Hints) => void }) {
   const [q, setQ] = useState("");
   const [year, setYear] = useState("");
   const [issuer, setIssuer] = useState<CoinIssuer | null>(() => (kind === "coin" ? rememberedIssuer() : null));
@@ -398,7 +425,8 @@ function TypeIt({ kind, onChoose }: { kind: CollectibleKind; onChoose: (found: C
       // no storage
     }
   };
-  const placeholder = kind === "lego" ? t`Set number or name, e.g. 75192` : kind === "coin" ? t`e.g. Washington quarter` : t`Series and issue, e.g. Amazing Spider-Man 300`;
+  const placeholder =
+    kind === "lego" ? t`Set number or name, e.g. 75192` : kind === "coin" ? t`e.g. Washington quarter` : kind === "comic" ? t`Series and issue, e.g. Amazing Spider-Man 300` : t`Title, e.g. Breaking Bad season 2`;
   return (
     <div className="flex flex-col gap-2">
       {kind === "coin" && (
@@ -430,7 +458,9 @@ function TypeIt({ kind, onChoose }: { kind: CollectibleKind; onChoose: (found: C
                 type="button"
                 className="flex w-full flex-col items-center gap-1 rounded-box p-1 text-center hover:bg-base-200"
                 onClick={() => {
-                  onChoose([c, ...results.filter((x) => x.id !== c.id)]);
+                  // "Breaking Bad season 2": that season, chosen.
+                  const season = q.match(/\b(?:season|series|s)\s*(\d{1,2})\s*$/i);
+                  onChoose([c, ...results.filter((x) => x.id !== c.id)], season ? { season: Number(season[1]) } : {});
                   search.reset();
                   setQ("");
                 }}
@@ -515,6 +545,7 @@ function FoundRow({ kind, row, busy, onChange, onRemove, onFound }: { kind: Coll
               <p className="font-medium break-words">{c.name}</p>
               <p className="text-sm text-base-content/70 break-words">{collectibleLine(c)}</p>
               {kind === "coin" && <CoinRowChoice coin={c} row={row} busy={busy} onChange={onChange} />}
+              {kind === "video" && <VideoRowChoice video={c} row={row} busy={busy} onChange={onChange} />}
               <div className="mt-1 flex flex-wrap items-center gap-2">
                 <div className="join" aria-label={t`How many`}>
                   <button type="button" className="btn btn-soft btn-sm join-item" disabled={busy || row.quantity <= 1} onClick={() => onChange({ quantity: row.quantity - 1 })} aria-label={t`One fewer`}>−</button>
@@ -551,7 +582,7 @@ function FoundRow({ kind, row, busy, onChange, onRemove, onFound }: { kind: Coll
                 className={`flex w-full flex-col items-center gap-1 rounded-box p-1 text-center ${i === row.pick ? "bg-primary/15 ring-2 ring-primary" : "hover:bg-base-200"}`}
                 aria-pressed={i === row.pick}
                 onClick={() => {
-                  onChange({ pick: i, issue: null, grade: null });
+                  onChange({ pick: i, issue: null, grade: null, season: x.mediaType === "tv" ? row.season : null });
                   setChoosing(false);
                 }}
               >
@@ -587,6 +618,30 @@ function CoinRowChoice({ coin, row, busy, onChange }: { coin: CollectibleInfo; r
         <span className="text-xs text-base-content/70">
           {prices.data.map((p) => `${p.grade.toUpperCase()} ${formatMoney(p.cents, p.currency || currentCurrency(), { exact: true })}`).join(" · ")}
         </span>
+      )}
+    </div>
+  );
+}
+
+/** A film or show in the list: the format owned, and a show's season (or the whole series). */
+function VideoRowChoice({ video, row, busy, onChange }: { video: CollectibleInfo; row: Row; busy: boolean; onChange: (patch: Partial<Row>) => void }) {
+  const show = video.mediaType === "tv";
+  const detail = useQuery({ queryKey: ["collectible", "video", video.id], queryFn: () => api.collectible("video", video.id), enabled: show, staleTime: 10 * 60_000 });
+  return (
+    <div className="mt-1 flex flex-wrap gap-2">
+      <select className="select select-sm w-auto max-w-full" value={row.format ?? ""} disabled={busy} onChange={(e) => onChange({ format: e.target.value || null })} aria-label={t`Format`}>
+        <option value="">{t`Format…`}</option>
+        {VIDEO_FORMATS.map((f) => (
+          <option key={f} value={f}>{f}</option>
+        ))}
+      </select>
+      {show && (
+        <select className="select select-sm w-auto max-w-full" value={row.season ?? ""} disabled={busy || detail.isPending} onChange={(e) => onChange({ season: e.target.value === "" ? null : Number(e.target.value) })} aria-label={t`Season`}>
+          <option value="">{seasonName(null)}</option>
+          {(detail.data?.seasons ?? (row.season != null ? [{ number: row.season, name: "" }] : [])).map((x) => (
+            <option key={x.number} value={x.number}>{seasonName(x.number)}</option>
+          ))}
+        </select>
       )}
     </div>
   );

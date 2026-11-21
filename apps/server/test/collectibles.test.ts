@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { ComicVineIssues, parseComicQuery, toComic } from "../src/adapters/local/comicvine";
 import { NumistaCoins, issueLabel, toCoin } from "../src/adapters/local/numista";
 import { RebrickableSets, setNumberOf, toSet } from "../src/adapters/local/rebrickable";
+import { TmdbVideos, parseVideoQuery, toVideo } from "../src/adapters/local/tmdb";
 import { serverSetting } from "../src/db/schema";
 import { collectiblePhotoKey } from "../src/lib/collectibles";
 import { CatalogKeyError, type CollectibleCatalog } from "../src/ports";
@@ -18,6 +19,7 @@ const features = async (u: User) => (await json<{ features: { collectibles: stri
 const FALCON: CollectibleInfo = { kind: "lego", id: "75192-1", name: "Millennium Falcon", year: 2017, setNumber: "75192", theme: "Star Wars › Ultimate Collector Series", pieces: 7541, image: "https://cdn.rebrickable.com/media/sets/75192-1/30881.jpg", imageLarge: "https://cdn.rebrickable.com/media/sets/75192-1/30881.jpg", url: "https://rebrickable.com/sets/75192-1/" };
 const QUARTER: CollectibleInfo = { kind: "coin", id: "55", name: '¼ Dollar "Washington Quarter"', year: 1965, yearTo: 1998, issuer: "United States", image: "https://en.numista.com/a-180.jpg", imageLarge: "https://en.numista.com/a-original.jpg", url: "https://en.numista.com/55" };
 const LIBERIA: CollectibleInfo = { kind: "coin", id: "55640", name: "10 Dollars (George Washington)", year: 2003, issuer: "Liberia", url: "https://en.numista.com/55640" };
+const BREAKING_BAD: CollectibleInfo = { kind: "video", id: "tv-1396", name: "Breaking Bad", mediaType: "tv", year: 2008, studio: "AMC", url: "https://www.themoviedb.org/tv/1396", seasons: [{ number: 1, name: "Season 1", imageLarge: "https://image.tmdb.org/t/p/w780/s1.jpg" }], imageLarge: "https://image.tmdb.org/t/p/w780/show.jpg" };
 const ASM300: CollectibleInfo = { kind: "comic", id: "29584", name: "The Amazing Spider-Man #300", series: "The Amazing Spider-Man", issueNumber: "300", publisher: "Marvel", title: "Venom", year: 1988, url: "https://comicvine.gamespot.com/x/4000-29584/" };
 const ISSUERS: CoinIssuer[] = [
   { code: "united-states", name: "United States" },
@@ -71,12 +73,13 @@ async function catalogs(opts: Parameters<typeof setup>[0] = {}) {
   const lego = new FakeCatalog([FALCON]);
   const coin = new FakeCatalog([LIBERIA, QUARTER], true);
   const comic = new FakeCatalog([ASM300]);
-  const s = await setup({ collectibles: { lego, coin, comic }, ...opts });
+  const video = new FakeCatalog([BREAKING_BAD]);
+  const s = await setup({ collectibles: { lego, coin, comic, video }, ...opts });
   const ann = await s.user("ann");
   const on = async (...kinds: string[]) => {
     for (const k of kinds) expect((await send(ann, "PUT", `/api/v1/server/collectibles/${k}`, { key: KEY })).status).toBe(200);
   };
-  return { ...s, ann, lego, coin, comic, on };
+  return { ...s, ann, lego, coin, comic, video, on };
 }
 
 const readPhoto = async (u: User, kind: string) => {
@@ -98,6 +101,7 @@ describe("collector catalogs", () => {
       { kind: "lego", available: true, on: true, hint: "…1234", kept: 0 },
       { kind: "coin", available: true, on: false, hint: null, kept: 0 },
       { kind: "comic", available: true, on: false, hint: null, kept: 0 },
+      { kind: "video", available: true, on: false, hint: null, kept: 0 },
     ]);
     const [row] = await db.select().from(serverSetting).where(eq(serverSetting.key, "collectibles.lego.key"));
     expect(row!.value).not.toContain(KEY);
@@ -210,6 +214,21 @@ describe("collector catalogs", () => {
     expect((await json<{ photoId: string | null }>(ann.as(`/api/v1/items/${set.id}`))).photoId).toBeTruthy();
   });
 
+  it("read a film's case for its title, format and season, and keep a season's own poster", async () => {
+    const ai = new FakeAi([{ title: "Breaking Bad", year: null, format: "blu ray", season: 1 }]);
+    const downloader = new FakeDownloader();
+    downloader.files.set("https://image.tmdb.org/t/p/w780/s1.jpg", await photo());
+    const { ann, jobs, on } = await catalogs({ ai, downloader });
+    await on("video");
+    const { id } = await json<{ id: string }>(readPhoto(ann, "video"));
+    await jobs.drain();
+    expect(await json<CollectibleReadStatus>(ann.as(`/api/v1/collectibles/read/${id}`))).toMatchObject({ read: { query: "Breaking Bad", format: "Blu-ray", season: 1 }, candidates: [{ id: "tv-1396" }] });
+    const box = await ann.addItem({ name: "Breaking Bad – Season 1", collectible: { kind: "video", id: "tv-1396", format: "Blu-ray", season: 1 } });
+    expect((await json<{ collectible: unknown }>(ann.as(`/api/v1/items/${box.id}`))).collectible).toEqual({ kind: "video", id: "tv-1396", format: "Blu-ray", season: 1 });
+    // Season 1's poster, not the show's (only that one is downloadable here).
+    expect((await send(ann, "POST", `/api/v1/items/${box.id}/collectible/photo`)).status).toBe(201);
+  });
+
   it("list a collection's coins beside today's prices, fetching the old ones in the background", async () => {
     const { ann, jobs, coin, on } = await catalogs();
     await on("coin", "lego");
@@ -260,6 +279,37 @@ describe("collector catalog adapters", () => {
     expect(issueLabel({ id: 2, year: 1965, comment: "SMS" })).toBe("1965 · SMS");
     expect(issueLabel({ id: 3, is_dated: false })).toBe("Undated");
     expect(toComic({ id: 29584, name: "Venom", issue_number: "300", cover_date: "1988-05-31", volume: { id: 2127, name: "The Amazing Spider-Man" }, site_detail_url: "https://comicvine.gamespot.com/x/" }, "Marvel")).toMatchObject({ name: "The Amazing Spider-Man #300", title: "Venom", year: 1988, publisher: "Marvel", url: "https://comicvine.gamespot.com/x/" });
+  });
+
+  it("read film searches and turn TMDB's answers into films and shows", () => {
+    expect(parseVideoQuery("Breaking Bad season 2")).toEqual({ title: "Breaking Bad", year: null, season: 2 });
+    expect(parseVideoQuery("Dune (2021)")).toEqual({ title: "Dune", year: 2021, season: null });
+    expect(parseVideoQuery("The Office S3")).toEqual({ title: "The Office", year: null, season: 3 });
+    expect(parseVideoQuery("2001: A Space Odyssey")).toEqual({ title: "2001: A Space Odyssey", year: null, season: null });
+    expect(toVideo({ id: 603, title: "The Matrix", release_date: "1999-03-31", poster_path: "/p.jpg", runtime: 136, genres: [{ name: "Action" }], production_companies: [{ name: "Village Roadshow Pictures" }] } as never, "movie")).toMatchObject({
+      id: "movie-603",
+      year: 1999,
+      runtimeMin: 136,
+      studio: "Village Roadshow Pictures",
+      imageLarge: "https://image.tmdb.org/t/p/w780/p.jpg",
+      url: "https://www.themoviedb.org/movie/603",
+    });
+  });
+
+  it("send TMDB an API key in the address and a read token as a Bearer token, and put a typed year first", async () => {
+    const seen: { url: URL; auth: string | null }[] = [];
+    const fetcher = (async (input: string | URL | Request, init?: RequestInit) => {
+      seen.push({ url: new URL(String(input)), auth: new Headers(init?.headers).get("authorization") });
+      return reply({ results: [{ id: 438631, media_type: "movie", title: "Dune", release_date: "2021-09-15" }, { id: 841, media_type: "movie", title: "Dune", release_date: "1984-12-14" }, { id: 1, media_type: "person", name: "Someone" }] });
+    }) as typeof fetch;
+    const found = await new TmdbVideos(fetcher).find("api-key-123", { text: "Dune 1984" });
+    expect(found.map((f) => f.id)).toEqual(["movie-841", "movie-438631"]);
+    expect(seen[0]!.url.searchParams.get("api_key")).toBe("api-key-123");
+    expect(seen[0]!.url.searchParams.get("query")).toBe("Dune");
+    await new TmdbVideos(fetcher).find("eyJhbGciOi.token", { text: "Dune" });
+    expect(seen[1]!.auth).toBe("Bearer eyJhbGciOi.token");
+    expect(seen[1]!.url.searchParams.has("api_key")).toBe(false);
+    expect(await new TmdbVideos((async () => reply({ status_message: "Invalid API key" }, 401)) as typeof fetch).check("bad")).toBe(false);
   });
 
   it("send each key the way its catalog wants, and tell a refused key from trouble", async () => {

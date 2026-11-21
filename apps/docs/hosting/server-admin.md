@@ -76,7 +76,8 @@ and set) is sent to them. Prices are kept a day for the whole server. Reading a 
 
 ## Collector catalogs
 
-**Settings → Server → Collector catalogs** adds **LEGO sets**, **Coins** and **Comics** to everyone's **+ Add**
+**Settings → Server → Collector catalogs** adds **LEGO sets**, **Coins**, **Comics** and **Movies & TV** to everyone's
+**+ Add**
 ([what people see](../guide/adding-things#lego-coins-and-comics)). Each catalog needs a free key from an account there.
 Paste it in and Ferret checks it with the catalog before saving it. That catalog is on from then, and **Remove** turns
 it off again.
@@ -86,14 +87,16 @@ it off again.
 | [Rebrickable](https://rebrickable.com) | LEGO sets | Sign in, then your profile's **Settings → API** ([about the API](https://rebrickable.com/api/)) | A request a second or so |
 | [Numista](https://en.numista.com) | Coins, with estimates by grade | Sign in, then [numista.com/api](https://en.numista.com/api/) | 2,000 requests a month on the free plan |
 | [Comic Vine](https://comicvine.gamespot.com) | Comics | Sign in, then [comicvine.gamespot.com/api](https://comicvine.gamespot.com/api/) | 200 requests an hour |
+| [TMDB](https://www.themoviedb.org) | Films and TV shows | Sign in, then **Settings → API** ([themoviedb.org/settings/api](https://www.themoviedb.org/settings/api)): the API key or the read access token both work | About 50 requests a second |
 
 Only the words people search for (and what was read off a photo) are sent, never anything else about them or what they
 own. What a catalog says is kept for the whole server, so its allowance goes far: a coin's details for a month and its
-estimates for a week, sets and comics for three months. Keys are stored sealed with a key made from `FILES_KEY`, so
+estimates for a week, sets, comics, films and shows for three months. Keys are stored sealed with a key made from `FILES_KEY`, so
 backups keep them and Settings only ever shows their last four characters. Reading a photo uses your vision model
 (`VISION_URL`) and counts as an AI action. Without a vision model, people type instead.
 
 Each catalog has its own terms for its API: read them when you get the key (Comic Vine's, for one, is for non-commercial use).
+This product uses the TMDB API but is not endorsed or certified by TMDB.
 
 ## Music look-ups
 

@@ -736,6 +736,7 @@ const CATALOGS: Record<CollectibleKind, { service: string; what: MessageDescript
   lego: { service: "Rebrickable", what: msg`LEGO sets`, icon: "icon-[tabler--lego]", signup: "https://rebrickable.com", keyAt: "https://rebrickable.com/api/" },
   coin: { service: "Numista", what: msg`Coins`, icon: "icon-[tabler--coin]", signup: "https://en.numista.com", keyAt: "https://en.numista.com/api/" },
   comic: { service: "Comic Vine", what: msg`Comics`, icon: "icon-[tabler--book]", signup: "https://comicvine.gamespot.com", keyAt: "https://comicvine.gamespot.com/api/" },
+  video: { service: "TMDB", what: msg`Movies & TV`, icon: "icon-[tabler--movie]", signup: "https://www.themoviedb.org", keyAt: "https://www.themoviedb.org/settings/api" },
 };
 
 /** Collector catalogs (Rebrickable, Numista, Comic Vine): each on once its free key is saved; the key is never shown again. */
@@ -753,7 +754,7 @@ function CollectorCatalogs() {
           <HelpLink page="hosting/server-admin.html#collector-catalogs" label={t`Collector catalogs`} />
         </h2>
         <p className="text-sm text-base-content/70">
-          <Trans>Adds LEGO sets, coins and comics to + Add, looked up with their pictures and details — and coins' prices by grade. Each catalog needs a free key from an
+          <Trans>Adds LEGO sets, coins, comics, and movies and TV shows to + Add, looked up with their pictures and details — and coins' prices by grade. Each catalog needs a free key from an
           account there: paste it here and that catalog is on. Only the words people search for are sent; reading a photo uses this server's vision model and
           counts as an AI action.</Trans>
         </p>
@@ -765,6 +766,13 @@ function CollectorCatalogs() {
             }} />
           ))}
         </ul>
+        {rows.some((c) => c.kind === "video") && (
+          <p className="text-xs text-base-content/70">
+            {/* TMDB's terms ask for this notice, in English. */}
+            {/* not translated */}
+            This product uses the TMDB API but is not endorsed or certified by TMDB.
+          </p>
+        )}
       </div>
     </section>
   );
