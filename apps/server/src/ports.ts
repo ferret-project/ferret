@@ -21,7 +21,7 @@
  *   Speech    → a Whisper-style transcription server (OpenAI-compatible /v1/audio/transcriptions)
  */
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
-import type { CardGame, CardInfo, CoinIssuer, CollectibleInfo, CollectibleKind, CollectiblePrice, ExchangeRates, PlanLimits } from "@ferret/shared";
+import type { EnergyStarMatch, CardGame, CardInfo, CoinIssuer, CollectibleInfo, CollectibleKind, CollectiblePrice, ExchangeRates, PlanLimits } from "@ferret/shared";
 import type { SupportRelease } from "./db/schema/inventory";
 import type * as schema from "./db/schema";
 import type { Catalogs } from "./lib/language";
@@ -275,6 +275,12 @@ export interface RawFdaRecall {
 export interface FdaRecalls {
   /** Every report of that kind from `from` to `to` (both yyyymmdd). Throws on network trouble (try again later). */
   reportedSince(kind: "food" | "drug", from: string, to: string): Promise<RawFdaRecall[]>;
+}
+
+/** ENERGY STAR's certified products (the US EPA's open data): appliances by brand and model, or by barcode. */
+export interface EnergyStar {
+  forModel(brand: string, model: string): Promise<EnergyStarMatch[]>;
+  forBarcode(code: string): Promise<EnergyStarMatch[]>;
 }
 
 /** Product recalls (the CPSC's public data). */
@@ -662,6 +668,8 @@ export interface Deps {
   support?: SupportLifecycles;
   /** Trading card catalogs (Pokémon: TCGdex; Magic: Scryfall), for "Scan cards" (switched on in Settings → Server). */
   cards?: Partial<Record<CardGame, CardCatalog>>;
+  /** ENERGY STAR's certified appliances: a thing's energy use, once the server admin switches it on. */
+  energyStar?: EnergyStar;
   /** The FDA's food and medicine recalls (openFDA), matched by barcode, with recall checks switched on. */
   fdaRecalls?: FdaRecalls;
   /** Google Books: a second book source after Open Library, on once the server admin saves its key (the adapter fetches it). */

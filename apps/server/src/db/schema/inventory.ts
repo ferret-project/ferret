@@ -1040,9 +1040,10 @@ export const cardInfo = sqliteTable("card_info", {
 });
 
 /**
- * The collector book: what a collector catalog (Rebrickable, Numista, Comic Vine) said — public, shared by the server,
+ * The collector book: what a collector catalog (Rebrickable, Numista, Comic Vine…) said — public, shared by the server,
  * so its allowance (Numista's is monthly) goes far. "<kind>:<id>" for a set, coin or comic; "coin-prices:<id>:<issue>:<currency>"
- * for a coin's prices; "coin-issuers" for the issuers to search coins by.
+ * for a coin's prices; "coin-issuers" for the issuers to search coins by; and ENERGY STAR's answers, "energystar:<brand>|<model>|<barcode>"
+ * (lib/energy.ts).
  */
 export const collectibleInfo = sqliteTable("collectible_info", {
   key: text("key").primaryKey(),

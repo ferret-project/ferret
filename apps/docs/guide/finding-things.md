@@ -46,6 +46,14 @@ maintenance done, and stock used or bought — with who did it, and whether thro
 opens the rest. It stays for things you no longer have, too. Claude can read it as well: *"when did we move the
 ladder?"*
 
+## Energy use
+
+When whoever runs your Ferret has switched on [ENERGY STAR look-ups](../hosting/server-admin#energy-star-look-ups), an
+appliance with its brand and model number filled in (or its barcode) shows an **ENERGY STAR** card on its page if it's
+certified: how many kWh it uses a year, how that compares with the US standard (a furnace: its efficiency), and a link
+to its page on ENERGY STAR. Model numbers there often end in asterisks, which stand for any letter (the colour or a
+version), so check yours is the same series.
+
 ## Last seen
 
 Each time someone scans a thing's [QR label](./labels), barcode or pairing code, taps **Still here** on its page, or

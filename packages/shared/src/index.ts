@@ -2511,6 +2511,41 @@ export interface CollectibleValue {
   price: CollectiblePrice | null;
 }
 
+/** An ENERGY STAR certified product matching a thing: its energy use and how it compares. */
+export interface EnergyStarMatch {
+  /** "Refrigerator", "Clothes washer"… */
+  kind: string;
+  brand: string;
+  model: string;
+  /** "Top Freezer", "Front Load"… */
+  type: string | null;
+  kwhPerYear: number | null;
+  /** What the US federal standard allows a year, when given. */
+  federalKwhPerYear: number | null;
+  /** How much less energy than the federal standard, in percent, when given. */
+  percentBetter: number | null;
+  /** A furnace's efficiency (AFUE, percent). */
+  afue: number | null;
+  /** Among the year's most efficient. */
+  mostEfficient: boolean;
+  /** Its page in ENERGY STAR's product finder. */
+  url: string;
+}
+
+/** A thing's ENERGY STAR entry (Settings → Server switches look-ups on): being looked up, none, or what matched. */
+export interface ItemEnergy {
+  status: "off" | "none" | "pending" | "found";
+  matches?: EnergyStarMatch[];
+}
+
+/** ENERGY STAR look-ups for Settings → Server. */
+export interface EnergyStarStatus {
+  available: boolean;
+  enabled: boolean;
+  /** Brands and models (or barcodes) looked up and kept. */
+  kept: number;
+}
+
 /** Music look-ups (MusicBrainz, for "Scan music") for Settings → Server. */
 export interface MusicLookupStatus {
   available: boolean;

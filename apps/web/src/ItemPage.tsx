@@ -46,6 +46,7 @@ import { ClaimDialog } from "./Claims";
 import { ProductSuggestions, VehicleSuggestions } from "./Product";
 import { CardDetails } from "./Cards";
 import { CollectibleDetails } from "./Collectibles";
+import { EnergyCard } from "./Energy";
 import { DeviceSupport } from "./DeviceSupport";
 import { Suggestions } from "./Suggestions";
 import { Warranties } from "./Warranties";
@@ -436,6 +437,7 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
 
       <CardDetails item={item.data} canEdit={canEdit} hasPhoto={photos.length > 0} />
       <CollectibleDetails item={item.data} canEdit={canEdit} hasPhoto={photos.length > 0} />
+      {!item.data.collectible && !item.data.card && <EnergyCard item={item.data} />}
       {!item.data.card && <DeviceSupport item={item.data} canEdit={canEdit} />}
       {canEdit && !item.data.card && !item.data.collectible && <ProductSuggestions item={item.data} householdId={householdId} />}
       {canEdit && <VehicleSuggestions item={item.data} householdId={householdId} />}

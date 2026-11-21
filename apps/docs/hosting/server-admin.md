@@ -85,6 +85,16 @@ need no key and have no allowance. It's off until you switch it on, because what
 and set) is sent to them. Prices are kept a day for the whole server. Reading a photo of a card uses your vision model
 (`VISION_URL`) and counts as an AI action. Without a vision model, people type the cards instead.
 
+## ENERGY STAR look-ups
+
+**Settings → Server → ENERGY STAR look-ups** shows an appliance's certified energy use on its page: a fridge's, freezer's,
+washer's, dryer's, dishwasher's, dehumidifier's, air conditioner's, water heater's, TV's or air cleaner's kWh a year
+and how it compares with the US standard, or a furnace's efficiency (AFUE), with a link to its page in ENERGY STAR's
+[product finder](https://www.energystar.gov/productfinder/). It comes from the US EPA's
+[open data](https://data.energystar.gov): free, no key. It's off until you switch it on, because a thing's **brand and
+model number** (or its barcode) are sent. Each answer, a match or none, is kept for the whole server for a month.
+Only appliances certified for the US and Canada are listed.
+
 ## Collector catalogs
 
 **Settings → Server → Collector catalogs** adds **LEGO sets**, **Coins**, **Comics**, **Movies & TV**, **Video games** and **Records & CDs**

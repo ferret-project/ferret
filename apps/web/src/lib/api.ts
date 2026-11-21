@@ -141,7 +141,7 @@ import type { TaskVideo, VideoHit,
   ImportTriageInput,
   ImportTriageRow,
   MergeInput,
-  SuggestedTask, OAuthConnectInput, OAuthConnectRequest, OAuthGrantSummary, VehicleLookupStatus, RepairGuideStatus, AskSettings, PromptKind, PromptSetting, BookLookupStatus, MusicLookupStatus, ScanCandidate, SearchIndexStatus, CardGame, CardInfo, CardLookupStatus, CardPrice, CardReadStatus, CardValue, ItemCard, CoinIssuer, CollectibleCatalogStatus, CollectibleInfo, CollectibleKind, CollectiblePrice, CollectibleReadStatus, CollectibleValue, ItemCollectible, OpenFactsStatus, ItemSupportStatus, SupportLookupStatus, ExchangeRates, ExchangeRateStatus } from "@ferret/shared";
+  SuggestedTask, OAuthConnectInput, OAuthConnectRequest, OAuthGrantSummary, VehicleLookupStatus, RepairGuideStatus, AskSettings, PromptKind, PromptSetting, BookLookupStatus, MusicLookupStatus, ScanCandidate, SearchIndexStatus, CardGame, CardInfo, CardLookupStatus, CardPrice, CardReadStatus, CardValue, ItemCard, CoinIssuer, CollectibleCatalogStatus, CollectibleInfo, CollectibleKind, CollectiblePrice, CollectibleReadStatus, CollectibleValue, ItemCollectible, OpenFactsStatus, ItemSupportStatus, SupportLookupStatus, ExchangeRates, ExchangeRateStatus, EnergyStarStatus, ItemEnergy } from "@ferret/shared";
 import { photoCopies } from "./photo-copies";
 import { t, ph } from "@lingui/core/macro";
 
@@ -380,6 +380,9 @@ export const api = {
   itemCollectible: (itemId: string) =>
     request<{ collectible: ItemCollectible | null; info: CollectibleInfo | null; prices: CollectiblePrice[]; price: CollectiblePrice | null }>(`/items/${itemId}/collectible`),
   useCollectibleImage: (itemId: string) => request<Attachment>(`/items/${itemId}/collectible/photo`, { method: "POST" }),
+  itemEnergy: (itemId: string) => request<ItemEnergy>(`/items/${itemId}/energy`),
+  energyStarStatus: () => request<EnergyStarStatus>("/server/energy-star"),
+  setEnergyStar: (enabled: boolean) => request<EnergyStarStatus>("/server/energy-star", { method: "PUT", body: JSON.stringify({ enabled }) }),
   musicLookupStatus: () => request<MusicLookupStatus>("/server/music"),
   setMusicLookups: (enabled: boolean) => request<MusicLookupStatus>("/server/music", { method: "PUT", body: JSON.stringify({ enabled }) }),
   askSettings: () => request<AskSettings>("/server/ask"),

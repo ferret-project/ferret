@@ -22,6 +22,7 @@ import { HTTPException } from "hono/http-exception";
 import { aboutServer, clearServiceErrors, listServiceErrors } from "../lib/service-errors";
 import { cardLookupStatus, setCardsEnabled } from "../lib/cards";
 import { catalogStatus, saveCatalogKey } from "../lib/collectibles";
+import { energyStatus, setEnergyEnabled } from "../lib/energy";
 import { collectibleKeyInput, collectibleKinds } from "@ferret/shared";
 import { SUPPORT_REFRESH_JOB, setSupportEnabled, supportStatus } from "../lib/support";
 import { EXCHANGE_RATES_JOB, exchangeRateStatus, setExchangeRatesEnabled } from "../lib/exchange";
@@ -205,6 +206,16 @@ server.put("/collectibles/:kind", async (c) => {
   if (!kind.success) throw new HTTPException(404, { message: "No such catalog" });
   const { key } = await body(c.req.raw, collectibleKeyInput);
   return c.json({ data: await saveCatalogKey(c.var.deps, c.var.config.FILES_KEY, kind.data, key) });
+});
+
+/** ENERGY STAR look-ups: whether they're on, and how many brands and models are kept. */
+server.get("/energy-star", async (c) => c.json(await energyStatus(c.var.deps)));
+
+/** Switch ENERGY STAR look-ups on (things' brands and models, or barcodes, are sent to data.energystar.gov) or off. */
+server.put("/energy-star", async (c) => {
+  const { enabled } = await body(c.req.raw, z.object({ enabled: z.boolean() }));
+  await setEnergyEnabled(c.var.db, enabled);
+  return c.json(await energyStatus(c.var.deps));
 });
 
 /** Google Books, asked after Open Library: save its free key (checked with Google first), or `{ key: null }` to remove it. */

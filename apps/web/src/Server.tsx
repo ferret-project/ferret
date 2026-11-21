@@ -53,6 +53,7 @@ export function Server() {
           <MusicLookups />
           <CardLookups />
           <CollectorCatalogs />
+          <EnergyStarLookups />
           {!demo && <Certificates />}
           {!demo && <AiPrompts />}
         </div>
@@ -898,6 +899,37 @@ function CatalogKey({ status, onSaved }: { status: CollectibleCatalogStatus; onS
       )}
       {save.isError && <div className="alert alert-soft alert-error">{save.error.message}</div>}
     </li>
+  );
+}
+
+/** ENERGY STAR look-ups: off until switched on, because things' brands and models (or barcodes) are sent to the EPA's open data. */
+function EnergyStarLookups() {
+  const qc = useQueryClient();
+  const status = useQuery({ queryKey: ["server-energy-star"], queryFn: api.energyStarStatus });
+  const toggle = useMutation({ mutationFn: api.setEnergyStar, onSuccess: (data) => qc.setQueryData(["server-energy-star"], data) });
+  const s = status.data;
+  if (!s?.available) return null;
+  return (
+    <section className="card" aria-labelledby="energy-title">
+      <div className="card-body gap-3">
+        <h2 id="energy-title" className="card-title flex items-center gap-2">
+          <span className="icon-[tabler--bolt] size-5 text-primary" />
+          <Trans>ENERGY STAR look-ups</Trans>
+          <HelpLink page="hosting/server-admin.html#energy-star-look-ups" label={t`ENERGY STAR look-ups`} />
+        </h2>
+        <p className="text-sm text-base-content/70">
+          <Trans>Shows an appliance's certified energy use on its page — a fridge's, washer's, furnace's or TV's kWh a year and how it compares with the
+          US standard — from ENERGY STAR's list of certified products (data.energystar.gov). Free, no key. A thing's brand and model number (or its
+          barcode) are sent, once for the whole server; nothing else is.</Trans>
+        </p>
+        <label className="flex cursor-pointer items-center gap-3">
+          <input type="checkbox" className="switch switch-primary" checked={s.enabled} disabled={toggle.isPending} onChange={(e) => toggle.mutate(e.target.checked)} />
+          <span>{s.enabled ? t`On` : t`Off`}</span>
+        </label>
+        {s.enabled && <p className="text-sm text-base-content/70">{plural(s.kept, { one: "# thing looked up", other: "# things looked up" })}.</p>}
+        {toggle.isError && <div className="alert alert-soft alert-error">{toggle.error.message}</div>}
+      </div>
+    </section>
   );
 }
 
