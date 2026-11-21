@@ -325,7 +325,7 @@ async function serviceKeys(sub: string | undefined, rest: string[]) {
       const key = process.stdin.isTTY ? (await askHidden(`${service.name} key${service.note ? ` (${service.note})` : ""}: `)).trim() : (await readStdin()).trim().split(/\s+/).join(" ");
       if (!key) throw new Error("No key given.");
       await service.save(db, filesKeyInUse(), key);
-      console.log(`Saved the ${service.name} key (…${key.slice(-4)}), after ${service.name.split(" ")[0]} accepted it.`);
+      console.log(`Saved the ${service.name} key (…${key.slice(-4)}), checked with the service first.`);
     } else if (sub === "remove" && service) {
       await service.save(db, filesKeyInUse(), null);
       console.log(`Removed the ${service.name} key.`);
