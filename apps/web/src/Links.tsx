@@ -3,7 +3,7 @@
  * support site: shown on the item page (opened in a new tab, nothing sent along)
  * and edited in the item editor. http(s) only; the server checks it too.
  */
-import type { ItemLink } from "@ferret/shared";
+import type { ItemLink, ItemListing } from "@ferret/shared";
 import { amazonCartUrl, amazonProductOf } from "@ferret/shared/utils";
 import { t, ph } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
@@ -34,6 +34,18 @@ export function asWebAddress(typed: string): string | null {
  * The item's links. An Amazon product page among them also offers to buy it again (one in the cart); without one, a
  * thing that's kept stocked (`search`: amazonSearchUrl) gets "Search Amazon" for its part number instead.
  */
+/**
+ * A search for a thing's manual in the Internet Archive's manuals collection, when its brand and model say enough (a
+ * model with a digit in it, like "DCD771"; not vehicles, cards or collectibles). Only a link: the browser opens it.
+ */
+export function manualSearchUrl(it: Pick<ItemListing, "brand" | "model" | "vehicle" | "card" | "collectible">) {
+  const brand = it.brand?.trim();
+  const model = it.model?.trim();
+  if (!brand || !model || !/\d/.test(model) || model.replace(/[^A-Za-z0-9]/g, "").length < 3) return null;
+  if (it.vehicle || it.card || it.collectible) return null;
+  return `https://archive.org/details/manuals?${new URLSearchParams({ query: `${brand} ${model}` })}`;
+}
+
 export function ItemLinks({ links, search }: { links: ItemLink[]; search?: string | null }) {
   const product = amazonProductOf(links);
   const cart = product && amazonCartUrl(product.site, [{ asin: product.asin, quantity: 1 }]);

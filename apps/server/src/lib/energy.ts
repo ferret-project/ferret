@@ -12,7 +12,7 @@
  * fetched in a job at most monthly ("eia:residential").
  */
 import { convertCents, type EnergyStarMatch, type EnergyStarStatus, type ItemEnergy } from "@ferret/shared";
-import { and, count, eq, isNotNull, isNull, like } from "drizzle-orm";
+import { and, count, eq, inArray, isNotNull, isNull, like } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import { collectibleInfo, location, property, serverSetting } from "../db/schema";
@@ -26,6 +26,9 @@ export const ELECTRICITY_JOB = "energystar.electricity";
 /** Where the server admin's US EIA key is kept (sealed: lib/server-keys.ts). */
 export const EIA_KEY = "energy.eia.key";
 const PRICES_KEY = "eia:residential";
+/** The EIA's weekly fuel prices (lib/fuel-economy.ts) — kept here too, since the same key fetches them. */
+export const FUEL_PRICES_KEY = "eia:fuel";
+export const FUEL_PRICES_JOB = "fueleconomy.prices";
 const PRICES_FRESH_MS = 30 * 24 * 60 * 60 * 1000;
 const ENABLED_KEY = "energystar.enabled";
 const FRESH_MS = 30 * 24 * 60 * 60 * 1000;
@@ -56,7 +59,7 @@ export async function energyStatus(deps: Pick<Deps, "db" | "energyStar" | "elect
 }
 
 /** Save the US EIA key (checked with the EIA first) and fetch its prices; or remove it with null (no more costs). */
-export async function setElectricityKey(deps: Pick<Deps, "db" | "energyStar" | "electricity" | "jobs">, filesKey: string, key: string | null) {
+export async function setElectricityKey(deps: Pick<Deps, "db" | "energyStar" | "electricity" | "fuelPrices" | "jobs">, filesKey: string, key: string | null) {
   if (!deps.electricity) throw new HTTPException(409, { message: "Electricity prices aren't available on this server" });
   if (key != null) {
     const ok = await deps.electricity.check(key).catch(() => {
@@ -65,8 +68,11 @@ export async function setElectricityKey(deps: Pick<Deps, "db" | "energyStar" | "
     if (!ok) throw new HTTPException(422, { message: "The EIA didn't accept that key — copy it again from its email" });
   }
   await saveServerKey(deps.db, filesKey, EIA_KEY, key);
-  await deps.db.delete(collectibleInfo).where(eq(collectibleInfo.key, PRICES_KEY));
-  if (key != null && deps.jobs) await deps.jobs.enqueue(ELECTRICITY_JOB, {});
+  await deps.db.delete(collectibleInfo).where(inArray(collectibleInfo.key, [PRICES_KEY, FUEL_PRICES_KEY]));
+  if (key != null && deps.jobs) {
+    await deps.jobs.enqueue(ELECTRICITY_JOB, {});
+    if (deps.fuelPrices) await deps.jobs.enqueue(FUEL_PRICES_JOB, {});
+  }
   return energyStatus(deps);
 }
 
@@ -100,7 +106,7 @@ export function stateCode(region: string | null | undefined, country: string | n
 }
 
 /** Which state a thing's electricity is priced at: its property's, else the household's only one; null: the US average. */
-async function stateFor(v: Caller, locationId: string | null): Promise<{ state: string | null; abroad: boolean }> {
+export async function stateFor(v: Caller, locationId: string | null): Promise<{ state: string | null; abroad: boolean }> {
   if (locationId) {
     const [p] = await v.db
       .select({ region: property.region, country: property.country })
@@ -115,13 +121,18 @@ async function stateFor(v: Caller, locationId: string | null): Promise<{ state: 
   const all = await v.db
     .select({ region: property.region, country: property.country })
     .from(property)
-    .where(and(eq(property.householdId, v.householdId), isNull(property.deletedAt), isNotNull(property.region)));
+    .where(and(eq(property.householdId, v.householdId), isNull(property.deletedAt)));
   const states = [...new Set(all.map((p) => stateCode(p.region, p.country)).filter(Boolean))];
-  return { state: states.length === 1 ? states[0]! : null, abroad: false };
+  // Every home the household has is outside the US: US prices say nothing about it.
+  const abroad = all.length > 0 && all.every((p) => p.country && !stateCode("CO", p.country));
+  return { state: states.length === 1 ? states[0]! : null, abroad };
 }
 
-/** What a year at this many kWh costs at the average home rate, in the household's currency. Null without prices. */
-async function costOf(v: Caller, kwh: number, locationId: string | null): Promise<ItemEnergy["cost"]> {
+/**
+ * The average home electricity rate for a thing (US cents a kWh): its property's state's, else the household's only
+ * state's, else the US average. Null without prices (or for a home outside the US — US prices say nothing there).
+ */
+export async function homeElectricityRate(v: Caller, locationId: string | null): Promise<{ centsPerKwh: number; state: string | null; year: number } | null> {
   if (!v.deps.electricity) return null;
   const [kept] = await v.db.select().from(collectibleInfo).where(eq(collectibleInfo.key, PRICES_KEY));
   if (!kept || Date.now() - kept.fetchedAt.getTime() >= PRICES_FRESH_MS) {
@@ -130,13 +141,25 @@ async function costOf(v: Caller, kwh: number, locationId: string | null): Promis
   const prices = kept?.info as Prices | undefined;
   if (!prices) return null;
   const where = await stateFor(v, locationId);
-  if (where.abroad) return null; // US prices say nothing about a home elsewhere
-  const rate = (where.state && prices.centsPerKwh[where.state]) || prices.centsPerKwh.US;
+  if (where.abroad) return null;
+  const own = where.state ? prices.centsPerKwh[where.state] : undefined;
+  const rate = own || prices.centsPerKwh.US;
   if (!rate) return null;
-  const usd = Math.round(kwh * rate);
-  const cents = v.currency === "USD" ? usd : convertCents(usd, "USD", v.currency, await currentRates(v.deps));
+  return { centsPerKwh: rate, state: own ? where.state : null, year: prices.year };
+}
+
+/** US cents in the household's currency (null when there's no rate for it). */
+export async function inHouseholdCurrency(v: Caller, usd: number) {
+  return v.currency === "USD" ? usd : convertCents(usd, "USD", v.currency, await currentRates(v.deps));
+}
+
+/** What a year at this many kWh costs at the average home rate, in the household's currency. Null without prices. */
+async function costOf(v: Caller, kwh: number, locationId: string | null): Promise<ItemEnergy["cost"]> {
+  const rate = await homeElectricityRate(v, locationId);
+  if (!rate) return null;
+  const cents = await inHouseholdCurrency(v, Math.round(kwh * rate.centsPerKwh));
   if (cents == null) return null;
-  return { cents, currency: v.currency, centsPerKwh: rate, state: where.state && prices.centsPerKwh[where.state] ? where.state : null, year: prices.year };
+  return { cents, currency: v.currency, centsPerKwh: rate.centsPerKwh, state: rate.state, year: rate.year };
 }
 
 /** What a thing is asked by: its brand and model (both needed), and its barcode. Null when there's not enough. */

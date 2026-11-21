@@ -49,7 +49,10 @@ import { EnergyStarProducts } from "./adapters/local/energystar";
 import { BikeIndexRegistry } from "./adapters/local/bikeindex";
 import { PcgsGrading } from "./adapters/local/pcgs";
 import { PsaGrading } from "./adapters/local/psa";
-import { EiaElectricity } from "./adapters/local/eia";
+import { EiaElectricity, EiaFuel } from "./adapters/local/eia";
+import { FuelEconomyGov } from "./adapters/local/fueleconomy";
+import { LocalDiskSpace } from "./adapters/local/disk";
+import { GitHubReleases } from "./adapters/local/github-releases";
 import { EIA_KEY } from "./lib/energy";
 import { serverKey } from "./lib/server-keys";
 import { GOOGLE_BOOKS_KEY } from "./lib/products";
@@ -193,6 +196,17 @@ const deps = {
   energyStar: watched(db, "ENERGY STAR", new EnergyStarProducts()),
   // ENERGY STAR's kWh in money, once the server admin saves an EIA key; it fetches the key sealed in the database.
   electricity: watched(db, "electricity prices (EIA)", new EiaElectricity(() => serverKey(db, config.FILES_KEY, EIA_KEY))),
+  fuelEconomy: watched(db, "fuel economy (fueleconomy.gov)", new FuelEconomyGov()),
+  // A vehicle's fuel in money, with the same EIA key as electricity prices.
+  fuelPrices: watched(db, "fuel prices (EIA)", new EiaFuel(() => serverKey(db, config.FILES_KEY, EIA_KEY))),
+  // Free space where the database, files and backups are (Settings → Server, the server check, the admin's bell).
+  disk: new LocalDiskSpace([
+    { holds: "database", path: dataDir },
+    { holds: "files", path: path.join(dataDir, "files") },
+    ...(config.BACKUP_DIR ? [{ holds: "backups" as const, path: path.resolve(config.BACKUP_DIR) }] : []),
+  ]),
+  // "A new version is out": only once the server admin switches it on (Settings → Server → Updates).
+  releases: watched(db, "updates (GitHub)", new GitHubReleases(config.FERRET_VERSION)),
   stolenBikes: watched(db, "Bike Index", new BikeIndexRegistry()),
   grading: { pcgs: watched(db, "graded coins (PCGS)", new PcgsGrading()), psa: watched(db, "graded cards (PSA)", new PsaGrading()) },
   googleBooks: watched(db, "books (Google)", new GoogleBooks(() => serverKey(db, config.FILES_KEY, GOOGLE_BOOKS_KEY))),

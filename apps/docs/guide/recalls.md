@@ -49,3 +49,18 @@ for a typo.
 Each make, model and year is then checked against NHTSA's recalls (at most once a week), and every recall for it shows
 as **Recalled**, like any other, with NHTSA's notice and campaign number. A recall for a model year usually covers only
 some of those vehicles: the notice says how to check yours (NHTSA's VIN look-up at nhtsa.gov/recalls, or the maker).
+
+### Fuel economy
+
+When [fuel economy look-ups](../hosting/server-admin#fuel-economy) are on too, a vehicle with a decoded VIN gets a
+**Fuel economy** card. The first time, it lists the US EPA's entries for its year, make and model
+([fueleconomy.gov](https://www.fueleconomy.gov)): one for each engine and transmission, with those that have the
+VIN's engine first (**Same engine as the VIN**). Tap **This one**, or **None of these** if none fits. **Not this one?**
+on the card lets you choose again.
+
+The card then shows its miles per gallon (combined, city and highway; an electric car's MPGe, kWh per 100 miles and
+range) and **about what a year's fuel costs**: 15,000 miles a year, 55% of them in town (the EPA's own assumptions),
+at this week's average price of its fuel in its state, or its region where the US Energy Information Administration
+doesn't price the state on its own (an electric car at its state's average home electricity rate). The state comes
+from its property's address, else your household's only state. When the server has no EIA key, the cost is the EPA's
+own estimate at US average prices. A home outside the US gets the figures but no cost.

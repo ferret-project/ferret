@@ -20,6 +20,8 @@ import { lastKeyFile } from "./key-file-log";
 import { certificatesEnding } from "./certificates";
 import { barcodeLookupStatus } from "./products";
 import { serviceTrouble } from "./service-errors";
+import { bytesText, diskSpace } from "./disk-space";
+import { updatesState, updateStatus } from "./updates";
 import { PARTS_AHEAD_DAYS, shoppingList } from "./stock";
 import { type Caller, itemScope, listWarranties } from "./inventory";
 import { listMaintenance } from "./maintenance";
@@ -414,6 +416,41 @@ export async function needsAttention(v: Caller, tr: Tr = translator(undefined, n
           : tr("Ends {date} — add its replacement in Settings → Server → Certificates.", { date: tr.date(todayFor(v, new Date(c.notAfter))) }),
         itemId: null,
         date: todayFor(v, new Date(c.notAfter)),
+      });
+    }
+  }
+
+  // A disk Ferret writes to nearly full — for the server admin (uploads, the database and backups stop when it fills).
+  if (v.deps.disk && (await isServerAdmin(v.db, v.userId))) {
+    for (const d of await diskSpace(v.deps)) {
+      if (!d.low) continue;
+      const holds = d.holds.map((h) => (h === "database" ? tr("the database") : h === "files" ? tr("photos and documents") : tr("backups"))).join(", ");
+      out.push({
+        kind: "service",
+        severity: d.critical ? "urgent" : "soon",
+        id: `service:disk:${d.holds.join("+")}`,
+        title: tr("The disk is nearly full"),
+        detail: tr("{free} free of {total} on the disk with {holds} — free some space, or move them to a bigger disk.", { free: bytesText(d.freeBytes), total: bytesText(d.totalBytes), holds }),
+        itemId: null,
+        date: null,
+        href: "#/settings/server",
+      });
+    }
+  }
+
+  // A newer release of Ferret than this one, once the server admin switched the check on — for them.
+  if (v.deps.releases && (await isServerAdmin(v.db, v.userId))) {
+    const u = updateStatus(v.deps, v.deps.releases.current, await updatesState(v.db));
+    if (u.newer && u.latest) {
+      out.push({
+        kind: "service",
+        severity: "soon",
+        id: `service:update:${u.latest.version}`,
+        title: tr("Ferret {version} is out", { version: u.latest.version }),
+        detail: tr("This server runs {current}. What's new is in Settings → Server → Updates.", { current: u.current }),
+        itemId: null,
+        date: null,
+        href: "#/settings/server",
       });
     }
   }

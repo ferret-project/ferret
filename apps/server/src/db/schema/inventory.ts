@@ -6,7 +6,7 @@
 import { sql } from "drizzle-orm";
 import { check, index, integer, primaryKey, real, sqliteTable, text, uniqueIndex, type AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import type { SightingHow, SightingKind } from "@ferret/shared/utils";
-import type { CardInfo, ItemCard, ItemCollectible, ItemGraded, ItemSupport, VideoHit, VehicleInfo, AiFill, AiFillSwitches, AnalysisStatus, AttachmentAnalysis, CategoryField, CustomFieldValues, HaSnapshot, ItemLink, ItemOrigin, ProductInfo, ReviewOutcome, RoomScanCandidate, RoomScanStatus } from "@ferret/shared";
+import type { CardInfo, ItemCard, ItemCollectible, ItemGraded, ItemSupport, ItemFuelEconomy, VideoHit, VehicleInfo, AiFill, AiFillSwitches, AnalysisStatus, AttachmentAnalysis, CategoryField, CustomFieldValues, HaSnapshot, ItemLink, ItemOrigin, ProductInfo, ReviewOutcome, RoomScanCandidate, RoomScanStatus } from "@ferret/shared";
 import { invitation, organization, session, user } from "./auth";
 
 const id = () =>
@@ -223,6 +223,8 @@ export const item = sqliteTable(
     support: text("support", { mode: "json" }).$type<ItemSupport>(),
     /** The suggested device someone said this isn't ("pixel/6pro"), so it isn't offered again. */
     supportDismissed: text("support_dismissed"),
+    /** A vehicle's EPA fuel economy entry, confirmed by a person (lib/fuel-economy.ts) — or "none of these". */
+    fuelEconomy: text("fuel_economy", { mode: "json" }).$type<ItemFuelEconomy>(),
     /**
      * What a spreadsheet said this line was ("amazon:<order>:<ASIN>:<n>", n for the same product shipped twice in one
      * order), so importing a newer copy of the file skips what's already here (lib/imports.ts).

@@ -3,7 +3,7 @@
  * backups (status, "Back up now", the copies kept, each one's restore check, how to restore), the server check, recall checks (on or off),
  * certificates for the server's own connections, and handing the admin role to someone else. Restoring is a command on the server, not a button: see restoreCommands below.
  */
-import type { BackupRun, BackupSnapshot, BackupStatus, BookLookupStatus, GradingStatus, CollectibleCatalogStatus, CollectibleKind, ServerCertificate, ServerSecrets } from "@ferret/shared";
+import type { DiskSpaceEntry, BackupRun, BackupSnapshot, BackupStatus, BookLookupStatus, GradingStatus, CollectibleCatalogStatus, CollectibleKind, ServerCertificate, ServerSecrets } from "@ferret/shared";
 import { ServerAiFillCard } from "./AiFill";
 import { AiPrompts, PROMPT_NAMES } from "./Prompts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -35,6 +35,7 @@ export function Server() {
           <DemoSwitches />
           {!demo && <Backups />}
           <ServerCheck />
+          <Updates />
           <ServiceErrors />
           <ServerAdmin />
         </div>
@@ -190,7 +191,34 @@ const CHECK_WORDS: Record<string, MessageDescriptor> = {
   "downloads.stuck": msg`Downloads from a web address still waiting after a day.`,
   "roomscans.stuck": msg`Room scans that never finished.`,
   "prompts.changed": msg`AI prompts with your own extra instructions (AI prompts, below) — if AI answers look odd, try without them.`,
+  "disk.low": msg`A disk Ferret writes to is nearly full — when it fills, uploads, the database and backups stop.`,
 };
+
+const HOLDS: Record<DiskSpaceEntry["holds"][number], MessageDescriptor> = { database: msg`Database`, files: msg`Photos and documents`, backups: msg`Backups` };
+
+/** Free space on each disk Ferret writes to (none shown where the server has no disk of its own). */
+function DiskSpace() {
+  const disks = useQuery({ queryKey: ["server-disk"], queryFn: api.diskSpace, staleTime: 60_000 }).data?.data;
+  if (!disks?.length) return null;
+  return (
+    <ul className="flex flex-col gap-2" aria-label={t`Disk space`}>
+      {disks.map((d) => {
+        const used = Math.round(((d.totalBytes - d.freeBytes) / Math.max(d.totalBytes, 1)) * 100);
+        return (
+          <li key={d.holds.join("+")} className="flex flex-col gap-1">
+            <span className="flex flex-wrap items-baseline justify-between gap-x-3 text-sm">
+              <span className="font-medium">{d.holds.map((h) => t(HOLDS[h])).join(", ")}</span>
+              <span className={d.low ? "font-medium text-error" : "text-base-content/70"}>
+                {t`${ph({ free: formatBytes(d.freeBytes) })} free of ${ph({ total: formatBytes(d.totalBytes) })}`}
+              </span>
+            </span>
+            <progress className={`progress h-1.5 ${d.low ? "progress-error" : "progress-primary"}`} value={used} max={100} aria-label={t`${ph({ used })}% used`} />
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
 
 /** Server check: on demand, read-only — files, rows pointing at nothing, unfinished work, backups. */
 function ServerCheck() {
@@ -207,6 +235,7 @@ function ServerCheck() {
         <p className="text-sm text-base-content/70">
           <Trans>Looks over the running server: every file the database expects is in the store (and a few decrypt), nothing points at something deleted, no work was left unfinished, and backups are recent. It changes nothing.</Trans>
         </p>
+        <DiskSpace />
         <div>
           <button type="button" className="btn btn-soft btn-primary btn-wrap" disabled={check.isPending} onClick={() => check.mutate()}>
             {check.isPending ? <span className="loading loading-spinner loading-sm" /> : <span className="icon-[tabler--player-play] size-5" />}
@@ -435,6 +464,68 @@ function RecallChecks() {
   );
 }
 
+/**
+ * New versions of Ferret: off until switched on (GitHub is asked once a day). A newer release goes in the bell, with
+ * its notes here. Not offered where Ferret is updated for you (hosted, the demo).
+ */
+function Updates() {
+  const qc = useQueryClient();
+  const status = useQuery({ queryKey: ["server-updates"], queryFn: api.updateStatus });
+  const toggle = useMutation({
+    mutationFn: api.setUpdates,
+    onSuccess: (data) => {
+      qc.setQueryData(["server-updates"], data);
+      // The check runs in the background: look again shortly for what it found.
+      if (data.enabled) setTimeout(() => void qc.invalidateQueries({ queryKey: ["server-updates"] }), 4000);
+      void qc.invalidateQueries({ queryKey: ["attention"] });
+    },
+  });
+  const s = status.data;
+  if (!s?.available) return null;
+  return (
+    <section className="card" aria-labelledby="updates-title">
+      <div className="card-body gap-3">
+        <h2 id="updates-title" className="card-title flex items-center gap-2">
+          <span className="icon-[tabler--refresh] size-5 text-primary" />
+          <Trans>Updates</Trans>
+          <HelpLink page="hosting/server-admin.html#updates" label={t`Updates`} />
+        </h2>
+        <p className="text-sm text-base-content/70">
+          <Trans>This server runs Ferret {ph({ version: s.current })}. Switched on, Ferret asks GitHub once a day for its newest release and tells you in the bell
+          when there's a newer one, with what's new. GitHub sees this server's address; nothing else is sent.</Trans>
+        </p>
+        <label className="flex cursor-pointer items-center gap-3">
+          <input type="checkbox" className="switch switch-primary" checked={s.enabled} disabled={toggle.isPending} onChange={(e) => toggle.mutate(e.target.checked)} />
+          <span>{s.enabled ? t`On` : t`Off`}</span>
+        </label>
+        {s.enabled && s.latest && !/^\d{4}\.\d+\.\d+/.test(s.current) && (
+          <p className="text-sm text-base-content/70">{t`This is a build between releases, so it can't be compared — the newest release is ${ph({ version: s.latest.version })}.`}</p>
+        )}
+        {s.enabled && s.latest && !s.newer && /^\d{4}\.\d+\.\d+/.test(s.current) && (
+          <p className="flex items-center gap-2 text-sm text-base-content/70">
+            <span className="icon-[tabler--circle-check] size-5 text-success" />
+            {t`Up to date — ${ph({ version: s.latest.version })} is the newest release.`}
+          </p>
+        )}
+        {s.newer && s.latest && (
+          <div className="flex flex-col gap-2 rounded-box border border-primary/30 bg-primary/5 p-3">
+            <p className="font-medium">{t`Ferret ${ph({ version: s.latest.version })} is out`}</p>
+            {s.latest.notes && <div className="max-h-60 overflow-y-auto whitespace-pre-line break-words text-sm text-base-content/80">{s.latest.notes}</div>}
+            <p className="text-sm text-base-content/70">
+              <Trans>To update a Docker install: pull the new image and start it again (docker compose pull, then docker compose up -d). Unraid, TrueNAS and the other app stores update it from their own screens.</Trans>
+            </p>
+            <a className="link tap w-fit text-sm" href={s.latest.url} target="_blank" rel="noreferrer noopener">
+              <span className="icon-[tabler--external-link] me-1 size-4 align-[-0.15em]" />
+              {t`The release on GitHub`}
+            </a>
+          </div>
+        )}
+        {toggle.isError && <div className="alert alert-soft alert-error">{toggle.error.message}</div>}
+      </div>
+    </section>
+  );
+}
+
 /** Vehicle look-ups (NHTSA): off until switched on, because they send VINs, and makes, models and years, to NHTSA. */
 function VehicleLookups() {
   const qc = useQueryClient();
@@ -472,8 +563,46 @@ function VehicleLookups() {
           </p>
         )}
         {toggle.isError && <div className="alert alert-soft alert-error">{toggle.error.message}</div>}
+        {s.enabled && <FuelEconomyLookups />}
       </div>
     </section>
+  );
+}
+
+/** Fuel economy (fueleconomy.gov), inside Vehicle look-ups: a decoded vehicle's make, model and year are sent to it. */
+function FuelEconomyLookups() {
+  const qc = useQueryClient();
+  const status = useQuery({ queryKey: ["server-fuel-economy"], queryFn: api.fuelEconomyStatus });
+  const toggle = useMutation({ mutationFn: api.setFuelEconomy, onSuccess: (data) => qc.setQueryData(["server-fuel-economy"], data) });
+  const s = status.data;
+  if (!s?.available) return null;
+  return (
+    <div className="flex flex-col gap-3 border-t border-base-content/10 pt-3">
+      <h3 className="flex items-center gap-2 font-medium">
+        <span className="icon-[tabler--gas-station] size-5 text-primary" />
+        <Trans>Fuel economy</Trans>
+      </h3>
+      <p className="text-sm text-base-content/70">
+        <Trans>Shows a vehicle's EPA miles per gallon on its page, and what a year's fuel costs, from fueleconomy.gov (free, no key). Someone
+        confirms which of its entries the vehicle is — the one with the VIN's engine comes first. A decoded vehicle's make, model and year
+        are sent; nothing else is.</Trans>
+      </p>
+      <label className="flex cursor-pointer items-center gap-3">
+        <input type="checkbox" className="switch switch-primary" checked={s.enabled} disabled={toggle.isPending} onChange={(e) => toggle.mutate(e.target.checked)} />
+        <span>{s.enabled ? t`On` : t`Off`}</span>
+      </label>
+      {s.enabled && <p className="text-sm text-base-content/70">{plural(s.vehicles, { one: "# vehicle confirmed", other: "# vehicles confirmed" })}.</p>}
+      {s.enabled && s.prices.available && (
+        <p className="text-sm text-base-content/70">
+          {s.prices.week
+            ? t`Fuel is priced at this week's average in the vehicle's state or region (the EIA's, the week of ${ph({ week: s.prices.week })}); an electric car at its state's home electricity rate.`
+            : s.prices.hint
+              ? t`Fetching this week's fuel prices from the EIA…`
+              : t`With an EIA key (in ENERGY STAR look-ups, below), fuel is priced at this week's average in the vehicle's state or region. Without one, the cost is EPA's estimate at US average prices.`}
+        </p>
+      )}
+      {toggle.isError && <div className="alert alert-soft alert-error">{toggle.error.message}</div>}
+    </div>
   );
 }
 

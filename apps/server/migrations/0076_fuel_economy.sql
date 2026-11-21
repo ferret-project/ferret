@@ -1,0 +1,1 @@
+ALTER TABLE `item` ADD `fuel_economy` text;

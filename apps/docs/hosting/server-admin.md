@@ -16,6 +16,25 @@ It's the **first account** made on the server, until it's handed over:
 
 If the admin's account is deleted, it falls back to the oldest account. Server settings never work with an API key.
 
+## Updates
+
+**Settings → Server → Updates** tells you when a new version of Ferret is out. It's off until you switch it on, because
+it asks GitHub for Ferret's newest release once a day: GitHub sees your server's address, and nothing else is sent.
+When there's a newer release than the one running, the bell says so, and the card shows what's new and a link to the
+release. Updating is still yours to do: pull the new image and start it again (`docker compose pull`, then
+`docker compose up -d`), or update it from Unraid's, TrueNAS's or your app store's own screens. A build between
+releases can't be compared, so the card only names the newest release.
+
+The card also isn't shown on a Ferret someone else runs for you.
+
+## Disk space
+
+The **Server check** card shows how much space is free on each disk Ferret writes to: the database's, the photos and
+documents', and the backups' (`BACKUP_DIR`), one line for those that share a disk. When one has less than 10% free
+(at least 1 GB, at most 10 GB), it turns red, the server check lists it, and the bell tells you (urgently below half of
+that). A full disk stops uploads, the database and backups, so free some space or move the data to a bigger disk
+before it fills.
+
 ## Recall checks
 
 **Settings → Server → Recall checks** switches on checking everyone's things against the US Consumer Product Safety
@@ -36,6 +55,18 @@ Administration's decoder, and checking vehicles against NHTSA's recalls ([what p
 It's off until you switch it on, because it sends each **VIN** to NHTSA's decoder (vpic.nhtsa.dot.gov), and each
 vehicle's **make, model and year** to its recall search (api.nhtsa.gov) at most once a week — nothing else. Switching
 it on reads the VINs already in Ferret straight away.
+
+### Fuel economy
+
+Once vehicle look-ups are on, the same card has a second switch, **Fuel economy**: a vehicle's EPA miles per gallon
+and what a year's fuel costs ([what people see](../guide/recalls#fuel-economy)), from
+[fueleconomy.gov](https://www.fueleconomy.gov) (free, no key). It's off until you switch it on, because a decoded
+vehicle's **make, model and year** are sent — nothing else. The entries for a make, model and year are kept for the
+whole server for 90 days.
+
+With the EIA key from [ENERGY STAR look-ups](#energy-star-look-ups), fuel is priced at the EIA's weekly average for
+the vehicle's state or region (regular, midgrade or premium gasoline, or diesel), fetched once a week for the whole
+server. Without it, the cost is the EPA's estimate at US average prices.
 
 ## Exchange rates
 
@@ -119,7 +150,8 @@ Optionally add a key from the US Energy Information Administration
 ([register here](https://www.eia.gov/opendata/register.php), free) in the same card: then each card also says what
 that energy costs a year at the average home rate in the thing's state (from its property's address, else your
 household's only state, else the US average). The prices are fetched once a month for the whole server; nothing about
-anyone is sent. Homes outside the US get no cost, since US prices say nothing about them.
+anyone is sent. Homes outside the US get no cost, since US prices say nothing about them. The same key prices
+vehicles' fuel each week ([fuel economy](#fuel-economy)).
 
 ## Collector catalogs
 

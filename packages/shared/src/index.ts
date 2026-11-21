@@ -868,6 +868,8 @@ export interface Item extends Omit<ItemInput, "origin"> {
   graded?: ItemGraded | null;
   /** A device whose software support is tracked (lib/support.ts). */
   support?: ItemSupport | null;
+  /** A vehicle's confirmed EPA fuel economy entry (lib/fuel-economy.ts). */
+  fuelEconomy?: ItemFuelEconomy | null;
 }
 
 /** A VIN decoded by NHTSA's vPIC (the server admin switches vehicle look-ups on in Settings → Server). */
@@ -2566,6 +2568,106 @@ export interface EnergyStarStatus {
   kept: number;
   /** The US EIA's electricity prices: on with its key (the last four characters shown). */
   electricity: { available: boolean; hint: string | null; year: number | null };
+}
+
+/** A vehicle's EPA fuel economy, confirmed by a person (lib/fuel-economy.ts): which fueleconomy.gov entry, for the VIN's make, model and year. */
+export interface ItemFuelEconomy {
+  /** The make/model/year it was chosen for ("2003|honda|accord") — a new VIN asks again. */
+  key: string;
+  /** fueleconomy.gov's vehicle id; null: "none of these" (nothing offered again for that key). */
+  id: string | null;
+  label: string | null;
+}
+
+/** One of fueleconomy.gov's entries for a make, model and year: a transmission and engine ("Auto 5-spd, 4 cyl, 2.4 L"). */
+export interface FuelEconomyOption {
+  id: string;
+  /** EPA's model name ("Accord", "F150 Pickup 4WD"). */
+  model: string;
+  /** Transmission and engine. */
+  text: string;
+  /** Its engine matches the VIN's (cylinders and size). */
+  likely: boolean;
+}
+
+/** An EPA fuel economy entry. Miles per gallon (an electric car's: MPGe); kWh per 100 miles for electricity. */
+export interface FuelEconomyVehicle {
+  id: string;
+  year: number;
+  make: string;
+  model: string;
+  text: string;
+  /** EPA's main fuel: "Regular Gasoline", "Premium Gasoline", "Diesel", "Electricity", "E85"… */
+  fuel: string;
+  /** "EV", "Hybrid", "Plug-in Hybrid", "FFV", "Diesel"… or null. */
+  kind: string | null;
+  city: number;
+  highway: number;
+  combined: number;
+  /** Electricity used, combined (electric cars and plug-ins). */
+  kwhPer100Miles: number | null;
+  /** An electric car's range. */
+  rangeMiles: number | null;
+  /** EPA's own estimate of a year's fuel (15,000 miles, 55% city), at its current US prices, in US cents. */
+  epaYearCents: number | null;
+  url: string;
+}
+
+/** A vehicle's fuel economy for its page: off, nothing to go on, being looked up, which one to confirm, or found. */
+export interface ItemFuelEconomyStatus {
+  status: "off" | "none" | "pending" | "choose" | "found";
+  options?: FuelEconomyOption[];
+  vehicle?: FuelEconomyVehicle;
+  /** A year's fuel (15,000 miles, 55% city): at the state's (or the US's) price this week, or EPA's own estimate. */
+  cost?: {
+    cents: number;
+    currency: string;
+    /** "state" / "region": the EIA's weekly price there; "us": the EIA's US average; "epa": EPA's estimate at US prices. */
+    source: "state" | "region" | "us" | "epa";
+    /** The price used, in US cents per gallon (or per kWh for electricity); null for EPA's estimate. */
+    unitCents: number | null;
+    unit: "gallon" | "kWh" | null;
+    /** Its two letters, when priced at a state's or its region's price. */
+    state: string | null;
+    /** The week (yyyy-mm-dd) or year the price is from. */
+    asOf: string | null;
+    miles: number;
+  } | null;
+}
+
+/** Fuel economy look-ups for Settings → Server. */
+export interface FuelEconomyStatus {
+  available: boolean;
+  enabled: boolean;
+  /** Vehicles with a confirmed entry. */
+  vehicles: number;
+  /** The EIA's weekly fuel prices (with the same key as electricity prices): the week they're from. */
+  prices: { available: boolean; hint: string | null; week: string | null };
+}
+
+/** Free space on the disks Ferret writes to (Settings → Server, the server check, the admin's bell). */
+export interface DiskSpaceEntry {
+  /** What's on that disk: the database, uploaded files, backups (one entry when they share a disk). */
+  holds: ("database" | "files" | "backups")[];
+  freeBytes: number;
+  totalBytes: number;
+  /** Free space under what Ferret warns at (10% of the disk, at least 1 GB and at most 10 GB). */
+  low: boolean;
+  /** Under half that. */
+  critical: boolean;
+}
+
+/** New versions of Ferret (Settings → Server, the admin's bell): off until switched on. */
+export interface UpdateStatus {
+  /** This server can check (a server of its own — not hosted or the demo). */
+  available: boolean;
+  enabled: boolean;
+  /** The running version ("2026.11.24", or "dev"). */
+  current: string;
+  /** The newest release seen, when checked. */
+  latest: { version: string; name: string; notes: string; url: string; publishedAt: string; checkedAt: string } | null;
+  /** The newest release is newer than this one. */
+  newer: boolean;
 }
 
 /** A bike reported stolen on Bike Index. */

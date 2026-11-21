@@ -28,6 +28,8 @@ import { EXCHANGE_RATES_JOB, exchangeRatesJob } from "../lib/exchange";
 import { CARD_READ_JOB, CARD_VALUES_JOB, cardReadJob, cardValuesJob } from "../lib/cards";
 import { COLLECTIBLE_READ_JOB, PRICES_JOB, collectibleReadJob, pricesJob } from "../lib/collectibles";
 import { ELECTRICITY_JOB, ENERGY_JOB, electricityJob, energyJob } from "../lib/energy";
+import { FUEL_OPTIONS_JOB, FUEL_PRICES_JOB, FUEL_VEHICLE_JOB, fuelOptionsJob, fuelPricesJob, fuelVehicleJob } from "../lib/fuel-economy";
+import { UPDATE_CHECK_JOB, updateCheckJob } from "../lib/updates";
 import { BIKE_JOB, bikeJob } from "../lib/bikes";
 import { BACKFILL_JOB, INDEX_JOB, backfillIndex, indexItem } from "./index-item";
 import { PDF_BACKFILL_JOB, PDF_THUMB_JOB, pdfThumbnail, pdfThumbnailBackfill } from "./pdf-thumbnail";
@@ -119,6 +121,9 @@ export function jobSchedule({
     [PRICES_JOB]: pricesJob({ ...deps, filesKey: config.FILES_KEY }),
     [ENERGY_JOB]: energyJob(deps),
     [ELECTRICITY_JOB]: electricityJob(deps),
+    [FUEL_OPTIONS_JOB]: fuelOptionsJob(deps),
+    [FUEL_VEHICLE_JOB]: fuelVehicleJob(deps),
+    [FUEL_PRICES_JOB]: fuelPricesJob(deps),
     [BIKE_JOB]: bikeJob(deps),
     [SUPPORT_REFRESH_JOB]: supportRefreshJob(deps),
     [EXCHANGE_RATES_JOB]: exchangeRatesJob(deps),
@@ -164,6 +169,7 @@ export function jobSchedule({
   }
   if (deps.paperless) handlers[PAPERLESS_SYNC_JOB] = paperlessSyncJob(deps, files);
   if (reminders) handlers[REMIND_JOB] = sendReminders({ ...deps, files, appUrl, remindHour: config.REMIND_HOUR, mailUrl });
+  if (deps.releases) handlers[UPDATE_CHECK_JOB] = updateCheckJob(deps);
   if (deps.backups) handlers[BACKUP_JOB] = backupJob({ db, blobs: deps.blobs, ...deps.backups, filesKey: config.FILES_KEY, keep: config.BACKUP_KEEP });
   const extra = extensions?.jobs?.({ deps, files, auth, config, jobs });
   Object.assign(handlers, extra?.handlers);
@@ -199,6 +205,7 @@ export function jobSchedule({
     await enqueue(RECALL_SYNC_JOB);
     if (deps.exchangeRates) await enqueue(EXCHANGE_RATES_JOB); // the day's rates (when switched on)
     if (deps.support) await enqueue(SUPPORT_REFRESH_JOB); // device lists from endoflife.date (when switched on)
+    if (deps.releases) await enqueue(UPDATE_CHECK_JOB); // a new version of Ferret (when switched on)
     await enqueue(PURGE_JOB);
     await extra?.daily?.().catch((err) => console.warn(`An extension's daily work failed: ${String(err)}`));
   };

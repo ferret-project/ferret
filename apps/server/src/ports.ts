@@ -21,7 +21,7 @@
  *   Speech    → a Whisper-style transcription server (OpenAI-compatible /v1/audio/transcriptions)
  */
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
-import type { GradedInfo, GradingService, StolenBikeReport, EnergyStarMatch, CardGame, CardInfo, CoinIssuer, CollectibleInfo, CollectibleKind, CollectiblePrice, ExchangeRates, PlanLimits } from "@ferret/shared";
+import type { GradedInfo, GradingService, StolenBikeReport, EnergyStarMatch, FuelEconomyVehicle, CardGame, CardInfo, CoinIssuer, CollectibleInfo, CollectibleKind, CollectiblePrice, ExchangeRates, PlanLimits } from "@ferret/shared";
 import type { SupportRelease } from "./db/schema/inventory";
 import type * as schema from "./db/schema";
 import type { Catalogs } from "./lib/language";
@@ -288,6 +288,36 @@ export interface ElectricityPrices {
   /** Null without the server admin's key. */
   residential(): Promise<{ year: number; centsPerKwh: Record<string, number> } | null>;
   check(key: string): Promise<boolean>;
+}
+
+/** fueleconomy.gov (the US EPA and DOE): fuel economy by year, make and model. Keyless; nothing but those is sent. */
+export interface FuelEconomy {
+  /** EPA's model names that year for a make ("F150 Pickup 4WD"); empty when it has none. */
+  models(year: number, make: string): Promise<string[]>;
+  /** The entries for one model: transmission and engine ("Auto 5-spd, 4 cyl, 2.4 L"). */
+  options(year: number, make: string, model: string): Promise<{ id: string; text: string }[]>;
+  /** One entry; null when there's no such id. */
+  vehicle(id: string): Promise<Omit<FuelEconomyVehicle, "text"> | null>;
+}
+
+/** What drivers pay for fuel this week (the US EIA), in US cents a gallon by grade, for the US, its regions and some states. */
+export interface FuelPrices {
+  /** Null without the server admin's key (the same one as electricity prices). Areas: "US", "CA"-style states, "R20"-style regions. */
+  weekly(): Promise<{ week: string; centsPerGallon: Record<FuelGrade, Record<string, number>> } | null>;
+}
+export type FuelGrade = "regular" | "midgrade" | "premium" | "diesel";
+
+/** Free space on the disks this server writes to (Settings → Server). Absent where there's no disk of its own. */
+export interface DiskSpace {
+  usage(): Promise<{ holds: ("database" | "files" | "backups")[]; freeBytes: number; totalBytes: number }[]>;
+}
+
+/** Ferret's own releases (GitHub), to tell a server admin a new version is out — only when they switch it on. */
+export interface Releases {
+  /** This server's own version (FERRET_VERSION: "2026.11.24", or "dev"). */
+  readonly current: string;
+  /** The newest release; null when there's none. Throws on network trouble. */
+  latest(): Promise<{ version: string; name: string; notes: string; url: string; publishedAt: string } | null>;
 }
 
 /** A grading service (PCGS for coins, PSA for cards): a graded thing by its certificate number. Throws CatalogKeyError / CatalogLimitError like the catalogs. */
@@ -693,6 +723,14 @@ export interface Deps {
   stolenBikes?: StolenBikes;
   /** The US EIA's electricity prices, to put ENERGY STAR's kWh in money (with the server admin's key). */
   electricity?: ElectricityPrices;
+  /** fueleconomy.gov: a vehicle's EPA fuel economy, once the server admin switches it on. */
+  fuelEconomy?: FuelEconomy;
+  /** The US EIA's weekly fuel prices, to put a vehicle's fuel in money (with the same key as electricity prices). */
+  fuelPrices?: FuelPrices;
+  /** Free space on the server's disks (absent on a runtime without one). */
+  disk?: DiskSpace;
+  /** Ferret's releases, for "a new version is out" (absent on hosted and the demo: they're updated for you). */
+  releases?: Releases;
   /** ENERGY STAR's certified appliances: a thing's energy use, once the server admin switches it on. */
   energyStar?: EnergyStar;
   /** The FDA's food and medicine recalls (openFDA), matched by barcode, with recall checks switched on. */

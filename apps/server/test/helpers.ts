@@ -4,6 +4,8 @@ import { ROOM_SCAN_JOB, analyzeRoomScan } from "../src/lib/room-scans";
 import { CARD_READ_JOB, CARD_VALUES_JOB, cardReadJob, cardValuesJob } from "../src/lib/cards";
 import { COLLECTIBLE_READ_JOB, PRICES_JOB, collectibleReadJob, pricesJob } from "../src/lib/collectibles";
 import { ELECTRICITY_JOB, ENERGY_JOB, electricityJob, energyJob } from "../src/lib/energy";
+import { FUEL_OPTIONS_JOB, FUEL_PRICES_JOB, FUEL_VEHICLE_JOB, fuelOptionsJob, fuelPricesJob, fuelVehicleJob } from "../src/lib/fuel-economy";
+import { UPDATE_CHECK_JOB, updateCheckJob } from "../src/lib/updates";
 import { BIKE_JOB, bikeJob } from "../src/lib/bikes";
 import { SUPPORT_REFRESH_JOB, supportRefreshJob } from "../src/lib/support";
 import { EXCHANGE_RATES_JOB, exchangeRatesJob } from "../src/lib/exchange";
@@ -280,6 +282,13 @@ export async function setup(
     grading?: Deps["grading"];
     /** The US EIA's electricity prices (lib/energy.ts). */
     electricity?: Deps["electricity"];
+    /** fueleconomy.gov and the EIA's fuel prices (lib/fuel-economy.ts). */
+    fuelEconomy?: Deps["fuelEconomy"];
+    fuelPrices?: Deps["fuelPrices"];
+    /** Free disk space (lib/disk-space.ts). */
+    disk?: Deps["disk"];
+    /** Ferret's releases (lib/updates.ts). */
+    releases?: Deps["releases"];
     /** MusicBrainz: CDs and records, for "Scan music" (lib/products.ts). */
     music?: ProductLookup;
     /** The day's exchange rates (lib/exchange.ts). */
@@ -351,13 +360,13 @@ export async function setup(
     ...(opts.demo && { DEMO: true, DEMO_ADMIN_EMAIL: "admin@demo.test", DEMO_ADMIN_PASSWORD: "demo-admin-password", ...opts.demo }),
     ...opts.config,
   };
-  const { app, files, auth } = createApp({ db, blobs, images, pdfPages, jobs, ai, chat, documents, vectors, reranker, push, notifier, downloader, webhooks: opts.webhooks, products, maps, backups, homeAssistant, recalls, vehicles: opts.vehicles, repairGuides: opts.repairGuides, videos: opts.videos, books: opts.books, googleBooks: opts.googleBooks, fdaRecalls: opts.fdaRecalls, energyStar: opts.energyStar, stolenBikes: opts.stolenBikes, grading: opts.grading, electricity: opts.electricity, music: opts.music, cards: opts.cards, collectibles: opts.collectibles, openFacts: opts.openFacts, support: opts.support, exchangeRates: opts.exchangeRates, paperless: opts.paperless, humanCheck: opts.humanCheck, analytics: opts.analytics, entitlements, backupElsewhere: opts.backupElsewhere, hostingUsage: opts.hostingUsage, tls: opts.tls, secrets: opts.secrets, speech: opts.speech, documentLimits: opts.documentLimits, catalogs: opts.catalogs }, appConfig, { cspNonce: opts.cspNonce, extensions: opts.extensions });
+  const { app, files, auth } = createApp({ db, blobs, images, pdfPages, jobs, ai, chat, documents, vectors, reranker, push, notifier, downloader, webhooks: opts.webhooks, products, maps, backups, homeAssistant, recalls, vehicles: opts.vehicles, repairGuides: opts.repairGuides, videos: opts.videos, books: opts.books, googleBooks: opts.googleBooks, fdaRecalls: opts.fdaRecalls, energyStar: opts.energyStar, stolenBikes: opts.stolenBikes, grading: opts.grading, electricity: opts.electricity, fuelEconomy: opts.fuelEconomy, fuelPrices: opts.fuelPrices, disk: opts.disk, releases: opts.releases, music: opts.music, cards: opts.cards, collectibles: opts.collectibles, openFacts: opts.openFacts, support: opts.support, exchangeRates: opts.exchangeRates, paperless: opts.paperless, humanCheck: opts.humanCheck, analytics: opts.analytics, entitlements, backupElsewhere: opts.backupElsewhere, hostingUsage: opts.hostingUsage, tls: opts.tls, secrets: opts.secrets, speech: opts.speech, documentLimits: opts.documentLimits, catalogs: opts.catalogs }, appConfig, { cspNonce: opts.cspNonce, extensions: opts.extensions });
   if (backups) jobs.register({ [BACKUP_JOB]: backupJob({ db, blobs, ...backups, filesKey: config.FILES_KEY, keep: appConfig.BACKUP_KEEP }) });
   const onItemChanged = async (itemId: string) => {
     await refreshFullText(db, itemId);
     if (vectors) await jobs.enqueue(INDEX_JOB, { itemId });
   };
-  const full = { db, blobs, images, jobs, ai, chat, documents, vectors, reranker, products, recalls, vehicles: opts.vehicles, repairGuides: opts.repairGuides, videos: opts.videos, books: opts.books, googleBooks: opts.googleBooks, fdaRecalls: opts.fdaRecalls, energyStar: opts.energyStar, stolenBikes: opts.stolenBikes, grading: opts.grading, electricity: opts.electricity, music: opts.music, cards: opts.cards, collectibles: opts.collectibles, openFacts: opts.openFacts, support: opts.support, exchangeRates: opts.exchangeRates, entitlements } as Deps;
+  const full = { db, blobs, images, jobs, ai, chat, documents, vectors, reranker, products, recalls, vehicles: opts.vehicles, repairGuides: opts.repairGuides, videos: opts.videos, books: opts.books, googleBooks: opts.googleBooks, fdaRecalls: opts.fdaRecalls, energyStar: opts.energyStar, stolenBikes: opts.stolenBikes, grading: opts.grading, electricity: opts.electricity, fuelEconomy: opts.fuelEconomy, fuelPrices: opts.fuelPrices, disk: opts.disk, releases: opts.releases, music: opts.music, cards: opts.cards, collectibles: opts.collectibles, openFacts: opts.openFacts, support: opts.support, exchangeRates: opts.exchangeRates, entitlements } as Deps;
   const analyze = analyzeAttachment({ db, files, ai, chat, images, documents, pdfPages, entitlements, onItemChanged, full, limits: opts.documentLimits });
   jobs.register({ [PHOTO_JOB]: analyze, [DOCUMENT_JOB]: analyze, [ROOM_SCAN_JOB]: analyzeRoomScan({ db, files, ai, entitlements }) });
   if (chat ?? ai) jobs.register({ [IMPORT_TRIAGE_JOB]: importTriageJob(full), [REPLACEMENT_JOB]: replacementJob(full), [TYPICAL_UPKEEP_JOB]: typicalUpkeepJob(full) });
@@ -414,6 +423,9 @@ export async function setup(
   if (opts.stolenBikes) jobs.register({ [BIKE_JOB]: bikeJob({ db, stolenBikes: opts.stolenBikes }) });
   if (opts.energyStar) jobs.register({ [ENERGY_JOB]: energyJob({ db, energyStar: opts.energyStar }) });
   if (opts.electricity) jobs.register({ [ELECTRICITY_JOB]: electricityJob({ db, electricity: opts.electricity }) });
+  if (opts.fuelEconomy) jobs.register({ [FUEL_OPTIONS_JOB]: fuelOptionsJob({ db, fuelEconomy: opts.fuelEconomy }), [FUEL_VEHICLE_JOB]: fuelVehicleJob({ db, fuelEconomy: opts.fuelEconomy }) });
+  if (opts.fuelPrices) jobs.register({ [FUEL_PRICES_JOB]: fuelPricesJob({ db, fuelPrices: opts.fuelPrices }) });
+  if (opts.releases) jobs.register({ [UPDATE_CHECK_JOB]: updateCheckJob({ db, releases: opts.releases }) });
   if (opts.collectibles) jobs.register({ [COLLECTIBLE_READ_JOB]: collectibleReadJob({ ...full, files, filesKey: config.FILES_KEY }), [PRICES_JOB]: pricesJob({ ...full, filesKey: config.FILES_KEY }) });
   if (opts.cards) jobs.register({ [CARD_READ_JOB]: cardReadJob({ ...full, files }), [CARD_VALUES_JOB]: cardValuesJob(full) });
   if (products || opts.books || opts.openFacts) jobs.register({ [PRODUCT_JOB]: productLookupJob({ db, products, books: opts.books, googleBooks: opts.googleBooks, openFacts: opts.openFacts }) });
@@ -423,7 +435,7 @@ export async function setup(
       [WEBHOOK_STATES_JOB]: webhookStatesJob({ ...full, webhooks: opts.webhooks }),
     });
   }
-  return { app, auth, db, jobs, files, user, config: appConfig, deps: { db, blobs, images, jobs, ai, chat, documents, vectors, reranker, push, notifier, downloader, webhooks: opts.webhooks, products, backups, recalls, vehicles: opts.vehicles, repairGuides: opts.repairGuides, books: opts.books, googleBooks: opts.googleBooks, fdaRecalls: opts.fdaRecalls, energyStar: opts.energyStar, stolenBikes: opts.stolenBikes, grading: opts.grading, electricity: opts.electricity, music: opts.music, cards: opts.cards, collectibles: opts.collectibles, openFacts: opts.openFacts, support: opts.support, exchangeRates: opts.exchangeRates, paperless: opts.paperless, catalogs: opts.catalogs } };
+  return { app, auth, db, jobs, files, user, config: appConfig, deps: { db, blobs, images, jobs, ai, chat, documents, vectors, reranker, push, notifier, downloader, webhooks: opts.webhooks, products, backups, recalls, vehicles: opts.vehicles, repairGuides: opts.repairGuides, books: opts.books, googleBooks: opts.googleBooks, fdaRecalls: opts.fdaRecalls, energyStar: opts.energyStar, stolenBikes: opts.stolenBikes, grading: opts.grading, electricity: opts.electricity, fuelEconomy: opts.fuelEconomy, fuelPrices: opts.fuelPrices, disk: opts.disk, releases: opts.releases, music: opts.music, cards: opts.cards, collectibles: opts.collectibles, openFacts: opts.openFacts, support: opts.support, exchangeRates: opts.exchangeRates, paperless: opts.paperless, catalogs: opts.catalogs } };
 }
 
 export const photo = async () =>

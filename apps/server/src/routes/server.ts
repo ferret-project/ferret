@@ -14,6 +14,9 @@ import { askSettings, setAskContextTokens } from "../lib/ask-settings";
 import { setPromptExtra } from "../lib/ai-prompts";
 import { promptSettings } from "../lib/prompt-settings";
 import { setVehiclesEnabled, VIN_BACKFILL_JOB, vehicleStatus } from "../lib/vehicles";
+import { fuelEconomyStatus, setFuelEconomyEnabled } from "../lib/fuel-economy";
+import { diskSpace } from "../lib/disk-space";
+import { setUpdatesEnabled, UPDATE_CHECK_JOB, updatesState, updateStatus } from "../lib/updates";
 import { serverAiFillDefaults, setServerAiFillDefaults } from "../lib/ai-fill";
 import { aiFillKinds } from "@ferret/shared";
 import { demoReport } from "../lib/demo";
@@ -126,7 +129,7 @@ server.delete("/certificates/:id", async (c) => c.json(await removeCertificate(c
 
 /** Online barcode lookups: on or off, and what's left of the database's allowance today. */
 /** Server check: files, rows pointing at nothing, unfinished work, backups — read-only, on demand. */
-server.post("/check", async (c) => c.json(await runServerCheck({ db: c.var.db, blobs: c.var.deps.blobs, files: c.var.files })));
+server.post("/check", async (c) => c.json(await runServerCheck({ db: c.var.db, blobs: c.var.deps.blobs, files: c.var.files, disk: c.var.deps.disk })));
 
 /** Search by meaning's index: the embedding model and store, how many things are embedded, a re-index under way. */
 server.get("/search-index", async (c) => c.json(await searchIndexStatus(c.var.deps)));
@@ -305,6 +308,31 @@ server.put("/vehicles", async (c) => {
   await setVehiclesEnabled(c.var.db, enabled);
   if (enabled) await c.var.deps.jobs?.enqueue(VIN_BACKFILL_JOB, {});
   return c.json(await vehicleStatus(c.var.deps));
+});
+
+/** Fuel economy look-ups (fueleconomy.gov): whether they're on, vehicles confirmed, and the week of the fuel prices. */
+server.get("/fuel-economy", async (c) => c.json(await fuelEconomyStatus(c.var.deps)));
+
+/** Switch fuel economy look-ups on (decoded vehicles' makes, models and years are sent to fueleconomy.gov) or off. */
+server.put("/fuel-economy", async (c) => {
+  const { enabled } = await body(c.req.raw, z.object({ enabled: z.boolean() }));
+  await setFuelEconomyEnabled(c.var.db, enabled);
+  return c.json(await fuelEconomyStatus(c.var.deps));
+});
+
+/** Free space on the disks the database, files and backups are on (none where the server has no disk of its own). */
+server.get("/disk", async (c) => c.json({ data: await diskSpace(c.var.deps) }));
+
+/** New versions of Ferret: whether checking is on, this version and the newest release seen. */
+server.get("/updates", async (c) => c.json(updateStatus(c.var.deps, c.var.deps.releases?.current ?? c.var.config.FERRET_VERSION, await updatesState(c.var.db))));
+
+/** Switch the daily check for new versions on (GitHub is asked once a day) or off. */
+server.put("/updates", async (c) => {
+  const { enabled } = await body(c.req.raw, z.object({ enabled: z.boolean() }));
+  if (!c.var.deps.releases) throw new HTTPException(409, { message: "This server is updated for you" });
+  await setUpdatesEnabled(c.var.db, enabled);
+  if (enabled) await c.var.deps.jobs?.enqueue(UPDATE_CHECK_JOB, {});
+  return c.json(updateStatus(c.var.deps, c.var.deps.releases?.current ?? c.var.config.FERRET_VERSION, await updatesState(c.var.db)));
 });
 
 /** Recall checks: whether they're on, how many brands asked about and recalls kept. */

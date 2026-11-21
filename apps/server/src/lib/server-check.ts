@@ -15,7 +15,8 @@ import { and, count, eq, gte, isNotNull, isNull, lt, ne, or, sql } from "drizzle
 import { alias } from "drizzle-orm/sqlite-core";
 import { member, organization } from "../db/schema/auth";
 import { aiRun, attachment, backupRun, category, item, job, location, maintenanceTask, pendingDownload, property, roomScan } from "../db/schema";
-import type { Blobs, Db } from "../ports";
+import type { Blobs, Db, DiskSpace } from "../ports";
+import { bytesText, diskSpace } from "./disk-space";
 import type { FileStore } from "./files";
 import { changedPrompts } from "./ai-prompts";
 
@@ -46,7 +47,7 @@ const DAY = 24 * HOUR;
 const EXAMPLES = 5;
 const day = (d: Date) => d.toISOString().slice(0, 10);
 
-type Deps = { db: Db; blobs: Blobs; files: FileStore; now?: Date };
+type Deps = { db: Db; blobs: Blobs; files: FileStore; disk?: DiskSpace; now?: Date };
 
 async function exists(blobs: Blobs, key: string) {
   const blob = await blobs.get(key);
@@ -63,7 +64,7 @@ async function pool<T>(xs: T[], n: number, fn: (x: T) => Promise<void>) {
   }));
 }
 
-export async function runServerCheck({ db, blobs, files, now = new Date() }: Deps): Promise<ServerCheckResult> {
+export async function runServerCheck({ db, blobs, files, disk, now = new Date() }: Deps): Promise<ServerCheckResult> {
   const started = Date.now();
   const findings: CheckFinding[] = [];
   const households = new Map((await db.select({ id: organization.id, name: organization.name }).from(organization)).map((h) => [h.id, h.name]));
@@ -220,6 +221,18 @@ export async function runServerCheck({ db, blobs, files, now = new Date() }: Dep
     if (!ok || now.getTime() - ok.at.getTime() > 2 * DAY) {
       findings.push({ kind: "backups.stale", level: "problem", count: 1, text: ok ? `The last good backup is from ${ok.at.toISOString().slice(0, 10)} — over two days ago.` : "No backup has succeeded yet.", examples: [] });
     }
+  }
+
+  // ── Disks: one nearly full stops uploads, the database and backups ──
+  const low = (await diskSpace({ disk })).filter((d) => d.low);
+  if (low.length) {
+    findings.push({
+      kind: "disk.low",
+      level: "problem",
+      count: low.length,
+      text: "A disk Ferret writes to is nearly full — when it fills, uploads, the database and backups stop.",
+      examples: low.map((d) => `${d.holds.join(", ")}: ${bytesText(d.freeBytes)} free of ${bytesText(d.totalBytes)}`),
+    });
   }
 
   // ── AI prompts the admin added to (Settings → Server → AI prompts): worth knowing when AI answers look odd ──

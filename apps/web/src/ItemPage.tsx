@@ -47,12 +47,13 @@ import { ProductSuggestions, VehicleSuggestions } from "./Product";
 import { CardDetails } from "./Cards";
 import { CollectibleDetails } from "./Collectibles";
 import { EnergyCard } from "./Energy";
+import { FuelEconomyCard } from "./FuelEconomy";
 import { BikeIndexCard } from "./Bikes";
 import { GradedCard } from "./Graded";
 import { DeviceSupport } from "./DeviceSupport";
 import { Suggestions } from "./Suggestions";
 import { Warranties } from "./Warranties";
-import { ItemLinks } from "./Links";
+import { ItemLinks, manualSearchUrl } from "./Links";
 import { PartOfLine, PartsCard } from "./Parts";
 import { FromWeb } from "./FromWeb";
 import { PaperlessAttachButton } from "./Paperless";
@@ -406,6 +407,16 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
               <Trans>Repair guides on iFixit: {ph({ device: item.data.repairGuide.title })}</Trans>
             </a>
           )}
+          {(() => {
+            // Look for its manual on the Internet Archive: a search link only — the browser opens it, nothing leaves Ferret.
+            const url = manualSearchUrl(item.data);
+            return url ? (
+              <a href={url} target="_blank" rel="noreferrer" className="tap link link-hover text-primary flex items-center gap-1 self-start text-sm">
+                <span className="icon-[tabler--book] size-4 shrink-0" />
+                <Trans>Look for its manual on archive.org</Trans>
+              </a>
+            ) : null;
+          })()}
           <AddedLine item={item.data} />
           {editable && !item.data.wanted && (
             <button type="button" className="tap link link-hover text-primary flex items-center gap-1 self-start text-sm" onClick={() => setCopying("app")}>
@@ -445,6 +456,7 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
       {!item.data.card && <DeviceSupport item={item.data} canEdit={canEdit} />}
       {canEdit && !item.data.card && !item.data.collectible && <ProductSuggestions item={item.data} householdId={householdId} />}
       {canEdit && <VehicleSuggestions item={item.data} householdId={householdId} />}
+      <FuelEconomyCard item={item.data} canEdit={canEdit} />
       {canEdit && attachments.data && (
         <Suggestions
           householdId={householdId}

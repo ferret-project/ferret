@@ -50,3 +50,11 @@ details — iFixit's page for that exact model, with its repair guides, parts an
 Only a sure match gets a link: the model has to be in iFixit's device name (and have a digit in it — "DCD771C2",
 "iPhone 12", not just "Classic"), along with the brand. If a thing has none, either iFixit doesn't have it or its
 model is written differently — check the model on its label.
+
+## Finding the manual
+
+A thing whose brand and model say enough (a model with a digit in it) also gets **Look for its manual on
+archive.org**: a search of the Internet Archive's [manuals collection](https://archive.org/details/manuals) for its
+brand and model. It's only a link, opened by your browser — nothing is sent from Ferret. Older appliances, stereos
+and tools are often there, newer things less often. Found one? Download the PDF and add it to the thing as a
+document, so [Ask Ferret](./finding-things#ask-ferret) can read it.
