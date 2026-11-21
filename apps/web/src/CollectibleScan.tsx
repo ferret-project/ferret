@@ -30,7 +30,7 @@ import { Trans } from "@lingui/react/macro";
 const WAIT_MS = 3 * 60_000;
 const EVERY_MS = 2500;
 /** A category for each kind, if the household has one by a usual name. */
-const CATEGORY_NAMES: Record<CollectibleKind, RegExp> = { lego: /^(lego|lego sets?|building sets?)$/i, coin: /^(coins?|coin collection|numismatics)$/i, comic: /^(comics?|comic books?)$/i, video: /^(movies?|films?|dvds?|blu-?rays?|movies (&|and) (tv|shows))$/i };
+const CATEGORY_NAMES: Record<CollectibleKind, RegExp> = { lego: /^(lego|lego sets?|building sets?)$/i, coin: /^(coins?|coin collection|numismatics)$/i, comic: /^(comics?|comic books?)$/i, video: /^(movies?|films?|dvds?|blu-?rays?|movies (&|and) (tv|shows))$/i, game: /^(video ?games?|games|gaming)$/i };
 /** A template for each kind: one with this field (the starter "LEGO set", "Coin", "Comic book" have them). */
 const TEMPLATE_FIELD: Partial<Record<CollectibleKind, string>> = { lego: "set_number", coin: "denomination", comic: "series" };
 
@@ -131,6 +131,8 @@ function itemFields(c: CollectibleInfo, row: Row) {
     return { name: c.name, brand: "LEGO" /* not translated */, model: c.setNumber ?? c.id, description: [c.year, c.theme, c.pieces ? plural(c.pieces, { one: "# piece", other: "# pieces" }) : null].filter(Boolean).join(" · ") };
   if (c.kind === "coin")
     return { name: issue ? `${c.name} (${issue.label})` : c.name, brand: c.issuer ?? null, model: null, description: [c.denomination, c.composition, c.diameterMm ? `${c.diameterMm} mm` : null, row.grade ? t(GRADE_NAMES[row.grade]) : null].filter(Boolean).join(" · ") };
+  if (c.kind === "game")
+    return { name: c.name, brand: c.publisher ?? null, model: row.format ?? null, description: [c.year, c.genres?.slice(0, 3).join(", ")].filter(Boolean).join(" · ") };
   if (c.kind === "video") {
     const show = c.mediaType === "tv";
     return {
@@ -187,7 +189,7 @@ function Shelf({ householdId, kind, photos, pictures, into }: { householdId: str
     setRows((rs) => {
       const same = first && (kind === "lego" || kind === "comic") ? rs.find((r) => r.key !== key && r.status === "ready" && r.candidates[r.pick]?.id === first.id) : undefined;
       if (same) return rs.filter((r) => r.key !== key).map((r) => (r === same ? { ...r, quantity: r.quantity + 1 } : r));
-      const ready: Partial<Row> = { status: "ready", candidates, pick: 0, keep: Boolean(first), issue: null, grade: null, format: hints.format ?? null, season: first?.mediaType === "tv" ? (hints.season ?? null) : null };
+      const ready: Partial<Row> = { status: "ready", candidates, pick: 0, keep: Boolean(first), issue: null, grade: null, format: kind === "game" ? platformOf(first, hints.format) : (hints.format ?? null), season: first?.mediaType === "tv" ? (hints.season ?? null) : null };
       if (key) return rs.map((r) => (r.key === key ? { ...r, ...ready } : r));
       return [{ key: randomId(), startedAt: Date.now(), quantity: 1, readQuery: null, ...ready } as Row, ...rs];
     });
@@ -259,7 +261,7 @@ function Shelf({ householdId, kind, photos, pictures, into }: { householdId: str
           quantity: r.quantity,
           ...(price ? { valueCents: price.cents } : {}),
           ...(template ? { templateId: template.id, customFields: fields } : {}),
-          collectible: { kind, id: c.id, ...(kind === "coin" ? { issue: r.issue ?? null, grade: r.grade ?? null } : {}), ...(kind === "video" ? { format: r.format ?? null, season: c.mediaType === "tv" ? (r.season ?? null) : null } : {}) },
+          collectible: { kind, id: c.id, ...(kind === "coin" ? { issue: r.issue ?? null, grade: r.grade ?? null } : {}), ...(kind === "video" ? { format: r.format ?? null, season: c.mediaType === "tv" ? (r.season ?? null) : null } : {}), ...(kind === "game" ? { format: r.format ?? null } : {}) },
           links: c.url ? [{ url: c.url, label: t`On ${ph({ service: CATALOG_NAMES[kind] })}` }] : undefined,
           locationId: place ?? undefined,
           categoryId: category ?? undefined,
@@ -284,7 +286,9 @@ function Shelf({ householdId, kind, photos, pictures, into }: { householdId: str
 
   const count = rows.reduce((n, r) => n + (r.status === "ready" ? r.quantity : 0), 0);
   const howMany =
-    kind === "lego"
+    kind === "game"
+      ? plural(count, { one: "# game", other: "# games" })
+      : kind === "lego"
       ? plural(count, { one: "# set", other: "# sets" })
       : kind === "coin"
         ? plural(count, { one: "# coin", other: "# coins" })
@@ -301,6 +305,8 @@ function Shelf({ householdId, kind, photos, pictures, into }: { householdId: str
               <Trans>Photograph each box (or its instructions) so the set number shows, or type the number or name. Sets come from Rebrickable.</Trans>
             ) : kind === "coin" ? (
               <Trans>Photograph each coin, or type its country, year and name. Coins come from Numista, with an estimate for each year and grade.</Trans>
+            ) : kind === "game" ? (
+              <Trans>Photograph each case, or type the title. Games come from IGDB; choose the console each one is for.</Trans>
             ) : kind === "comic" ? (
               <Trans>Photograph each cover, or type the series and issue number. Comics come from Comic Vine.</Trans>
             ) : (
@@ -426,7 +432,7 @@ function TypeIt({ kind, onChoose }: { kind: CollectibleKind; onChoose: (found: C
     }
   };
   const placeholder =
-    kind === "lego" ? t`Set number or name, e.g. 75192` : kind === "coin" ? t`e.g. Washington quarter` : kind === "comic" ? t`Series and issue, e.g. Amazing Spider-Man 300` : t`Title, e.g. Breaking Bad season 2`;
+    kind === "lego" ? t`Set number or name, e.g. 75192` : kind === "coin" ? t`e.g. Washington quarter` : kind === "comic" ? t`Series and issue, e.g. Amazing Spider-Man 300` : kind === "game" ? t`Title, e.g. Mario Kart 8 Deluxe` : t`Title, e.g. Breaking Bad season 2`;
   return (
     <div className="flex flex-col gap-2">
       {kind === "coin" && (
@@ -546,6 +552,7 @@ function FoundRow({ kind, row, busy, onChange, onRemove, onFound }: { kind: Coll
               <p className="text-sm text-base-content/70 break-words">{collectibleLine(c)}</p>
               {kind === "coin" && <CoinRowChoice coin={c} row={row} busy={busy} onChange={onChange} />}
               {kind === "video" && <VideoRowChoice video={c} row={row} busy={busy} onChange={onChange} />}
+              {kind === "game" && <PlatformChoice game={c} row={row} busy={busy} onChange={onChange} />}
               <div className="mt-1 flex flex-wrap items-center gap-2">
                 <div className="join" aria-label={t`How many`}>
                   <button type="button" className="btn btn-soft btn-sm join-item" disabled={busy || row.quantity <= 1} onClick={() => onChange({ quantity: row.quantity - 1 })} aria-label={t`One fewer`}>−</button>
@@ -582,7 +589,7 @@ function FoundRow({ kind, row, busy, onChange, onRemove, onFound }: { kind: Coll
                 className={`flex w-full flex-col items-center gap-1 rounded-box p-1 text-center ${i === row.pick ? "bg-primary/15 ring-2 ring-primary" : "hover:bg-base-200"}`}
                 aria-pressed={i === row.pick}
                 onClick={() => {
-                  onChange({ pick: i, issue: null, grade: null, season: x.mediaType === "tv" ? row.season : null });
+                  onChange({ pick: i, issue: null, grade: null, season: x.mediaType === "tv" ? row.season : null, ...(kind === "game" ? { format: platformOf(x, row.format) } : {}) });
                   setChoosing(false);
                 }}
               >
@@ -619,6 +626,40 @@ function CoinRowChoice({ coin, row, busy, onChange }: { coin: CollectibleInfo; r
           {prices.data.map((p) => `${p.grade.toUpperCase()} ${formatMoney(p.cents, p.currency || currentCurrency(), { exact: true })}`).join(" · ")}
         </span>
       )}
+    </div>
+  );
+}
+
+/**
+ * The game's platform matching what was read off its case ("Switch" → "Nintendo Switch"); the only one if it has one;
+ * else what was read as it is, or none.
+ */
+function platformOf(game: CollectibleInfo | undefined, read: string | null | undefined) {
+  const platforms = game?.platforms ?? [];
+  const r = read?.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (r) {
+    const found = platforms.find((p) => {
+      const q = p.toLowerCase().replace(/[^a-z0-9]/g, "");
+      return q === r || q.includes(r) || r.includes(q);
+    });
+    if (found) return found;
+  }
+  return platforms.length === 1 ? platforms[0]! : (read ?? null);
+}
+
+/** A game in the list: the console the copy is for. */
+function PlatformChoice({ game, row, busy, onChange }: { game: CollectibleInfo; row: Row; busy: boolean; onChange: (patch: Partial<Row>) => void }) {
+  const options = [...new Set([...(game.platforms ?? []), ...(row.format ? [row.format] : [])])];
+  if (!options.length) return null;
+  return (
+    <div className="mt-1">
+      {/* A game's platforms: a handful. */}
+      <select className="select select-sm w-auto max-w-full" value={row.format ?? ""} disabled={busy} onChange={(e) => onChange({ format: e.target.value || null })} aria-label={t`Platform`}>
+        <option value="">{t`Platform…`}</option>
+        {options.map((p) => (
+          <option key={p} value={p}>{p}</option>
+        ))}
+      </select>
     </div>
   );
 }

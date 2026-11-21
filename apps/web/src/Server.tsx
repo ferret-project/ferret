@@ -737,6 +737,7 @@ const CATALOGS: Record<CollectibleKind, { service: string; what: MessageDescript
   coin: { service: "Numista", what: msg`Coins`, icon: "icon-[tabler--coin]", signup: "https://en.numista.com", keyAt: "https://en.numista.com/api/" },
   comic: { service: "Comic Vine", what: msg`Comics`, icon: "icon-[tabler--book]", signup: "https://comicvine.gamespot.com", keyAt: "https://comicvine.gamespot.com/api/" },
   video: { service: "TMDB", what: msg`Movies & TV`, icon: "icon-[tabler--movie]", signup: "https://www.themoviedb.org", keyAt: "https://www.themoviedb.org/settings/api" },
+  game: { service: "IGDB", what: msg`Video games`, icon: "icon-[tabler--device-gamepad-2]", signup: "https://www.igdb.com", keyAt: "https://dev.twitch.tv/console/apps" },
 };
 
 /** Collector catalogs (Rebrickable, Numista, Comic Vine): each on once its free key is saved; the key is never shown again. */
@@ -754,7 +755,7 @@ function CollectorCatalogs() {
           <HelpLink page="hosting/server-admin.html#collector-catalogs" label={t`Collector catalogs`} />
         </h2>
         <p className="text-sm text-base-content/70">
-          <Trans>Adds LEGO sets, coins, comics, and movies and TV shows to + Add, looked up with their pictures and details — and coins' prices by grade. Each catalog needs a free key from an
+          <Trans>Adds LEGO sets, coins, comics, movies and TV shows, and video games to + Add, looked up with their pictures and details — and coins' prices by grade. Each catalog needs a free key from an
           account there: paste it here and that catalog is on. Only the words people search for are sent; reading a photo uses this server's vision model and
           counts as an AI action.</Trans>
         </p>
@@ -825,6 +826,11 @@ function CatalogKey({ status, onSaved }: { status: CollectibleCatalogStatus; onS
             {save.isPending ? <span className="loading loading-spinner loading-sm" /> : <Trans>Check and save</Trans>}
           </button>
           {editing && <button type="button" className="btn btn-text" onClick={() => setEditing(false)}><Trans>Cancel</Trans></button>}
+          {status.kind === "game" && (
+            <p className="w-full text-xs text-base-content/70">
+              <Trans>IGDB uses a Twitch app: paste its client ID and its secret, separated by a space.</Trans>
+            </p>
+          )}
           <p className="w-full text-xs text-base-content/70">
             <Trans>Get one free at <a className="link" href={c.keyAt} target="_blank" rel="noreferrer noopener">{c.service}</a> after signing in.</Trans>
           </p>

@@ -40,6 +40,7 @@ import { RebrickableSets } from "./adapters/local/rebrickable";
 import { NumistaCoins } from "./adapters/local/numista";
 import { ComicVineIssues } from "./adapters/local/comicvine";
 import { TmdbVideos } from "./adapters/local/tmdb";
+import { IgdbGames } from "./adapters/local/igdb";
 import { QdrantVectors } from "./adapters/local/qdrant";
 import { VllmReranker } from "./adapters/local/reranker";
 import { OpenAiSpeech } from "./adapters/local/speech";
@@ -180,7 +181,7 @@ const deps = {
   support: watched(db, "endoflife.date", new EndOfLife()),
   exchangeRates: watched(db, "exchange rates", new FrankfurterRates()),
   cards: { pokemon: watched(db, "cards (TCGdex)", new TcgdexCards()), magic: watched(db, "cards (Scryfall)", new ScryfallCards()) },
-  collectibles: { lego: watched(db, "LEGO (Rebrickable)", new RebrickableSets()), coin: watched(db, "coins (Numista)", new NumistaCoins()), comic: watched(db, "comics (Comic Vine)", new ComicVineIssues()), video: watched(db, "films and TV (TMDB)", new TmdbVideos()) },
+  collectibles: { lego: watched(db, "LEGO (Rebrickable)", new RebrickableSets()), coin: watched(db, "coins (Numista)", new NumistaCoins()), comic: watched(db, "comics (Comic Vine)", new ComicVineIssues()), video: watched(db, "films and TV (TMDB)", new TmdbVideos()), game: watched(db, "video games (IGDB)", new IgdbGames()) },
   tls: new NodeTls(),
   secrets: { sources: secrets.sources, file: path.join(dataDir, SECRETS_FILE), filesKeyId: keys.set },
 };
@@ -257,7 +258,7 @@ serve(
   console.log("   Open Food Facts: groceries, household goods and toiletries the barcode lookup doesn't know, if the server admin switches it on (Settings → Server)");
   console.log("   Exchange rates: the European Central Bank's, for prices in other currencies, if the server admin switches them on (Settings → Server)");
   console.log("   Device support: endoflife.date's dates for when phones, tablets and the like stop getting updates, if the server admin switches it on (Settings → Server)");
-  console.log("   Collectors:     Rebrickable (LEGO), Numista (coins), Comic Vine (comics) and TMDB (films, TV), once the server admin saves their free keys (Settings → Server)");
+  console.log("   Collectors:     Rebrickable (LEGO), Numista (coins), Comic Vine (comics), TMDB (films, TV) and IGDB (games), once the server admin saves their free keys (Settings → Server)");
   console.log("   Trading cards:  TCGdex (Pokémon) and Scryfall (Magic) for Scan cards, if the server admin switches them on (Settings → Server)");
   console.log("   Music:          MusicBrainz for Scan music (CDs, records), if the server admin switches it on (Settings → Server)");
   console.log("   Repair guides:  iFixit links for things' brand and model, if the server admin switches them on (Settings → Server)");

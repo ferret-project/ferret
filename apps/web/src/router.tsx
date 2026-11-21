@@ -360,13 +360,13 @@ const collectRoute = createRoute({
     ...(typeof search.collection === "string" && { collection: search.collection }),
   }),
   loader: ({ params }) => {
-    if (!["lego", "coin", "comic", "video"].includes(params.kind)) throw notFound();
+    if (!["lego", "coin", "comic", "video", "game"].includes(params.kind)) throw notFound();
     return CollectibleScanScreen.preload?.();
   },
   component: function CollectRoute() {
     const search = collectRoute.useSearch();
     const { kind } = collectRoute.useParams();
-    return <CollectibleScanScreen householdId={useHousehold().householdId} kind={kind as "lego" | "coin" | "comic" | "video"} locationId={search.in ?? null} categoryId={search.category ?? null} tag={search.tag ?? null} collectionId={search.collection ?? null} />;
+    return <CollectibleScanScreen householdId={useHousehold().householdId} kind={kind as "lego" | "coin" | "comic" | "video" | "game"} locationId={search.in ?? null} categoryId={search.category ?? null} tag={search.tag ?? null} collectionId={search.collection ?? null} />;
   },
 });
 const collectionsRoute = createRoute({

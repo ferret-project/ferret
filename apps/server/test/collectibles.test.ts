@@ -6,6 +6,7 @@ import { ComicVineIssues, parseComicQuery, toComic } from "../src/adapters/local
 import { NumistaCoins, issueLabel, toCoin } from "../src/adapters/local/numista";
 import { RebrickableSets, setNumberOf, toSet } from "../src/adapters/local/rebrickable";
 import { TmdbVideos, parseVideoQuery, toVideo } from "../src/adapters/local/tmdb";
+import { IgdbGames, splitKey, toGame } from "../src/adapters/local/igdb";
 import { serverSetting } from "../src/db/schema";
 import { collectiblePhotoKey } from "../src/lib/collectibles";
 import { CatalogKeyError, type CollectibleCatalog } from "../src/ports";
@@ -20,6 +21,7 @@ const FALCON: CollectibleInfo = { kind: "lego", id: "75192-1", name: "Millennium
 const QUARTER: CollectibleInfo = { kind: "coin", id: "55", name: '¼ Dollar "Washington Quarter"', year: 1965, yearTo: 1998, issuer: "United States", image: "https://en.numista.com/a-180.jpg", imageLarge: "https://en.numista.com/a-original.jpg", url: "https://en.numista.com/55" };
 const LIBERIA: CollectibleInfo = { kind: "coin", id: "55640", name: "10 Dollars (George Washington)", year: 2003, issuer: "Liberia", url: "https://en.numista.com/55640" };
 const BREAKING_BAD: CollectibleInfo = { kind: "video", id: "tv-1396", name: "Breaking Bad", mediaType: "tv", year: 2008, studio: "AMC", url: "https://www.themoviedb.org/tv/1396", seasons: [{ number: 1, name: "Season 1", imageLarge: "https://image.tmdb.org/t/p/w780/s1.jpg" }], imageLarge: "https://image.tmdb.org/t/p/w780/show.jpg" };
+const ZELDA: CollectibleInfo = { kind: "game", id: "7346", name: "The Legend of Zelda: Breath of the Wild", year: 2017, platforms: ["Wii U", "Nintendo Switch"], publisher: "Nintendo", url: "https://www.igdb.com/games/zelda" };
 const ASM300: CollectibleInfo = { kind: "comic", id: "29584", name: "The Amazing Spider-Man #300", series: "The Amazing Spider-Man", issueNumber: "300", publisher: "Marvel", title: "Venom", year: 1988, url: "https://comicvine.gamespot.com/x/4000-29584/" };
 const ISSUERS: CoinIssuer[] = [
   { code: "united-states", name: "United States" },
@@ -74,12 +76,13 @@ async function catalogs(opts: Parameters<typeof setup>[0] = {}) {
   const coin = new FakeCatalog([LIBERIA, QUARTER], true);
   const comic = new FakeCatalog([ASM300]);
   const video = new FakeCatalog([BREAKING_BAD]);
-  const s = await setup({ collectibles: { lego, coin, comic, video }, ...opts });
+  const game = new FakeCatalog([ZELDA]);
+  const s = await setup({ collectibles: { lego, coin, comic, video, game }, ...opts });
   const ann = await s.user("ann");
   const on = async (...kinds: string[]) => {
     for (const k of kinds) expect((await send(ann, "PUT", `/api/v1/server/collectibles/${k}`, { key: KEY })).status).toBe(200);
   };
-  return { ...s, ann, lego, coin, comic, video, on };
+  return { ...s, ann, lego, coin, comic, video, game, on };
 }
 
 const readPhoto = async (u: User, kind: string) => {
@@ -102,6 +105,7 @@ describe("collector catalogs", () => {
       { kind: "coin", available: true, on: false, hint: null, kept: 0 },
       { kind: "comic", available: true, on: false, hint: null, kept: 0 },
       { kind: "video", available: true, on: false, hint: null, kept: 0 },
+      { kind: "game", available: true, on: false, hint: null, kept: 0 },
     ]);
     const [row] = await db.select().from(serverSetting).where(eq(serverSetting.key, "collectibles.lego.key"));
     expect(row!.value).not.toContain(KEY);
@@ -229,6 +233,18 @@ describe("collector catalogs", () => {
     expect((await send(ann, "POST", `/api/v1/items/${box.id}/collectible/photo`)).status).toBe(201);
   });
 
+  it("read a game's case for its title and platform", async () => {
+    const ai = new FakeAi([{ title: "The Legend of Zelda: Breath of the Wild", platform: "Nintendo Switch", year: null }]);
+    const { ann, jobs, game, on } = await catalogs({ ai });
+    await on("game");
+    const { id } = await json<{ id: string }>(readPhoto(ann, "game"));
+    await jobs.drain();
+    expect(await json<CollectibleReadStatus>(ann.as(`/api/v1/collectibles/read/${id}`))).toMatchObject({ read: { query: "The Legend of Zelda: Breath of the Wild", format: "Nintendo Switch" }, candidates: [{ id: "7346" }] });
+    // Kept from the search: picking it asks nothing more.
+    expect(await json(ann.as("/api/v1/collectibles/game/7346"))).toMatchObject({ publisher: "Nintendo" });
+    expect(game.gets).toEqual([]);
+  });
+
   it("list a collection's coins beside today's prices, fetching the old ones in the background", async () => {
     const { ann, jobs, coin, on } = await catalogs();
     await on("coin", "lego");
@@ -294,6 +310,49 @@ describe("collector catalog adapters", () => {
       imageLarge: "https://image.tmdb.org/t/p/w780/p.jpg",
       url: "https://www.themoviedb.org/movie/603",
     });
+  });
+
+  it("split IGDB's two-part key, keep its Twitch token, and ask for games themselves", async () => {
+    expect(splitKey("abc123 s3cret")).toEqual({ clientId: "abc123", secret: "s3cret" });
+    expect(splitKey("abc123\ns3cret\n")).toEqual({ clientId: "abc123", secret: "s3cret" });
+    expect(splitKey("abc123:s3cret")).toEqual({ clientId: "abc123", secret: "s3cret" });
+    expect(splitKey("only-one")).toBeNull();
+    expect(toGame({ id: 7346, name: "Zelda", first_release_date: 1488499200, cover: { image_id: "co3p2d" }, platforms: [{ name: "Nintendo Switch" }], involved_companies: [{ company: { name: "EPD" } }, { company: { name: "Nintendo" }, publisher: true }] })).toMatchObject({
+      year: 2017,
+      publisher: "Nintendo",
+      platforms: ["Nintendo Switch"],
+      imageLarge: "https://images.igdb.com/igdb/image/upload/t_cover_big_2x/co3p2d.jpg",
+      url: "https://www.igdb.com/games/7346",
+    });
+    const calls: string[] = [];
+    let tokens = 0;
+    let refuse = false;
+    const fetcher = (async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      if (url.startsWith("https://id.twitch.tv/")) {
+        calls.push("token");
+        return reply({ access_token: `t${++tokens}`, expires_in: 3600 });
+      }
+      calls.push(`${new Headers(init?.headers).get("authorization")} ${String(init?.body)}`);
+      if (refuse) {
+        refuse = false;
+        return reply({ message: "Authorization Failure" }, 401);
+      }
+      return reply([{ id: 7346, name: "Zelda" }]);
+    }) as typeof fetch;
+    const igdb = new IgdbGames(fetcher);
+    await igdb.find("id secret", { text: 'Zelda "BotW"' });
+    await igdb.find("id secret", { text: "Zelda" });
+    expect(calls.filter((c) => c === "token")).toHaveLength(1);
+    expect(calls[1]).toContain("Bearer t1");
+    // Quotes typed are the query's own: they're taken out of the title.
+    expect(calls[1]).toContain('search "Zelda BotW";');
+    expect(calls[1]).toContain("where game_type = (0,4,8,9,10,11)");
+    // A token that ended early is swapped for a new one, once.
+    refuse = true;
+    await igdb.get("id secret", "7346");
+    expect(calls.slice(-3)).toEqual([expect.stringContaining("Bearer t1"), "token", expect.stringContaining("Bearer t2")]);
+    expect(await new IgdbGames((async () => reply({ message: "invalid client secret" }, 403)) as typeof fetch).check("id bad")).toBe(false);
   });
 
   it("send TMDB an API key in the address and a read token as a Bearer token, and put a typed year first", async () => {

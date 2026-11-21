@@ -201,8 +201,8 @@ export const itemCard = z.object({
 });
 export type ItemCard = z.infer<typeof itemCard>;
 
-// ── Collector catalogs (LEGO: Rebrickable; coins: Numista; comics: Comic Vine; films and TV: TMDB) ──
-export const collectibleKinds = ["lego", "coin", "comic", "video"] as const;
+// ── Collector catalogs (LEGO: Rebrickable; coins: Numista; comics: Comic Vine; films and TV: TMDB; games: IGDB) ──
+export const collectibleKinds = ["lego", "coin", "comic", "video", "game"] as const;
 export type CollectibleKind = (typeof collectibleKinds)[number];
 /** Numista's grades, worst to best: good, very good, fine, very fine, extremely fine, about uncirculated, uncirculated. */
 export const coinGrades = ["g", "vg", "f", "vf", "xf", "au", "unc"] as const;
@@ -216,7 +216,7 @@ export const itemCollectible = z.object({
   id: z.string().trim().min(1).max(80),
   issue: z.string().trim().max(40).optional().nullable(),
   grade: z.enum(coinGrades).optional().nullable(),
-  /** A film or show: "DVD", "Blu-ray", "4K Ultra HD"… */
+  /** A film or show: "DVD", "Blu-ray", "4K Ultra HD"…; a video game: the platform owned ("Nintendo Switch"). */
   format: z.string().trim().max(40).optional().nullable(),
   /** A show: which season (0 for its specials); none for the whole series. */
   season: z.number().int().min(0).max(200).optional().nullable(),
@@ -277,7 +277,7 @@ const itemFields = z.object({
   collectible: itemCollectible
     .optional()
     .nullable()
-    .describe("A LEGO set (Rebrickable set number like 75192-1), coin (Numista type id, with its issue id and grade), comic (Comic Vine issue id) or film or show (TMDB, movie-603 or tv-1396, with the format and a show's season) — which one in its collector catalog"),
+    .describe("A LEGO set (Rebrickable set number like 75192-1), coin (Numista type id, with its issue id and grade), comic (Comic Vine issue id) film or show (TMDB, movie-603 or tv-1396, with the format and a show's season) or video game (IGDB id, with the platform as format) — which one in its collector catalog"),
 });
 export const itemInput = itemFields.extend({
   origin: z.enum(appOrigins).optional().describe("Which of the app's ways added it; ignored for Claude and API keys (recorded by the server)"),
@@ -2421,6 +2421,8 @@ export interface CollectibleInfo {
   seasonCount?: number | null;
   /** Only when asked for one show. */
   seasons?: { number: number; name: string; year?: number | null; image?: string | null; imageLarge?: string | null; episodes?: number | null }[];
+  // Video games (publisher and genres as above)
+  platforms?: string[];
 }
 
 /** A coin's price in one grade, in the currency asked for. */
@@ -2457,7 +2459,7 @@ export interface CollectibleRead {
   query: string | null;
   issuer?: string | null;
   year?: number | null;
-  /** A film or show: the format on the case ("Blu-ray"), and a show's season. */
+  /** A film or show: the format on the case ("Blu-ray"), and a show's season; a game: the platform on its case. */
   format?: string | null;
   season?: number | null;
 }

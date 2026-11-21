@@ -13,10 +13,10 @@ import { Trans } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
 
 // not translated (names of services)
-export const CATALOG_NAMES: Record<CollectibleKind, string> = { lego: "Rebrickable", coin: "Numista", comic: "Comic Vine", video: "TMDB" };
-export const KIND_ICONS: Record<CollectibleKind, string> = { lego: "icon-[tabler--lego]", coin: "icon-[tabler--coin]", comic: "icon-[tabler--book]", video: "icon-[tabler--movie]" };
-export const KIND_NAMES: Record<CollectibleKind, MessageDescriptor> = { lego: msg`LEGO sets`, coin: msg`Coins`, comic: msg`Comics`, video: msg`Movies & TV` };
-export const KIND_HEADINGS: Record<CollectibleKind, MessageDescriptor> = { lego: msg`LEGO set`, coin: msg`Coin`, comic: msg`Comic`, video: msg`Movie or show` };
+export const CATALOG_NAMES: Record<CollectibleKind, string> = { lego: "Rebrickable", coin: "Numista", comic: "Comic Vine", video: "TMDB", game: "IGDB" };
+export const KIND_ICONS: Record<CollectibleKind, string> = { lego: "icon-[tabler--lego]", coin: "icon-[tabler--coin]", comic: "icon-[tabler--book]", video: "icon-[tabler--movie]", game: "icon-[tabler--device-gamepad-2]" };
+export const KIND_NAMES: Record<CollectibleKind, MessageDescriptor> = { lego: msg`LEGO sets`, coin: msg`Coins`, comic: msg`Comics`, video: msg`Movies & TV`, game: msg`Video games` };
+export const KIND_HEADINGS: Record<CollectibleKind, MessageDescriptor> = { lego: msg`LEGO set`, coin: msg`Coin`, comic: msg`Comic`, video: msg`Movie or show`, game: msg`Video game` };
 
 /** Formats a film or show is owned in (as the server reads them off a case); names of formats, not translated. */
 // not translated
@@ -42,6 +42,7 @@ export const priceText = (p: CollectiblePrice) => formatMoney(p.cents, p.currenc
 /** "2017 · Star Wars › Ultimate Collector Series · 7,541 pieces"; "United States · 1965–1998"; "Marvel · May 1988 · Venom". */
 export function collectibleLine(c: CollectibleInfo) {
   if (c.kind === "lego") return [c.setNumber, c.year, c.theme, c.pieces ? plural(c.pieces, { one: "# piece", other: "# pieces" }) : null].filter(Boolean).join(" · ");
+  if (c.kind === "game") return [c.year, c.publisher, c.platforms?.slice(0, 4).join(", ")].filter(Boolean).join(" · ");
   if (c.kind === "video")
     return [c.mediaType === "tv" ? t`TV show` : t`Film`, c.year, c.studio, c.runtimeMin ? t`${ph({ minutes: c.runtimeMin })} min` : null, c.seasonCount ? plural(c.seasonCount, { one: "# season", other: "# seasons" }) : null]
       .filter(Boolean)
@@ -52,7 +53,7 @@ export function collectibleLine(c: CollectibleInfo) {
 
 export function CollectiblePicture({ info, kind, className = "" }: { info: CollectibleInfo | undefined; kind: CollectibleKind; className?: string }) {
   const [broken, setBroken] = useState(false);
-  const shape = kind === "coin" ? "aspect-square rounded-full" : kind === "comic" || kind === "video" ? "aspect-[2/3] rounded" : "aspect-[4/3] rounded";
+  const shape = kind === "coin" ? "aspect-square rounded-full" : kind === "comic" || kind === "video" || kind === "game" ? "aspect-[3/4] rounded" : "aspect-[4/3] rounded";
   return info?.image && !broken ? (
     <img src={info.image} alt="" referrerPolicy="no-referrer" loading="lazy" onError={() => setBroken(true)} className={`${shape} bg-base-200 ${kind === "lego" ? "object-contain" : "object-cover"} ${className}`} />
   ) : (
@@ -114,7 +115,8 @@ export function CollectibleDetails({ item, canEdit, hasPhoto }: { item: Item; ca
               {c.kind === "video" && (c.format || info.mediaType === "tv") && (
                 <p className="text-sm text-base-content/80">{[info.mediaType === "tv" ? seasonName(c.season) : null, c.format].filter(Boolean).join(" · ")}</p>
               )}
-              {c.kind === "video" && info.genres?.length ? <p className="text-xs text-base-content/70">{info.genres.join(", ")}</p> : null}
+              {c.kind === "game" && c.format && <p className="text-sm text-base-content/80">{c.format}</p>}
+              {(c.kind === "video" || c.kind === "game") && info.genres?.length ? <p className="text-xs text-base-content/70">{info.genres.join(", ")}</p> : null}
               {c.kind === "coin" && c.issue && c.grade && (
                 price ? (
                   <p>
