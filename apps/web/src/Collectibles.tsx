@@ -13,10 +13,10 @@ import { Trans } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
 
 // not translated (names of services)
-export const CATALOG_NAMES: Record<CollectibleKind, string> = { lego: "Rebrickable", coin: "Numista", comic: "Comic Vine", video: "TMDB", game: "IGDB" };
-export const KIND_ICONS: Record<CollectibleKind, string> = { lego: "icon-[tabler--lego]", coin: "icon-[tabler--coin]", comic: "icon-[tabler--book]", video: "icon-[tabler--movie]", game: "icon-[tabler--device-gamepad-2]" };
-export const KIND_NAMES: Record<CollectibleKind, MessageDescriptor> = { lego: msg`LEGO sets`, coin: msg`Coins`, comic: msg`Comics`, video: msg`Movies & TV`, game: msg`Video games` };
-export const KIND_HEADINGS: Record<CollectibleKind, MessageDescriptor> = { lego: msg`LEGO set`, coin: msg`Coin`, comic: msg`Comic`, video: msg`Movie or show`, game: msg`Video game` };
+export const CATALOG_NAMES: Record<CollectibleKind, string> = { lego: "Rebrickable", coin: "Numista", comic: "Comic Vine", video: "TMDB", game: "IGDB", record: "Discogs" };
+export const KIND_ICONS: Record<CollectibleKind, string> = { lego: "icon-[tabler--lego]", coin: "icon-[tabler--coin]", comic: "icon-[tabler--book]", video: "icon-[tabler--movie]", game: "icon-[tabler--device-gamepad-2]", record: "icon-[tabler--vinyl]" };
+export const KIND_NAMES: Record<CollectibleKind, MessageDescriptor> = { lego: msg`LEGO sets`, coin: msg`Coins`, comic: msg`Comics`, video: msg`Movies & TV`, game: msg`Video games`, record: msg`Records & CDs` };
+export const KIND_HEADINGS: Record<CollectibleKind, MessageDescriptor> = { lego: msg`LEGO set`, coin: msg`Coin`, comic: msg`Comic`, video: msg`Movie or show`, game: msg`Video game`, record: msg`Record` };
 
 /** Formats a film or show is owned in (as the server reads them off a case); names of formats, not translated. */
 // not translated
@@ -39,9 +39,29 @@ export const GRADE_NAMES: Record<CoinGrade, MessageDescriptor> = {
 
 export const priceText = (p: CollectiblePrice) => formatMoney(p.cents, p.currency, { exact: true });
 
+/** Discogs' conditions, best first: the collectors' own grading words, as Discogs stores them. */
+// not translated
+export const RECORD_CONDITIONS = ["Mint (M)", "Near Mint (NM or M-)", "Very Good Plus (VG+)", "Very Good (VG)", "Good Plus (G+)", "Good (G)", "Fair (F)", "Poor (P)"];
+
+/** A coin's price for its grade; a record's for its condition, else the lowest for sale now (as the server picks). */
+export function priceFor(c: { kind: CollectibleKind; grade?: CoinGrade | null; condition?: string | null }, prices: CollectiblePrice[] | undefined) {
+  if (!prices) return null;
+  if (c.kind === "coin") return prices.find((p) => p.grade && p.grade === c.grade) ?? null;
+  if (c.kind === "record") return prices.find((p) => p.condition && p.condition === c.condition) ?? prices.find((p) => p.lowest) ?? null;
+  return null;
+}
+
+/** What a price is: "suggested for Near Mint", "lowest of 7 for sale"… */
+export function priceSays(p: CollectiblePrice) {
+  if (p.lowest) return p.forSale ? t`lowest of ${ph({ n: p.forSale })} for sale on Discogs now` : t`lowest for sale on Discogs now`;
+  if (p.condition) return t`suggested on Discogs for ${ph({ condition: p.condition })}`;
+  return t`estimated value today (Numista)`;
+}
+
 /** "2017 · Star Wars › Ultimate Collector Series · 7,541 pieces"; "United States · 1965–1998"; "Marvel · May 1988 · Venom". */
 export function collectibleLine(c: CollectibleInfo) {
   if (c.kind === "lego") return [c.setNumber, c.year, c.theme, c.pieces ? plural(c.pieces, { one: "# piece", other: "# pieces" }) : null].filter(Boolean).join(" · ");
+  if (c.kind === "record") return [c.formatText, c.year, c.country, c.label].filter(Boolean).join(" · ");
   if (c.kind === "game") return [c.year, c.publisher, c.platforms?.slice(0, 4).join(", ")].filter(Boolean).join(" · ");
   if (c.kind === "video")
     return [c.mediaType === "tv" ? t`TV show` : t`Film`, c.year, c.studio, c.runtimeMin ? t`${ph({ minutes: c.runtimeMin })} min` : null, c.seasonCount ? plural(c.seasonCount, { one: "# season", other: "# seasons" }) : null]
@@ -53,7 +73,7 @@ export function collectibleLine(c: CollectibleInfo) {
 
 export function CollectiblePicture({ info, kind, className = "" }: { info: CollectibleInfo | undefined; kind: CollectibleKind; className?: string }) {
   const [broken, setBroken] = useState(false);
-  const shape = kind === "coin" ? "aspect-square rounded-full" : kind === "comic" || kind === "video" || kind === "game" ? "aspect-[3/4] rounded" : "aspect-[4/3] rounded";
+  const shape = kind === "coin" ? "aspect-square rounded-full" : kind === "record" ? "aspect-square rounded" : kind === "comic" || kind === "video" || kind === "game" ? "aspect-[3/4] rounded" : "aspect-[4/3] rounded";
   return info?.image && !broken ? (
     <img src={info.image} alt="" referrerPolicy="no-referrer" loading="lazy" onError={() => setBroken(true)} className={`${shape} bg-base-200 ${kind === "lego" ? "object-contain" : "object-cover"} ${className}`} />
   ) : (
@@ -117,15 +137,21 @@ export function CollectibleDetails({ item, canEdit, hasPhoto }: { item: Item; ca
               )}
               {c.kind === "game" && c.format && <p className="text-sm text-base-content/80">{c.format}</p>}
               {(c.kind === "video" || c.kind === "game") && info.genres?.length ? <p className="text-xs text-base-content/70">{info.genres.join(", ")}</p> : null}
-              {c.kind === "coin" && c.issue && c.grade && (
-                price ? (
-                  <p>
-                    <span className="font-medium">{priceText(price)}</span> <span className="text-sm text-base-content/70">{t`estimated value today (Numista)`}</span>
-                  </p>
+              {c.kind === "record" && (
+                canEdit ? (
+                  <RecordCondition value={c.condition ?? null} busy={apply.isPending} onChange={(condition) => apply.mutate({ collectible: { ...c, condition } })} />
                 ) : (
-                  got.isSuccess && <p className="text-sm text-base-content/70"><Trans>Numista has no price for this coin in this grade.</Trans></p>
+                  c.condition && <p className="text-sm text-base-content/80">{c.condition}</p>
                 )
               )}
+              {((c.kind === "coin" && c.issue && c.grade) || c.kind === "record") &&
+                (price ? (
+                  <p>
+                    <span className="font-medium">{priceText(price)}</span> <span className="text-sm text-base-content/70">{priceSays(price)}</span>
+                  </p>
+                ) : (
+                  got.isSuccess && <p className="text-sm text-base-content/70">{c.kind === "coin" ? t`Numista has no price for this coin in this grade.` : t`No copies for sale on Discogs right now.`}</p>
+                ))}
               {c.kind === "coin" && canEdit && (!c.issue || !c.grade) && info.issues && (
                 <CoinChoice info={info} issue={c.issue ?? null} grade={c.grade ?? null} busy={apply.isPending} onChange={(issue, grade) => apply.mutate({ collectible: { ...c, issue, grade } })} />
               )}
@@ -150,6 +176,18 @@ export function CollectibleDetails({ item, canEdit, hasPhoto }: { item: Item; ca
         )}
       </div>
     </section>
+  );
+}
+
+/** A record's condition, which prices it (Discogs' suggestion for that condition). */
+export function RecordCondition({ value, busy, onChange }: { value: string | null; busy?: boolean; onChange: (condition: string | null) => void }) {
+  return (
+    <select className="select select-sm w-auto max-w-full" value={value ?? ""} disabled={busy} onChange={(e) => onChange(e.target.value || null)} aria-label={t`Condition`}>
+      <option value="">{t`Condition…`}</option>
+      {RECORD_CONDITIONS.map((x) => (
+        <option key={x} value={x}>{x}</option>
+      ))}
+    </select>
   );
 }
 

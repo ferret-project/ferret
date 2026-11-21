@@ -41,17 +41,17 @@ collectibles.post("/collectibles/read", requireWriter, photoLimit, async (c) => 
   });
   if (!(form.photo instanceof File)) throw new HTTPException(422, { message: "Send the photo as `photo`" });
   const chosen = kind.safeParse(form.kind);
-  if (!chosen.success) throw new HTTPException(422, { message: "Say what it is as `kind`: lego, coin, comic, video or game" });
+  if (!chosen.success) throw new HTTPException(422, { message: "Say what it is as `kind`: lego, coin, comic, video, game or record" });
   const run = await svc.startCollectibleRead(callerOf(c), c.var.files, c.var.config.FILES_KEY, new Uint8Array(await form.photo.arrayBuffer()), chosen.data);
   return c.json(run, 202);
 });
 
 collectibles.get("/collectibles/read/:id", async (c) => c.json(await svc.getCollectibleRead(callerOf(c), c.req.param("id"))));
 
-/** "Update values": the household's coins (or one collection's) beside today's price in their grade. */
+/** "Update values": the household's coins and records (or one collection's) beside today's price. */
 collectibles.get("/collectibles/values", async (c) => {
   const { collectionId } = z.object({ collectionId: z.string().min(1).optional() }).parse(c.req.query());
-  return c.json(await svc.coinValues(callerOf(c), collectionId ?? null));
+  return c.json(await svc.collectibleValues(callerOf(c), collectionId ?? null));
 });
 
 /** One set, coin (with its issues) or comic. */
@@ -63,11 +63,13 @@ collectibles.get("/collectibles/:kind/:id", async (c) => {
   return c.json(info);
 });
 
-/** A coin's issue's prices by grade, in the household's currency. */
-collectibles.get("/collectibles/coin/:id/prices", async (c) => {
-  const { issue } = z.object({ issue: z.string().regex(/^\d+$/) }).parse(c.req.query());
+/** Prices in the household's currency: a coin issue's by grade (`issue` needed), a record's by condition and the lowest for sale. */
+collectibles.get("/collectibles/:kind/:id/prices", async (c) => {
+  const k = kind.safeParse(c.req.param("kind"));
+  if (!k.success) throw new HTTPException(404, { message: "Not found" });
+  const { issue } = z.object({ issue: z.string().regex(/^\d+$/).optional() }).parse(c.req.query());
   const v = callerOf(c);
-  return c.json({ data: await svc.coinPrices(v.deps, c.var.config.FILES_KEY, c.req.param("id"), issue, v.currency) });
+  return c.json({ data: await svc.catalogPrices(v.deps, c.var.config.FILES_KEY, k.data, c.req.param("id"), issue ?? null, v.currency) });
 });
 
 collectibles.get("/items/:id/collectible", async (c) => c.json(await svc.itemCollectible(callerOf(c), c.var.config.FILES_KEY, c.req.param("id"))));

@@ -12,7 +12,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { CategoryPicker, flattenCategories, useCategories } from "./Catalog";
 import { useCollections } from "./Collections";
-import { CATALOG_NAMES, CatalogLink, CoinChoice, CollectiblePicture, GRADE_NAMES, KIND_ICONS, KIND_NAMES, VIDEO_FORMATS, collectibleLine, priceText, seasonName } from "./Collectibles";
+import { CATALOG_NAMES, CatalogLink, CoinChoice, CollectiblePicture, GRADE_NAMES, KIND_ICONS, KIND_NAMES, RecordCondition, VIDEO_FORMATS, collectibleLine, priceFor, priceSays, priceText, seasonName } from "./Collectibles";
 import { PlacePicker } from "./Combobox";
 import { HelpLink } from "./HelpLink";
 import { TopBar } from "./Nav";
@@ -30,9 +30,9 @@ import { Trans } from "@lingui/react/macro";
 const WAIT_MS = 3 * 60_000;
 const EVERY_MS = 2500;
 /** A category for each kind, if the household has one by a usual name. */
-const CATEGORY_NAMES: Record<CollectibleKind, RegExp> = { lego: /^(lego|lego sets?|building sets?)$/i, coin: /^(coins?|coin collection|numismatics)$/i, comic: /^(comics?|comic books?)$/i, video: /^(movies?|films?|dvds?|blu-?rays?|movies (&|and) (tv|shows))$/i, game: /^(video ?games?|games|gaming)$/i };
+const CATEGORY_NAMES: Record<CollectibleKind, RegExp> = { lego: /^(lego|lego sets?|building sets?)$/i, coin: /^(coins?|coin collection|numismatics)$/i, comic: /^(comics?|comic books?)$/i, video: /^(movies?|films?|dvds?|blu-?rays?|movies (&|and) (tv|shows))$/i, game: /^(video ?games?|games|gaming)$/i, record: /^(music|records?|vinyl|cds?|records (&|and) cds)$/i };
 /** A template for each kind: one with this field (the starter "LEGO set", "Coin", "Comic book" have them). */
-const TEMPLATE_FIELD: Partial<Record<CollectibleKind, string>> = { lego: "set_number", coin: "denomination", comic: "series" };
+const TEMPLATE_FIELD: Partial<Record<CollectibleKind, string>> = { lego: "set_number", coin: "denomination", comic: "series", record: "artist" };
 
 type Row = {
   key: string;
@@ -50,6 +50,7 @@ type Row = {
   grade?: CoinGrade | null;
   format?: string | null;
   season?: number | null;
+  condition?: string | null;
 };
 
 /** What reading a photo (or the words typed) said beyond which one it is. */
@@ -120,7 +121,9 @@ function templateValues(c: CollectibleInfo, row: Row): Record<string, string | n
         ? { year: issue?.year ?? (c.yearTo ? null : c.year), mint_mark: issue?.label.split(" · ")[0]?.split(" ")[1]?.match(/^[A-Z]{1,3}$/)?.[0], denomination: c.denomination, country: c.issuer, composition: c.composition, grade: row.grade ? t(GRADE_NAMES[row.grade]) : null }
         : c.kind === "comic"
           ? { series: c.series, issue: c.issueNumber, publisher: c.publisher, year: c.year }
-          : {};
+          : c.kind === "record"
+            ? { artist: c.artist, label: c.label, year: c.year, pressing: [c.country, c.formatText].filter(Boolean).join(" · ") }
+            : {};
   return Object.fromEntries(Object.entries(v).filter((e): e is [string, string | number] => e[1] != null && e[1] !== ""));
 }
 
@@ -131,6 +134,8 @@ function itemFields(c: CollectibleInfo, row: Row) {
     return { name: c.name, brand: "LEGO" /* not translated */, model: c.setNumber ?? c.id, description: [c.year, c.theme, c.pieces ? plural(c.pieces, { one: "# piece", other: "# pieces" }) : null].filter(Boolean).join(" · ") };
   if (c.kind === "coin")
     return { name: issue ? `${c.name} (${issue.label})` : c.name, brand: c.issuer ?? null, model: null, description: [c.denomination, c.composition, c.diameterMm ? `${c.diameterMm} mm` : null, row.grade ? t(GRADE_NAMES[row.grade]) : null].filter(Boolean).join(" · ") };
+  if (c.kind === "record")
+    return { name: c.name, brand: c.artist ?? null, model: c.label ?? null, description: [c.formatText, c.year, c.country, row.condition].filter(Boolean).join(" · ") };
   if (c.kind === "game")
     return { name: c.name, brand: c.publisher ?? null, model: row.format ?? null, description: [c.year, c.genres?.slice(0, 3).join(", ")].filter(Boolean).join(" · ") };
   if (c.kind === "video") {
@@ -235,12 +240,12 @@ function Shelf({ householdId, kind, photos, pictures, into }: { householdId: str
     }
   };
 
-  /** A coin's estimate in its year and grade (fetched by its row; asked again here if it wasn't). */
+  /** A coin's estimate in its year and grade, a record's price for its condition (fetched by its row; asked again here if it wasn't). */
   const coinPrice = async (r: Row) => {
     const c = r.candidates[r.pick];
-    if (kind !== "coin" || !c || !r.issue || !r.grade) return null;
-    const prices = await qc.query({ queryKey: ["coin-prices", c.id, r.issue], queryFn: async () => (await api.coinPrices(c.id, r.issue!)).data, staleTime: 10 * 60_000 }).catch(() => []);
-    return prices.find((p) => p.grade === r.grade) ?? null;
+    if (!c || !((kind === "coin" && r.issue && r.grade) || kind === "record")) return null;
+    const prices = await qc.query({ queryKey: ["catalog-prices", kind, c.id, r.issue ?? null], queryFn: async () => (await api.catalogPrices(kind, c.id, r.issue)).data, staleTime: 10 * 60_000 }).catch(() => []);
+    return priceFor({ kind, grade: r.grade, condition: r.condition }, prices);
   };
 
   const toSave = rows.filter((r) => r.keep && r.status === "ready" && r.candidates[r.pick]);
@@ -252,7 +257,7 @@ function Shelf({ householdId, kind, photos, pictures, into }: { householdId: str
       for (const r of toSave) {
         const picked = r.candidates[r.pick]!;
         // A coin's details (its issues), a film's (runtime, studio) come from asking for it; sets and comics are whole from the search.
-        const c = kind === "coin" || kind === "video" ? await qc.query({ queryKey: ["collectible", kind, picked.id], queryFn: () => api.collectible(kind, picked.id), staleTime: 10 * 60_000 }).catch(() => picked) : picked;
+        const c = kind === "coin" || kind === "video" || kind === "record" ? await qc.query({ queryKey: ["collectible", kind, picked.id], queryFn: () => api.collectible(kind, picked.id), staleTime: 10 * 60_000 }).catch(() => picked) : picked;
         const price = withValues ? await coinPrice(r) : null;
         const values = templateValues(c, r);
         const fields = template ? Object.fromEntries(Object.entries(values).filter(([k]) => template.fields.some((f) => f.key === k))) : {};
@@ -261,7 +266,7 @@ function Shelf({ householdId, kind, photos, pictures, into }: { householdId: str
           quantity: r.quantity,
           ...(price ? { valueCents: price.cents } : {}),
           ...(template ? { templateId: template.id, customFields: fields } : {}),
-          collectible: { kind, id: c.id, ...(kind === "coin" ? { issue: r.issue ?? null, grade: r.grade ?? null } : {}), ...(kind === "video" ? { format: r.format ?? null, season: c.mediaType === "tv" ? (r.season ?? null) : null } : {}), ...(kind === "game" ? { format: r.format ?? null } : {}) },
+          collectible: { kind, id: c.id, ...(kind === "coin" ? { issue: r.issue ?? null, grade: r.grade ?? null } : {}), ...(kind === "video" ? { format: r.format ?? null, season: c.mediaType === "tv" ? (r.season ?? null) : null } : {}), ...(kind === "game" ? { format: r.format ?? null } : {}), ...(kind === "record" ? { condition: r.condition ?? null } : {}) },
           links: c.url ? [{ url: c.url, label: t`On ${ph({ service: CATALOG_NAMES[kind] })}` }] : undefined,
           locationId: place ?? undefined,
           categoryId: category ?? undefined,
@@ -286,7 +291,9 @@ function Shelf({ householdId, kind, photos, pictures, into }: { householdId: str
 
   const count = rows.reduce((n, r) => n + (r.status === "ready" ? r.quantity : 0), 0);
   const howMany =
-    kind === "game"
+    kind === "record"
+      ? plural(count, { one: "# record", other: "# records" })
+      : kind === "game"
       ? plural(count, { one: "# game", other: "# games" })
       : kind === "lego"
       ? plural(count, { one: "# set", other: "# sets" })
@@ -305,6 +312,8 @@ function Shelf({ householdId, kind, photos, pictures, into }: { householdId: str
               <Trans>Photograph each box (or its instructions) so the set number shows, or type the number or name. Sets come from Rebrickable.</Trans>
             ) : kind === "coin" ? (
               <Trans>Photograph each coin, or type its country, year and name. Coins come from Numista, with an estimate for each year and grade.</Trans>
+            ) : kind === "record" ? (
+              <Trans>Photograph each sleeve or case (the back, with its catalogue number, finds the exact pressing best), or type its barcode, or the artist and title. Records come from Discogs.</Trans>
             ) : kind === "game" ? (
               <Trans>Photograph each case, or type the title. Games come from IGDB; choose the console each one is for.</Trans>
             ) : kind === "comic" ? (
@@ -318,7 +327,7 @@ function Shelf({ householdId, kind, photos, pictures, into }: { householdId: str
             <div className="flex flex-wrap gap-2">
               <button type="button" className="btn btn-primary btn-lg btn-wrap flex-1" onClick={() => camera.current?.click()}>
                 <span className="icon-[tabler--camera] size-6" />
-                {kind === "lego" ? t`Photograph a box` : kind === "coin" ? t`Photograph a coin` : kind === "comic" ? t`Photograph a cover` : t`Photograph a case`}
+                {kind === "lego" ? t`Photograph a box` : kind === "coin" ? t`Photograph a coin` : kind === "comic" ? t`Photograph a cover` : kind === "record" ? t`Photograph a sleeve` : t`Photograph a case`}
               </button>
               <button type="button" className="btn btn-soft btn-lg" onClick={() => library.current?.click()}>
                 <span className="icon-[tabler--photo] size-6" />
@@ -376,10 +385,14 @@ function Shelf({ householdId, kind, photos, pictures, into }: { householdId: str
               <CategoryPicker householdId={householdId} value={category} onChange={setCategory} />
               <PlacePicker householdId={householdId} id="collect-place" name="place" label={t`Where are they?`} value={place} onChange={setPlace} noneLabel={t`No place`} />
             </div>
-            {kind === "coin" && (
+            {(kind === "coin" || kind === "record") && (
               <label className="flex cursor-pointer items-center gap-3 text-sm">
                 <input type="checkbox" className="checkbox checkbox-primary" checked={withValues} onChange={(e) => setWithValues(e.target.checked)} />
-                <Trans>Use Numista's estimate as each coin's value (once its year and grade are chosen)</Trans>
+                {kind === "coin" ? (
+                  <Trans>Use Numista's estimate as each coin's value (once its year and grade are chosen)</Trans>
+                ) : (
+                  <Trans>Use Discogs' price as each record's value (for its condition, or the lowest for sale now)</Trans>
+                )}
               </label>
             )}
             {pictures && kind !== "coin" && (
@@ -432,7 +445,7 @@ function TypeIt({ kind, onChoose }: { kind: CollectibleKind; onChoose: (found: C
     }
   };
   const placeholder =
-    kind === "lego" ? t`Set number or name, e.g. 75192` : kind === "coin" ? t`e.g. Washington quarter` : kind === "comic" ? t`Series and issue, e.g. Amazing Spider-Man 300` : kind === "game" ? t`Title, e.g. Mario Kart 8 Deluxe` : t`Title, e.g. Breaking Bad season 2`;
+    kind === "lego" ? t`Set number or name, e.g. 75192` : kind === "coin" ? t`e.g. Washington quarter` : kind === "comic" ? t`Series and issue, e.g. Amazing Spider-Man 300` : kind === "game" ? t`Title, e.g. Mario Kart 8 Deluxe` : kind === "record" ? t`Barcode, or artist and title` : t`Title, e.g. Breaking Bad season 2`;
   return (
     <div className="flex flex-col gap-2">
       {kind === "coin" && (
@@ -553,6 +566,7 @@ function FoundRow({ kind, row, busy, onChange, onRemove, onFound }: { kind: Coll
               {kind === "coin" && <CoinRowChoice coin={c} row={row} busy={busy} onChange={onChange} />}
               {kind === "video" && <VideoRowChoice video={c} row={row} busy={busy} onChange={onChange} />}
               {kind === "game" && <PlatformChoice game={c} row={row} busy={busy} onChange={onChange} />}
+              {kind === "record" && <RecordRowChoice record={c} row={row} busy={busy} onChange={onChange} />}
               <div className="mt-1 flex flex-wrap items-center gap-2">
                 <div className="join" aria-label={t`How many`}>
                   <button type="button" className="btn btn-soft btn-sm join-item" disabled={busy || row.quantity <= 1} onClick={() => onChange({ quantity: row.quantity - 1 })} aria-label={t`One fewer`}>−</button>
@@ -607,13 +621,13 @@ function FoundRow({ kind, row, busy, onChange, onRemove, onFound }: { kind: Coll
 /** A coin in the list: its year and mint, its grade, and Numista's estimate for them. */
 function CoinRowChoice({ coin, row, busy, onChange }: { coin: CollectibleInfo; row: Row; busy: boolean; onChange: (patch: Partial<Row>) => void }) {
   const detail = useQuery({ queryKey: ["collectible", "coin", coin.id], queryFn: () => api.collectible("coin", coin.id), staleTime: 10 * 60_000 });
-  const prices = useQuery({ queryKey: ["coin-prices", coin.id, row.issue], queryFn: async () => (await api.coinPrices(coin.id, row.issue!)).data, enabled: Boolean(row.issue), staleTime: 10 * 60_000 });
+  const prices = useQuery({ queryKey: ["catalog-prices", "coin", coin.id, row.issue ?? null], queryFn: async () => (await api.catalogPrices("coin", coin.id, row.issue)).data, enabled: Boolean(row.issue), staleTime: 10 * 60_000 });
   // A coin struck in one year only: that year, chosen.
   const only = detail.data?.issues?.length === 1 ? detail.data.issues[0]!.id : null;
   useEffect(() => {
     if (only && !row.issue) onChange({ issue: only });
   }, [only]); // eslint-disable-line react-hooks/exhaustive-deps
-  const price = prices.data?.find((p) => p.grade === row.grade);
+  const price = priceFor({ kind: "coin", grade: row.grade }, prices.data);
   return (
     <div className="mt-1 flex flex-col gap-1">
       <CoinChoice info={detail.data ?? coin} issue={row.issue ?? null} grade={row.grade ?? null} busy={busy || detail.isPending} onChange={(issue, grade) => onChange({ issue, grade })} />
@@ -623,7 +637,7 @@ function CoinRowChoice({ coin, row, busy, onChange }: { coin: CollectibleInfo; r
       )}
       {row.issue && !row.grade && prices.data && prices.data.length > 0 && (
         <span className="text-xs text-base-content/70">
-          {prices.data.map((p) => `${p.grade.toUpperCase()} ${formatMoney(p.cents, p.currency || currentCurrency(), { exact: true })}`).join(" · ")}
+          {prices.data.map((p) => `${p.grade?.toUpperCase()} ${formatMoney(p.cents, p.currency || currentCurrency(), { exact: true })}`).join(" · ")}
         </span>
       )}
     </div>
@@ -645,6 +659,24 @@ function platformOf(game: CollectibleInfo | undefined, read: string | null | und
     if (found) return found;
   }
   return platforms.length === 1 ? platforms[0]! : (read ?? null);
+}
+
+/** A record in the list: its condition, and Discogs' price for it (or the lowest for sale now). */
+function RecordRowChoice({ record, row, busy, onChange }: { record: CollectibleInfo; row: Row; busy: boolean; onChange: (patch: Partial<Row>) => void }) {
+  const prices = useQuery({ queryKey: ["catalog-prices", "record", record.id, null], queryFn: async () => (await api.catalogPrices("record", record.id)).data, staleTime: 10 * 60_000 });
+  const price = priceFor({ kind: "record", condition: row.condition }, prices.data);
+  return (
+    <div className="mt-1 flex flex-col gap-1">
+      <RecordCondition value={row.condition ?? null} busy={busy} onChange={(condition) => onChange({ condition })} />
+      {price ? (
+        <span className="text-sm">
+          <span className="font-medium">{priceText(price)}</span> <span className="text-base-content/70">{priceSays(price)}</span>
+        </span>
+      ) : (
+        prices.isSuccess && <span className="text-xs text-base-content/70"><Trans>No copies for sale on Discogs right now</Trans></span>
+      )}
+    </div>
+  );
 }
 
 /** A game in the list: the console the copy is for. */

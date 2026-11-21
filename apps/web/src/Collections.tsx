@@ -177,7 +177,7 @@ export function CollectionScreen({ householdId, id, show }: { householdId: strin
   const [valuing, setValuing] = useState(false);
   const features = useFeatures();
   const cardsOn = Boolean(features?.cards?.length);
-  const coinsOn = Boolean(features?.collectibles?.includes("coin"));
+  const coinsOn = Boolean(features?.collectibles?.some((k) => k === "coin" || k === "record"));
   const refresh = () => Promise.all([qc.invalidateQueries({ queryKey: collectionsKey(householdId) }), qc.invalidateQueries({ queryKey: ["items", householdId] })]);
   const got = useMutation({ mutationFn: (itemId: string) => api.updateItem(itemId, { wanted: false }), onSuccess: refresh });
 

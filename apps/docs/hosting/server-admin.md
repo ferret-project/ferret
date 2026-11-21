@@ -76,8 +76,8 @@ and set) is sent to them. Prices are kept a day for the whole server. Reading a 
 
 ## Collector catalogs
 
-**Settings → Server → Collector catalogs** adds **LEGO sets**, **Coins**, **Comics**, **Movies & TV** and **Video games** to
-everyone's **+ Add**
+**Settings → Server → Collector catalogs** adds **LEGO sets**, **Coins**, **Comics**, **Movies & TV**, **Video games** and **Records & CDs**
+to everyone's **+ Add**
 ([what people see](../guide/adding-things#lego-coins-and-comics)). Each catalog needs a free key from an account there.
 Paste it in and Ferret checks it with the catalog before saving it. That catalog is on from then, and **Remove** turns
 it off again.
@@ -89,10 +89,12 @@ it off again.
 | [Comic Vine](https://comicvine.gamespot.com) | Comics | Sign in, then [comicvine.gamespot.com/api](https://comicvine.gamespot.com/api/) | 200 requests an hour |
 | [TMDB](https://www.themoviedb.org) | Films and TV shows | Sign in, then **Settings → API** ([themoviedb.org/settings/api](https://www.themoviedb.org/settings/api)): the API key or the read access token both work | About 50 requests a second |
 | [IGDB](https://www.igdb.com) | Video games | A Twitch app: sign in at [dev.twitch.tv/console/apps](https://dev.twitch.tv/console/apps) (two-step sign-in on), **Register Your Application** (redirect `http://localhost`, type Confidential), then copy its client ID and make a **New Secret**. Paste both, separated by a space | 4 requests a second |
+| [Discogs](https://www.discogs.com) | Records, CDs and tapes, with prices | Sign in, then [Settings → Developers](https://www.discogs.com/settings/developers) → **Generate new token**. For prices by condition, also save the account's [seller settings](https://www.discogs.com/settings/seller) once (nothing has to be for sale) | 60 requests a minute |
 
 Only the words people search for (and what was read off a photo) are sent, never anything else about them or what they
 own. What a catalog says is kept for the whole server, so its allowance goes far: a coin's details for a month and its
-estimates for a week, sets, comics, films, shows and games for three months. Keys are stored sealed with a key made from `FILES_KEY`, so
+estimates for a week, a record's prices for three days, sets, comics, films, shows, games and records for three
+months. Keys are stored sealed with a key made from `FILES_KEY`, so
 backups keep them and Settings only ever shows their last four characters. Reading a photo uses your vision model
 (`VISION_URL`) and counts as an AI action. Without a vision model, people type instead.
 

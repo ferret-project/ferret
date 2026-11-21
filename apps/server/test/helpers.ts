@@ -2,7 +2,7 @@
 import type { Catalogs } from "../src/lib/language";
 import { ROOM_SCAN_JOB, analyzeRoomScan } from "../src/lib/room-scans";
 import { CARD_READ_JOB, CARD_VALUES_JOB, cardReadJob, cardValuesJob } from "../src/lib/cards";
-import { COIN_PRICES_JOB, COLLECTIBLE_READ_JOB, coinPricesJob, collectibleReadJob } from "../src/lib/collectibles";
+import { COLLECTIBLE_READ_JOB, PRICES_JOB, collectibleReadJob, pricesJob } from "../src/lib/collectibles";
 import { SUPPORT_REFRESH_JOB, supportRefreshJob } from "../src/lib/support";
 import { EXCHANGE_RATES_JOB, exchangeRatesJob } from "../src/lib/exchange";
 import { mkdtempSync } from "node:fs";
@@ -397,7 +397,7 @@ export async function setup(
   if (opts.paperless) jobs.register({ [PAPERLESS_SYNC_JOB]: paperlessSyncJob({ ...full, paperless: opts.paperless }, files) });
   if (opts.exchangeRates) jobs.register({ [EXCHANGE_RATES_JOB]: exchangeRatesJob(full) });
   if (opts.support) jobs.register({ [SUPPORT_REFRESH_JOB]: supportRefreshJob(full) });
-  if (opts.collectibles) jobs.register({ [COLLECTIBLE_READ_JOB]: collectibleReadJob({ ...full, files, filesKey: config.FILES_KEY }), [COIN_PRICES_JOB]: coinPricesJob({ ...full, filesKey: config.FILES_KEY }) });
+  if (opts.collectibles) jobs.register({ [COLLECTIBLE_READ_JOB]: collectibleReadJob({ ...full, files, filesKey: config.FILES_KEY }), [PRICES_JOB]: pricesJob({ ...full, filesKey: config.FILES_KEY }) });
   if (opts.cards) jobs.register({ [CARD_READ_JOB]: cardReadJob({ ...full, files }), [CARD_VALUES_JOB]: cardValuesJob(full) });
   if (products || opts.books || opts.openFacts) jobs.register({ [PRODUCT_JOB]: productLookupJob({ db, products, books: opts.books, openFacts: opts.openFacts }) });
   if (opts.webhooks) {

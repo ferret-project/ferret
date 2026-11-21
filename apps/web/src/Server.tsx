@@ -737,6 +737,7 @@ const CATALOGS: Record<CollectibleKind, { service: string; what: MessageDescript
   coin: { service: "Numista", what: msg`Coins`, icon: "icon-[tabler--coin]", signup: "https://en.numista.com", keyAt: "https://en.numista.com/api/" },
   comic: { service: "Comic Vine", what: msg`Comics`, icon: "icon-[tabler--book]", signup: "https://comicvine.gamespot.com", keyAt: "https://comicvine.gamespot.com/api/" },
   video: { service: "TMDB", what: msg`Movies & TV`, icon: "icon-[tabler--movie]", signup: "https://www.themoviedb.org", keyAt: "https://www.themoviedb.org/settings/api" },
+  record: { service: "Discogs", what: msg`Records & CDs`, icon: "icon-[tabler--vinyl]", signup: "https://www.discogs.com", keyAt: "https://www.discogs.com/settings/developers" },
   game: { service: "IGDB", what: msg`Video games`, icon: "icon-[tabler--device-gamepad-2]", signup: "https://www.igdb.com", keyAt: "https://dev.twitch.tv/console/apps" },
 };
 
@@ -755,7 +756,7 @@ function CollectorCatalogs() {
           <HelpLink page="hosting/server-admin.html#collector-catalogs" label={t`Collector catalogs`} />
         </h2>
         <p className="text-sm text-base-content/70">
-          <Trans>Adds LEGO sets, coins, comics, movies and TV shows, and video games to + Add, looked up with their pictures and details — and coins' prices by grade. Each catalog needs a free key from an
+          <Trans>Adds LEGO sets, coins, comics, movies and TV shows, video games, and records to + Add, looked up with their pictures and details — and coins' prices by grade. Each catalog needs a free key from an
           account there: paste it here and that catalog is on. Only the words people search for are sent; reading a photo uses this server's vision model and
           counts as an AI action.</Trans>
         </p>
@@ -826,6 +827,11 @@ function CatalogKey({ status, onSaved }: { status: CollectibleCatalogStatus; onS
             {save.isPending ? <span className="loading loading-spinner loading-sm" /> : <Trans>Check and save</Trans>}
           </button>
           {editing && <button type="button" className="btn btn-text" onClick={() => setEditing(false)}><Trans>Cancel</Trans></button>}
+          {status.kind === "record" && (
+            <p className="w-full text-xs text-base-content/70">
+              <Trans>Discogs: generate a personal access token. Prices for each condition also need the account's seller settings saved once.</Trans>
+            </p>
+          )}
           {status.kind === "game" && (
             <p className="w-full text-xs text-base-content/70">
               <Trans>IGDB uses a Twitch app: paste its client ID and its secret, separated by a space.</Trans>

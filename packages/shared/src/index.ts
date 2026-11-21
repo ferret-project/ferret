@@ -201,8 +201,8 @@ export const itemCard = z.object({
 });
 export type ItemCard = z.infer<typeof itemCard>;
 
-// ── Collector catalogs (LEGO: Rebrickable; coins: Numista; comics: Comic Vine; films and TV: TMDB; games: IGDB) ──
-export const collectibleKinds = ["lego", "coin", "comic", "video", "game"] as const;
+// ── Collector catalogs (LEGO: Rebrickable; coins: Numista; comics: Comic Vine; films and TV: TMDB; games: IGDB; records: Discogs) ──
+export const collectibleKinds = ["lego", "coin", "comic", "video", "game", "record"] as const;
 export type CollectibleKind = (typeof collectibleKinds)[number];
 /** Numista's grades, worst to best: good, very good, fine, very fine, extremely fine, about uncirculated, uncirculated. */
 export const coinGrades = ["g", "vg", "f", "vf", "xf", "au", "unc"] as const;
@@ -220,6 +220,8 @@ export const itemCollectible = z.object({
   format: z.string().trim().max(40).optional().nullable(),
   /** A show: which season (0 for its specials); none for the whole series. */
   season: z.number().int().min(0).max(200).optional().nullable(),
+  /** A record: its condition, in Discogs' words ("Very Good Plus (VG+)"), which prices it. */
+  condition: z.string().trim().max(40).optional().nullable(),
 });
 export type ItemCollectible = z.infer<typeof itemCollectible>;
 
@@ -277,7 +279,7 @@ const itemFields = z.object({
   collectible: itemCollectible
     .optional()
     .nullable()
-    .describe("A LEGO set (Rebrickable set number like 75192-1), coin (Numista type id, with its issue id and grade), comic (Comic Vine issue id) film or show (TMDB, movie-603 or tv-1396, with the format and a show's season) or video game (IGDB id, with the platform as format) — which one in its collector catalog"),
+    .describe("A LEGO set (Rebrickable set number like 75192-1), coin (Numista type id, with its issue id and grade), comic (Comic Vine issue id) film or show (TMDB, movie-603 or tv-1396, with the format and a show's season) video game (IGDB id, with the platform as format) or record (Discogs release id, with its condition) — which one in its collector catalog"),
 });
 export const itemInput = itemFields.extend({
   origin: z.enum(appOrigins).optional().describe("Which of the app's ways added it; ignored for Claude and API keys (recorded by the server)"),
@@ -2423,11 +2425,22 @@ export interface CollectibleInfo {
   seasons?: { number: number; name: string; year?: number | null; image?: string | null; imageLarge?: string | null; episodes?: number | null }[];
   // Video games (publisher and genres as above)
   platforms?: string[];
+  // Records (title and genres as above)
+  artist?: string | null;
+  /** The label and catalogue number: "DGC DGCD-24425". */
+  label?: string | null;
+  country?: string | null;
+  /** "CD Album Reissue", "2×Vinyl LP Album". */
+  formatText?: string | null;
 }
 
-/** A coin's price in one grade, in the currency asked for. */
+/** A price in the currency asked for: a coin's in one grade, a record's in one condition, or the lowest a record is for sale at now. */
 export interface CollectiblePrice {
-  grade: CoinGrade;
+  grade?: CoinGrade;
+  condition?: string;
+  lowest?: boolean;
+  /** With `lowest`: how many are for sale. */
+  forSale?: number | null;
   cents: number;
   currency: string;
   source: string;
@@ -2488,7 +2501,7 @@ export interface CollectibleCatalogStatus {
 
 export const collectibleKeyInput = z.object({ key: z.string().trim().min(8).max(200).nullable() });
 
-/** A coin thing next to its price today in its grade (Update values). */
+/** A coin or record thing next to its price today (Update values). */
 export interface CollectibleValue {
   itemId: string;
   name: string;

@@ -371,10 +371,11 @@ export const api = {
     request<{ data: CollectibleInfo[] }>(`/collectibles/search?${new URLSearchParams({ kind: q.kind, q: q.q, ...(q.issuer ? { issuer: q.issuer } : {}), ...(q.year != null ? { year: String(q.year) } : {}) })}`),
   coinIssuers: (q: string) => request<{ data: CoinIssuer[] }>(`/collectibles/issuers?${new URLSearchParams({ q })}`),
   collectible: (kind: CollectibleKind, id: string) => request<CollectibleInfo>(`/collectibles/${kind}/${encodeURIComponent(id)}`),
-  coinPrices: (id: string, issue: string) => request<{ data: CollectiblePrice[] }>(`/collectibles/coin/${encodeURIComponent(id)}/prices?${new URLSearchParams({ issue })}`),
+  catalogPrices: (kind: CollectibleKind, id: string, issue?: string | null) =>
+    request<{ data: CollectiblePrice[] }>(`/collectibles/${kind}/${encodeURIComponent(id)}/prices${issue ? `?${new URLSearchParams({ issue })}` : ""}`),
   startCollectibleRead,
   collectibleRead: (id: string) => request<CollectibleReadStatus>(`/collectibles/read/${encodeURIComponent(id)}`),
-  coinValues: (collectionId?: string) => request<{ data: CollectibleValue[]; checking: number }>(`/collectibles/values${collectionId ? `?collectionId=${encodeURIComponent(collectionId)}` : ""}`),
+  collectibleValues: (collectionId?: string) => request<{ data: CollectibleValue[]; checking: number }>(`/collectibles/values${collectionId ? `?collectionId=${encodeURIComponent(collectionId)}` : ""}`),
   itemCollectible: (itemId: string) =>
     request<{ collectible: ItemCollectible | null; info: CollectibleInfo | null; prices: CollectiblePrice[]; price: CollectiblePrice | null }>(`/items/${itemId}/collectible`),
   useCollectibleImage: (itemId: string) => request<Attachment>(`/items/${itemId}/collectible/photo`, { method: "POST" }),

@@ -135,7 +135,7 @@ export function UpdateCardValues({ collectionId, cards = true, coins = false, on
   const values = useQuery({
     queryKey: ["card-values", collectionId, cards, coins],
     queryFn: async () => {
-      const [c, m] = await Promise.all([cards ? api.cardValues(collectionId) : null, coins ? api.coinValues(collectionId) : null]);
+      const [c, m] = await Promise.all([cards ? api.cardValues(collectionId) : null, coins ? api.collectibleValues(collectionId) : null]);
       return { data: [...(c?.data ?? []), ...(m?.data ?? [])] as { itemId: string; name: string; valueCents: number | null; price: { cents: number } | null }[], checking: (c?.checking ?? 0) + (m?.checking ?? 0) };
     },
     // Prices older than a day are being fetched: look again until they're in.
@@ -188,7 +188,7 @@ export function UpdateCardValues({ collectionId, cards = true, coins = false, on
               ))}
             </ul>
             {cards && <p className="text-xs text-base-content/70"><Trans>Market prices for ungraded cards (TCGplayer in dollars, Cardmarket in euros).</Trans></p>}
-            {coins && <p className="text-xs text-base-content/70"><Trans>Coins: Numista's estimates for their year, mint and grade.</Trans></p>}
+            {coins && <p className="text-xs text-base-content/70"><Trans>Coins: Numista's estimates for their year, mint and grade. Records: Discogs' suggested price for their condition, or the lowest for sale now.</Trans></p>}
           </>
         )}
         {apply.isError && <div className="alert alert-soft alert-error">{apply.error.message}</div>}

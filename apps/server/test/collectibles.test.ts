@@ -7,6 +7,7 @@ import { NumistaCoins, issueLabel, toCoin } from "../src/adapters/local/numista"
 import { RebrickableSets, setNumberOf, toSet } from "../src/adapters/local/rebrickable";
 import { TmdbVideos, parseVideoQuery, toVideo } from "../src/adapters/local/tmdb";
 import { IgdbGames, splitKey, toGame } from "../src/adapters/local/igdb";
+import { DiscogsRecords, hitToRecord, toRecord } from "../src/adapters/local/discogs";
 import { serverSetting } from "../src/db/schema";
 import { collectiblePhotoKey } from "../src/lib/collectibles";
 import { CatalogKeyError, type CollectibleCatalog } from "../src/ports";
@@ -22,6 +23,8 @@ const QUARTER: CollectibleInfo = { kind: "coin", id: "55", name: '¼ Dollar "Was
 const LIBERIA: CollectibleInfo = { kind: "coin", id: "55640", name: "10 Dollars (George Washington)", year: 2003, issuer: "Liberia", url: "https://en.numista.com/55640" };
 const BREAKING_BAD: CollectibleInfo = { kind: "video", id: "tv-1396", name: "Breaking Bad", mediaType: "tv", year: 2008, studio: "AMC", url: "https://www.themoviedb.org/tv/1396", seasons: [{ number: 1, name: "Season 1", imageLarge: "https://image.tmdb.org/t/p/w780/s1.jpg" }], imageLarge: "https://image.tmdb.org/t/p/w780/show.jpg" };
 const ZELDA: CollectibleInfo = { kind: "game", id: "7346", name: "The Legend of Zelda: Breath of the Wild", year: 2017, platforms: ["Wii U", "Nintendo Switch"], publisher: "Nintendo", url: "https://www.igdb.com/games/zelda" };
+const NEVERMIND: CollectibleInfo = { kind: "record", id: "367084", name: "Nirvana – Nevermind", artist: "Nirvana", title: "Nevermind", year: 1991, formatText: "CD, Album", label: "DGC DGCD-24425", url: "https://www.discogs.com/release/367084" };
+const NEVERMIND_LP: CollectibleInfo = { ...NEVERMIND, id: "1813006", formatText: "Vinyl, LP, Album" };
 const ASM300: CollectibleInfo = { kind: "comic", id: "29584", name: "The Amazing Spider-Man #300", series: "The Amazing Spider-Man", issueNumber: "300", publisher: "Marvel", title: "Venom", year: 1988, url: "https://comicvine.gamespot.com/x/4000-29584/" };
 const ISSUERS: CoinIssuer[] = [
   { code: "united-states", name: "United States" },
@@ -77,12 +80,20 @@ async function catalogs(opts: Parameters<typeof setup>[0] = {}) {
   const comic = new FakeCatalog([ASM300]);
   const video = new FakeCatalog([BREAKING_BAD]);
   const game = new FakeCatalog([ZELDA]);
-  const s = await setup({ collectibles: { lego, coin, comic, video, game }, ...opts });
+  const record = new FakeCatalog([NEVERMIND_LP, NEVERMIND]);
+  record.prices = async (_key, id, _issue, currency) => {
+    record.priced.push(`${id}:${currency}`);
+    return [
+      { condition: "Near Mint (NM or M-)", cents: 1500, currency, source: "Discogs" },
+      { lowest: true, forSale: 7, cents: 658, currency, source: "Discogs" },
+    ];
+  };
+  const s = await setup({ collectibles: { lego, coin, comic, video, game, record }, ...opts });
   const ann = await s.user("ann");
   const on = async (...kinds: string[]) => {
     for (const k of kinds) expect((await send(ann, "PUT", `/api/v1/server/collectibles/${k}`, { key: KEY })).status).toBe(200);
   };
-  return { ...s, ann, lego, coin, comic, video, game, on };
+  return { ...s, ann, lego, coin, comic, video, game, record, on };
 }
 
 const readPhoto = async (u: User, kind: string) => {
@@ -106,6 +117,7 @@ describe("collector catalogs", () => {
       { kind: "comic", available: true, on: false, hint: null, kept: 0 },
       { kind: "video", available: true, on: false, hint: null, kept: 0 },
       { kind: "game", available: true, on: false, hint: null, kept: 0 },
+      { kind: "record", available: true, on: false, hint: null, kept: 0 },
     ]);
     const [row] = await db.select().from(serverSetting).where(eq(serverSetting.key, "collectibles.lego.key"));
     expect(row!.value).not.toContain(KEY);
@@ -245,6 +257,27 @@ describe("collector catalogs", () => {
     expect(game.gets).toEqual([]);
   });
 
+  it("read a record's sleeve by its catalogue number, putting the format read first, and price it by condition", async () => {
+    const ai = new FakeAi([{ artist: "Nirvana", title: "Nevermind", format: "CD", catalogNumber: null }]);
+    const { ann, jobs, record, on } = await catalogs({ ai });
+    await on("record");
+    const { id } = await json<{ id: string }>(readPhoto(ann, "record"));
+    await jobs.drain();
+    expect(record.finds[0]!.text).toBe("Nirvana Nevermind");
+    // Read as a CD: the CD pressing before the LP.
+    expect((await json<CollectibleReadStatus>(ann.as(`/api/v1/collectibles/read/${id}`))).candidates?.map((c) => c.id)).toEqual(["367084", "1813006"]);
+    const cd = await ann.addItem({ name: "Nevermind", collectible: { kind: "record", id: "367084", condition: "Near Mint (NM or M-)" } });
+    expect(await json(ann.as(`/api/v1/items/${cd.id}/collectible`))).toMatchObject({ price: { condition: "Near Mint (NM or M-)", cents: 1500 } });
+    // No condition: the lowest for sale now.
+    const lp = await ann.addItem({ name: "Nevermind LP", collectible: { kind: "record", id: "1813006" } });
+    expect(await json(ann.as(`/api/v1/items/${lp.id}/collectible`))).toMatchObject({ price: { lowest: true, cents: 658, forSale: 7 } });
+    expect((await json<{ data: CollectiblePrice[] }>(ann.as("/api/v1/collectibles/record/367084/prices"))).data).toHaveLength(2);
+    expect((await ann.as("/api/v1/collectibles/coin/55/prices")).status).toBe(409); // coins aren't on here
+    // Records join Update values.
+    const values = await json<{ data: CollectibleValue[]; checking: number }>(ann.as("/api/v1/collectibles/values"));
+    expect(values.data.map((v) => v.price?.cents).sort()).toEqual([1500, 658].sort());
+  });
+
   it("list a collection's coins beside today's prices, fetching the old ones in the background", async () => {
     const { ann, jobs, coin, on } = await catalogs();
     await on("coin", "lego");
@@ -353,6 +386,34 @@ describe("collector catalog adapters", () => {
     await igdb.get("id secret", "7346");
     expect(calls.slice(-3)).toEqual([expect.stringContaining("Bearer t1"), "token", expect.stringContaining("Bearer t2")]);
     expect(await new IgdbGames((async () => reply({ message: "invalid client secret" }, 403)) as typeof fetch).check("id bad")).toBe(false);
+  });
+
+  it("turn Discogs' answers into records, ask by barcode, put official pressings first, and keep prices in the household's currency", async () => {
+    expect(hitToRecord({ id: 1, title: "Nirvana (2) - Nevermind", year: "1991", format: ["CD", "Album"], label: ["DGC"], country: "US", cover_image: "https://i.discogs.com/c.jpg" })).toMatchObject({ name: "Nirvana – Nevermind", artist: "Nirvana", title: "Nevermind", year: 1991, formatText: "CD, Album", imageLarge: "https://i.discogs.com/c.jpg" });
+    expect(toRecord({ id: 2, title: "Nevermind", year: 1991, artists: [{ name: "Nirvana" }], labels: [{ name: "DGC", catno: "DGCD-24425" }], formats: [{ name: "Vinyl", qty: "2", descriptions: ["LP", "Album"] }], uri: "https://www.discogs.com/release/2-Nirvana-Nevermind" })).toMatchObject({
+      label: "DGC DGCD-24425",
+      formatText: "2×Vinyl, LP, Album",
+      url: "https://www.discogs.com/release/2-Nirvana-Nevermind",
+    });
+    const urls: URL[] = [];
+    const fetcher = (async (input: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(String(input));
+      urls.push(url);
+      expect(new Headers(init?.headers).get("authorization")).toBe("Discogs token=tok");
+      if (url.pathname === "/database/search") return reply({ results: [{ id: 9, title: "Nirvana - Nevermind", format: ["CDr", "Album", "Unofficial Release"] }, { id: 8, title: "Nirvana - Nevermind", format: ["CD", "Album"] }] });
+      if (url.pathname.startsWith("/marketplace/price_suggestions/")) return reply({ "Mint (M)": { value: 20, currency: "EUR" }, "Very Good Plus (VG+)": { value: 9.5, currency: "USD" } });
+      return reply({ num_for_sale: 3, lowest_price: { value: 6.58, currency: "USD" } });
+    }) as typeof fetch;
+    const discogs = new DiscogsRecords(fetcher, 0);
+    expect((await discogs.find("tok", { text: "7 20642-44252 4" })).map((r) => r.id)).toEqual(["8", "9"]);
+    expect(urls[0]!.searchParams.get("barcode")).toBe("720642442524");
+    await discogs.find("tok", { text: "nirvana nevermind" });
+    expect(urls[1]!.searchParams.get("q")).toBe("nirvana nevermind");
+    // A suggestion in the account's other currency is left out.
+    expect(await discogs.prices("tok", "8", "", "USD")).toEqual([
+      { condition: "Very Good Plus (VG+)", cents: 950, currency: "USD", source: "Discogs" },
+      { lowest: true, forSale: 3, cents: 658, currency: "USD", source: "Discogs" },
+    ]);
   });
 
   it("send TMDB an API key in the address and a read token as a Bearer token, and put a typed year first", async () => {

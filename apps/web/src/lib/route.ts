@@ -117,7 +117,7 @@ export const scanMusicHref = (into: { locationId?: string | null; categoryId?: s
   return `#/scan-music${s ? `?${s}` : ""}`;
 };
 /** LEGO sets, coins or comics from the collector catalogs, photographed or typed (CollectibleScan.tsx) — into a room, category, tag or collection. */
-export const collectHref = (kind: "lego" | "coin" | "comic" | "video" | "game", into: { locationId?: string | null; categoryId?: string | null; tag?: string | null; collectionId?: string | null } = {}) => {
+export const collectHref = (kind: "lego" | "coin" | "comic" | "video" | "game" | "record", into: { locationId?: string | null; categoryId?: string | null; tag?: string | null; collectionId?: string | null } = {}) => {
   const q = new URLSearchParams();
   if (into.locationId) q.set("in", into.locationId);
   if (into.categoryId) q.set("category", into.categoryId);
