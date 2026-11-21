@@ -453,6 +453,8 @@ export const OPERATIONS: Operation[] = [
   { method: "put", path: "/items/{id}/support", tag: "Items", summary: "Track a model's end of support on the thing (the suggestion's product and release)", body: z.object({ product: z.string(), release: z.string() }), writes: true, returns: "ItemSupportStatus" },
   { method: "delete", path: "/items/{id}/support", tag: "Items", summary: "Stop tracking, or say a suggested model isn't it (it isn't offered again)", writes: true, returns: "ItemSupportStatus" },
 
+  { method: "get", path: "/graded/{by}/{cert}", tag: "Items", summary: "What PCGS (coins) or PSA (cards) says about a certificate number: the coin or card, its grade, population and (PCGS) price guide value; 409 without the service's key", returns: "GradedInfo" },
+  { method: "get", path: "/items/{id}/graded", tag: "Items", summary: "A graded thing's certificate, what its service says, and the price guide's value in your currency", returns: "ItemGradedInfo" },
   { method: "get", path: "/items/{id}/bike-index", tag: "Items", summary: "For a bike with a serial number: whether Bike Index has a bike with that serial reported stolen; `pending` while it's checked — ask again", returns: "ItemBikeIndex" },
   { method: "get", path: "/items/{id}/energy", tag: "Items", summary: "A thing's ENERGY STAR entry by its brand and model (or barcode): certified energy use a year, how it compares with the US standard, and (with an EIA key) what it costs a year at the average home rate; `pending` while it's looked up — ask again", returns: "ItemEnergy" },
 
@@ -611,6 +613,8 @@ export const OPERATIONS: Operation[] = [
   { method: "put", path: "/server/open-facts", tag: "Server", summary: "Switch Open Food Facts look-ups on (a barcode the product database doesn't know is sent to the Open Food Facts databases) or off: { enabled } (server admin)", writes: true, returns: "OpenFactsStatus" },
   { method: "get", path: "/server/cards", tag: "Server", summary: "Trading card look-ups (TCGdex, Scryfall): on or off, cards kept (server admin)", returns: "CardLookupStatus" },
   { method: "put", path: "/server/cards", tag: "Server", summary: "Switch trading card look-ups on (card names and numbers are sent to TCGdex and Scryfall) or off: { enabled } (server admin)", writes: true, returns: "CardLookupStatus" },
+  { method: "get", path: "/server/graded", tag: "Server", summary: "Grading services (PCGS, PSA): which have a key (server admin)", returns: "{ data: GradingStatus[] }" },
+  { method: "put", path: "/server/graded/{by}", tag: "Server", summary: "Save a grading service's key, checked first ({ key }), or remove it ({ key: null }) (server admin)", body: collectibleKeyInput, writes: true, returns: "{ data: GradingStatus[] }" },
   { method: "get", path: "/server/bike-index", tag: "Server", summary: "Bike Index look-ups: on or off, serials checked (server admin)", returns: "BikeIndexStatus" },
   { method: "put", path: "/server/bike-index", tag: "Server", summary: "Switch Bike Index look-ups on (bikes' serial numbers are sent to bikeindex.org) or off: { enabled } (server admin)", writes: true, returns: "BikeIndexStatus" },
   { method: "get", path: "/server/energy-star", tag: "Server", summary: "ENERGY STAR look-ups: on or off, brands and models kept (server admin)", returns: "EnergyStarStatus" },

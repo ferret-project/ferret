@@ -3,7 +3,7 @@
  * backups (status, "Back up now", the copies kept, each one's restore check, how to restore), the server check, recall checks (on or off),
  * certificates for the server's own connections, and handing the admin role to someone else. Restoring is a command on the server, not a button: see restoreCommands below.
  */
-import type { BackupRun, BackupSnapshot, BackupStatus, BookLookupStatus, CollectibleCatalogStatus, CollectibleKind, ServerCertificate, ServerSecrets } from "@ferret/shared";
+import type { BackupRun, BackupSnapshot, BackupStatus, BookLookupStatus, GradingStatus, CollectibleCatalogStatus, CollectibleKind, ServerCertificate, ServerSecrets } from "@ferret/shared";
 import { ServerAiFillCard } from "./AiFill";
 import { AiPrompts, PROMPT_NAMES } from "./Prompts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -53,6 +53,7 @@ export function Server() {
           <MusicLookups />
           <CardLookups />
           <CollectorCatalogs />
+          <GradingKeys />
           <EnergyStarLookups />
           <BikeIndexLookups />
           {!demo && <Certificates />}
@@ -911,6 +912,56 @@ function CatalogKey({ status, onSaved }: { status: CollectibleCatalogStatus; onS
       )}
       {save.isError && <div className="alert alert-soft alert-error">{save.error.message}</div>}
     </li>
+  );
+}
+
+/** Graded coins and cards: PCGS's and PSA's keys (PSA approves accounts for its API first). */
+function GradingKeys() {
+  const qc = useQueryClient();
+  const status = useQuery({ queryKey: ["server-graded"], queryFn: api.gradingStatus });
+  const rows = status.data?.data.filter((g) => g.available);
+  if (!rows?.length) return null;
+  const onSaved = (data: { data: GradingStatus[] }) => {
+    qc.setQueryData(["server-graded"], data);
+    void qc.invalidateQueries({ queryKey: ["me"] });
+  };
+  return (
+    <section className="card" aria-labelledby="graded-title">
+      <div className="card-body gap-3">
+        <h2 id="graded-title" className="card-title flex items-center gap-2">
+          <span className="icon-[tabler--certificate] size-5 text-primary" />
+          <Trans>Graded coins and cards</Trans>
+          <HelpLink page="hosting/server-admin.html#graded-coins-and-cards" label={t`Graded coins and cards`} />
+        </h2>
+        <p className="text-sm text-base-content/70">
+          <Trans>On a coin's or card's page, its slab's certificate number is checked with PCGS (coins) or PSA (cards): the grade, how many are graded the
+          same and higher, and PCGS's price guide value. Each needs a free key from an account there; only certificate numbers are sent.</Trans>
+        </p>
+        {rows.map((g) =>
+          g.by === "pcgs" ? (
+            <OptionalKey
+              key={g.by}
+              intro={<Trans>PCGS (coins): sign in at pcgs.com/publicapi for its API token.</Trans>}
+              hint={g.hint}
+              label={t`PCGS API token`}
+              removeQuestion={t`Remove the PCGS key? Coins' certificates won't be checked.`}
+              save={(key) => api.setGradingKey("pcgs", key)}
+              onSaved={onSaved}
+            />
+          ) : (
+            <OptionalKey
+              key={g.by}
+              intro={<Trans>PSA (cards): sign in at psacard.com/publicapi for its access token. PSA approves accounts for its API before the token works.</Trans>}
+              hint={g.hint}
+              label={t`PSA access token`}
+              removeQuestion={t`Remove the PSA key? Cards' certificates won't be checked.`}
+              save={(key) => api.setGradingKey("psa", key)}
+              onSaved={onSaved}
+            />
+          ),
+        )}
+      </div>
+    </section>
   );
 }
 

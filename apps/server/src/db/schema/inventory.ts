@@ -6,7 +6,7 @@
 import { sql } from "drizzle-orm";
 import { check, index, integer, primaryKey, real, sqliteTable, text, uniqueIndex, type AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import type { SightingHow, SightingKind } from "@ferret/shared/utils";
-import type { CardInfo, ItemCard, ItemCollectible, ItemSupport, VideoHit, VehicleInfo, AiFill, AiFillSwitches, AnalysisStatus, AttachmentAnalysis, CategoryField, CustomFieldValues, HaSnapshot, ItemLink, ItemOrigin, ProductInfo, ReviewOutcome, RoomScanCandidate, RoomScanStatus } from "@ferret/shared";
+import type { CardInfo, ItemCard, ItemCollectible, ItemGraded, ItemSupport, VideoHit, VehicleInfo, AiFill, AiFillSwitches, AnalysisStatus, AttachmentAnalysis, CategoryField, CustomFieldValues, HaSnapshot, ItemLink, ItemOrigin, ProductInfo, ReviewOutcome, RoomScanCandidate, RoomScanStatus } from "@ferret/shared";
 import { invitation, organization, session, user } from "./auth";
 
 const id = () =>
@@ -217,6 +217,8 @@ export const item = sqliteTable(
     card: text("card", { mode: "json" }).$type<ItemCard>(),
     /** A LEGO set, coin or comic: which one in its collector catalog, and a coin's issue and grade (lib/collectibles.ts). */
     collectible: text("collectible", { mode: "json" }).$type<ItemCollectible>(),
+    /** A graded coin or card: the grading service and the certificate number on its slab (lib/graded.ts). */
+    graded: text("graded", { mode: "json" }).$type<ItemGraded>(),
     /** A device whose software support is tracked (endoflife.date, confirmed by a person — lib/support.ts). */
     support: text("support", { mode: "json" }).$type<ItemSupport>(),
     /** The suggested device someone said this isn't ("pixel/6pro"), so it isn't offered again. */

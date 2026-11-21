@@ -38,6 +38,7 @@ import { barcodes } from "./routes/barcodes";
 import { cards } from "./routes/cards";
 import { collectibles } from "./routes/collectibles";
 import { energy } from "./routes/energy";
+import { graded } from "./routes/graded";
 import { support } from "./routes/support";
 import { downloads } from "./routes/downloads";
 import { calendar, calendarSettings } from "./routes/calendar";
@@ -437,6 +438,7 @@ export function createApp(deps: Deps, config: Config, opts: AppOptions = {}) {
   app.route("/api/v1", cards);
   app.route("/api/v1", collectibles);
   app.route("/api/v1", energy);
+  app.route("/api/v1", graded);
   app.route("/api/v1", support);
   app.route("/api/v1", downloads);
   app.route("/api/v1", stock);

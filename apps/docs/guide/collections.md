@@ -36,3 +36,12 @@ Removing a collection keeps the things you own (just not in a collection any mor
 [Recently deleted](./recently-deleted).
 
 Claude can see your collections too: *"which Morgan dollars am I still missing?"*, *"add the 1884-O to my Morgans."*
+
+## Graded coins and cards
+
+A coin or card in a grading company's slab has a **certificate number** on its label. When whoever runs your Ferret has
+added the [keys](../hosting/server-admin#graded-coins-and-cards), a coin's or trading card's page offers **Add its
+certificate**: type the number, check it's the right one, and save. Its page then shows the grade and how many have
+been graded the same and higher (a low population is what makes one rare), with a link to its certificate. For a coin
+graded by PCGS it also shows PCGS's **price guide** value, with **Use it as its value**.
+

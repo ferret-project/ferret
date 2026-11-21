@@ -225,6 +225,15 @@ export const itemCollectible = z.object({
 });
 export type ItemCollectible = z.infer<typeof itemCollectible>;
 
+// ── Graded coins and cards (PCGS, PSA): by the certificate number on the slab ──
+export const gradingServices = ["pcgs", "psa"] as const;
+export type GradingService = (typeof gradingServices)[number];
+export const itemGraded = z.object({
+  by: z.enum(gradingServices),
+  cert: z.string().trim().regex(/^[0-9A-Za-z-]{4,30}$/),
+});
+export type ItemGraded = z.infer<typeof itemGraded>;
+
 const itemFields = z.object({
   name: z.string().trim().min(1).max(200).describe('What it is, the way people would look for it: "Cordless drill"'),
   description: optionalText(5000).describe("A longer description: colour, size, what it's for"),
@@ -276,6 +285,7 @@ const itemFields = z.object({
   lifespanYears: z.number().int().min(1).max(100).optional().nullable().describe("How many years this one should last, if not its category's or the typical lifespan — for the replacement forecast"),
   replacedById: z.string().min(1).optional().nullable().describe("What replaced it, once it's gone: the new item's id — both pages link the other"),
   card: itemCard.optional().nullable().describe("A trading card: which one in its game's catalog (Pokémon: TCGdex id like sv01-025; Magic: Scryfall id) and the finish owned"),
+  graded: itemGraded.optional().nullable().describe("A graded coin or card: who graded it (pcgs or psa) and the certificate number on its slab"),
   collectible: itemCollectible
     .optional()
     .nullable()
@@ -854,6 +864,8 @@ export interface Item extends Omit<ItemInput, "origin"> {
   card?: ItemCard | null;
   /** A LEGO set, coin or comic: which one in its collector catalog (lib/collectibles.ts). */
   collectible?: ItemCollectible | null;
+  /** A graded coin or card: who graded it and its certificate (lib/graded.ts). */
+  graded?: ItemGraded | null;
   /** A device whose software support is tracked (lib/support.ts). */
   support?: ItemSupport | null;
 }
@@ -2507,7 +2519,7 @@ export interface CollectibleCatalogStatus {
   kept: number;
 }
 
-export const collectibleKeyInput = z.object({ key: z.string().trim().min(8).max(200).nullable() });
+export const collectibleKeyInput = z.object({ key: z.string().trim().min(8).max(2000).nullable() });
 
 /** A coin or record thing next to its price today (Update values). */
 export interface CollectibleValue {
@@ -2581,6 +2593,39 @@ export interface BikeIndexStatus {
   enabled: boolean;
   /** Serial numbers checked and kept. */
   checked: number;
+}
+
+/** What a grading service says about a certificate. */
+export interface GradedInfo {
+  by: GradingService;
+  cert: string;
+  /** "1916 STANDING 25C Type 1, FH", "2016 Pokemon XY Evolutions Charizard Holo". */
+  name: string;
+  year?: number | null;
+  /** "MS65FH", "GEM MT 10". */
+  grade: string;
+  /** How many the service has graded the same, and higher. */
+  population?: number | null;
+  popHigher?: number | null;
+  /** PCGS's price guide for this coin in this grade, in US cents. */
+  priceCents?: number | null;
+  image?: string | null;
+  url?: string | null;
+}
+
+/** A graded thing's card: its certificate, what the service says, and the price in the household's currency. */
+export interface ItemGradedInfo {
+  graded: ItemGraded | null;
+  info: GradedInfo | null;
+  /** The price guide's value in the household's currency (converted from dollars with the day's rates). */
+  price?: { cents: number; currency: string; original?: { cents: number; currency: string } } | null;
+}
+
+/** Grading services for Settings → Server: which have a key. */
+export interface GradingStatus {
+  by: GradingService;
+  available: boolean;
+  hint: string | null;
 }
 
 /** Music look-ups (MusicBrainz, for "Scan music") for Settings → Server. */

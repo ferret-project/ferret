@@ -86,6 +86,16 @@ need no key and have no allowance. It's off until you switch it on, because what
 and set) is sent to them. Prices are kept a day for the whole server. Reading a photo of a card uses your vision model
 (`VISION_URL`) and counts as an AI action. Without a vision model, people type the cards instead.
 
+## Graded coins and cards
+
+**Settings → Server → Graded coins and cards** lets people check a slab's certificate number on a coin's or trading
+card's page ([what people see](../guide/collections#graded-coins-and-cards)): with [PCGS](https://www.pcgs.com) for
+coins (the grade, how many PCGS has graded the same and higher, and its price guide value, offered as the thing's
+value) and with [PSA](https://www.psacard.com) for cards (the grade and population; PSA gives no prices). Each needs a
+free key: PCGS's API token from [pcgs.com/publicapi](https://www.pcgs.com/publicapi), PSA's access token from
+[psacard.com/publicapi](https://www.psacard.com/publicapi). PSA approves accounts for its API before the token works.
+Only certificate numbers are sent; each answer is kept for the whole server a week.
+
 ## Bike Index look-ups
 
 **Settings → Server → Bike Index look-ups** shows, on a bike's page, whether a bike with its serial number is

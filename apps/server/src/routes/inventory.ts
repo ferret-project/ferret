@@ -6,6 +6,7 @@
 import { musicLookupsOn } from "../lib/products";
 import { cardGamesOn, cardReadsAvailable } from "../lib/cards";
 import { collectiblesOn } from "../lib/collectibles";
+import { gradingOn } from "../lib/graded";
 import { householdSummary } from "../lib/summary";
 import { addItemVideo, canSearchVideos, itemVideosOf, removeItemVideo } from "../lib/videos";
 import { PHOTO_ORDER } from "../lib/photo-order";
@@ -82,6 +83,8 @@ inventory.get("/me", requireUser, async (c) =>
       cardPhotos: cardReadsAvailable(c.var.deps),
       // LEGO sets, coins and comics: the collector catalogs whose key the server admin saved (photos read like cards').
       collectibles: await collectiblesOn(c.var.deps),
+      // Graded coins and cards: the grading services with a key (PCGS, PSA).
+      graded: await gradingOn(c.var.deps),
       // Photos read by the vision model (an unread one offers "Analyze").
       photoAi: Boolean(c.var.deps.ai && c.var.deps.images && c.var.deps.jobs),
     },

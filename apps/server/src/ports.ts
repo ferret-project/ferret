@@ -21,7 +21,7 @@
  *   Speech    → a Whisper-style transcription server (OpenAI-compatible /v1/audio/transcriptions)
  */
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
-import type { StolenBikeReport, EnergyStarMatch, CardGame, CardInfo, CoinIssuer, CollectibleInfo, CollectibleKind, CollectiblePrice, ExchangeRates, PlanLimits } from "@ferret/shared";
+import type { GradedInfo, GradingService, StolenBikeReport, EnergyStarMatch, CardGame, CardInfo, CoinIssuer, CollectibleInfo, CollectibleKind, CollectiblePrice, ExchangeRates, PlanLimits } from "@ferret/shared";
 import type { SupportRelease } from "./db/schema/inventory";
 import type * as schema from "./db/schema";
 import type { Catalogs } from "./lib/language";
@@ -288,6 +288,13 @@ export interface ElectricityPrices {
   /** Null without the server admin's key. */
   residential(): Promise<{ year: number; centsPerKwh: Record<string, number> } | null>;
   check(key: string): Promise<boolean>;
+}
+
+/** A grading service (PCGS for coins, PSA for cards): a graded thing by its certificate number. Throws CatalogKeyError / CatalogLimitError like the catalogs. */
+export interface Grading {
+  check(key: string): Promise<boolean>;
+  /** Null when there's no such certificate. */
+  byCert(key: string, cert: string): Promise<GradedInfo | null>;
 }
 
 /** Bike Index: bikes reported stolen, by serial number. */
@@ -680,6 +687,8 @@ export interface Deps {
   support?: SupportLifecycles;
   /** Trading card catalogs (Pokémon: TCGdex; Magic: Scryfall), for "Scan cards" (switched on in Settings → Server). */
   cards?: Partial<Record<CardGame, CardCatalog>>;
+  /** Grading services (PCGS, PSA): graded coins and cards by certificate, once the server admin saves a key. */
+  grading?: Partial<Record<GradingService, Grading>>;
   /** Bike Index: whether a bike's serial is reported stolen, once the server admin switches it on. */
   stolenBikes?: StolenBikes;
   /** The US EIA's electricity prices, to put ENERGY STAR's kWh in money (with the server admin's key). */

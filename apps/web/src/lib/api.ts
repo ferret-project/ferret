@@ -141,7 +141,7 @@ import type { TaskVideo, VideoHit,
   ImportTriageInput,
   ImportTriageRow,
   MergeInput,
-  SuggestedTask, OAuthConnectInput, OAuthConnectRequest, OAuthGrantSummary, VehicleLookupStatus, RepairGuideStatus, AskSettings, PromptKind, PromptSetting, BookLookupStatus, MusicLookupStatus, ScanCandidate, SearchIndexStatus, CardGame, CardInfo, CardLookupStatus, CardPrice, CardReadStatus, CardValue, ItemCard, CoinIssuer, CollectibleCatalogStatus, CollectibleInfo, CollectibleKind, CollectiblePrice, CollectibleReadStatus, CollectibleValue, ItemCollectible, OpenFactsStatus, ItemSupportStatus, SupportLookupStatus, ExchangeRates, ExchangeRateStatus, EnergyStarStatus, ItemEnergy, BikeIndexStatus, ItemBikeIndex } from "@ferret/shared";
+  SuggestedTask, OAuthConnectInput, OAuthConnectRequest, OAuthGrantSummary, VehicleLookupStatus, RepairGuideStatus, AskSettings, PromptKind, PromptSetting, BookLookupStatus, MusicLookupStatus, ScanCandidate, SearchIndexStatus, CardGame, CardInfo, CardLookupStatus, CardPrice, CardReadStatus, CardValue, ItemCard, CoinIssuer, CollectibleCatalogStatus, CollectibleInfo, CollectibleKind, CollectiblePrice, CollectibleReadStatus, CollectibleValue, ItemCollectible, OpenFactsStatus, ItemSupportStatus, SupportLookupStatus, ExchangeRates, ExchangeRateStatus, EnergyStarStatus, ItemEnergy, BikeIndexStatus, ItemBikeIndex, GradedInfo, GradingService, GradingStatus, ItemGradedInfo } from "@ferret/shared";
 import { photoCopies } from "./photo-copies";
 import { t, ph } from "@lingui/core/macro";
 
@@ -333,7 +333,7 @@ export const api = {
   /** Whether you're the server admin (who sees Settings → Server). */
   /** The language Ferret writes to you in (emails, push) — saved with the account. */
   setMyLanguage: (language: string | null) => request<{ language: string | null }>("/me/language", { method: "PUT", body: JSON.stringify({ language }) }),
-  me: () => request<{ serverAdmin: boolean; language: string | null; features: { fromWeb: boolean; homeAssistant: boolean; roomScan: boolean; textAi: boolean; speech: boolean; photoAi?: boolean; paperless?: boolean; videoSearch?: boolean; music?: boolean; cards?: CardGame[]; cardPhotos?: boolean; collectibles?: CollectibleKind[] } }>("/me"),
+  me: () => request<{ serverAdmin: boolean; language: string | null; features: { fromWeb: boolean; homeAssistant: boolean; roomScan: boolean; textAi: boolean; speech: boolean; photoAi?: boolean; paperless?: boolean; videoSearch?: boolean; music?: boolean; cards?: CardGame[]; cardPhotos?: boolean; collectibles?: CollectibleKind[]; graded?: GradingService[] } }>("/me"),
   backupStatus: () => request<BackupStatus>("/backup"),
   serverSecrets: () => request<ServerSecrets>("/server/secrets"),
   serverAddress: () => request<ServerAddress>("/server/address"),
@@ -380,6 +380,10 @@ export const api = {
   itemCollectible: (itemId: string) =>
     request<{ collectible: ItemCollectible | null; info: CollectibleInfo | null; prices: CollectiblePrice[]; price: CollectiblePrice | null }>(`/items/${itemId}/collectible`),
   useCollectibleImage: (itemId: string) => request<Attachment>(`/items/${itemId}/collectible/photo`, { method: "POST" }),
+  gradedCert: (by: GradingService, cert: string) => request<GradedInfo>(`/graded/${by}/${encodeURIComponent(cert)}`),
+  itemGraded: (itemId: string) => request<ItemGradedInfo>(`/items/${itemId}/graded`),
+  gradingStatus: () => request<{ data: GradingStatus[] }>("/server/graded"),
+  setGradingKey: (by: GradingService, key: string | null) => request<{ data: GradingStatus[] }>(`/server/graded/${by}`, { method: "PUT", body: JSON.stringify({ key }) }),
   itemBikeIndex: (itemId: string) => request<ItemBikeIndex>(`/items/${itemId}/bike-index`),
   bikeIndexStatus: () => request<BikeIndexStatus>("/server/bike-index"),
   setBikeIndex: (enabled: boolean) => request<BikeIndexStatus>("/server/bike-index", { method: "PUT", body: JSON.stringify({ enabled }) }),

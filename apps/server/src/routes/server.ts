@@ -24,6 +24,8 @@ import { cardLookupStatus, setCardsEnabled } from "../lib/cards";
 import { catalogStatus, saveCatalogKey } from "../lib/collectibles";
 import { energyStatus, setElectricityKey, setEnergyEnabled } from "../lib/energy";
 import { bikeIndexStatus, setBikeIndexEnabled } from "../lib/bikes";
+import { gradingStatus, saveGradingKey } from "../lib/graded";
+import { gradingServices } from "@ferret/shared";
 import { collectibleKeyInput, collectibleKinds } from "@ferret/shared";
 import { SUPPORT_REFRESH_JOB, setSupportEnabled, supportStatus } from "../lib/support";
 import { EXCHANGE_RATES_JOB, exchangeRateStatus, setExchangeRatesEnabled } from "../lib/exchange";
@@ -207,6 +209,17 @@ server.put("/collectibles/:kind", async (c) => {
   if (!kind.success) throw new HTTPException(404, { message: "No such catalog" });
   const { key } = await body(c.req.raw, collectibleKeyInput);
   return c.json({ data: await saveCatalogKey(c.var.deps, c.var.config.FILES_KEY, kind.data, key) });
+});
+
+/** Grading services (PCGS, PSA): which have a key. Keys are never sent back. */
+server.get("/graded", async (c) => c.json({ data: await gradingStatus(c.var.deps) }));
+
+/** Save a grading service's key (checked first), or `{ key: null }` to remove it. */
+server.put("/graded/:by", async (c) => {
+  const by = z.enum(gradingServices).safeParse(c.req.param("by"));
+  if (!by.success) throw new HTTPException(404, { message: "No such service" });
+  const { key } = await body(c.req.raw, collectibleKeyInput);
+  return c.json({ data: await saveGradingKey(c.var.deps, c.var.config.FILES_KEY, by.data, key) });
 });
 
 /** Bike Index look-ups: whether they're on, and how many serials are kept. */

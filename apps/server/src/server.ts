@@ -47,6 +47,8 @@ import { GoogleBooks } from "./adapters/local/googlebooks";
 import { OpenFdaRecalls } from "./adapters/local/openfda";
 import { EnergyStarProducts } from "./adapters/local/energystar";
 import { BikeIndexRegistry } from "./adapters/local/bikeindex";
+import { PcgsGrading } from "./adapters/local/pcgs";
+import { PsaGrading } from "./adapters/local/psa";
 import { EiaElectricity } from "./adapters/local/eia";
 import { EIA_KEY } from "./lib/energy";
 import { serverKey } from "./lib/server-keys";
@@ -192,6 +194,7 @@ const deps = {
   // ENERGY STAR's kWh in money, once the server admin saves an EIA key; it fetches the key sealed in the database.
   electricity: watched(db, "electricity prices (EIA)", new EiaElectricity(() => serverKey(db, config.FILES_KEY, EIA_KEY))),
   stolenBikes: watched(db, "Bike Index", new BikeIndexRegistry()),
+  grading: { pcgs: watched(db, "graded coins (PCGS)", new PcgsGrading()), psa: watched(db, "graded cards (PSA)", new PsaGrading()) },
   googleBooks: watched(db, "books (Google)", new GoogleBooks(() => serverKey(db, config.FILES_KEY, GOOGLE_BOOKS_KEY))),
   music: watched(db, "music", new MusicBrainzReleases()),
   openFacts: watched(db, "Open Food Facts", new OpenFactsProducts()),
@@ -276,6 +279,7 @@ serve(
   console.log("   Exchange rates: the European Central Bank's, for prices in other currencies, if the server admin switches them on (Settings → Server)");
   console.log("   Device support: endoflife.date's dates for when phones, tablets and the like stop getting updates, if the server admin switches it on (Settings → Server)");
   console.log("   Collectors:     Rebrickable (LEGO), Numista (coins), Comic Vine (comics), TMDB (films, TV), IGDB (games) and Discogs (records), once the server admin saves their free keys (Settings → Server)");
+  console.log("   Graded:         PCGS (coins) and PSA (cards) certificates, once the server admin saves their keys (Settings → Server)");
   console.log("   Bike Index:     whether a bike's serial is reported stolen, if the server admin switches it on (Settings → Server)");
   console.log("   ENERGY STAR:    appliances' certified energy use, if the server admin switches it on (Settings → Server)");
   console.log("   Trading cards:  TCGdex (Pokémon) and Scryfall (Magic) for Scan cards, if the server admin switches them on (Settings → Server)");
