@@ -56,6 +56,7 @@ const Walkthrough = lazyRouteComponent(() => import("./Walkthrough"), "Walkthrou
 const RoomScanScreen = lazyRouteComponent(() => import("./RoomScan"), "RoomScanScreen");
 const MusicScanScreen = lazyRouteComponent(() => import("./MusicScan"), "MusicScanScreen");
 const CardScanScreen = lazyRouteComponent(() => import("./CardScan"), "CardScanScreen");
+const CollectibleScanScreen = lazyRouteComponent(() => import("./CollectibleScan"), "CollectibleScanScreen");
 const CollectionsScreen = lazyRouteComponent(() => import("./Collections"), "CollectionsScreen");
 const CollectionScreen = lazyRouteComponent(() => import("./Collections"), "CollectionScreen");
 
@@ -348,6 +349,26 @@ const cardScanRoute = createRoute({
     return <CardScanScreen householdId={useHousehold().householdId} locationId={search.in ?? null} categoryId={search.category ?? null} tag={search.tag ?? null} collectionId={search.collection ?? null} />;
   },
 });
+const collectRoute = createRoute({
+  getParentRoute: () => screensRoute,
+  path: "collect/$kind",
+  staticData: { name: "collector" },
+  validateSearch: (search: Record<string, unknown>): { in?: string; category?: string; tag?: string; collection?: string } => ({
+    ...(typeof search.in === "string" && { in: search.in }),
+    ...(typeof search.category === "string" && { category: search.category }),
+    ...(typeof search.tag === "string" && { tag: search.tag }),
+    ...(typeof search.collection === "string" && { collection: search.collection }),
+  }),
+  loader: ({ params }) => {
+    if (!["lego", "coin", "comic"].includes(params.kind)) throw notFound();
+    return CollectibleScanScreen.preload?.();
+  },
+  component: function CollectRoute() {
+    const search = collectRoute.useSearch();
+    const { kind } = collectRoute.useParams();
+    return <CollectibleScanScreen householdId={useHousehold().householdId} kind={kind as "lego" | "coin" | "comic"} locationId={search.in ?? null} categoryId={search.category ?? null} tag={search.tag ?? null} collectionId={search.collection ?? null} />;
+  },
+});
 const collectionsRoute = createRoute({
   getParentRoute: () => screensRoute,
   path: "collections",
@@ -422,6 +443,7 @@ const routeTree = rootRoute.addChildren([
     roomScanRoute,
     musicScanRoute,
     cardScanRoute,
+    collectRoute,
     collectionsRoute,
     collectionRoute,
     walkthroughRoomRoute,

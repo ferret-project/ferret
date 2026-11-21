@@ -5,6 +5,7 @@
  */
 import { musicLookupsOn } from "../lib/products";
 import { cardGamesOn, cardReadsAvailable } from "../lib/cards";
+import { collectiblesOn } from "../lib/collectibles";
 import { householdSummary } from "../lib/summary";
 import { addItemVideo, canSearchVideos, itemVideosOf, removeItemVideo } from "../lib/videos";
 import { PHOTO_ORDER } from "../lib/photo-order";
@@ -79,6 +80,8 @@ inventory.get("/me", requireUser, async (c) =>
       // "Scan cards": the games whose cards can be looked up, and whether a photo can be read (else they're typed).
       cards: await cardGamesOn(c.var.deps),
       cardPhotos: cardReadsAvailable(c.var.deps),
+      // LEGO sets, coins and comics: the collector catalogs whose key the server admin saved (photos read like cards').
+      collectibles: await collectiblesOn(c.var.deps),
       // Photos read by the vision model (an unread one offers "Analyze").
       photoAi: Boolean(c.var.deps.ai && c.var.deps.images && c.var.deps.jobs),
     },

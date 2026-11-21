@@ -186,9 +186,9 @@ export const itemDispositions = ["sold", "given", "donated", "discarded", "lost"
 export type ItemDisposition = (typeof itemDispositions)[number];
 
 /** Where a thing came from. The first five are the app's own ways to add one (it says which); the rest are set by the server. */
-export const itemOrigins = ["app", "photos", "walkthrough", "roomscan", "scan", "cards", "label", "receipt", "words", "spreadsheet", "homeassistant", "paperless", "claude", "api"] as const;
+export const itemOrigins = ["app", "photos", "walkthrough", "roomscan", "scan", "cards", "collector", "label", "receipt", "words", "spreadsheet", "homeassistant", "paperless", "claude", "api"] as const;
 export type ItemOrigin = (typeof itemOrigins)[number];
-export const appOrigins = ["app", "photos", "walkthrough", "scan", "cards", "label", "receipt", "words"] as const;
+export const appOrigins = ["app", "photos", "walkthrough", "scan", "cards", "collector", "label", "receipt", "words"] as const;
 
 // ── Trading cards (Pokémon: TCGdex; Magic: Scryfall) ──────────────────────
 export const cardGames = ["pokemon", "magic"] as const;
@@ -200,6 +200,21 @@ export const itemCard = z.object({
   finish: z.string().trim().max(40).optional().nullable(),
 });
 export type ItemCard = z.infer<typeof itemCard>;
+
+// ── Collector catalogs (LEGO: Rebrickable; coins: Numista; comics: Comic Vine) ──
+export const collectibleKinds = ["lego", "coin", "comic"] as const;
+export type CollectibleKind = (typeof collectibleKinds)[number];
+/** Numista's grades, worst to best: good, very good, fine, very fine, extremely fine, about uncirculated, uncirculated. */
+export const coinGrades = ["g", "vg", "f", "vf", "xf", "au", "unc"] as const;
+export type CoinGrade = (typeof coinGrades)[number];
+/** Which LEGO set, coin or comic a thing is (its id in the catalog) — for a coin also the issue (year and mint) and grade, which its price is looked up by. */
+export const itemCollectible = z.object({
+  kind: z.enum(collectibleKinds),
+  id: z.string().trim().min(1).max(80),
+  issue: z.string().trim().max(40).optional().nullable(),
+  grade: z.enum(coinGrades).optional().nullable(),
+});
+export type ItemCollectible = z.infer<typeof itemCollectible>;
 
 const itemFields = z.object({
   name: z.string().trim().min(1).max(200).describe('What it is, the way people would look for it: "Cordless drill"'),
@@ -252,6 +267,10 @@ const itemFields = z.object({
   lifespanYears: z.number().int().min(1).max(100).optional().nullable().describe("How many years this one should last, if not its category's or the typical lifespan — for the replacement forecast"),
   replacedById: z.string().min(1).optional().nullable().describe("What replaced it, once it's gone: the new item's id — both pages link the other"),
   card: itemCard.optional().nullable().describe("A trading card: which one in its game's catalog (Pokémon: TCGdex id like sv01-025; Magic: Scryfall id) and the finish owned"),
+  collectible: itemCollectible
+    .optional()
+    .nullable()
+    .describe("A LEGO set (Rebrickable set number like 75192-1), coin (Numista type id, with its issue id and grade) or comic (Comic Vine issue id) — which one in its collector catalog"),
 });
 export const itemInput = itemFields.extend({
   origin: z.enum(appOrigins).optional().describe("Which of the app's ways added it; ignored for Claude and API keys (recorded by the server)"),
@@ -824,6 +843,8 @@ export interface Item extends Omit<ItemInput, "origin"> {
   vehicle?: VehicleInfo | null;
   /** A trading card: which one, and the finish owned (lib/cards.ts). */
   card?: ItemCard | null;
+  /** A LEGO set, coin or comic: which one in its collector catalog (lib/collectibles.ts). */
+  collectible?: ItemCollectible | null;
   /** A device whose software support is tracked (lib/support.ts). */
   support?: ItemSupport | null;
 }
@@ -2336,6 +2357,121 @@ export interface SupportLookupStatus {
   /** Device models known, and things tracked across the server. */
   devices: number;
   tracked: number;
+}
+
+/** One of a coin's issues: a year (and mint, or a special issue). */
+export interface CoinIssue {
+  id: string;
+  year?: number | null;
+  /** As Numista writes it: "1965", "1965 D", "1976 S (Proof)". */
+  label: string;
+  mintage?: number | null;
+}
+
+/** A LEGO set, coin or comic from its collector catalog. Only the fields of its kind are there. */
+export interface CollectibleInfo {
+  kind: CollectibleKind;
+  id: string;
+  name: string;
+  year?: number | null;
+  /** A coin minted over several years: the last. */
+  yearTo?: number | null;
+  /** Small for lists, large to keep as a photo; a coin's back. */
+  image?: string | null;
+  imageLarge?: string | null;
+  imageBack?: string | null;
+  /** Who a picture is by, when the catalog says (Numista's photographers). */
+  pictureBy?: string | null;
+  /** Its page on the catalog's site. */
+  url?: string | null;
+  // LEGO
+  setNumber?: string | null;
+  theme?: string | null;
+  pieces?: number | null;
+  // Coins
+  issuer?: string | null;
+  denomination?: string | null;
+  composition?: string | null;
+  diameterMm?: number | null;
+  /** "Standard circulation coins", "Circulating commemorative coins"… */
+  coinType?: string | null;
+  /** Only when asked for one coin. */
+  issues?: CoinIssue[];
+  // Comics
+  series?: string | null;
+  issueNumber?: string | null;
+  publisher?: string | null;
+  coverDate?: string | null;
+  /** The issue's own title ("Venom"). */
+  title?: string | null;
+}
+
+/** A coin's price in one grade, in the currency asked for. */
+export interface CollectiblePrice {
+  grade: CoinGrade;
+  cents: number;
+  currency: string;
+  source: string;
+}
+
+/** A coin's issuer (a country, mostly), to search coins by. */
+export interface CoinIssuer {
+  code: string;
+  name: string;
+  /** For a part of one ("United States" for its states' quarters). */
+  parent?: string | null;
+}
+
+export const collectibleSearch = z.object({
+  kind: z.enum(collectibleKinds),
+  /** Words to look for; may be empty for coins when an issuer is given. */
+  q: z.string().trim().max(200).default(""),
+  /** Coins: the issuer's code (from /collectibles/issuers). */
+  issuer: z.string().trim().max(80).optional(),
+  /** Coins: minted in this year. */
+  year: z.coerce.number().int().min(-1000).max(3000).optional(),
+});
+export type CollectibleSearch = z.infer<typeof collectibleSearch>;
+
+/** What the vision model read off a photo of a LEGO box, coin or comic — the words to search by. */
+export interface CollectibleRead {
+  kind: CollectibleKind;
+  /** "75192", "Washington quarter", "Amazing Spider-Man 300". */
+  query: string | null;
+  issuer?: string | null;
+  year?: number | null;
+}
+
+/** A photo being read (a job the browser polls), and the catalog's matches. */
+export interface CollectibleReadStatus {
+  id: string;
+  status: "pending" | "done" | "failed";
+  read?: CollectibleRead | null;
+  candidates?: CollectibleInfo[];
+  error?: string | null;
+}
+
+/** Collector catalogs for Settings → Server: which have a key (the last four characters shown), and how much is kept. */
+export interface CollectibleCatalogStatus {
+  kind: CollectibleKind;
+  /** This server can use the catalog at all (it has the adapter). */
+  available: boolean;
+  /** A key is saved: the catalog is on. */
+  on: boolean;
+  /** "…b7e2". */
+  hint: string | null;
+  /** Sets, coins or comics kept in the server's shared book. */
+  kept: number;
+}
+
+export const collectibleKeyInput = z.object({ key: z.string().trim().min(8).max(200).nullable() });
+
+/** A coin thing next to its price today in its grade (Update values). */
+export interface CollectibleValue {
+  itemId: string;
+  name: string;
+  valueCents: number | null;
+  price: CollectiblePrice | null;
 }
 
 /** Music look-ups (MusicBrainz, for "Scan music") for Settings → Server. */

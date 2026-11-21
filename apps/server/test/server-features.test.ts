@@ -41,9 +41,9 @@ describe("a server's optional features", () => {
   it("say whether it can add from a web address or import from Home Assistant", async () => {
     const plain = await setup();
     const ann = await plain.user("ann");
-    expect((await json<{ features: object }>(ann.as("/api/v1/me"))).features).toEqual({ fromWeb: false, homeAssistant: false, roomScan: false, textAi: false, speech: false, photoAi: false, paperless: false, videoSearch: false, music: false, cards: [], cardPhotos: false });
+    expect((await json<{ features: object }>(ann.as("/api/v1/me"))).features).toEqual({ fromWeb: false, homeAssistant: false, roomScan: false, textAi: false, speech: false, photoAi: false, paperless: false, videoSearch: false, music: false, cards: [], cardPhotos: false, collectibles: [] });
     const full = await setup({ downloader: new FakeDownloader() });
     const bob = await full.user("bob");
-    expect((await json<{ features: object }>(bob.as("/api/v1/me"))).features).toEqual({ fromWeb: true, homeAssistant: false, roomScan: false, textAi: false, speech: false, photoAi: false, paperless: false, videoSearch: false, music: false, cards: [], cardPhotos: false });
+    expect((await json<{ features: object }>(bob.as("/api/v1/me"))).features).toEqual({ fromWeb: true, homeAssistant: false, roomScan: false, textAi: false, speech: false, photoAi: false, paperless: false, videoSearch: false, music: false, cards: [], cardPhotos: false, collectibles: [] });
   });
 });

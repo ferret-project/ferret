@@ -21,7 +21,7 @@
  *   Speech    → a Whisper-style transcription server (OpenAI-compatible /v1/audio/transcriptions)
  */
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
-import type { CardGame, CardInfo, ExchangeRates, PlanLimits } from "@ferret/shared";
+import type { CardGame, CardInfo, CoinIssuer, CollectibleInfo, CollectibleKind, CollectiblePrice, ExchangeRates, PlanLimits } from "@ferret/shared";
 import type { SupportRelease } from "./db/schema/inventory";
 import type * as schema from "./db/schema";
 import type { Catalogs } from "./lib/language";
@@ -174,6 +174,29 @@ export interface CardCatalog {
   find(q: { name?: string | null; number?: string | null; setTotal?: string | null; setCode?: string | null }): Promise<CardInfo[]>;
   /** One card by its catalog id, with today's prices. Null when the catalog has no such card. */
   get(id: string): Promise<CardInfo | null>;
+}
+
+/** The catalog refused the server admin's key (they're told to check it in Settings → Server). */
+export class CatalogKeyError extends Error {}
+/** The catalog's allowance is used up for now (Numista's is monthly, Comic Vine's hourly). */
+export class CatalogLimitError extends Error {}
+
+/**
+ * A collector catalog (Rebrickable for LEGO, Numista for coins, Comic Vine for comics). Each needs a free key the
+ * server admin pastes in Settings → Server; it comes with every call, since it's kept sealed in the database.
+ * Throws CatalogKeyError when the key is refused and CatalogLimitError when the allowance is used up.
+ */
+export interface CollectibleCatalog {
+  /** Whether the catalog takes this key (before it's saved). */
+  check(key: string): Promise<boolean>;
+  /** Sets, coins or comics matching typed or read words, best first (at most a couple of dozen). */
+  find(key: string, q: { text: string; issuer?: string | null; year?: number | null }): Promise<CollectibleInfo[]>;
+  /** One by its catalog id (a coin with its issues). Null when there's no such one. */
+  get(key: string, id: string): Promise<CollectibleInfo | null>;
+  /** Coins: one issue's prices by grade, in this currency. */
+  prices?(key: string, id: string, issue: string, currency: string): Promise<CollectiblePrice[]>;
+  /** Coins: the issuers (countries and the like) coins are searched by. */
+  issuers?(key: string): Promise<CoinIssuer[]>;
 }
 
 export interface Jobs {
@@ -614,6 +637,8 @@ export interface Deps {
   support?: SupportLifecycles;
   /** Trading card catalogs (Pokémon: TCGdex; Magic: Scryfall), for "Scan cards" (switched on in Settings → Server). */
   cards?: Partial<Record<CardGame, CardCatalog>>;
+  /** Collector catalogs (LEGO: Rebrickable; coins: Numista; comics: Comic Vine) — each on once the server admin saves its key. */
+  collectibles?: Partial<Record<CollectibleKind, CollectibleCatalog>>;
   /** Open Food Facts, Open Products Facts, Open Beauty Facts: asked when the product database doesn't know a code (switched on in Settings → Server). */
   openFacts?: ProductLookup;
   /** MusicBrainz: CDs and records by barcode, asked when someone scans as music (switched on in Settings → Server). */

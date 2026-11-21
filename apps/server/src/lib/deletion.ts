@@ -16,6 +16,7 @@ import type { AppEnv } from "./context";
 import type { FileStore } from "./files";
 import { roomPhotoKeys } from "./room-scans";
 import { cardPhotoKeys } from "./cards";
+import { collectiblePhotoKeys } from "./collectibles";
 import { isServerAdmin } from "./server-admin";
 import { inList } from "./sql";
 
@@ -41,6 +42,7 @@ export async function deleteHouseholds(p: { deps: Pick<Deps, "db" | "vectors">; 
   const { db, vectors } = p.deps;
   for (const photo of await roomPhotoKeys(db, ids)) await p.files.delete(photo.key).catch(() => {}); // room scans' photos
   for (const key of await cardPhotoKeys(db, { householdIds: ids })) await p.files.delete(key).catch(() => {}); // cards being read
+  for (const key of await collectiblePhotoKeys(db, { householdIds: ids })) await p.files.delete(key).catch(() => {}); // sets, coins, comics being read
   const stored = await db.select({ blobKey: attachment.blobKey, thumbnailKey: attachment.thumbnailKey }).from(attachment).where(inList(attachment.householdId, ids));
   for (const f of stored) {
     await p.files.delete(f.blobKey).catch(() => {}); // an original already removed to free space

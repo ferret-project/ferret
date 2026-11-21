@@ -26,6 +26,7 @@ import { ROOM_SCAN_JOB, analyzeRoomScan } from "../lib/room-scans";
 import { SUPPORT_REFRESH_JOB, supportRefreshJob } from "../lib/support";
 import { EXCHANGE_RATES_JOB, exchangeRatesJob } from "../lib/exchange";
 import { CARD_READ_JOB, CARD_VALUES_JOB, cardReadJob, cardValuesJob } from "../lib/cards";
+import { COIN_PRICES_JOB, COLLECTIBLE_READ_JOB, coinPricesJob, collectibleReadJob } from "../lib/collectibles";
 import { BACKFILL_JOB, INDEX_JOB, backfillIndex, indexItem } from "./index-item";
 import { PDF_BACKFILL_JOB, PDF_THUMB_JOB, pdfThumbnail, pdfThumbnailBackfill } from "./pdf-thumbnail";
 import { PURGE_JOB, purgeJob } from "./purge";
@@ -112,6 +113,8 @@ export function jobSchedule({
     [ROOM_SCAN_JOB]: analyzeRoomScan({ db, files, ai: deps.ai, entitlements: deps.entitlements }),
     [CARD_READ_JOB]: cardReadJob({ ...deps, files }),
     [CARD_VALUES_JOB]: cardValuesJob(deps),
+    [COLLECTIBLE_READ_JOB]: collectibleReadJob({ ...deps, files, filesKey: config.FILES_KEY }),
+    [COIN_PRICES_JOB]: coinPricesJob({ ...deps, filesKey: config.FILES_KEY }),
     [SUPPORT_REFRESH_JOB]: supportRefreshJob(deps),
     [EXCHANGE_RATES_JOB]: exchangeRatesJob(deps),
     [DOWNLOAD_JOB]: downloadJob({ ...deps, files, maxBytes: config.MAX_UPLOAD_MB * 1024 * 1024 }),

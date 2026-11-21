@@ -126,12 +126,18 @@ export function CardDetails({ item, canEdit, hasPhoto }: { item: Item; canEdit: 
   );
 }
 
-/** A collection's "Update values": every card beside today's price; apply the changes in one go. */
-export function UpdateCardValues({ collectionId, onClose }: { collectionId: string; onClose: () => void }) {
+/**
+ * A collection's "Update values": every card (and, with Numista on, every coin with a year and grade) beside today's
+ * price; apply the changes in one go.
+ */
+export function UpdateCardValues({ collectionId, cards = true, coins = false, onClose }: { collectionId: string; cards?: boolean; coins?: boolean; onClose: () => void }) {
   const qc = useQueryClient();
   const values = useQuery({
-    queryKey: ["card-values", collectionId],
-    queryFn: () => api.cardValues(collectionId),
+    queryKey: ["card-values", collectionId, cards, coins],
+    queryFn: async () => {
+      const [c, m] = await Promise.all([cards ? api.cardValues(collectionId) : null, coins ? api.coinValues(collectionId) : null]);
+      return { data: [...(c?.data ?? []), ...(m?.data ?? [])] as { itemId: string; name: string; valueCents: number | null; price: { cents: number } | null }[], checking: (c?.checking ?? 0) + (m?.checking ?? 0) };
+    },
     // Prices older than a day are being fetched: look again until they're in.
     refetchInterval: (q) => ((q.state.data?.checking ?? 0) > 0 ? 3000 : false),
   });
@@ -161,15 +167,15 @@ export function UpdateCardValues({ collectionId, onClose }: { collectionId: stri
         {checking > 0 && (
           <p className="flex items-center gap-2 text-sm text-base-content/70">
             <span className="loading loading-spinner loading-xs" />
-            {plural(checking, { one: "Checking today's price of # card…", other: "Checking today's prices of # cards…" })}
+            {plural(checking, { one: "Checking # price…", other: "Checking # prices…" })}
           </p>
         )}
-        {values.data && !values.data.data.length && <p className="text-base-content/70"><Trans>No trading cards in this collection yet.</Trans></p>}
-        {values.data && values.data.data.length > 0 && !changes.length && !checking && <p className="text-base-content/70"><Trans>Every card's value already matches today's price.</Trans></p>}
+        {values.data && !values.data.data.length && <p className="text-base-content/70"><Trans>Nothing in this collection has a market price yet.</Trans></p>}
+        {values.data && values.data.data.length > 0 && !changes.length && !checking && <p className="text-base-content/70"><Trans>Every value already matches today's price.</Trans></p>}
         {changes.length > 0 && (
           <>
             <p className="text-sm text-base-content/80">
-              {plural(changes.length, { one: "# card's price has changed:", other: "# cards' prices have changed:" })} {money(before)} → {money(after)}
+              {plural(changes.length, { one: "# price has changed:", other: "# prices have changed:" })} {money(before)} → {money(after)}
             </p>
             <ul className="max-h-80 divide-y divide-base-content/10 overflow-y-auto">
               {changes.map((v) => (
@@ -181,7 +187,8 @@ export function UpdateCardValues({ collectionId, onClose }: { collectionId: stri
                 </li>
               ))}
             </ul>
-            <p className="text-xs text-base-content/70"><Trans>Market prices for ungraded cards (TCGplayer in dollars, Cardmarket in euros).</Trans></p>
+            {cards && <p className="text-xs text-base-content/70"><Trans>Market prices for ungraded cards (TCGplayer in dollars, Cardmarket in euros).</Trans></p>}
+            {coins && <p className="text-xs text-base-content/70"><Trans>Coins: Numista's estimates for their year, mint and grade.</Trans></p>}
           </>
         )}
         {apply.isError && <div className="alert alert-soft alert-error">{apply.error.message}</div>}

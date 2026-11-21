@@ -3,7 +3,7 @@
  * backups (status, "Back up now", the copies kept, each one's restore check, how to restore), the server check, recall checks (on or off),
  * certificates for the server's own connections, and handing the admin role to someone else. Restoring is a command on the server, not a button: see restoreCommands below.
  */
-import type { BackupRun, BackupSnapshot, BackupStatus, ServerCertificate, ServerSecrets } from "@ferret/shared";
+import type { BackupRun, BackupSnapshot, BackupStatus, CollectibleCatalogStatus, CollectibleKind, ServerCertificate, ServerSecrets } from "@ferret/shared";
 import { ServerAiFillCard } from "./AiFill";
 import { AiPrompts, PROMPT_NAMES } from "./Prompts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -52,6 +52,7 @@ export function Server() {
           <BookLookups />
           <MusicLookups />
           <CardLookups />
+          <CollectorCatalogs />
           {!demo && <Certificates />}
           {!demo && <AiPrompts />}
         </div>
@@ -727,6 +728,102 @@ function CardLookups() {
         {toggle.isError && <div className="alert alert-soft alert-error">{toggle.error.message}</div>}
       </div>
     </section>
+  );
+}
+
+// not translated (names of services)
+const CATALOGS: Record<CollectibleKind, { service: string; what: MessageDescriptor; icon: string; signup: string; keyAt: string }> = {
+  lego: { service: "Rebrickable", what: msg`LEGO sets`, icon: "icon-[tabler--lego]", signup: "https://rebrickable.com", keyAt: "https://rebrickable.com/api/" },
+  coin: { service: "Numista", what: msg`Coins`, icon: "icon-[tabler--coin]", signup: "https://en.numista.com", keyAt: "https://en.numista.com/api/" },
+  comic: { service: "Comic Vine", what: msg`Comics`, icon: "icon-[tabler--book]", signup: "https://comicvine.gamespot.com", keyAt: "https://comicvine.gamespot.com/api/" },
+};
+
+/** Collector catalogs (Rebrickable, Numista, Comic Vine): each on once its free key is saved; the key is never shown again. */
+function CollectorCatalogs() {
+  const qc = useQueryClient();
+  const status = useQuery({ queryKey: ["server-collectibles"], queryFn: api.collectibleCatalogs });
+  const rows = status.data?.data.filter((c) => c.available);
+  if (!rows?.length) return null;
+  return (
+    <section className="card" aria-labelledby="collectors-title">
+      <div className="card-body gap-3">
+        <h2 id="collectors-title" className="card-title flex items-center gap-2">
+          <span className="icon-[tabler--lego] size-5 text-primary" />
+          <Trans>Collector catalogs</Trans>
+          <HelpLink page="hosting/server-admin.html#collector-catalogs" label={t`Collector catalogs`} />
+        </h2>
+        <p className="text-sm text-base-content/70">
+          <Trans>Adds LEGO sets, coins and comics to + Add, looked up with their pictures and details — and coins' prices by grade. Each catalog needs a free key from an
+          account there: paste it here and that catalog is on. Only the words people search for are sent; reading a photo uses this server's vision model and
+          counts as an AI action.</Trans>
+        </p>
+        <ul className="divide-y divide-base-content/10">
+          {rows.map((c) => (
+            <CatalogKey key={c.kind} status={c} onSaved={(data) => {
+              qc.setQueryData(["server-collectibles"], { data });
+              void qc.invalidateQueries({ queryKey: ["me"] }); // + Add's tiles
+            }} />
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
+function CatalogKey({ status, onSaved }: { status: CollectibleCatalogStatus; onSaved: (data: CollectibleCatalogStatus[]) => void }) {
+  const c = CATALOGS[status.kind];
+  const [key, setKey] = useState("");
+  const [editing, setEditing] = useState(false);
+  const save = useMutation({
+    mutationFn: (value: string | null) => api.setCollectibleKey(status.kind, value),
+    onSuccess: (r) => {
+      setKey("");
+      setEditing(false);
+      onSaved(r.data);
+    },
+  });
+  return (
+    <li className="flex flex-col gap-2 py-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={`${c.icon} size-5 text-base-content/60`} />
+        <span className="font-medium">{t(c.what)}</span>
+        <span className="text-sm text-base-content/70">
+          <a className="link tap" href={c.signup} target="_blank" rel="noreferrer noopener">{c.service}</a>
+        </span>
+        {status.on ? (
+          <span className="badge badge-soft badge-success">{t`On`} · {status.hint}</span>
+        ) : (
+          <span className="badge badge-soft">{t`Off`}</span>
+        )}
+      </div>
+      {status.on && !editing ? (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-base-content/70">{plural(status.kept, { one: "# looked up", other: "# looked up" })}</span>
+          <button type="button" className="btn btn-text btn-sm" onClick={() => setEditing(true)}><Trans>Change key</Trans></button>
+          <button type="button" className="btn btn-text btn-sm text-error" disabled={save.isPending} onClick={() => confirm(t`Remove the ${ph({ service: c.service })} key? People won't be able to look things up there until a key is saved again.`) && save.mutate(null)}>
+            <Trans>Remove</Trans>
+          </button>
+        </div>
+      ) : (
+        <form
+          className="flex flex-wrap gap-2"
+          onSubmit={(e: FormEvent) => {
+            e.preventDefault();
+            if (key.trim()) save.mutate(key.trim());
+          }}
+        >
+          <input className="input min-w-0 flex-1 font-mono" type="password" autoComplete="off" value={key} onChange={(e) => setKey(e.target.value)} placeholder={t`Paste the API key`} aria-label={t`${ph({ service: c.service })} API key`} />
+          <button className="btn btn-soft btn-primary" disabled={save.isPending || !key.trim()}>
+            {save.isPending ? <span className="loading loading-spinner loading-sm" /> : <Trans>Check and save</Trans>}
+          </button>
+          {editing && <button type="button" className="btn btn-text" onClick={() => setEditing(false)}><Trans>Cancel</Trans></button>}
+          <p className="w-full text-xs text-base-content/70">
+            <Trans>Get one free at <a className="link" href={c.keyAt} target="_blank" rel="noreferrer noopener">{c.service}</a> after signing in.</Trans>
+          </p>
+        </form>
+      )}
+      {save.isError && <div className="alert alert-soft alert-error">{save.error.message}</div>}
+    </li>
   );
 }
 

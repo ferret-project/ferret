@@ -175,7 +175,9 @@ export function CollectionScreen({ householdId, id, show }: { householdId: strin
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
   const [valuing, setValuing] = useState(false);
-  const cardsOn = Boolean(useFeatures()?.cards?.length);
+  const features = useFeatures();
+  const cardsOn = Boolean(features?.cards?.length);
+  const coinsOn = Boolean(features?.collectibles?.includes("coin"));
   const refresh = () => Promise.all([qc.invalidateQueries({ queryKey: collectionsKey(householdId) }), qc.invalidateQueries({ queryKey: ["items", householdId] })]);
   const got = useMutation({ mutationFn: (itemId: string) => api.updateItem(itemId, { wanted: false }), onSuccess: refresh });
 
@@ -215,11 +217,13 @@ export function CollectionScreen({ householdId, id, show }: { householdId: strin
                 {canEdit && (
                   <div className="flex flex-wrap gap-2">
                     {cardsOn && (
+                      <a className="btn btn-soft btn-sm" href={scanCardsHref({ collectionId: id })}>
+                        <span className="icon-[tabler--cards] size-4" />
+                        <Trans>Scan cards</Trans>
+                      </a>
+                    )}
+                    {(cardsOn || coinsOn) && (
                       <>
-                        <a className="btn btn-soft btn-sm" href={scanCardsHref({ collectionId: id })}>
-                          <span className="icon-[tabler--cards] size-4" />
-                          <Trans>Scan cards</Trans>
-                        </a>
                         <button type="button" className="btn btn-soft btn-sm" onClick={() => setValuing(true)}>
                           <span className="icon-[tabler--refresh] size-4" />
                           <Trans>Update values</Trans>
@@ -356,7 +360,7 @@ export function CollectionScreen({ householdId, id, show }: { householdId: strin
           <Pager page={page} pages={Math.ceil(total / COLLECTION_PAGE)} total={total} onPage={setPage} size={COLLECTION_PAGE} />
         )}
       </main>
-      {valuing && <UpdateCardValues collectionId={id} onClose={() => setValuing(false)} />}
+      {valuing && <UpdateCardValues collectionId={id} cards={cardsOn} coins={coinsOn} onClose={() => setValuing(false)} />}
       {editing && c && <CollectionDialog householdId={householdId} collection={c} onClose={() => setEditing(false)} onSaved={() => (setEditing(false), void refresh())} />}
       {adding && c && <AddToCollection householdId={householdId} collection={c} wanted={show === "wanted"} onClose={() => setAdding(false)} onSaved={() => (setAdding(false), void refresh())} />}
     </div>

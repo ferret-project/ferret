@@ -141,7 +141,7 @@ import type { TaskVideo, VideoHit,
   ImportTriageInput,
   ImportTriageRow,
   MergeInput,
-  SuggestedTask, OAuthConnectInput, OAuthConnectRequest, OAuthGrantSummary, VehicleLookupStatus, RepairGuideStatus, AskSettings, PromptKind, PromptSetting, BookLookupStatus, MusicLookupStatus, ScanCandidate, SearchIndexStatus, CardGame, CardInfo, CardLookupStatus, CardPrice, CardReadStatus, CardValue, ItemCard, OpenFactsStatus, ItemSupportStatus, SupportLookupStatus, ExchangeRates, ExchangeRateStatus } from "@ferret/shared";
+  SuggestedTask, OAuthConnectInput, OAuthConnectRequest, OAuthGrantSummary, VehicleLookupStatus, RepairGuideStatus, AskSettings, PromptKind, PromptSetting, BookLookupStatus, MusicLookupStatus, ScanCandidate, SearchIndexStatus, CardGame, CardInfo, CardLookupStatus, CardPrice, CardReadStatus, CardValue, ItemCard, CoinIssuer, CollectibleCatalogStatus, CollectibleInfo, CollectibleKind, CollectiblePrice, CollectibleReadStatus, CollectibleValue, ItemCollectible, OpenFactsStatus, ItemSupportStatus, SupportLookupStatus, ExchangeRates, ExchangeRateStatus } from "@ferret/shared";
 import { photoCopies } from "./photo-copies";
 import { t, ph } from "@lingui/core/macro";
 
@@ -261,6 +261,17 @@ async function startCardRead(photo: Blob, game: CardGame | null) {
   return json as { id: string };
 }
 
+/** A photo of a LEGO box, coin or comic to read (the vision model, in a job): poll collectibleRead with the id. Multipart, so not `request`. */
+async function startCollectibleRead(photo: Blob, kind: CollectibleKind) {
+  const form = new FormData();
+  form.set("photo", photo, "photo.jpg");
+  form.set("kind", kind);
+  const res = await fetch("/api/v1/collectibles/read", { method: "POST", body: form, credentials: "include" });
+  const json = (await res.json()) as { id: string } | ApiError;
+  if (!res.ok) throw Object.assign(new Error((json as ApiError).error?.message ?? res.statusText), { status: res.status });
+  return json as { id: string };
+}
+
 /**
  * A photo cut from another — a room scan's box, or one of the item's own photos cropped (PhotoCrop.tsx): not read again
  * by the model; with `main`, the item's picture from now on (the original is kept).
@@ -322,7 +333,7 @@ export const api = {
   /** Whether you're the server admin (who sees Settings → Server). */
   /** The language Ferret writes to you in (emails, push) — saved with the account. */
   setMyLanguage: (language: string | null) => request<{ language: string | null }>("/me/language", { method: "PUT", body: JSON.stringify({ language }) }),
-  me: () => request<{ serverAdmin: boolean; language: string | null; features: { fromWeb: boolean; homeAssistant: boolean; roomScan: boolean; textAi: boolean; speech: boolean; photoAi?: boolean; paperless?: boolean; videoSearch?: boolean; music?: boolean; cards?: CardGame[]; cardPhotos?: boolean } }>("/me"),
+  me: () => request<{ serverAdmin: boolean; language: string | null; features: { fromWeb: boolean; homeAssistant: boolean; roomScan: boolean; textAi: boolean; speech: boolean; photoAi?: boolean; paperless?: boolean; videoSearch?: boolean; music?: boolean; cards?: CardGame[]; cardPhotos?: boolean; collectibles?: CollectibleKind[] } }>("/me"),
   backupStatus: () => request<BackupStatus>("/backup"),
   serverSecrets: () => request<ServerSecrets>("/server/secrets"),
   serverAddress: () => request<ServerAddress>("/server/address"),
@@ -353,6 +364,20 @@ export const api = {
   cardValues: (collectionId?: string) => request<{ data: CardValue[]; checking: number }>(`/cards/values${collectionId ? `?collectionId=${encodeURIComponent(collectionId)}` : ""}`),
   itemCard: (itemId: string) => request<{ card: ItemCard | null; info: CardInfo | null; price: CardPrice | null }>(`/items/${itemId}/card`),
   useCardImage: (itemId: string) => request<Attachment>(`/items/${itemId}/card/photo`, { method: "POST" }),
+  /** Collector catalogs (Rebrickable, Numista, Comic Vine): keys in Settings → Server; search, read a photo, a coin's prices. */
+  collectibleCatalogs: () => request<{ data: CollectibleCatalogStatus[] }>("/server/collectibles"),
+  setCollectibleKey: (kind: CollectibleKind, key: string | null) => request<{ data: CollectibleCatalogStatus[] }>(`/server/collectibles/${kind}`, { method: "PUT", body: JSON.stringify({ key }) }),
+  searchCollectibles: (q: { kind: CollectibleKind; q: string; issuer?: string | null; year?: number | null }) =>
+    request<{ data: CollectibleInfo[] }>(`/collectibles/search?${new URLSearchParams({ kind: q.kind, q: q.q, ...(q.issuer ? { issuer: q.issuer } : {}), ...(q.year != null ? { year: String(q.year) } : {}) })}`),
+  coinIssuers: (q: string) => request<{ data: CoinIssuer[] }>(`/collectibles/issuers?${new URLSearchParams({ q })}`),
+  collectible: (kind: CollectibleKind, id: string) => request<CollectibleInfo>(`/collectibles/${kind}/${encodeURIComponent(id)}`),
+  coinPrices: (id: string, issue: string) => request<{ data: CollectiblePrice[] }>(`/collectibles/coin/${encodeURIComponent(id)}/prices?${new URLSearchParams({ issue })}`),
+  startCollectibleRead,
+  collectibleRead: (id: string) => request<CollectibleReadStatus>(`/collectibles/read/${encodeURIComponent(id)}`),
+  coinValues: (collectionId?: string) => request<{ data: CollectibleValue[]; checking: number }>(`/collectibles/values${collectionId ? `?collectionId=${encodeURIComponent(collectionId)}` : ""}`),
+  itemCollectible: (itemId: string) =>
+    request<{ collectible: ItemCollectible | null; info: CollectibleInfo | null; prices: CollectiblePrice[]; price: CollectiblePrice | null }>(`/items/${itemId}/collectible`),
+  useCollectibleImage: (itemId: string) => request<Attachment>(`/items/${itemId}/collectible/photo`, { method: "POST" }),
   musicLookupStatus: () => request<MusicLookupStatus>("/server/music"),
   setMusicLookups: (enabled: boolean) => request<MusicLookupStatus>("/server/music", { method: "PUT", body: JSON.stringify({ enabled }) }),
   askSettings: () => request<AskSettings>("/server/ask"),

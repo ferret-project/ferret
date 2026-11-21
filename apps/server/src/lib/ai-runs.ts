@@ -14,6 +14,7 @@ import { householdLocale } from "./household-time";
 import { askInJob, textModelOf } from "./text-ai";
 import { requireAllowed } from "./plan";
 import { cardPhotoKeys } from "./cards";
+import { collectiblePhotoKeys } from "./collectibles";
 import type { FileStore } from "./files";
 
 
@@ -120,9 +121,9 @@ export function importTriageJob(deps: Deps): JobHandler {
   };
 }
 
-/** Old runs: gone after a day (from the daily purge), with the photo of a card whose reading never finished. */
+/** Old runs: gone after a day (from the daily purge), with the photo of a card, LEGO box, coin or comic whose reading never finished. */
 export async function purgeAiRuns(deps: Pick<Deps, "db">, files?: FileStore, now = new Date()) {
   const before = new Date(now.getTime() - KEEP_MS);
-  if (files) for (const key of await cardPhotoKeys(deps.db, { before })) await files.delete(key).catch(() => {});
+  if (files) for (const key of [...(await cardPhotoKeys(deps.db, { before })), ...(await collectiblePhotoKeys(deps.db, { before }))]) await files.delete(key).catch(() => {});
   await deps.db.delete(aiRun).where(lt(aiRun.createdAt, before));
 }

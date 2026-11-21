@@ -47,6 +47,7 @@ import {
   scanRoomHref,
   scanMusicHref,
   scanCardsHref,
+  collectHref,
 } from "./lib/route";
 import { useRoomScanOn } from "./lib/room-scan";
 import { Logo } from "./AuthLayout";
@@ -693,6 +694,12 @@ function AddSheet({ householdId, route, context, onClose }: { householdId: strin
           },
         ]
       : []),
+    ...(me.data?.features.collectibles ?? []).map((kind) => {
+      const into = { locationId: context.locationId, categoryId: context.categoryId, tag: context.tag };
+      if (kind === "lego") return { icon: "icon-[tabler--lego]", label: t`LEGO sets`, detail: t`By set number or name, or a photo of the box — from Rebrickable`, href: collectHref(kind, into) };
+      if (kind === "coin") return { icon: "icon-[tabler--coin]", label: t`Coins`, detail: t`By country, year and name, or a photo — from Numista, with prices by grade`, href: collectHref(kind, into) };
+      return { icon: "icon-[tabler--book]", label: t`Comics`, detail: t`By series and issue number, or a photo of the cover — from Comic Vine`, href: collectHref(kind, into) };
+    }),
     ...(roomScan
       ? [
           {

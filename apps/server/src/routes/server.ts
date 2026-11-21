@@ -21,6 +21,8 @@ import { DEMO_PARTS, partsOff, setPartsOff } from "../lib/demo-switches";
 import { HTTPException } from "hono/http-exception";
 import { aboutServer, clearServiceErrors, listServiceErrors } from "../lib/service-errors";
 import { cardLookupStatus, setCardsEnabled } from "../lib/cards";
+import { catalogStatus, saveCatalogKey } from "../lib/collectibles";
+import { collectibleKeyInput, collectibleKinds } from "@ferret/shared";
 import { SUPPORT_REFRESH_JOB, setSupportEnabled, supportStatus } from "../lib/support";
 import { EXCHANGE_RATES_JOB, exchangeRateStatus, setExchangeRatesEnabled } from "../lib/exchange";
 import { barcodeLookupStatus, bookLookupStatus, musicLookupStatus, openFactsStatus, setBooksEnabled, setMusicEnabled, setOpenFactsEnabled } from "../lib/products";
@@ -192,6 +194,17 @@ server.put("/cards", async (c) => {
   const { enabled } = await body(c.req.raw, z.object({ enabled: z.boolean() }));
   await setCardsEnabled(c.var.db, enabled);
   return c.json(await cardLookupStatus(c.var.deps));
+});
+
+/** Collector catalogs (Rebrickable, Numista, Comic Vine): which have a key, and how much is kept. Keys are never sent back. */
+server.get("/collectibles", async (c) => c.json({ data: await catalogStatus(c.var.deps) }));
+
+/** Save a collector catalog's free key (checked with the catalog first) — or `{ key: null }` to remove it and switch it off. */
+server.put("/collectibles/:kind", async (c) => {
+  const kind = z.enum(collectibleKinds).safeParse(c.req.param("kind"));
+  if (!kind.success) throw new HTTPException(404, { message: "No such catalog" });
+  const { key } = await body(c.req.raw, collectibleKeyInput);
+  return c.json({ data: await saveCatalogKey(c.var.deps, c.var.config.FILES_KEY, kind.data, key) });
 });
 
 /** Music look-ups (MusicBrainz, for "Scan music"): whether they're on, and how many records are kept. */

@@ -135,6 +135,38 @@ A card's page shows today's price, with **Update its value** when it has changed
 lists every card whose price has moved and updates them in one go. Prices only change when you tap that; Ferret
 never changes a value on its own.
 
+## LEGO, coins and comics
+
+**+ Add → LEGO sets**, **Coins** and **Comics** look things up in a collector catalog. Each is there when whoever runs
+your Ferret has added that catalog's [key](../hosting/server-admin#collector-catalogs). Switch between them at the top,
+then:
+
+- **Photograph one**: a LEGO box or its instructions with the set number showing, a coin, or a comic's cover. Ferret
+  reads it while you take the next one. **Choose photos** reads several you've already taken. Each photo counts as an
+  AI action.
+- **Or type it**: a set's number or name (*75192*, *Hogwarts Castle*); a comic's series and issue number (*Amazing
+  Spider-Man 300*, *Batman (2016) 50*); for a coin, pick its **country**, add the year if you know it, and type its
+  name or face value (*Washington quarter*, *2 euro*). Then tap the right one.
+
+LEGO sets come from [Rebrickable](https://rebrickable.com) with their picture, theme and piece count; coins from
+[Numista](https://en.numista.com); comics from [Comic Vine](https://comicvine.gamespot.com) with their cover, publisher
+and cover date. Each one links back to its page there (**On Rebrickable**, **On Numista**, **On Comic Vine**), where
+the catalog has more. Check the list:
+
+- **Not this one?** shows the other matches (another printing of a comic, a set with the same name).
+- For a coin, choose its **year and mint** and its **grade** (Good to Uncirculated). Numista's estimate for that year
+  and grade shows beside it, in your household's currency.
+- **+ / −** sets how many. The same set or comic again adds to its count.
+
+Choose a **collection**, category and place, then **Save**. Each becomes a thing with the catalog's details, and its
+link. If your household has the starter **LEGO set**, **Coin** or **Comic book** [template](collections), its fields
+(set number, theme, pieces; year, mint mark, country, grade; series, issue, publisher) are filled in too. A set's or
+comic's picture becomes its photo. Numista's coin pictures are its members' own photos, so they're shown but not
+copied: photograph your own coin. A coin's estimate becomes its value unless you untick it.
+
+A coin's page shows today's estimate, with **Update its value** when it has changed, and a collection's **Update
+values** updates every coin (and trading card) whose price has moved, in one go. Values only change when you tap that.
+
 ## Several of the same
 
 Bought three of something, like a TV box for each room? Usually each should be its own thing, with its own serial
