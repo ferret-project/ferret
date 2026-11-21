@@ -8,7 +8,7 @@ import { ServerAiFillCard } from "./AiFill";
 import { AiPrompts, PROMPT_NAMES } from "./Prompts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { DemoSwitches, DemoUsage, HostingUsageCard } from "./Demo";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, type ReactNode, useState } from "react";
 import { CopyField } from "./CopyField";
 import { api } from "./lib/api";
 import { SETTINGS_HREF } from "./lib/route";
@@ -595,18 +595,30 @@ function BookLookups() {
         </label>
         {s.enabled && <p className="text-sm text-base-content/70">{plural(s.books, { one: "# book found", other: "# books found" })}.</p>}
         {toggle.isError && <div className="alert alert-soft alert-error">{toggle.error.message}</div>}
-        {s.enabled && s.google?.available && <GoogleBooksKey hint={s.google.hint} onSaved={(data) => qc.setQueryData(["server-books"], data)} />}
+        {s.enabled && s.google?.available && (
+          <OptionalKey
+            intro={
+              <Trans>Google Books (optional): asked when Open Library doesn't know a book — better for recent and non-English ones. It needs a free API key
+              from a Google Cloud project with the Books API enabled.</Trans>
+            }
+            hint={s.google.hint}
+            label={t`Google Books API key`}
+            removeQuestion={t`Remove the Google Books key? Only Open Library will be asked.`}
+            save={api.setGoogleBooksKey}
+            onSaved={(data) => qc.setQueryData(["server-books"], data)}
+          />
+        )}
       </div>
     </section>
   );
 }
 
-/** Google Books: optional, asked after Open Library (better for recent and non-English books) once its free key is saved. */
-function GoogleBooksKey({ hint, onSaved }: { hint: string | null; onSaved: (data: BookLookupStatus) => void }) {
+/** An optional outside service's key (Google Books, the EIA): pasted, checked by the server, then shown only by its last four characters. */
+function OptionalKey<T>({ intro, hint, label, removeQuestion, save, onSaved }: { intro: ReactNode; hint: string | null; label: string; removeQuestion: string; save: (key: string | null) => Promise<T>; onSaved: (data: T) => void }) {
   const [key, setKey] = useState("");
   const [editing, setEditing] = useState(false);
-  const save = useMutation({
-    mutationFn: (value: string | null) => api.setGoogleBooksKey(value),
+  const mutation = useMutation({
+    mutationFn: save,
     onSuccess: (data) => {
       setKey("");
       setEditing(false);
@@ -615,15 +627,12 @@ function GoogleBooksKey({ hint, onSaved }: { hint: string | null; onSaved: (data
   });
   return (
     <div className="flex flex-col gap-2 border-t border-base-content/10 pt-3">
-      <p className="text-sm text-base-content/70">
-        <Trans>Google Books (optional): asked when Open Library doesn't know a book — better for recent and non-English ones. It needs a free API key
-        from a Google Cloud project with the Books API enabled.</Trans>
-      </p>
+      <p className="text-sm text-base-content/70">{intro}</p>
       {hint && !editing ? (
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <span className="badge badge-soft badge-success">{t`On`} · {hint}</span>
           <button type="button" className="btn btn-text btn-sm" onClick={() => setEditing(true)}><Trans>Change key</Trans></button>
-          <button type="button" className="btn btn-text btn-sm text-error" disabled={save.isPending} onClick={() => confirm(t`Remove the Google Books key? Only Open Library will be asked.`) && save.mutate(null)}>
+          <button type="button" className="btn btn-text btn-sm text-error" disabled={mutation.isPending} onClick={() => confirm(removeQuestion) && mutation.mutate(null)}>
             <Trans>Remove</Trans>
           </button>
         </div>
@@ -632,17 +641,17 @@ function GoogleBooksKey({ hint, onSaved }: { hint: string | null; onSaved: (data
           className="flex flex-wrap gap-2"
           onSubmit={(e: FormEvent) => {
             e.preventDefault();
-            if (key.trim()) save.mutate(key.trim());
+            if (key.trim()) mutation.mutate(key.trim());
           }}
         >
-          <input className="input min-w-0 flex-1 font-mono" type="password" autoComplete="off" value={key} onChange={(e) => setKey(e.target.value)} placeholder={t`Paste the API key`} aria-label={t`Google Books API key`} />
-          <button className="btn btn-soft btn-primary" disabled={save.isPending || !key.trim()}>
-            {save.isPending ? <span className="loading loading-spinner loading-sm" /> : <Trans>Check and save</Trans>}
+          <input className="input min-w-0 flex-1 font-mono" type="password" autoComplete="off" value={key} onChange={(e) => setKey(e.target.value)} placeholder={t`Paste the API key`} aria-label={label} />
+          <button className="btn btn-soft btn-primary" disabled={mutation.isPending || !key.trim()}>
+            {mutation.isPending ? <span className="loading loading-spinner loading-sm" /> : <Trans>Check and save</Trans>}
           </button>
           {editing && <button type="button" className="btn btn-text" onClick={() => setEditing(false)}><Trans>Cancel</Trans></button>}
         </form>
       )}
-      {save.isError && <div className="alert alert-soft alert-error">{save.error.message}</div>}
+      {mutation.isError && <div className="alert alert-soft alert-error">{mutation.error.message}</div>}
     </div>
   );
 }
@@ -960,6 +969,20 @@ function EnergyStarLookups() {
         </label>
         {s.enabled && <p className="text-sm text-base-content/70">{plural(s.kept, { one: "# thing looked up", other: "# things looked up" })}.</p>}
         {toggle.isError && <div className="alert alert-soft alert-error">{toggle.error.message}</div>}
+        {s.enabled && s.electricity?.available && (
+          <OptionalKey
+            intro={
+              <Trans>Electricity prices (optional, US): with a free key from the US Energy Information Administration (eia.gov/opendata), each card also
+              says what that energy costs a year at the average home rate in the thing's state. Prices are fetched once a month; nothing about anyone is
+              sent.</Trans>
+            }
+            hint={s.electricity.hint}
+            label={t`EIA API key`}
+            removeQuestion={t`Remove the EIA key? The cards won't show what energy costs.`}
+            save={api.setElectricityKey}
+            onSaved={(data) => qc.setQueryData(["server-energy-star"], data)}
+          />
+        )}
       </div>
     </section>
   );

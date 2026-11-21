@@ -51,7 +51,8 @@ ladder?"*
 When whoever runs your Ferret has switched on [ENERGY STAR look-ups](../hosting/server-admin#energy-star-look-ups), an
 appliance with its brand and model number filled in (or its barcode) shows an **ENERGY STAR** card on its page if it's
 certified: how many kWh it uses a year, how that compares with the US standard (a furnace: its efficiency), and a link
-to its page on ENERGY STAR. Model numbers there often end in asterisks, which stand for any letter (the colour or a
+to its page on ENERGY STAR. If your server has electricity prices, it also says roughly what that costs a year at the
+average home rate in your state (give the property an address with its state). Model numbers there often end in asterisks, which stand for any letter (the colour or a
 version), so check yours is the same series.
 
 ## Last seen

@@ -104,6 +104,12 @@ and how it compares with the US standard, or a furnace's efficiency (AFUE), with
 model number** (or its barcode) are sent. Each answer, a match or none, is kept for the whole server for a month.
 Only appliances certified for the US and Canada are listed.
 
+Optionally add a key from the US Energy Information Administration
+([register here](https://www.eia.gov/opendata/register.php), free) in the same card: then each card also says what
+that energy costs a year at the average home rate in the thing's state (from its property's address, else your
+household's only state, else the US average). The prices are fetched once a month for the whole server; nothing about
+anyone is sent. Homes outside the US get no cost, since US prices say nothing about them.
+
 ## Collector catalogs
 
 **Settings → Server → Collector catalogs** adds **LEGO sets**, **Coins**, **Comics**, **Movies & TV**, **Video games** and **Records & CDs**

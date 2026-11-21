@@ -2536,6 +2536,8 @@ export interface EnergyStarMatch {
 export interface ItemEnergy {
   status: "off" | "none" | "pending" | "found";
   matches?: EnergyStarMatch[];
+  /** What the first match's kWh cost a year at the average home rate (the US EIA's): for its property's state, else the US's. */
+  cost?: { cents: number; currency: string; centsPerKwh: number; state: string | null; year: number } | null;
 }
 
 /** ENERGY STAR look-ups for Settings → Server. */
@@ -2544,6 +2546,8 @@ export interface EnergyStarStatus {
   enabled: boolean;
   /** Brands and models (or barcodes) looked up and kept. */
   kept: number;
+  /** The US EIA's electricity prices: on with its key (the last four characters shown). */
+  electricity: { available: boolean; hint: string | null; year: number | null };
 }
 
 /** A bike reported stolen on Bike Index. */

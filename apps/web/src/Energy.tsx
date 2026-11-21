@@ -6,6 +6,7 @@
 import type { EnergyStarMatch, Item } from "@ferret/shared";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "./lib/api";
+import { money } from "./lib/money";
 import { t, ph } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 
@@ -31,6 +32,7 @@ export function EnergyCard({ item }: { item: Item }) {
     refetchInterval: (q) => (q.state.data?.status === "pending" ? 4000 : false),
   });
   const m = energy.data?.status === "found" ? energy.data.matches?.[0] : undefined;
+  const cost = energy.data?.cost;
   if (!m) return null;
   return (
     <section className="card border border-success/30" aria-labelledby="item-energy-title">
@@ -44,6 +46,16 @@ export function EnergyCard({ item }: { item: Item }) {
         </h2>
         <p className="text-sm text-base-content/80">{[m.kind, m.type].filter(Boolean).join(" · ")}</p>
         {energyLine(m) && <p className="font-medium">{energyLine(m)}</p>}
+        {cost && (
+          <p className="text-sm">
+            <span className="font-medium">{t`About ${ph({ cost: money(cost.cents) })} a year`}</span>{" "}
+            <span className="text-base-content/70">
+              {cost.state
+                ? t`at ${ph({ state: cost.state })}'s average home rate (${ph({ rate: cost.centsPerKwh.toFixed(1) })}¢ a kWh in ${ph({ year: cost.year })})`
+                : t`at the US average home rate (${ph({ rate: cost.centsPerKwh.toFixed(1) })}¢ a kWh in ${ph({ year: cost.year })})`}
+            </span>
+          </p>
+        )}
         <p className="text-xs text-base-content/70">
           <Trans>Certified as {ph({ brand: m.brand })} {ph({ model: m.model })} — the asterisks stand for any letter (a colour or version).</Trans>
         </p>

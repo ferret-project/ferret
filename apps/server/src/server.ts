@@ -46,6 +46,8 @@ import { GoogleBooks } from "./adapters/local/googlebooks";
 import { OpenFdaRecalls } from "./adapters/local/openfda";
 import { EnergyStarProducts } from "./adapters/local/energystar";
 import { BikeIndexRegistry } from "./adapters/local/bikeindex";
+import { EiaElectricity } from "./adapters/local/eia";
+import { EIA_KEY } from "./lib/energy";
 import { serverKey } from "./lib/server-keys";
 import { GOOGLE_BOOKS_KEY } from "./lib/products";
 import { QdrantVectors } from "./adapters/local/qdrant";
@@ -186,6 +188,8 @@ const deps = {
   // Asked after Open Library once the server admin saves a key; it fetches the key sealed in the database.
   fdaRecalls: watched(db, "recalls (FDA)", new OpenFdaRecalls()),
   energyStar: watched(db, "ENERGY STAR", new EnergyStarProducts()),
+  // ENERGY STAR's kWh in money, once the server admin saves an EIA key; it fetches the key sealed in the database.
+  electricity: watched(db, "electricity prices (EIA)", new EiaElectricity(() => serverKey(db, config.FILES_KEY, EIA_KEY))),
   stolenBikes: watched(db, "Bike Index", new BikeIndexRegistry()),
   googleBooks: watched(db, "books (Google)", new GoogleBooks(() => serverKey(db, config.FILES_KEY, GOOGLE_BOOKS_KEY))),
   music: watched(db, "music", new MusicBrainzReleases()),

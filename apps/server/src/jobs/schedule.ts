@@ -27,7 +27,7 @@ import { SUPPORT_REFRESH_JOB, supportRefreshJob } from "../lib/support";
 import { EXCHANGE_RATES_JOB, exchangeRatesJob } from "../lib/exchange";
 import { CARD_READ_JOB, CARD_VALUES_JOB, cardReadJob, cardValuesJob } from "../lib/cards";
 import { COLLECTIBLE_READ_JOB, PRICES_JOB, collectibleReadJob, pricesJob } from "../lib/collectibles";
-import { ENERGY_JOB, energyJob } from "../lib/energy";
+import { ELECTRICITY_JOB, ENERGY_JOB, electricityJob, energyJob } from "../lib/energy";
 import { BIKE_JOB, bikeJob } from "../lib/bikes";
 import { BACKFILL_JOB, INDEX_JOB, backfillIndex, indexItem } from "./index-item";
 import { PDF_BACKFILL_JOB, PDF_THUMB_JOB, pdfThumbnail, pdfThumbnailBackfill } from "./pdf-thumbnail";
@@ -118,6 +118,7 @@ export function jobSchedule({
     [COLLECTIBLE_READ_JOB]: collectibleReadJob({ ...deps, files, filesKey: config.FILES_KEY }),
     [PRICES_JOB]: pricesJob({ ...deps, filesKey: config.FILES_KEY }),
     [ENERGY_JOB]: energyJob(deps),
+    [ELECTRICITY_JOB]: electricityJob(deps),
     [BIKE_JOB]: bikeJob(deps),
     [SUPPORT_REFRESH_JOB]: supportRefreshJob(deps),
     [EXCHANGE_RATES_JOB]: exchangeRatesJob(deps),

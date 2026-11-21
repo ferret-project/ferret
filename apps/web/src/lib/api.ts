@@ -384,6 +384,7 @@ export const api = {
   bikeIndexStatus: () => request<BikeIndexStatus>("/server/bike-index"),
   setBikeIndex: (enabled: boolean) => request<BikeIndexStatus>("/server/bike-index", { method: "PUT", body: JSON.stringify({ enabled }) }),
   itemEnergy: (itemId: string) => request<ItemEnergy>(`/items/${itemId}/energy`),
+  setElectricityKey: (key: string | null) => request<EnergyStarStatus>("/server/energy-star/electricity", { method: "PUT", body: JSON.stringify({ key }) }),
   energyStarStatus: () => request<EnergyStarStatus>("/server/energy-star"),
   setEnergyStar: (enabled: boolean) => request<EnergyStarStatus>("/server/energy-star", { method: "PUT", body: JSON.stringify({ enabled }) }),
   musicLookupStatus: () => request<MusicLookupStatus>("/server/music"),

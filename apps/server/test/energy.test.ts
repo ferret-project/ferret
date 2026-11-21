@@ -2,7 +2,9 @@
 import type { EnergyStarMatch, ItemEnergy } from "@ferret/shared";
 import { describe, expect, it } from "vitest";
 import { EnergyStarProducts, kindsOf, modelMatches } from "../src/adapters/local/energystar";
-import type { EnergyStar } from "../src/ports";
+import { EiaElectricity } from "../src/adapters/local/eia";
+import { stateCode } from "../src/lib/energy";
+import type { ElectricityPrices, EnergyStar } from "../src/ports";
 import { setup } from "./helpers";
 
 type User = Awaited<ReturnType<Awaited<ReturnType<typeof setup>>["user"]>>;
@@ -47,7 +49,7 @@ describe("ENERGY STAR", () => {
     expect(await json(send(ann, "PUT", "/api/v1/server/energy-star", { enabled: true }))).toMatchObject({ available: true, enabled: true, kept: 0 });
     expect(await json(ann.as(`/api/v1/items/${fridge.id}/energy`))).toEqual({ status: "pending" });
     await jobs.drain();
-    expect(await json<ItemEnergy>(ann.as(`/api/v1/items/${fridge.id}/energy`))).toEqual({ status: "found", matches: [FRIDGE] });
+    expect(await json<ItemEnergy>(ann.as(`/api/v1/items/${fridge.id}/energy`))).toEqual({ status: "found", matches: [FRIDGE], cost: null });
     // Not certified: "none", kept too — not asked again.
     await json(ann.as(`/api/v1/items/${lamp.id}/energy`));
     await jobs.drain();
@@ -60,6 +62,50 @@ describe("ENERGY STAR", () => {
     expect(await json(ann.as("/api/v1/server/energy-star"))).toMatchObject({ kept: 2 });
     const bob = await user("bob");
     expect((await send(bob, "PUT", "/api/v1/server/energy-star", { enabled: false })).status).toBe(403);
+  });
+
+  it("puts the kWh in money at the property's state's average rate, with the server admin's EIA key", async () => {
+    const energyStar = new FakeEnergyStar();
+    const electricity: ElectricityPrices = {
+      check: async (key) => key === "good-eia-key",
+      residential: async () => ({ year: 2025, centsPerKwh: { CO: 17.17, CA: 31.35, US: 17.0 } }),
+    };
+    const { user, jobs } = await setup({ energyStar, electricity });
+    const ann = await user("ann");
+    await send(ann, "PUT", "/api/v1/server/energy-star", { enabled: true });
+    const home = await json<{ id: string }>(send(ann, "POST", "/api/v1/properties", { name: "Home", region: "Colorado", country: "United States" }));
+    const kitchen = await json<{ id: string }>(send(ann, "POST", "/api/v1/locations", { name: "Kitchen", propertyId: home.id }));
+    const fridge = await ann.addItem({ name: "Fridge", brand: "Samsung", model: "RF28T5001SR", locationId: kitchen.id });
+    await json(ann.as(`/api/v1/items/${fridge.id}/energy`));
+    await jobs.drain();
+    // No key yet: no cost.
+    expect(await json(ann.as(`/api/v1/items/${fridge.id}/energy`))).toMatchObject({ status: "found", cost: null });
+    expect((await send(ann, "PUT", "/api/v1/server/energy-star/electricity", { key: "wrong-key" })).status).toBe(422);
+    expect(await json(send(ann, "PUT", "/api/v1/server/energy-star/electricity", { key: "good-eia-key" }))).toMatchObject({ electricity: { available: true, hint: "…-key" } });
+    await jobs.drain();
+    // 645 kWh at 17.17¢ = $110.75.
+    expect(await json(ann.as(`/api/v1/items/${fridge.id}/energy`))).toMatchObject({ cost: { cents: 11075, currency: "USD", state: "CO", centsPerKwh: 17.17, year: 2025 } });
+    // Somewhere without a state: the household's only one.
+    const garage = await ann.addItem({ name: "Garage fridge", brand: "Samsung", model: "RF28T5001SR" });
+    expect(await json(ann.as(`/api/v1/items/${garage.id}/energy`))).toMatchObject({ cost: { state: "CO" } });
+    expect(await json(ann.as("/api/v1/server/energy-star"))).toMatchObject({ electricity: { year: 2025 } });
+  });
+
+  it("reads US states from addresses, and asks the EIA for yearly home prices", async () => {
+    expect(stateCode("Colorado", "United States")).toBe("CO");
+    expect(stateCode("co.", null)).toBe("CO");
+    expect(stateCode("New York", "USA")).toBe("NY");
+    expect(stateCode("Ontario", "Canada")).toBeNull();
+    expect(stateCode("Mazowieckie", "Poland")).toBeNull();
+    let asked: URL | null = null;
+    const fetcher = (async (input: string | URL | Request) => {
+      asked = new URL(String(input));
+      return new Response(JSON.stringify({ response: { data: [{ period: "2025", stateid: "CO", price: 17.17 }, { period: "2025", stateid: "MTN", price: 15 }, { period: "2025", stateid: "US", price: 17 }, { period: "2024", stateid: "CO", price: 16 }] } }), { status: 200 });
+    }) as typeof fetch;
+    expect(await new EiaElectricity(async () => "k", fetcher).residential()).toEqual({ year: 2025, centsPerKwh: { CO: 17.17, US: 17 } });
+    expect(asked!.searchParams.get("frequency")).toBe("annual");
+    expect(asked!.searchParams.get("facets[sectorid][]")).toBe("RES");
+    expect(await new EiaElectricity(async () => null, fetcher).residential()).toBeNull();
   });
 
   it("matches ENERGY STAR's wildcard model numbers, and leaves commercial and lab equipment out", () => {

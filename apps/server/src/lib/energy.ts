@@ -6,15 +6,27 @@
  *
  * Asked in a job (a dozen lists, some slow); the answer — matches or none — is kept for the whole server a month
  * (the shared book, collectible_info, under "energystar:"), so a thing's page asks once.
+ *
+ * With the server admin's US EIA key (deps.electricity), the kWh are also put in money: at the average home rate of
+ * the thing's property's state (its address's region), else the household's only state, else the US average —
+ * fetched in a job at most monthly ("eia:residential").
  */
-import type { EnergyStarMatch, EnergyStarStatus, ItemEnergy } from "@ferret/shared";
-import { count, eq, like } from "drizzle-orm";
+import { convertCents, type EnergyStarMatch, type EnergyStarStatus, type ItemEnergy } from "@ferret/shared";
+import { and, count, eq, isNotNull, isNull, like } from "drizzle-orm";
+import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
-import { collectibleInfo, serverSetting } from "../db/schema";
+import { collectibleInfo, location, property, serverSetting } from "../db/schema";
 import type { Db, Deps, JobHandler } from "../ports";
+import { currentRates } from "./exchange";
 import { type Caller, getItem } from "./inventory";
+import { savedKeyHints, saveServerKey } from "./server-keys";
 
 export const ENERGY_JOB = "energystar.lookup";
+export const ELECTRICITY_JOB = "energystar.electricity";
+/** Where the server admin's US EIA key is kept (sealed: lib/server-keys.ts). */
+export const EIA_KEY = "energy.eia.key";
+const PRICES_KEY = "eia:residential";
+const PRICES_FRESH_MS = 30 * 24 * 60 * 60 * 1000;
 const ENABLED_KEY = "energystar.enabled";
 const FRESH_MS = 30 * 24 * 60 * 60 * 1000;
 const PREFIX = "energystar:";
@@ -30,9 +42,101 @@ export async function setEnergyEnabled(db: Db, enabled: boolean) {
   await db.insert(serverSetting).values({ key: ENABLED_KEY, value: String(enabled) }).onConflictDoUpdate({ target: serverSetting.key, set: { value: String(enabled) } });
 }
 
-export async function energyStatus(deps: Pick<Deps, "db" | "energyStar">): Promise<EnergyStarStatus> {
+type Prices = { year: number; centsPerKwh: Record<string, number> };
+
+export async function energyStatus(deps: Pick<Deps, "db" | "energyStar" | "electricity">): Promise<EnergyStarStatus> {
   const [kept] = await deps.db.select({ n: count() }).from(collectibleInfo).where(like(collectibleInfo.key, `${PREFIX}%`));
-  return { available: Boolean(deps.energyStar), enabled: await energyEnabled(deps.db), kept: kept?.n ?? 0 };
+  const [prices] = await deps.db.select().from(collectibleInfo).where(eq(collectibleInfo.key, PRICES_KEY));
+  return {
+    available: Boolean(deps.energyStar),
+    enabled: await energyEnabled(deps.db),
+    kept: kept?.n ?? 0,
+    electricity: { available: Boolean(deps.electricity), hint: (await savedKeyHints(deps.db, EIA_KEY)).get(EIA_KEY) ?? null, year: (prices?.info as Prices | undefined)?.year ?? null },
+  };
+}
+
+/** Save the US EIA key (checked with the EIA first) and fetch its prices; or remove it with null (no more costs). */
+export async function setElectricityKey(deps: Pick<Deps, "db" | "energyStar" | "electricity" | "jobs">, filesKey: string, key: string | null) {
+  if (!deps.electricity) throw new HTTPException(409, { message: "Electricity prices aren't available on this server" });
+  if (key != null) {
+    const ok = await deps.electricity.check(key).catch(() => {
+      throw new HTTPException(502, { message: "Couldn't reach the EIA to check the key — try again in a while" });
+    });
+    if (!ok) throw new HTTPException(422, { message: "The EIA didn't accept that key — copy it again from its email" });
+  }
+  await saveServerKey(deps.db, filesKey, EIA_KEY, key);
+  await deps.db.delete(collectibleInfo).where(eq(collectibleInfo.key, PRICES_KEY));
+  if (key != null && deps.jobs) await deps.jobs.enqueue(ELECTRICITY_JOB, {});
+  return energyStatus(deps);
+}
+
+/** Background job: the latest year's average home electricity prices by state. */
+export function electricityJob(deps: Pick<Deps, "db" | "electricity">): JobHandler {
+  return async () => {
+    if (!deps.electricity) return;
+    const prices = await deps.electricity.residential();
+    if (!prices) return;
+    const now = new Date();
+    await deps.db.insert(collectibleInfo).values({ key: PRICES_KEY, info: prices, fetchedAt: now }).onConflictDoUpdate({ target: collectibleInfo.key, set: { info: prices, fetchedAt: now } });
+  };
+}
+
+// not translated (state names as addresses write them)
+const STATES: Record<string, string> = {
+  alabama: "AL", alaska: "AK", arizona: "AZ", arkansas: "AR", california: "CA", colorado: "CO", connecticut: "CT", delaware: "DE", "district of columbia": "DC", "washington dc": "DC", florida: "FL",
+  georgia: "GA", hawaii: "HI", idaho: "ID", illinois: "IL", indiana: "IN", iowa: "IA", kansas: "KS", kentucky: "KY", louisiana: "LA", maine: "ME", maryland: "MD", massachusetts: "MA",
+  michigan: "MI", minnesota: "MN", mississippi: "MS", missouri: "MO", montana: "MT", nebraska: "NE", nevada: "NV", "new hampshire": "NH", "new jersey": "NJ", "new mexico": "NM",
+  "new york": "NY", "north carolina": "NC", "north dakota": "ND", ohio: "OH", oklahoma: "OK", oregon: "OR", pennsylvania: "PA", "rhode island": "RI", "south carolina": "SC",
+  "south dakota": "SD", tennessee: "TN", texas: "TX", utah: "UT", vermont: "VT", virginia: "VA", washington: "WA", "west virginia": "WV", wisconsin: "WI", wyoming: "WY",
+};
+
+/** A US state's two letters from an address's region ("Colorado", "CO", "co."); null for anything else. */
+export function stateCode(region: string | null | undefined, country: string | null | undefined) {
+  if (country && !/^(us|usa|u\.s\.a?\.?|united states( of america)?)$/i.test(country.trim())) return null;
+  const r = (region ?? "").trim().replace(/\.$/, "");
+  if (!r) return null;
+  if (/^[A-Za-z]{2}$/.test(r) && Object.values(STATES).includes(r.toUpperCase())) return r.toUpperCase();
+  return STATES[r.toLowerCase()] ?? null;
+}
+
+/** Which state a thing's electricity is priced at: its property's, else the household's only one; null: the US average. */
+async function stateFor(v: Caller, locationId: string | null): Promise<{ state: string | null; abroad: boolean }> {
+  if (locationId) {
+    const [p] = await v.db
+      .select({ region: property.region, country: property.country })
+      .from(location)
+      .innerJoin(property, eq(property.id, location.propertyId))
+      .where(and(eq(location.id, locationId), eq(location.householdId, v.householdId)));
+    if (p?.region || p?.country) {
+      const state = stateCode(p.region, p.country);
+      return { state, abroad: !state && Boolean(p.country) && !stateCode("CO", p.country) };
+    }
+  }
+  const all = await v.db
+    .select({ region: property.region, country: property.country })
+    .from(property)
+    .where(and(eq(property.householdId, v.householdId), isNull(property.deletedAt), isNotNull(property.region)));
+  const states = [...new Set(all.map((p) => stateCode(p.region, p.country)).filter(Boolean))];
+  return { state: states.length === 1 ? states[0]! : null, abroad: false };
+}
+
+/** What a year at this many kWh costs at the average home rate, in the household's currency. Null without prices. */
+async function costOf(v: Caller, kwh: number, locationId: string | null): Promise<ItemEnergy["cost"]> {
+  if (!v.deps.electricity) return null;
+  const [kept] = await v.db.select().from(collectibleInfo).where(eq(collectibleInfo.key, PRICES_KEY));
+  if (!kept || Date.now() - kept.fetchedAt.getTime() >= PRICES_FRESH_MS) {
+    if ((await savedKeyHints(v.db, EIA_KEY)).size && v.deps.jobs) await v.deps.jobs.enqueue(ELECTRICITY_JOB, {});
+  }
+  const prices = kept?.info as Prices | undefined;
+  if (!prices) return null;
+  const where = await stateFor(v, locationId);
+  if (where.abroad) return null; // US prices say nothing about a home elsewhere
+  const rate = (where.state && prices.centsPerKwh[where.state]) || prices.centsPerKwh.US;
+  if (!rate) return null;
+  const usd = Math.round(kwh * rate);
+  const cents = v.currency === "USD" ? usd : convertCents(usd, "USD", v.currency, await currentRates(v.deps));
+  if (cents == null) return null;
+  return { cents, currency: v.currency, centsPerKwh: rate, state: where.state && prices.centsPerKwh[where.state] ? where.state : null, year: prices.year };
 }
 
 /** What a thing is asked by: its brand and model (both needed), and its barcode. Null when there's not enough. */
@@ -55,7 +159,9 @@ export async function itemEnergy(v: Caller, itemId: string): Promise<ItemEnergy>
   const [kept] = await v.db.select().from(collectibleInfo).where(eq(collectibleInfo.key, bookKey(q)));
   if (kept && Date.now() - kept.fetchedAt.getTime() < FRESH_MS) {
     const matches = kept.info as EnergyStarMatch[];
-    return matches.length ? { status: "found", matches } : { status: "none" };
+    if (!matches.length) return { status: "none" };
+    const kwh = matches[0]!.kwhPerYear;
+    return { status: "found", matches, cost: kwh ? await costOf(v, kwh, it.locationId ?? null) : null };
   }
   if (!v.deps.jobs) return { status: "none" };
   await v.deps.jobs.enqueue(ENERGY_JOB, q);

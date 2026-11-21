@@ -283,6 +283,13 @@ export interface EnergyStar {
   forBarcode(code: string): Promise<EnergyStarMatch[]>;
 }
 
+/** What homes pay for electricity on average (the US EIA): cents per kWh by state, for the latest year. */
+export interface ElectricityPrices {
+  /** Null without the server admin's key. */
+  residential(): Promise<{ year: number; centsPerKwh: Record<string, number> } | null>;
+  check(key: string): Promise<boolean>;
+}
+
 /** Bike Index: bikes reported stolen, by serial number. */
 export interface StolenBikes {
   stolenWithSerial(serial: string): Promise<StolenBikeReport[]>;
@@ -675,6 +682,8 @@ export interface Deps {
   cards?: Partial<Record<CardGame, CardCatalog>>;
   /** Bike Index: whether a bike's serial is reported stolen, once the server admin switches it on. */
   stolenBikes?: StolenBikes;
+  /** The US EIA's electricity prices, to put ENERGY STAR's kWh in money (with the server admin's key). */
+  electricity?: ElectricityPrices;
   /** ENERGY STAR's certified appliances: a thing's energy use, once the server admin switches it on. */
   energyStar?: EnergyStar;
   /** The FDA's food and medicine recalls (openFDA), matched by barcode, with recall checks switched on. */

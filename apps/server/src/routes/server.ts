@@ -22,7 +22,7 @@ import { HTTPException } from "hono/http-exception";
 import { aboutServer, clearServiceErrors, listServiceErrors } from "../lib/service-errors";
 import { cardLookupStatus, setCardsEnabled } from "../lib/cards";
 import { catalogStatus, saveCatalogKey } from "../lib/collectibles";
-import { energyStatus, setEnergyEnabled } from "../lib/energy";
+import { energyStatus, setElectricityKey, setEnergyEnabled } from "../lib/energy";
 import { bikeIndexStatus, setBikeIndexEnabled } from "../lib/bikes";
 import { collectibleKeyInput, collectibleKinds } from "@ferret/shared";
 import { SUPPORT_REFRESH_JOB, setSupportEnabled, supportStatus } from "../lib/support";
@@ -227,6 +227,12 @@ server.put("/energy-star", async (c) => {
   const { enabled } = await body(c.req.raw, z.object({ enabled: z.boolean() }));
   await setEnergyEnabled(c.var.db, enabled);
   return c.json(await energyStatus(c.var.deps));
+});
+
+/** The US EIA's electricity prices, to put ENERGY STAR's kWh in money: save its free key (checked first), or `{ key: null }`. */
+server.put("/energy-star/electricity", async (c) => {
+  const { key } = await body(c.req.raw, collectibleKeyInput);
+  return c.json(await setElectricityKey(c.var.deps, c.var.config.FILES_KEY, key));
 });
 
 /** Google Books, asked after Open Library: save its free key (checked with Google first), or `{ key: null }` to remove it. */
