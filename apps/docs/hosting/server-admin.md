@@ -136,6 +136,25 @@ until you switch it on, because a bike's **serial number** is sent, and only for
 name or category). Each answer is kept for the whole server for a day. Ferret never signs in to Bike Index for anyone:
 registering and reporting happen on their site.
 
+## eBay listings
+
+**Settings → Server → eBay listings** adds an **On eBay now** card to a thing's page, and beside a listing the AI
+drafts ([what people see](../guide/past-things#on-ebay-now)): up to five listings for the same thing on eBay and the
+range of asking prices, linking to eBay. It finds them by the thing's **barcode**, else its **brand and model number**
+(a model with a digit in it); those are all that's sent, to the eBay of the household's country (worked out like its
+Amazon store, eBay US otherwise). They're asking prices: eBay keeps sold prices to a restricted API.
+
+It needs a free keyset from the [eBay Developers Program](https://developer.ebay.com): create a **Production**
+keyset, then paste its **App ID** and **Cert ID** with a space between them. In the keyset's **Alerts &
+Notifications**, under Marketplace Account Deletion, turn on **Exempted from Marketplace Account Deletion** and give
+the reason that you don't persist eBay data (Ferret keeps none); eBay switches off keysets that neither do that nor
+receive its notifications. Each self-hosted server uses its own keyset and agrees to eBay's API License Agreement itself.
+From the command line: `node dist/cli.js service-keys set ebay`.
+
+eBay's terms set how the listings are kept: answers are kept **in memory for an hour** (never in the database, so not in
+backups or exports), the card says when they're from, and nothing from eBay is written to a thing — a value you want
+to keep, you type yourself. A keyset allows 5,000 searches a day.
+
 ## ENERGY STAR look-ups
 
 **Settings → Server → ENERGY STAR look-ups** shows an appliance's certified energy use on its page: a fridge's, freezer's,

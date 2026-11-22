@@ -141,7 +141,7 @@ import type { TaskVideo, VideoHit, ItemFuelEconomyStatus, FuelEconomyStatus, Dis
   ImportTriageInput,
   ImportTriageRow,
   MergeInput,
-  SuggestedTask, OAuthConnectInput, OAuthConnectRequest, OAuthGrantSummary, VehicleLookupStatus, RepairGuideStatus, AskSettings, PromptKind, PromptSetting, BookLookupStatus, MusicLookupStatus, ScanCandidate, SearchIndexStatus, CardGame, CardInfo, CardLookupStatus, CardPrice, CardReadStatus, CardValue, ItemCard, CoinIssuer, CollectibleCatalogStatus, CollectibleInfo, CollectibleKind, CollectiblePrice, CollectibleReadStatus, CollectibleValue, ItemCollectible, OpenFactsStatus, ItemSupportStatus, SupportLookupStatus, ExchangeRates, ExchangeRateStatus, EnergyStarStatus, ItemEnergy, BikeIndexStatus, ItemBikeIndex, GradedInfo, GradingService, GradingStatus, ItemGradedInfo } from "@ferret/shared";
+  SuggestedTask, OAuthConnectInput, OAuthConnectRequest, OAuthGrantSummary, VehicleLookupStatus, ItemMarketListings, MarketListingsStatus, RepairGuideStatus, AskSettings, PromptKind, PromptSetting, BookLookupStatus, MusicLookupStatus, ScanCandidate, SearchIndexStatus, CardGame, CardInfo, CardLookupStatus, CardPrice, CardReadStatus, CardValue, ItemCard, CoinIssuer, CollectibleCatalogStatus, CollectibleInfo, CollectibleKind, CollectiblePrice, CollectibleReadStatus, CollectibleValue, ItemCollectible, OpenFactsStatus, ItemSupportStatus, SupportLookupStatus, ExchangeRates, ExchangeRateStatus, EnergyStarStatus, ItemEnergy, BikeIndexStatus, ItemBikeIndex, GradedInfo, GradingService, GradingStatus, ItemGradedInfo } from "@ferret/shared";
 import { photoCopies } from "./photo-copies";
 import { t, ph } from "@lingui/core/macro";
 
@@ -384,6 +384,9 @@ export const api = {
   itemGraded: (itemId: string) => request<ItemGradedInfo>(`/items/${itemId}/graded`),
   gradingStatus: () => request<{ data: GradingStatus[] }>("/server/graded"),
   setGradingKey: (by: GradingService, key: string | null) => request<{ data: GradingStatus[] }>(`/server/graded/${by}`, { method: "PUT", body: JSON.stringify({ key }) }),
+  itemEbay: (itemId: string) => request<ItemMarketListings>(`/items/${itemId}/ebay`),
+  ebayStatus: () => request<MarketListingsStatus>("/server/ebay"),
+  setEbayKey: (key: string | null) => request<MarketListingsStatus>("/server/ebay", { method: "PUT", body: JSON.stringify({ key }) }),
   itemBikeIndex: (itemId: string) => request<ItemBikeIndex>(`/items/${itemId}/bike-index`),
   bikeIndexStatus: () => request<BikeIndexStatus>("/server/bike-index"),
   setBikeIndex: (enabled: boolean) => request<BikeIndexStatus>("/server/bike-index", { method: "PUT", body: JSON.stringify({ enabled }) }),

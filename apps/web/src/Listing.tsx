@@ -12,6 +12,7 @@ import { useFeatures } from "./lib/features";
 import { money } from "./lib/money";
 import { copyText } from "./lib/secure-context";
 import { DialogActions, Modal } from "./Modal";
+import { MarketListingsCard } from "./Ebay";
 import { t, ph } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 
@@ -110,6 +111,7 @@ export function ListingDialog({ item, onClose }: { item: ItemListing; onClose: (
               <input id="listing-price" className="input" value={price} onChange={(e) => setPrice(e.target.value)} />
               {draft.data.priceReasoning && <p className="mt-1 text-sm text-base-content/70">{draft.data.priceReasoning}</p>}
             </div>
+            <MarketListingsCard thing={item} compact />
             <p className="text-sm text-base-content/70">
               <Trans>A draft from the AI — check it against the thing itself and change what's wrong. Nothing is saved or posted; copy it into the marketplace you use.</Trans>
             </p>

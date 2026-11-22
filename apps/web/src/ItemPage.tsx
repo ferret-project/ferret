@@ -49,6 +49,7 @@ import { CollectibleDetails } from "./Collectibles";
 import { EnergyCard } from "./Energy";
 import { FuelEconomyCard } from "./FuelEconomy";
 import { BikeIndexCard } from "./Bikes";
+import { MarketListingsCard } from "./Ebay";
 import { GradedCard } from "./Graded";
 import { DeviceSupport } from "./DeviceSupport";
 import { Suggestions } from "./Suggestions";
@@ -454,6 +455,7 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
       {!item.data.collectible && !item.data.card && <EnergyCard item={item.data} />}
       {!item.data.collectible && !item.data.card && <BikeIndexCard item={item.data} />}
       {!item.data.card && <DeviceSupport item={item.data} canEdit={canEdit} />}
+      {!item.data.collectible && !item.data.card && <MarketListingsCard thing={item.data} />}
       {canEdit && !item.data.card && !item.data.collectible && <ProductSuggestions item={item.data} householdId={householdId} />}
       {canEdit && <VehicleSuggestions item={item.data} householdId={householdId} />}
       <FuelEconomyCard item={item.data} canEdit={canEdit} />

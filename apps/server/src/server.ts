@@ -47,6 +47,8 @@ import { GoogleBooks } from "./adapters/local/googlebooks";
 import { OpenFdaRecalls } from "./adapters/local/openfda";
 import { EnergyStarProducts } from "./adapters/local/energystar";
 import { BikeIndexRegistry } from "./adapters/local/bikeindex";
+import { EbayListings } from "./adapters/local/ebay";
+import { EBAY_KEY } from "./lib/market";
 import { PcgsGrading } from "./adapters/local/pcgs";
 import { PsaGrading } from "./adapters/local/psa";
 import { EiaElectricity, EiaFuel } from "./adapters/local/eia";
@@ -208,6 +210,7 @@ const deps = {
   // "A new version is out": only once the server admin switches it on (Settings → Server → Updates).
   releases: watched(db, "updates (GitHub)", new GitHubReleases(config.FERRET_VERSION)),
   stolenBikes: watched(db, "Bike Index", new BikeIndexRegistry()),
+  marketListings: watched(db, "eBay listings", new EbayListings(() => serverKey(db, config.FILES_KEY, EBAY_KEY))),
   grading: { pcgs: watched(db, "graded coins (PCGS)", new PcgsGrading()), psa: watched(db, "graded cards (PSA)", new PsaGrading()) },
   googleBooks: watched(db, "books (Google)", new GoogleBooks(() => serverKey(db, config.FILES_KEY, GOOGLE_BOOKS_KEY))),
   music: watched(db, "music", new MusicBrainzReleases()),
@@ -295,6 +298,7 @@ serve(
   console.log("   Collectors:     Rebrickable (LEGO), Numista (coins), Comic Vine (comics), TMDB (films, TV), IGDB (games) and Discogs (records), once the server admin saves their free keys (Settings → Server)");
   console.log("   Graded:         PCGS (coins) and PSA (cards) certificates, once the server admin saves their keys (Settings → Server)");
   console.log("   Bike Index:     whether a bike's serial is reported stolen, if the server admin switches it on (Settings → Server)");
+  console.log("   eBay:           listings for a thing on eBay now (asking prices), once the server admin saves an eBay keyset (Settings → Server)");
   console.log("   ENERGY STAR:    appliances' certified energy use, if the server admin switches it on (Settings → Server)");
   console.log("   Trading cards:  TCGdex (Pokémon) and Scryfall (Magic) for Scan cards, if the server admin switches them on (Settings → Server)");
   console.log("   Music:          MusicBrainz for Scan music (CDs, records), if the server admin switches it on (Settings → Server)");

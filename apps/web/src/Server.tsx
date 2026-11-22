@@ -57,6 +57,7 @@ export function Server() {
           <GradingKeys />
           <EnergyStarLookups />
           <BikeIndexLookups />
+          <EbayListings />
           {!demo && <Certificates />}
           {!demo && <AiPrompts />}
         </div>
@@ -1120,6 +1121,42 @@ function BikeIndexLookups() {
         </label>
         {s.enabled && <p className="text-sm text-base-content/70">{plural(s.checked, { one: "# serial number checked", other: "# serial numbers checked" })}.</p>}
         {toggle.isError && <div className="alert alert-soft alert-error">{toggle.error.message}</div>}
+      </div>
+    </section>
+  );
+}
+
+/** eBay listings ("On eBay now" on things' pages): on once the server admin saves an eBay keyset. */
+function EbayListings() {
+  const qc = useQueryClient();
+  const status = useQuery({ queryKey: ["server-ebay"], queryFn: api.ebayStatus });
+  const s = status.data;
+  if (!s?.available) return null;
+  return (
+    <section className="card" aria-labelledby="ebay-server-title">
+      <div className="card-body gap-3">
+        <h2 id="ebay-server-title" className="card-title flex items-center gap-2">
+          <span className="icon-[tabler--building-store] size-5 text-primary" />
+          <Trans>eBay listings</Trans>
+          <HelpLink page="hosting/server-admin.html#ebay-listings" label={t`eBay listings`} />
+        </h2>
+        <p className="text-sm text-base-content/70">
+          <Trans>On a thing's page, and beside a listing the AI drafts, shows what the same thing is listed for on eBay right now — a few listings and
+          the range of asking prices, found by its barcode or its brand and model number. Those are the only things sent, to the eBay of the household's
+          country. Answers are kept in memory for an hour and never saved; nothing from eBay is written to a thing.</Trans>
+        </p>
+        <OptionalKey
+          intro={
+            <Trans>It needs a free keyset from the eBay Developers Program (developer.ebay.com): the Production App ID and Cert ID, pasted with a space
+            between them. In the keyset's Alerts & Notifications, turn on "Exempted from Marketplace Account Deletion" (Ferret keeps no eBay data) —
+            eBay switches off keysets that neither do that nor receive its notifications.</Trans>
+          }
+          hint={s.hint}
+          label={t`eBay App ID and Cert ID`}
+          removeQuestion={t`Remove the eBay keys? Things' pages won't show eBay listings.`}
+          save={api.setEbayKey}
+          onSaved={(data) => qc.setQueryData(["server-ebay"], data)}
+        />
       </div>
     </section>
   );

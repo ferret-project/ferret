@@ -19,6 +19,8 @@
  * Reads .env (DATA_DIR, BACKUP_DIR, and the secrets — else the ones Ferret made, in DATA_DIR/secrets.json).
  * In dev: pnpm --filter @ferret/server cli admin
  */
+import { EbayListings } from "./adapters/local/ebay";
+import { EBAY_KEY, setMarketKey } from "./lib/market";
 import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { createInterface } from "node:readline";
@@ -305,6 +307,12 @@ const SERVICE_KEYS: Record<string, ServiceKey> = {
     save: (db, filesKey, key) => setElectricityKey({ db, electricity: new EiaElectricity(noKey), fuelPrices: new EiaFuel(noKey), jobs: new DbJobs(db) }, filesKey, key),
   },
   pcgs: { name: "PCGS (graded coins)", setting: "graded.pcgs.key", save: (db, filesKey, key) => saveGradingKey({ db, grading: { pcgs: new PcgsGrading() } }, filesKey, "pcgs", key) },
+  ebay: {
+    name: "eBay (listings)",
+    note: "the Production App ID and Cert ID, separated by a space",
+    setting: EBAY_KEY,
+    save: (db, filesKey, key) => setMarketKey({ db, marketListings: new EbayListings(noKey) }, filesKey, key),
+  },
   psa: { name: "PSA (graded cards)", setting: "graded.psa.key", save: (db, filesKey, key) => saveGradingKey({ db, grading: { psa: new PsaGrading() } }, filesKey, "psa", key) },
 };
 

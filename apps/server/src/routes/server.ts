@@ -27,6 +27,7 @@ import { cardLookupStatus, setCardsEnabled } from "../lib/cards";
 import { catalogStatus, saveCatalogKey } from "../lib/collectibles";
 import { energyStatus, setElectricityKey, setEnergyEnabled } from "../lib/energy";
 import { bikeIndexStatus, setBikeIndexEnabled } from "../lib/bikes";
+import { marketStatus, setMarketKey } from "../lib/market";
 import { gradingStatus, saveGradingKey } from "../lib/graded";
 import { gradingServices } from "@ferret/shared";
 import { collectibleKeyInput, collectibleKinds } from "@ferret/shared";
@@ -249,6 +250,15 @@ server.put("/energy-star", async (c) => {
 server.put("/energy-star/electricity", async (c) => {
   const { key } = await body(c.req.raw, collectibleKeyInput);
   return c.json(await setElectricityKey(c.var.deps, c.var.config.FILES_KEY, key));
+});
+
+/** eBay listings ("On eBay now" on things' pages): whether a keyset is saved. Keys are never sent back. */
+server.get("/ebay", async (c) => c.json(await marketStatus(c.var.deps)));
+
+/** Save the eBay keyset — "<App ID> <Cert ID>", checked with eBay first — or `{ key: null }` to remove it. */
+server.put("/ebay", async (c) => {
+  const { key } = await body(c.req.raw, collectibleKeyInput);
+  return c.json(await setMarketKey(c.var.deps, c.var.config.FILES_KEY, key));
 });
 
 /** Google Books, asked after Open Library: save its free key (checked with Google first), or `{ key: null }` to remove it. */

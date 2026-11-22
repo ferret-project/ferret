@@ -2697,6 +2697,52 @@ export interface BikeIndexStatus {
   checked: number;
 }
 
+/** A listing on eBay now (its Browse API): what's shown on a thing's "On eBay now" card — never who's selling it. */
+export interface MarketListing {
+  title: string;
+  /** The asking price (an auction's current bid), ×100 in `currency` — the marketplace's, not necessarily the household's. */
+  priceCents: number;
+  currency: string;
+  /** Postage to the marketplace's country: 0 = free, null = not said. */
+  shippingCents: number | null;
+  /** eBay's words: "New", "Used", "For parts or not working"… */
+  condition: string | null;
+  buyingOption: "auction" | "fixed";
+  bids: number | null;
+  /** When an auction ends (ISO). */
+  endsAt: string | null;
+  imageUrl: string | null;
+  url: string;
+}
+
+/**
+ * A thing's "On eBay now" card: off (no eBay key on the server), none (nothing to search for — no barcode, brand and
+ * model), unavailable (eBay didn't answer), or found (listings may be empty).
+ */
+export interface ItemMarketListings {
+  status: "off" | "none" | "unavailable" | "found";
+  /** What was searched: the barcode, or the words. */
+  by?: "barcode" | "words";
+  query?: string;
+  /** eBay's marketplace ("EBAY_US"). */
+  marketplace?: string;
+  /** How many listings eBay has for it. */
+  total?: number;
+  listings?: MarketListing[];
+  /** The lowest and highest asking prices among the closest matches (up to 20), in the listings' currency. */
+  range?: { lowCents: number; highCents: number; currency: string; of: number } | null;
+  /** The same search on eBay's site. */
+  searchUrl?: string;
+  /** When eBay was asked (ISO): answers are reused for up to an hour. */
+  checkedAt?: string;
+}
+
+/** eBay listings for Settings → Server: on with the server admin's keys (the last four characters shown). */
+export interface MarketListingsStatus {
+  available: boolean;
+  hint: string | null;
+}
+
 /** What a grading service says about a certificate. */
 export interface GradedInfo {
   by: GradingService;

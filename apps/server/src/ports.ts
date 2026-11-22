@@ -21,7 +21,7 @@
  *   Speech    → a Whisper-style transcription server (OpenAI-compatible /v1/audio/transcriptions)
  */
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
-import type { GradedInfo, GradingService, StolenBikeReport, EnergyStarMatch, FuelEconomyVehicle, CardGame, CardInfo, CoinIssuer, CollectibleInfo, CollectibleKind, CollectiblePrice, ExchangeRates, PlanLimits } from "@ferret/shared";
+import type { GradedInfo, GradingService, MarketListing, StolenBikeReport, EnergyStarMatch, FuelEconomyVehicle, CardGame, CardInfo, CoinIssuer, CollectibleInfo, CollectibleKind, CollectiblePrice, ExchangeRates, PlanLimits } from "@ferret/shared";
 import type { SupportRelease } from "./db/schema/inventory";
 import type * as schema from "./db/schema";
 import type { Catalogs } from "./lib/language";
@@ -325,6 +325,16 @@ export interface Grading {
   check(key: string): Promise<boolean>;
   /** Null when there's no such certificate. */
   byCert(key: string, cert: string): Promise<GradedInfo | null>;
+}
+
+/** What's searched for on eBay: a barcode (UPC/EAN) or words, on one of its marketplaces ("EBAY_US"). */
+export type MarketQuery = { marketplace: string; gtin?: string; text?: string; limit: number };
+
+/** eBay's listings (its Browse API) — active ones only; sold prices are a restricted API. Throws when eBay fails. */
+export interface MarketListings {
+  /** Null without the server admin's keys. */
+  search(q: MarketQuery): Promise<{ total: number; listings: MarketListing[] } | null>;
+  check(key: string): Promise<boolean>;
 }
 
 /** Bike Index: bikes reported stolen, by serial number. */
@@ -719,6 +729,8 @@ export interface Deps {
   cards?: Partial<Record<CardGame, CardCatalog>>;
   /** Grading services (PCGS, PSA): graded coins and cards by certificate, once the server admin saves a key. */
   grading?: Partial<Record<GradingService, Grading>>;
+  /** eBay's listings for a thing ("On eBay now"), once the server admin saves eBay keys. */
+  marketListings?: MarketListings;
   /** Bike Index: whether a bike's serial is reported stolen, once the server admin switches it on. */
   stolenBikes?: StolenBikes;
   /** The US EIA's electricity prices, to put ENERGY STAR's kWh in money (with the server admin's key). */
