@@ -2,6 +2,7 @@
 import type { ItemMarketListings, MarketListing, MarketListingsStatus } from "@ferret/shared";
 import { afterEach, describe, expect, it } from "vitest";
 import { EbayListings, toListing } from "../src/adapters/local/ebay";
+import { ebayListing, marketplaceOf, sellingLinksOf } from "@ferret/shared/utils";
 import { forgetMarketListings, marketQuery } from "../src/lib/market";
 import type { MarketListings, MarketQuery } from "../src/ports";
 import { setup } from "./helpers";
@@ -37,6 +38,13 @@ class FakeEbay implements MarketListings {
     if (q.gtin === "885911425308") return { total: 2, listings: [listing("DeWalt DCD771 drill", 60), listing("DCD771C2 kit", 95)] };
     if (q.text === "Makita XFD131") return { total: 7, listings: [listing("Makita XFD131 driver", 80), listing("Makita XFD-131 bare", 45), listing("Makita XFD10Z drill", 30), listing("Makita XFD131", 120)] };
     return { total: 0, listings: [] };
+  }
+  looked: string[] = [];
+  live = new Set(["880057027089"]);
+  async listing(itemId: string, marketplace: string) {
+    this.looked.push(`${marketplace}:${itemId}`);
+    if (this.failing) throw new Error("eBay item: HTTP 503");
+    return this.live.has(itemId) ? { status: "listed" as const, listing: { ...listing("My DCD771", 70), url: `https://www.ebay.com/itm/${itemId}` } } : { status: "gone" as const };
   }
 }
 
@@ -114,6 +122,73 @@ describe("On eBay now", () => {
   });
 });
 
+describe("Your own eBay listing", () => {
+  it("is looked up by its item number, left out of what others ask, and says when it's gone", async () => {
+    const ebay = new FakeEbay();
+    const { user } = await setup({ marketListings: ebay });
+    const ann = await user("ann");
+    await send(ann, "PUT", "/api/v1/server/ebay", { key: "APP-ID CERT-ID" });
+    const mine = "https://www.ebay.com/itm/My-DCD771/880057027089?hash=x";
+    const drill = await ann.addItem({ name: "Drill", brand: "DeWalt", model: "DCD771", barcode: "0885911425308", links: [{ url: mine, selling: true }, { url: "https://dewalt.com" }] });
+    const saved = await json<{ links: { url: string; selling?: boolean }[] }>(ann.as(`/api/v1/items/${drill.id}`));
+    expect(saved.links[0]).toMatchObject({ url: mine, selling: true });
+
+    // Before Check eBay: only their own listing, by its number.
+    const ready = await json<ItemMarketListings>(ann.as(`/api/v1/items/${drill.id}/ebay?ask=false`));
+    expect(ready).toMatchObject({ status: "ready", own: { url: mine, status: "listed", listing: { priceCents: 7000 } } });
+    expect(ebay.asked).toEqual([]);
+    expect(ebay.looked).toEqual(["EBAY_US:880057027089"]);
+
+    ebay.live.clear();
+    forgetMarketListings();
+    const card = await json<ItemMarketListings>(ann.as(`/api/v1/items/${drill.id}/ebay`));
+    expect(card).toMatchObject({ status: "found", own: { status: "gone" } });
+
+    // A thing with nothing to search for still shows its listing; one not marked as theirs isn't looked up.
+    const lamp = await ann.addItem({ name: "Lamp", links: [{ url: "https://www.ebay.co.uk/itm/123456789012", selling: true }] });
+    expect(await json(ann.as(`/api/v1/items/${lamp.id}/ebay?ask=false`))).toMatchObject({ status: "none", own: { status: "gone" } });
+    expect(ebay.looked.at(-1)).toBe("EBAY_GB:123456789012");
+    const bought = await ann.addItem({ name: "Vase", links: [{ url: "https://www.ebay.com/itm/223456789012" }] });
+    expect(await json(ann.as(`/api/v1/items/${bought.id}/ebay?ask=false`))).toEqual({ status: "none" });
+
+    ebay.failing = true;
+    forgetMarketListings();
+    expect(await json(ann.as(`/api/v1/items/${lamp.id}/ebay?ask=false`))).toMatchObject({ status: "none", own: { status: "unavailable" } });
+  });
+
+  it("filters their listing out of the search results and the range", async () => {
+    const ebay = new FakeEbay();
+    ebay.search = async (q) => {
+      ebay.asked.push(q);
+      return { total: 2, listings: [{ ...listing("My drill", 300), url: "https://www.ebay.com/itm/880057027089" }, listing("Other drill", 60)] };
+    };
+    const { user } = await setup({ marketListings: ebay });
+    const ann = await user("ann");
+    await send(ann, "PUT", "/api/v1/server/ebay", { key: "APP-ID CERT-ID" });
+    const drill = await ann.addItem({ name: "Drill", barcode: "0885911425308", links: [{ url: "https://www.ebay.com/itm/880057027089", selling: true }] });
+    const card = await json<ItemMarketListings>(ann.as(`/api/v1/items/${drill.id}/ebay`));
+    expect(card.listings!.map((l) => l.title)).toEqual(["Other drill"]);
+    expect(card.range).toMatchObject({ lowCents: 6000, highCents: 6000, of: 1 });
+    expect(card.own).toMatchObject({ status: "listed" });
+  });
+});
+
+describe("marketplace links", () => {
+  it("knows listing pages, not other pages of the same sites", () => {
+    expect(marketplaceOf("https://www.ebay.com/itm/880057027089")).toBe("eBay");
+    expect(marketplaceOf("https://ebay.co.uk/itm/Some-title/123456789012?x=1")).toBe("eBay");
+    expect(marketplaceOf("https://www.ebay.com/sch/i.html?_nkw=drill")).toBeNull();
+    expect(marketplaceOf("https://www.ebay.com.evil.example/itm/880057027089")).toBeNull();
+    expect(marketplaceOf("https://www.facebook.com/marketplace/item/1234567890/")).toBe("Facebook Marketplace");
+    expect(marketplaceOf("https://www.facebook.com/someone")).toBeNull();
+    expect(marketplaceOf("https://denver.craigslist.org/tls/d/drill/7801234567.html")).toBe("Craigslist");
+    expect(ebayListing("https://m.ebay.de/itm/123456789012")).toEqual({ itemId: "123456789012", site: "www.ebay.de" });
+    expect(sellingLinksOf([{ url: "https://www.facebook.com/marketplace/item/1/", selling: true }, { url: "https://dewalt.com" }])).toEqual([
+      { url: "https://www.facebook.com/marketplace/item/1/", selling: true, marketplace: "Facebook Marketplace" },
+    ]);
+  });
+});
+
 describe("eBay's search terms", () => {
   it("picks a barcode and a brand with a model number", () => {
     expect(marketQuery({ name: "Drill", barcode: "0885911425308", brand: "DeWalt", model: "DCD771" })).toEqual({ gtin: "885911425308", words: "DeWalt DCD771", model: "DCD771" });
@@ -178,5 +253,21 @@ describe("the eBay adapter", () => {
     expect((search.init?.headers as Record<string, string>)["X-EBAY-C-MARKETPLACE-ID"]).toBe("EBAY_GB");
     expect((search.init?.headers as Record<string, string>).Authorization).toBe("Bearer tok");
     expect(await new EbayListings(async () => null, fetcher).search({ marketplace: "EBAY_US", text: "x", limit: 1 })).toBeNull();
+  });
+
+  it("looks up one listing: live, gone, or live with variations", async () => {
+    const fetcher = (async (url: string) => {
+      if (url.includes("/oauth2/token")) return Response.json({ access_token: "tok", expires_in: 7200 });
+      const id = new URL(url).searchParams.get("legacy_item_id");
+      if (id === "111111111111") return Response.json(summary);
+      if (id === "222222222222") return Response.json({ errors: [{ errorId: 11006 }] }, { status: 400 });
+      if (id === "333333333333") return Response.json({ ...summary, estimatedAvailabilities: [{ estimatedAvailabilityStatus: "OUT_OF_STOCK" }] });
+      return Response.json({ errors: [{ errorId: 11003 }] }, { status: 404 });
+    }) as typeof fetch;
+    const ebay = new EbayListings(async () => "APP CERT", fetcher);
+    expect(await ebay.listing("111111111111", "EBAY_US")).toMatchObject({ status: "listed", listing: { priceCents: 8999 } });
+    expect(await ebay.listing("222222222222", "EBAY_US")).toEqual({ status: "listed", listing: null });
+    expect(await ebay.listing("333333333333", "EBAY_US")).toEqual({ status: "gone" });
+    expect(await ebay.listing("444444444444", "EBAY_US")).toEqual({ status: "gone" });
   });
 });

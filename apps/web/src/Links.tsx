@@ -4,7 +4,7 @@
  * and edited in the item editor. http(s) only; the server checks it too.
  */
 import type { ItemLink, ItemListing } from "@ferret/shared";
-import { amazonCartUrl, amazonProductOf } from "@ferret/shared/utils";
+import { amazonCartUrl, amazonProductOf, marketplaceOf } from "@ferret/shared/utils";
 import { t, ph } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 
@@ -46,6 +46,13 @@ export function manualSearchUrl(it: Pick<ItemListing, "brand" | "model" | "vehic
   return `https://archive.org/details/manuals?${new URLSearchParams({ query: `${brand} ${model}` })}`;
 }
 
+/** A link's button text: its label, "Your eBay listing" for their own listing, else the site. */
+export function linkText(l: ItemLink) {
+  if (l.label) return l.label;
+  const market = l.selling ? marketplaceOf(l.url) : null;
+  return market ? t`Your ${ph({ market })} listing` : l.selling ? t`Your listing` : siteOf(l.url);
+}
+
 export function ItemLinks({ links, search }: { links: ItemLink[]; search?: string | null }) {
   const product = amazonProductOf(links);
   const cart = product && amazonCartUrl(product.site, [{ asin: product.asin, quantity: 1 }]);
@@ -54,8 +61,8 @@ export function ItemLinks({ links, search }: { links: ItemLink[]; search?: strin
       {links.map((l) => (
         <li key={l.url}>
           <a href={l.url} target="_blank" rel="noopener noreferrer" className="btn btn-soft btn-secondary btn-sm max-w-full" title={l.url}>
-            <span className="icon-[tabler--external-link] size-4 shrink-0" />
-            <span className="truncate">{l.label ?? siteOf(l.url)}</span>
+            <span className={`${l.selling ? "icon-[tabler--tag]" : "icon-[tabler--external-link]"} size-4 shrink-0`} />
+            <span className="truncate">{linkText(l)}</span>
           </a>
         </li>
       ))}
@@ -79,7 +86,7 @@ export function ItemLinks({ links, search }: { links: ItemLink[]; search?: strin
   );
 }
 
-export type LinkDraft = { url: string; label: string };
+export type LinkDraft = { url: string; label: string; selling?: boolean };
 
 /** Rows of label + address, with Add and Remove. Blank rows are dropped on save. */
 export function LinksInput({ value, onChange }: { value: LinkDraft[]; onChange: (links: LinkDraft[]) => void }) {
@@ -113,6 +120,12 @@ export function LinksInput({ value, onChange }: { value: LinkDraft[]; onChange: 
                 onChange={(e) => set(i, { url: e.target.value })}
               />
               {bad && <p className="mt-1 text-xs text-error"><Trans>That doesn't look like a web address.</Trans></p>}
+              {!bad && marketplaceOf(asWebAddress(l.url) ?? "") && (
+                <label className="mt-1 flex items-center gap-2 text-sm">
+                  <input type="checkbox" className="checkbox checkbox-sm" checked={Boolean(l.selling)} onChange={(e) => set(i, { selling: e.target.checked })} />
+                  <Trans>My listing — I'm selling it on {ph({ market: marketplaceOf(asWebAddress(l.url) ?? "") ?? "" })}</Trans>
+                </label>
+              )}
             </div>
             <button
               type="button"
@@ -126,7 +139,7 @@ export function LinksInput({ value, onChange }: { value: LinkDraft[]; onChange: 
         );
       })}
       {value.length < 10 && (
-        <button type="button" className="btn btn-soft btn-secondary btn-sm" onClick={() => onChange([...value, { url: "", label: "" }])}>
+        <button type="button" className="btn btn-soft btn-secondary btn-sm" onClick={() => onChange([...value, { url: "", label: "", selling: false }])}>
           <span className="icon-[tabler--link-plus] size-4" />
           <Trans>Add a link</Trans>
         </button>
@@ -142,7 +155,7 @@ export function linksToSave(drafts: LinkDraft[]): ItemLink[] | null {
     if (!d.url.trim()) continue;
     const url = asWebAddress(d.url);
     if (!url) return null;
-    out.push({ url, label: d.label.trim() || null });
+    out.push({ url, label: d.label.trim() || null, ...(d.selling && marketplaceOf(url) ? { selling: true } : {}) });
   }
   return out;
 }

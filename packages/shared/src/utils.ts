@@ -313,6 +313,7 @@ export const NOTIFICATION_SERVICES: Record<string, string> = {
 export * from "./pairing";
 export * from "./import";
 export * from "./amazon";
+export * from "./marketplaces";
 export * from "./money";
 export * from "./lifespans";
 

@@ -19,13 +19,24 @@ A box has to be empty first. Its maintenance stops, and its warranties drop off 
 ## On eBay now
 
 When whoever runs your Ferret has set up [eBay listings](../hosting/server-admin#ebay-listings), a thing with a
-barcode, or a brand and model number, has **Check eBay** on its page. Nothing is sent to eBay until you tap it; then
+barcode, or a brand and model number, has **Check eBay** near the bottom of its page. Nothing is sent to eBay until you tap it; then
 **On eBay now** shows up to five listings for the same thing on eBay right now, with their condition and postage, and
 the range of asking prices across the closest matches. **See all on eBay** opens the same search there. Beside a
 listing the AI drafts it's shown straight away, to check its asking price against.
 
 They're **asking prices**, not what things sold for, so a guide rather than a value: nothing from eBay is saved to the
 thing. The card says when eBay was asked; answers are reused for up to an hour.
+
+### Your own listing
+
+Listed it on eBay? Paste its link under **Posted it?** in the drafted listing, or add it to the thing's
+[links](./adding-things#links) with **My listing** ticked. The eBay card at the bottom of the thing's page then shows
+**Your listing** — its price, and bids if it's an auction — without tapping **Check eBay** (only its item number is
+sent), and leaves it out of what others are asking. Once eBay no longer has it, the card says so with **Sold it?**,
+which marks the thing sold — type what it sold for: eBay doesn't say whether it sold or just ended, nor for how much.
+
+Facebook Marketplace and the other sites have no way for Ferret to check a listing, so their links are just links,
+named as yours.
 
 ## Past things
 

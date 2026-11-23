@@ -144,7 +144,8 @@ what you paid and what it's worth: a **title**, a **description** and a suggeste
 price is based on. Change anything, then copy each part (or **Copy it all**) into the marketplace you use.
 
 When your server has [eBay listings](past-things#on-ebay-now), what the same thing is listed for on eBay now is shown
-under the price.
+under the price. Once you've posted it, paste your listing's link under **Posted it?**: it's kept with the thing's
+links as [your own listing](past-things#your-own-listing), and the next draft says where it's already listed.
 
 It's a draft: check it against the thing itself. Nothing is saved or posted anywhere, and your notes and its serial
 number are never sent to the AI. Each draft counts as one question on your plan.

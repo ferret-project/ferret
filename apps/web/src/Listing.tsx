@@ -4,7 +4,8 @@
  * Offered on an item's page (writers, when the server has a text model) and from GoneDialog's "Sold it".
  */
 import type { ItemListing } from "@ferret/shared";
-import { useMutation } from "@tanstack/react-query";
+import { marketplaceOf, sellingLinksOf } from "@ferret/shared/utils";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { api } from "./lib/api";
 import { useCanEdit } from "./lib/auth";
@@ -13,6 +14,7 @@ import { money } from "./lib/money";
 import { copyText } from "./lib/secure-context";
 import { DialogActions, Modal } from "./Modal";
 import { MarketListingsCard } from "./Ebay";
+import { asWebAddress, linkText } from "./Links";
 import { t, ph } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 
@@ -33,7 +35,7 @@ export function ListingButton({ item, householdId, className = "btn btn-text btn
         <span className="icon-[tabler--speakerphone] size-4 text-primary" />
         <Trans>Write a listing to sell it</Trans>
       </button>
-      {open && <ListingDialog item={item} onClose={() => setOpen(false)} />}
+      {open && <ListingDialog item={item} householdId={householdId} onClose={() => setOpen(false)} />}
     </>
   );
 }
@@ -57,7 +59,71 @@ function CopyButton({ text, label }: { text: string; label: string }) {
   );
 }
 
-export function ListingDialog({ item, onClose }: { item: ItemListing; onClose: () => void }) {
+/**
+ * Where it's already listed (links marked as theirs), and a box to paste a new listing's link once it's posted — saved
+ * among the thing's links as theirs, so its page says "Your eBay listing" (and, for eBay, how it's doing).
+ */
+function Listed({ item, householdId }: { item: ItemListing; householdId: string }) {
+  const qc = useQueryClient();
+  const [typed, setTyped] = useState("");
+  const listed = sellingLinksOf(item.links);
+  const url = asWebAddress(typed);
+  const save = useMutation({
+    mutationFn: () => api.updateItem(item.id, { links: [...(item.links ?? []), { url: url!, label: null, ...(marketplaceOf(url!) ? { selling: true } : {}) }] }),
+    onSuccess: async () => {
+      setTyped("");
+      await qc.invalidateQueries({ queryKey: ["item", householdId] });
+      await qc.invalidateQueries({ queryKey: ["item-ebay", item.id] });
+    },
+  });
+  const full = (item.links?.length ?? 0) >= 10;
+  return (
+    <div className="flex flex-col gap-2">
+      {listed.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-base-content/70"><Trans>Already listed:</Trans></span>
+          {listed.map((l) => (
+            <a key={l.url} href={l.url} target="_blank" rel="noopener noreferrer" className="btn btn-soft btn-secondary btn-sm">
+              <span className="icon-[tabler--tag] size-4" />
+              {linkText(l)}
+            </a>
+          ))}
+        </div>
+      )}
+      {!full && (
+        <form
+          className="flex flex-wrap items-end gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (url && !(item.links ?? []).some((l) => l.url === url)) save.mutate();
+          }}
+        >
+          <label className="min-w-0 flex-1">
+            <span className="label-text"><Trans>Posted it? Paste your listing's link</Trans></span>
+            <input
+              className="input"
+              inputMode="url"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+              maxLength={2000}
+              // not translated
+              placeholder="ebay.com/itm/…"
+              value={typed}
+              onChange={(e) => setTyped(e.target.value)}
+            />
+          </label>
+          <button type="submit" className="btn btn-soft btn-primary" disabled={!url || save.isPending}>
+            <Trans>Save link</Trans>
+          </button>
+          {save.isError && <p className="w-full text-sm text-error">{save.error.message}</p>}
+        </form>
+      )}
+    </div>
+  );
+}
+
+export function ListingDialog({ item, householdId, onClose }: { item: ItemListing; householdId: string; onClose: () => void }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
@@ -117,6 +183,7 @@ export function ListingDialog({ item, onClose }: { item: ItemListing; onClose: (
             </p>
           </>
         )}
+        <Listed item={item} householdId={householdId} />
         <DialogActions>
           <button type="button" className="btn btn-secondary btn-soft" disabled={draft.isPending} onClick={() => draft.mutate()}>
             <Trans>Try again</Trans>

@@ -9,6 +9,7 @@ import type { MarketListings, MarketQuery } from "../../ports";
 
 const TOKEN_URL = "https://api.ebay.com/identity/v1/oauth2/token";
 const SEARCH_URL = "https://api.ebay.com/buy/browse/v1/item_summary/search";
+const ITEM_URL = "https://api.ebay.com/buy/browse/v1/item/get_item_by_legacy_id";
 const SCOPE = "https://api.ebay.com/oauth/api_scope";
 
 type Money = { value?: string; currency?: string };
@@ -24,6 +25,7 @@ type Summary = {
   thumbnailImages?: { imageUrl?: string }[];
   itemWebUrl?: string;
   shippingOptions?: { shippingCostType?: string; shippingCost?: Money }[];
+  estimatedAvailabilities?: { estimatedAvailabilityStatus?: string }[];
 };
 
 const cents = (m: Money | undefined) => {
@@ -102,6 +104,17 @@ export class EbayListings implements MarketListings {
     return Boolean(t);
   }
 
+  /** GET with the application token, once more with a new one if eBay stopped taking it early. */
+  private async get(key: string, url: string, marketplace: string) {
+    const ask = async (fresh: boolean) =>
+      this.fetcher(url, {
+        headers: { Authorization: `Bearer ${await this.tokenFor(key, fresh)}`, "X-EBAY-C-MARKETPLACE-ID": marketplace, Accept: "application/json" },
+        signal: AbortSignal.timeout(15_000),
+      });
+    const res = await ask(false);
+    return res.status === 401 ? ask(true) : res;
+  }
+
   async search(q: MarketQuery) {
     const key = await this.key();
     if (!key) return null;
@@ -109,17 +122,28 @@ export class EbayListings implements MarketListings {
     if (q.gtin) params.set("gtin", q.gtin);
     if (q.text) params.set("q", q.text.slice(0, 100));
     params.set("filter", "buyingOptions:{FIXED_PRICE|AUCTION}");
-    const ask = async (fresh: boolean) =>
-      this.fetcher(`${SEARCH_URL}?${params}`, {
-        headers: { Authorization: `Bearer ${await this.tokenFor(key, fresh)}`, "X-EBAY-C-MARKETPLACE-ID": q.marketplace, Accept: "application/json" },
-        signal: AbortSignal.timeout(15_000),
-      });
-    let res = await ask(false);
-    // A token eBay stopped taking early: once more with a new one.
-    if (res.status === 401) res = await ask(true);
+    const res = await this.get(key, `${SEARCH_URL}?${params}`, q.marketplace);
     if (!res.ok) throw new Error(`eBay search: HTTP ${res.status}`);
     const body = (await res.json()) as { total?: number; itemSummaries?: Summary[] };
     const listings = (body.itemSummaries ?? []).map(toListing).filter((l): l is MarketListing => l !== null);
     return { total: body.total ?? listings.length, listings };
+  }
+
+  async listing(itemId: string, marketplace: string) {
+    const key = await this.key();
+    if (!key) return null;
+    if (!/^\d{9,15}$/.test(itemId)) return { status: "gone" as const };
+    const res = await this.get(key, `${ITEM_URL}?${new URLSearchParams({ legacy_item_id: itemId })}`, marketplace);
+    // Not found (11003): sold, ended or never there — eBay's Browse API only has live listings.
+    if (res.status === 404) return { status: "gone" as const };
+    // A listing with variations wants one of them named (11006): it's live, but there's no one price to show.
+    if (res.status === 400) {
+      const body = (await res.json().catch(() => ({}))) as { errors?: { errorId?: number }[] };
+      if (body.errors?.some((e) => e.errorId === 11006)) return { status: "listed" as const, listing: null };
+    }
+    if (!res.ok) throw new Error(`eBay item: HTTP ${res.status}`);
+    const item = (await res.json()) as Summary;
+    if (item.estimatedAvailabilities?.every((a) => a.estimatedAvailabilityStatus === "OUT_OF_STOCK")) return { status: "gone" as const };
+    return { status: "listed" as const, listing: toListing(item) };
   }
 }

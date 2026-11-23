@@ -65,7 +65,7 @@ import { PairingCard } from "./Pairing";
 import { ItemHistory } from "./History";
 import { LoanCard } from "./Loans";
 import { RecallCard } from "./PayOff";
-import { GoneBanner } from "./Gone";
+import { GoneBanner, GoneDialog } from "./Gone";
 import { CapturedPhoto, PhotoCrop } from "./PhotoCrop";
 import { t, ph, plural } from "@lingui/core/macro";
 import { conditionPhrase } from "./lib/words";
@@ -140,6 +140,8 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
     setOpened((o) => ({ itemId, sections: [...(o.itemId === itemId ? o.sections : []), section] }));
   // "Estimate replacement cost" asked from the bottom of the page: its answer stays there for this visit.
   const [estimatedHere, setEstimatedHere] = useState(false);
+  // "Sold it?" from an ended eBay listing of theirs.
+  const [selling, setSelling] = useState(false);
   useEffect(() => setEstimatedHere(false), [itemId]);
   const addTask = useMutation({
     mutationFn: (input: MaintenanceInput) => api.createMaintenance(input),
@@ -455,7 +457,6 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
       {!item.data.collectible && !item.data.card && <EnergyCard item={item.data} />}
       {!item.data.collectible && !item.data.card && <BikeIndexCard item={item.data} />}
       {!item.data.card && <DeviceSupport item={item.data} canEdit={canEdit} />}
-      {!item.data.collectible && !item.data.card && <MarketListingsCard thing={item.data} onRequest />}
       {canEdit && !item.data.card && !item.data.collectible && <ProductSuggestions item={item.data} householdId={householdId} />}
       {canEdit && <VehicleSuggestions item={item.data} householdId={householdId} />}
       <FuelEconomyCard item={item.data} canEdit={canEdit} />
@@ -769,11 +770,13 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
         <ItemHistory itemId={itemId} householdId={householdId} />
       </div>
 
-      {/* Now and then: an estimate of what replacing it costs, a listing to sell it. */}
-      <div className="flex flex-col items-start gap-2 [&>section]:w-full">
+      {/* Now and then: an estimate of what replacing it costs, what it's listed for on eBay, a listing to sell it. */}
+      <div className="flex flex-col items-start gap-2 [&>section]:w-full [&>div]:w-full">
         <ReplacementCard item={item.data} householdId={householdId} place="bottom" askedHere={estimatedHere} onAsk={() => setEstimatedHere(true)} />
+        {!item.data.collectible && !item.data.card && <MarketListingsCard thing={item.data} onRequest onSold={canEdit && !item.data.disposition ? () => setSelling(true) : undefined} />}
         {!item.data.disposition && <ListingButton item={item.data} householdId={householdId} className="btn btn-text btn-sm" />}
       </div>
+      {selling && <GoneDialog item={item.data} householdId={householdId} onClose={() => setSelling(false)} />}
     </Shell>
   );
 }

@@ -9,7 +9,8 @@
  * **in memory only**, for an hour (never in the database, so never in a backup or an export), and nothing is ever
  * written to a thing — no value, no price. Sold prices are a restricted API; these are asking prices, and say so.
  */
-import type { ItemMarketListings, MarketListing, MarketListingsStatus } from "@ferret/shared";
+import type { ItemMarketListings, MarketListing, MarketListingsStatus, OwnMarketListing } from "@ferret/shared";
+import { ebayListing } from "@ferret/shared/utils";
 import { HTTPException } from "hono/http-exception";
 import type { Db, Deps, MarketQuery } from "../ports";
 import { householdAmazon } from "./household-time";
@@ -47,6 +48,7 @@ const kept = new Map<string, Answer>();
 
 /** Forget every kept answer (new keys; tests). */
 export function forgetMarketListings() {
+  ownKept.clear();
   kept.clear();
 }
 
@@ -105,6 +107,30 @@ async function ask(deps: Pick<Deps, "marketListings">, q: MarketQuery, peek = fa
   return answer;
 }
 
+const ownKept = new Map<string, { own: OwnMarketListing; at: number }>();
+
+/** Their own listing (a link marked `selling`), on the eBay its link is on — from memory within the hour, like the rest. */
+async function ownListing(deps: Pick<Deps, "marketListings">, url: string, itemId: string, site: string): Promise<OwnMarketListing> {
+  const id = `${site}|${itemId}`;
+  const hit = ownKept.get(id);
+  if (hit && Date.now() - hit.at < FRESH_MS) return { ...hit.own, url };
+  const marketplace = Object.values(MARKETS).find((m) => m.site === site)?.id ?? "EBAY_US";
+  try {
+    const found = await deps.marketListings!.listing(itemId, marketplace);
+    if (!found) return { url, status: "unavailable" };
+    const at = Date.now();
+    const own: OwnMarketListing =
+      found.status === "gone" ? { url, status: "gone", checkedAt: new Date(at).toISOString() } : { url, status: "listed", ...(found.listing ? { listing: found.listing } : {}), checkedAt: new Date(at).toISOString() };
+    ownKept.delete(id);
+    ownKept.set(id, { own, at });
+    while (ownKept.size > KEEP_AT_MOST) ownKept.delete(ownKept.keys().next().value!);
+    return own;
+  } catch {
+    // Recorded by the service error log (watched).
+    return { url, status: "unavailable" };
+  }
+}
+
 /** The lowest and highest asking prices (postage left out) in the most common currency among the listings. */
 function rangeOf(listings: MarketListing[]): ItemMarketListings["range"] {
   if (!listings.length) return null;
@@ -123,26 +149,33 @@ function rangeOf(listings: MarketListing[]): ItemMarketListings["range"] {
 export async function itemMarketListings(v: Caller, itemId: string, askEbay = true): Promise<ItemMarketListings> {
   const it = await getItem(v, itemId);
   if (!v.deps.marketListings || !(await hasKey(v.db))) return { status: "off" };
-  if (it.isContainer || it.wanted) return { status: "none" };
+  // Their own listing is looked up even before Check eBay: it's theirs, and only its item number is sent.
+  const link = (it.links ?? []).find((l) => l.selling && ebayListing(l.url));
+  const mine = link ? ebayListing(link.url) : null;
+  const own = link && mine ? { own: await ownListing(v.deps, link.url, mine.itemId, mine.site) } : {};
+  if (it.isContainer || it.wanted) return { status: "none", ...own };
   const q = marketQuery(it);
-  if (!q) return { status: "none" };
+  if (!q) return { status: "none", ...own };
   const market = marketFor((await householdAmazon(v.db, v.householdId)).site);
   try {
     let by: "barcode" | "words" = "barcode";
     const peek = !askEbay;
     let answer = q.gtin ? await ask(v.deps, { marketplace: market.id, gtin: q.gtin, limit: ASK_FOR }, peek) : null;
-    if (answer === undefined) return { status: "ready" };
+    if (answer === undefined) return { status: "ready", ...own };
     // Many listings carry no barcode: nothing by it → the brand and model.
     if (q.words && (!answer || answer.listings.length === 0)) {
       by = "words";
       answer = await ask(v.deps, { marketplace: market.id, text: q.words, limit: ASK_FOR }, peek);
-      if (answer === undefined) return { status: "ready" };
+      if (answer === undefined) return { status: "ready", ...own };
     }
     if (!answer) return { status: "off" };
     const query = by === "barcode" ? q.gtin! : q.words!;
     // eBay's word search is loose ("Makita XFD131" brings other Makita drills): by words, only titles with the model number.
-    const listings = by === "words" && q.model ? answer.listings.filter((l) => squash(l.title).includes(q.model!)) : answer.listings;
+    const close = by === "words" && q.model ? answer.listings.filter((l) => squash(l.title).includes(q.model!)) : answer.listings;
+    // Their own listing isn't what others are asking.
+    const listings = mine ? close.filter((l) => ebayListing(l.url)?.itemId !== mine.itemId) : close;
     return {
+      ...own,
       status: "found",
       by,
       query,
@@ -155,6 +188,6 @@ export async function itemMarketListings(v: Caller, itemId: string, askEbay = tr
     };
   } catch {
     // Recorded by the service error log (watched); the card says eBay didn't answer.
-    return { status: "unavailable" };
+    return { status: "unavailable", ...own };
   }
 }

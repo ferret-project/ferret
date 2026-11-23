@@ -145,7 +145,7 @@ export function ItemEditor({
   }
   const [tags, setTags] = useState<string[]>(item.tags ?? []);
   const [custom, setCustom] = useState<CustomFieldValues>(item.customFields ?? {});
-  const [links, setLinks] = useState<LinkDraft[]>((item.links ?? []).map((l) => ({ url: l.url, label: l.label ?? "" })));
+  const [links, setLinks] = useState<LinkDraft[]>((item.links ?? []).map((l) => ({ url: l.url, label: l.label ?? "", selling: Boolean(l.selling) })));
   const [linkError, setLinkError] = useState(false);
   const categories = useCategories(householdId);
   const templates = useTemplates(householdId);

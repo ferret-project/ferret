@@ -334,6 +334,8 @@ export type MarketQuery = { marketplace: string; gtin?: string; text?: string; l
 export interface MarketListings {
   /** Null without the server admin's keys. */
   search(q: MarketQuery): Promise<{ total: number; listings: MarketListing[] } | null>;
+  /** One listing by its item number: `gone` when eBay no longer has it; `listed` without a listing for one with variations. */
+  listing(itemId: string, marketplace: string): Promise<{ status: "listed"; listing: MarketListing | null } | { status: "gone" } | null>;
   check(key: string): Promise<boolean>;
 }
 

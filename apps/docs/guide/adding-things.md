@@ -69,6 +69,11 @@ An item can keep web links: the maker's product page, the manual online, where y
 go in its **How-to videos** instead (**How-to video** on its page), where they play inside Ferret — see
 [How-to videos](./maintenance#videos).
 
+Selling it? Add your listing's link — eBay, Facebook Marketplace, Craigslist, OfferUp, Mercari, Poshmark, Kijiji,
+Gumtree or Vinted — and tick **My listing**: its button reads **Your eBay listing** (and so on), and a drafted listing
+says it's already listed. For eBay, the thing's page also shows how it's doing — see
+[your own listing](./past-things#your-own-listing).
+
 ## Scanning a barcode
 
 **+ Add → Scan a barcode** opens the camera. If Ferret knows the code — someone in your household saved something with

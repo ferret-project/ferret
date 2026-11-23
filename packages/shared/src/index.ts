@@ -178,6 +178,8 @@ const tagName = z.string().trim().min(1).max(40);
 export const itemLink = z.object({
   url: z.url({ protocol: /^https?$/, error: "Use a web address starting with https:// (or http://)" }).max(2000),
   label: optionalText(80),
+  /** Their own listing of it on a marketplace (eBay, Facebook Marketplace…): they're selling it. */
+  selling: z.boolean().optional().describe("True when this is your own listing of it on a marketplace — you're selling it"),
 });
 export type ItemLink = z.infer<typeof itemLink>;
 
@@ -2735,6 +2737,19 @@ export interface ItemMarketListings {
   /** The same search on eBay's site. */
   searchUrl?: string;
   /** When eBay was asked (ISO): answers are reused for up to an hour. */
+  checkedAt?: string;
+  /** Their own eBay listing of it (a link marked `selling`), looked up by its item number; left out of `listings`. */
+  own?: OwnMarketListing;
+}
+
+/**
+ * Someone's own eBay listing: listed (with what eBay shows — `listing` is missing for a listing with variations), gone
+ * (eBay no longer has it: sold, ended, or a mistyped link), or unavailable (eBay didn't answer).
+ */
+export interface OwnMarketListing {
+  url: string;
+  status: "listed" | "gone" | "unavailable";
+  listing?: MarketListing;
   checkedAt?: string;
 }
 
