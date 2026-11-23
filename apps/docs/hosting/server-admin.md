@@ -134,8 +134,10 @@ and set) is sent to them. Prices are kept a day for the whole server. Reading a 
 card's page ([what people see](../guide/collections#graded-coins-and-cards)): with [PCGS](https://www.pcgs.com) for
 coins (the grade, how many PCGS has graded the same and higher, and its price guide value, offered as the thing's
 value) and with [PSA](https://www.psacard.com) for cards (the grade and population; PSA gives no prices). Each needs a
-free key: PCGS's API token from [pcgs.com/publicapi](https://www.pcgs.com/publicapi), PSA's access token from
-[psacard.com/publicapi](https://www.psacard.com/publicapi). PSA approves accounts for its API before the token works.
+key: PCGS's API token is free from [pcgs.com/publicapi](https://www.pcgs.com/publicapi). PSA's access token
+([psacard.com/publicapi](https://www.psacard.com/publicapi)) is a paid subscription — PSA no longer offers free API
+access (its smallest plan was $179 a year for 50 checks a day in November 2026) — and the token works only once PSA
+has approved your account.
 Only certificate numbers are sent; each answer is kept for the whole server a week.
 
 ## Bike Index look-ups
