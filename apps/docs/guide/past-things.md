@@ -30,13 +30,21 @@ thing. The card says when eBay was asked; answers are reused for up to an hour.
 ### Your own listing
 
 Listed it on eBay? Paste its link under **Posted it?** in the drafted listing, or add it to the thing's
-[links](./adding-things#links) with **My listing** ticked. The eBay card at the bottom of the thing's page then shows
+[links](./adding-things#links) with **My listing** ticked: its button then reads **Your eBay listing**. When your
+server has eBay listings set up, the eBay card at the bottom of the thing's page also shows
 **Your listing** — its price, and bids if it's an auction — without tapping **Check eBay** (only its item number is
 sent), and leaves it out of what others are asking. Once eBay no longer has it, the card says so with **Sold it?**,
 which marks the thing sold — type what it sold for: eBay doesn't say whether it sold or just ended, nor for how much.
 
-Facebook Marketplace and the other sites have no way for Ferret to check a listing, so their links are just links,
-named as yours.
+### Facebook Marketplace and other sites
+
+Links to your listings on Facebook Marketplace, Craigslist, OfferUp, Mercari, Poshmark, Kijiji, Gumtree and Vinted are
+named as yours (**Your Facebook Marketplace listing**) and shown as **Already listed** when you draft a listing — but
+Ferret can't show their prices or tell you when they've sold, and has no **On … now** card for them. None of them lets
+an app search its listings or look one up: Facebook's Marketplace API is only for the large sellers it partners with,
+the others have no public API at all, and reading their pages without one is against their terms (and breaks whenever
+they change). eBay is the one that offers it, which is why only eBay gets more. Mark them sold yourself with **No
+longer have it?** in the thing's editor.
 
 ## Past things
 
