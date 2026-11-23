@@ -56,6 +56,10 @@ describe("On eBay now", () => {
     expect(await json(send(ann, "PUT", "/api/v1/server/ebay", { key: "APP-ID CERT-ID" }))).toEqual({ available: true, hint: "…T-ID" });
     expect(ebay.asked).toEqual([]);
 
+    // A thing's page opening: nothing goes to eBay until someone taps Check eBay.
+    expect(await json(ann.as(`/api/v1/items/${drill.id}/ebay?ask=false`))).toEqual({ status: "ready" });
+    expect(ebay.asked).toEqual([]);
+
     const card = await json<ItemMarketListings>(ann.as(`/api/v1/items/${drill.id}/ebay`));
     expect(card).toMatchObject({
       status: "found",
@@ -70,8 +74,9 @@ describe("On eBay now", () => {
     // The 13-digit EAN goes as eBay's 12-digit UPC-A.
     expect(ebay.asked).toEqual([{ marketplace: "EBAY_US", gtin: "885911425308", limit: 20 }]);
 
-    // Asked again within the hour: from memory, eBay isn't.
+    // Asked again within the hour: from memory, eBay isn't — and the page opening shows it too.
     await json(ann.as(`/api/v1/items/${drill.id}/ebay`));
+    expect(await json<ItemMarketListings>(ann.as(`/api/v1/items/${drill.id}/ebay?ask=false`))).toMatchObject({ status: "found", total: 2 });
     expect(ebay.asked).toHaveLength(1);
 
     expect(await json(send(ann, "PUT", "/api/v1/server/ebay", { key: null }))).toEqual({ available: true, hint: null });
@@ -85,6 +90,7 @@ describe("On eBay now", () => {
     await send(ann, "PUT", "/api/v1/server/ebay", { key: "APP-ID CERT-ID" });
     const driver = await ann.addItem({ name: "Impact driver", brand: "Makita", model: "XFD131", barcode: "088381111111" });
     const couch = await ann.addItem({ name: "Couch", brand: "IKEA", model: "Classic" });
+    expect(await json(ann.as(`/api/v1/items/${couch.id}/ebay?ask=false`))).toEqual({ status: "none" });
 
     const card = await json<ItemMarketListings>(ann.as(`/api/v1/items/${driver.id}/ebay`));
     expect(card).toMatchObject({ status: "found", by: "words", query: "Makita XFD131", total: 7, range: { lowCents: 4500, highCents: 12000, of: 3 } });

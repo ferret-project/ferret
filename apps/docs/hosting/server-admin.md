@@ -138,8 +138,8 @@ registering and reporting happen on their site.
 
 ## eBay listings
 
-**Settings → Server → eBay listings** adds an **On eBay now** card to a thing's page, and beside a listing the AI
-drafts ([what people see](../guide/past-things#on-ebay-now)): up to five listings for the same thing on eBay and the
+**Settings → Server → eBay listings** adds **Check eBay** to a thing's page (eBay is asked only when someone taps it),
+and an **On eBay now** card beside a listing the AI drafts ([what people see](../guide/past-things#on-ebay-now)): up to five listings for the same thing on eBay and the
 range of asking prices, linking to eBay. It finds them by the thing's **barcode**, else its **brand and model number**
 (a model with a digit in it); those are all that's sent, to the eBay of the household's country (worked out like its
 Amazon store, eBay US otherwise). They're asking prices: eBay keeps sold prices to a restricted API.

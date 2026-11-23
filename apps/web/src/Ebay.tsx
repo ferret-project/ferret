@@ -1,12 +1,14 @@
 /**
  * "On eBay now" (server: lib/market.ts): what the same thing is listed for on eBay right now, by its barcode or its
- * brand and model — a handful of listings and the range of asking prices, linking to eBay. Shown on a thing's page and
- * beside a drafted listing. eBay's terms: its listings stay in a card of their own, not mixed with anything else, and
+ * brand and model — a handful of listings and the range of asking prices, linking to eBay. On a thing's page only when
+ * asked ("Check eBay": nothing goes to eBay until then, unless someone checked within the hour); beside a drafted listing
+ * straight away (selling it is why the dialog is open). eBay's terms: its listings stay in a card of their own, not mixed with anything else, and
  * are no more than an hour old here (the time is shown). Nothing from eBay is saved to the thing.
  */
 import type { ItemMarketListings, MarketListing } from "@ferret/shared";
 import { formatMoney } from "@ferret/shared/utils";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { api } from "./lib/api";
 import { t, plural, ph } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
@@ -17,12 +19,14 @@ const price = (cents: number, currency: string) => formatMoney(cents, currency, 
 const time = (iso: string) => new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 const day = (iso: string) => new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
-export function useMarketListings(thing: Thing) {
+/** `ask` false: only an answer from the last hour, else `ready` — eBay isn't asked. */
+export function useMarketListings(thing: Thing, ask = true, enabled = true) {
   return useQuery<ItemMarketListings>({
-    queryKey: ["item-ebay", thing.id, thing.barcode ?? null, thing.brand ?? null, thing.model ?? null],
-    queryFn: () => api.itemEbay(thing.id),
-    staleTime: 30 * 60_000,
+    queryKey: ["item-ebay", thing.id, thing.barcode ?? null, thing.brand ?? null, thing.model ?? null, ask],
+    queryFn: () => api.itemEbay(thing.id, ask),
+    staleTime: ask ? 30 * 60_000 : 0,
     retry: false,
+    enabled,
   });
 }
 
@@ -50,11 +54,36 @@ function Row({ l }: { l: MarketListing }) {
   );
 }
 
-/** The card. `compact` drops its own border and heading size, for inside a dialog. */
-export function MarketListingsCard({ thing, compact = false }: { thing: Thing; compact?: boolean }) {
-  const q = useMarketListings(thing);
-  const s = q.data;
+/**
+ * The card. `compact` drops its own border and heading size, for inside a dialog. `onRequest`: a "Check eBay" row until
+ * the person taps it (a thing's page); otherwise eBay is asked as it opens.
+ */
+export function MarketListingsCard({ thing, compact = false, onRequest = false }: { thing: Thing; compact?: boolean; onRequest?: boolean }) {
+  const [asked, setAsked] = useState(!onRequest);
+  const peek = useMarketListings(thing, false, !asked);
+  const full = useMarketListings(thing, true, asked);
+  // Checked within the hour: the answer from memory, shown as it was.
+  const s = asked ? full.data : peek.data;
+  if (asked && full.isPending)
+    return (
+      <div className="flex items-center gap-2 rounded-box border border-base-content/10 px-4 py-3 text-sm text-base-content/70">
+        <span className="loading loading-spinner loading-sm" />
+        <Trans>Checking eBay…</Trans>
+      </div>
+    );
   if (!s || s.status === "off" || s.status === "none") return null;
+  if (s.status === "ready")
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-box border border-base-content/10 px-4 py-2">
+        <span className="flex items-center gap-2 text-sm">
+          <span className="icon-[tabler--building-store] size-5 text-primary" />
+          <Trans>See what it's listed for on eBay right now.</Trans>
+        </span>
+        <button type="button" className="btn btn-soft btn-primary btn-sm" onClick={() => setAsked(true)}>
+          <Trans>Check eBay</Trans>
+        </button>
+      </div>
+    );
   const listings = s.listings ?? [];
   return (
     <section className={compact ? "flex flex-col gap-2 rounded-box border border-base-content/10 p-3" : "card border border-base-content/10"} aria-labelledby="ebay-title">

@@ -23,7 +23,7 @@ energy.get("/items/:id/energy", async (c) => c.json(await itemEnergy(callerOf(c)
 energy.get("/items/:id/bike-index", async (c) => c.json(await itemBikeIndex(callerOf(c), c.req.param("id"))));
 
 /** "On eBay now": listings for the same thing (by barcode, else brand and model) — asking prices, kept an hour in memory. */
-energy.get("/items/:id/ebay", async (c) => c.json(await itemMarketListings(callerOf(c), c.req.param("id"))));
+energy.get("/items/:id/ebay", async (c) => c.json(await itemMarketListings(callerOf(c), c.req.param("id"), c.req.query("ask") !== "false")));
 
 /** A vehicle's EPA fuel economy: confirmed (with a year's fuel cost), entries to choose from, or `pending` — ask again. */
 energy.get("/items/:id/fuel-economy", async (c) => c.json(await itemFuelEconomy(callerOf(c), c.req.param("id"))));

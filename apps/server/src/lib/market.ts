@@ -90,10 +90,12 @@ export function marketQuery(thing: Thing): { gtin: string | null; words: string 
   return gtin || words ? { gtin, words, model: words ? squash(model!) : null } : null;
 }
 
-async function ask(deps: Pick<Deps, "marketListings">, q: MarketQuery): Promise<Answer | null> {
+/** eBay's answer (from memory within the hour). `peek`: only from memory — undefined when eBay would have to be asked. */
+async function ask(deps: Pick<Deps, "marketListings">, q: MarketQuery, peek = false): Promise<Answer | null | undefined> {
   const id = `${q.marketplace}|${q.gtin ?? ""}|${(q.text ?? "").toLowerCase()}`;
   const hit = kept.get(id);
   if (hit && Date.now() - hit.at < FRESH_MS) return hit;
+  if (peek) return undefined;
   const found = await deps.marketListings!.search(q);
   if (!found) return null;
   const answer = { ...found, at: Date.now() };
@@ -113,8 +115,12 @@ function rangeOf(listings: MarketListing[]): ItemMarketListings["range"] {
   return { lowCents: Math.min(...prices), highCents: Math.max(...prices), currency, of: prices.length };
 }
 
-/** A thing's "On eBay now" card. eBay is asked inline (a person is waiting; it answers in about a second). */
-export async function itemMarketListings(v: Caller, itemId: string): Promise<ItemMarketListings> {
+/**
+ * A thing's "On eBay now" card. eBay is asked inline (a person is waiting; it answers in about a second) — only when
+ * they ask: with `askEbay` false (a thing's page opening) the answer comes from memory if someone checked within the
+ * hour, else `ready` (there's something to search for; nothing was sent to eBay).
+ */
+export async function itemMarketListings(v: Caller, itemId: string, askEbay = true): Promise<ItemMarketListings> {
   const it = await getItem(v, itemId);
   if (!v.deps.marketListings || !(await hasKey(v.db))) return { status: "off" };
   if (it.isContainer || it.wanted) return { status: "none" };
@@ -123,11 +129,14 @@ export async function itemMarketListings(v: Caller, itemId: string): Promise<Ite
   const market = marketFor((await householdAmazon(v.db, v.householdId)).site);
   try {
     let by: "barcode" | "words" = "barcode";
-    let answer = q.gtin ? await ask(v.deps, { marketplace: market.id, gtin: q.gtin, limit: ASK_FOR }) : null;
+    const peek = !askEbay;
+    let answer = q.gtin ? await ask(v.deps, { marketplace: market.id, gtin: q.gtin, limit: ASK_FOR }, peek) : null;
+    if (answer === undefined) return { status: "ready" };
     // Many listings carry no barcode: nothing by it → the brand and model.
     if (q.words && (!answer || answer.listings.length === 0)) {
       by = "words";
-      answer = await ask(v.deps, { marketplace: market.id, text: q.words, limit: ASK_FOR });
+      answer = await ask(v.deps, { marketplace: market.id, text: q.words, limit: ASK_FOR }, peek);
+      if (answer === undefined) return { status: "ready" };
     }
     if (!answer) return { status: "off" };
     const query = by === "barcode" ? q.gtin! : q.words!;

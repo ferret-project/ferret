@@ -2717,10 +2717,11 @@ export interface MarketListing {
 
 /**
  * A thing's "On eBay now" card: off (no eBay key on the server), none (nothing to search for — no barcode, brand and
- * model), unavailable (eBay didn't answer), or found (listings may be empty).
+ * model), ready (something to search for, not asked yet — `?ask=false`), unavailable (eBay didn't answer), or found
+ * (listings may be empty).
  */
 export interface ItemMarketListings {
-  status: "off" | "none" | "unavailable" | "found";
+  status: "off" | "none" | "ready" | "unavailable" | "found";
   /** What was searched: the barcode, or the words. */
   by?: "barcode" | "words";
   query?: string;

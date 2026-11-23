@@ -455,7 +455,7 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
       {!item.data.collectible && !item.data.card && <EnergyCard item={item.data} />}
       {!item.data.collectible && !item.data.card && <BikeIndexCard item={item.data} />}
       {!item.data.card && <DeviceSupport item={item.data} canEdit={canEdit} />}
-      {!item.data.collectible && !item.data.card && <MarketListingsCard thing={item.data} />}
+      {!item.data.collectible && !item.data.card && <MarketListingsCard thing={item.data} onRequest />}
       {canEdit && !item.data.card && !item.data.collectible && <ProductSuggestions item={item.data} householdId={householdId} />}
       {canEdit && <VehicleSuggestions item={item.data} householdId={householdId} />}
       <FuelEconomyCard item={item.data} canEdit={canEdit} />

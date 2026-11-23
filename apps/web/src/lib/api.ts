@@ -384,7 +384,7 @@ export const api = {
   itemGraded: (itemId: string) => request<ItemGradedInfo>(`/items/${itemId}/graded`),
   gradingStatus: () => request<{ data: GradingStatus[] }>("/server/graded"),
   setGradingKey: (by: GradingService, key: string | null) => request<{ data: GradingStatus[] }>(`/server/graded/${by}`, { method: "PUT", body: JSON.stringify({ key }) }),
-  itemEbay: (itemId: string) => request<ItemMarketListings>(`/items/${itemId}/ebay`),
+  itemEbay: (itemId: string, ask = true) => request<ItemMarketListings>(`/items/${itemId}/ebay${ask ? "" : "?ask=false"}`),
   ebayStatus: () => request<MarketListingsStatus>("/server/ebay"),
   setEbayKey: (key: string | null) => request<MarketListingsStatus>("/server/ebay", { method: "PUT", body: JSON.stringify({ key }) }),
   itemBikeIndex: (itemId: string) => request<ItemBikeIndex>(`/items/${itemId}/bike-index`),
