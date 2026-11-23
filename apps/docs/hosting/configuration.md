@@ -25,7 +25,7 @@ it.
 Ferret needs a few secrets. **It makes them for you** the first time it starts — the right kind, from a secure random
 source — and keeps them in the data folder, in `secrets.json` (readable by Ferret's own user only, and never copied into
 its [backups](./backups)). Set any of them yourself and yours is used instead; that keeps it out of the data folder and
-out of any copy of it. **Settings → Server → Keys** shows where each one came from.
+out of any copy of it. **Settings → Server → Access → Keys** shows where each one came from.
 
 | Setting | What it's for | To set your own | If it's lost |
 |---|---|---|---|
@@ -37,7 +37,7 @@ All of them come back from a [key file](./backups#a-key-file-for-files-key) — 
 choose. Make one once, whichever way the secrets were set, and keep it (and the passphrase) off the server.
 
 Moving a secret Ferret made into the settings: copy it from a key file (`key recover` prints them) into `.env`, restart,
-and check **Settings → Server → Keys** says "From the settings". The copy in `secrets.json` is then unused.
+and check **Settings → Server → Access → Keys** says "From the settings". The copy in `secrets.json` is then unused.
 
 ## General
 

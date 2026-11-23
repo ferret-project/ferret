@@ -3,9 +3,20 @@
 Some things belong to the whole server rather than one household — backups, recall checks and the service error log. One person looks after them: the
 **server admin**. They see **Settings → Server** and get backup alerts in the bell; nobody else does.
 
+**Settings → Server** has four parts along its top:
+
+- **Status** — backups, the [server check](./server-check) and disk space, updates, and the service error log. Links
+  from the bell and Ferret's alert emails open this one.
+- **AI** — search by meaning, Ask Ferret's limits, what AI fills in by itself, and the AI's prompts.
+- **Lookups** — the outside databases Ferret can ask, in three groups: products and prices (barcodes, groceries, eBay,
+  exchange rates, ENERGY STAR), safety and upkeep (recalls, vehicles, repair guides, device support) and collections
+  (books, music, cards, collector catalogs, grading, Bike Index).
+- **Access** — the server's [keys](./backups#a-key-file-for-files-key), handing over the server admin, and
+  [certificates](./certificates).
+
 It's the **first account** made on the server, until it's handed over:
 
-- In **Settings → Server → Server admin**: enter the email of another account (it must have confirmed its email), and
+- In **Settings → Server → Access → Server admin**: enter the email of another account (it must have confirmed its email), and
   confirm. You lose the tab once it's theirs.
 - On the server, for when the admin's account is gone or locked out:
 

@@ -33,7 +33,7 @@ Its data — a SQLite database and the uploaded files, encrypted — lives in on
    ::: danger FILES_KEY
    Every uploaded photo and document is encrypted with a key sealed by `FILES_KEY`. **Lose it and they're
    unreadable** — backups too. Once Ferret is running, make a [key file](./backups#a-key-file-for-files-key)
-   (**Settings → Server → Keys** shows how) and keep it, and its passphrase, off the server.
+   (**Settings → Server → Access → Keys** shows how) and keep it, and its passphrase, off the server.
    :::
 
 3. Start it:

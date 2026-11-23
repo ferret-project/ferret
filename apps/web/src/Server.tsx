@@ -11,7 +11,8 @@ import { DemoSwitches, DemoUsage, HostingUsageCard } from "./Demo";
 import { type FormEvent, type ReactNode, useState } from "react";
 import { CopyField } from "./CopyField";
 import { api } from "./lib/api";
-import { SETTINGS_HREF } from "./lib/route";
+import { SETTINGS_HREF, settingsHref } from "./lib/route";
+import { useSearch } from "@tanstack/react-router";
 import { DialogActions, Modal } from "./Modal";
 import { HelpLink } from "./HelpLink";
 import { navigateTo } from "./lib/navigate";
@@ -20,16 +21,63 @@ import { Trans } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
 import { copyText } from "./lib/secure-context";
 
+/** Server's parts (`?part=`): what it's doing first — the bell and the error emails link to it. */
+const PARTS = [
+  { key: "status", label: msg`Status`, icon: "icon-[tabler--heart-rate-monitor]" },
+  { key: "ai", label: msg`AI`, icon: "icon-[tabler--sparkles]" },
+  { key: "lookups", label: msg`Lookups`, icon: "icon-[tabler--world-search]" },
+  { key: "access", label: msg`Access`, icon: "icon-[tabler--lock]" },
+] as const;
+type Part = (typeof PARTS)[number]["key"];
+
+/** Cards in two columns on a wide screen, balanced by height (each kept whole); one column on a phone, in order. */
+function Columns({ children }: { children: ReactNode }) {
+  return <div className="flex flex-col gap-4 lg:block lg:columns-2 lg:gap-4 lg:[&>*]:mb-4 lg:[&>*]:break-inside-avoid">{children}</div>;
+}
+
+/** A group of lookups under its own heading. */
+function Group({ title, intro, children }: { title: string; intro: string; children: ReactNode }) {
+  return (
+    <section className="flex flex-col gap-3">
+      <div>
+        <h2 className="text-lg font-semibold text-base-content">{title}</h2>
+        <p className="text-sm text-base-content/70">{intro}</p>
+      </div>
+      <Columns>{children}</Columns>
+    </section>
+  );
+}
+
 export function Server() {
   // The demo has no backups of its own: it's planted afresh every night.
   const demo = useQuery({ queryKey: ["auth-options"], queryFn: api.authOptions, staleTime: Infinity }).data?.demo;
-  // Two columns on a wide screen: what the server is doing (backups, its check, errors) on the left, the switches for
-  // its outside lookups on the right. One column on a phone, in that order.
+  const asked = (useSearch({ strict: false }) as { part?: string }).part;
+  const part: Part = PARTS.some((p) => p.key === asked) ? (asked as Part) : "status";
+  const hrefOf = (key: Part) => (key === "status" ? settingsHref("server") : `${settingsHref("server")}?part=${key}`);
   return (
     <>
       <AddressNotice />
-      <div className="grid items-start gap-4 lg:grid-cols-2">
-        <div className="flex min-w-0 flex-col gap-4">
+      <nav className="flex flex-wrap gap-2" aria-label={t`Server settings`}>
+        {PARTS.map((p) => (
+          <a
+            key={p.key}
+            href={hrefOf(p.key)}
+            // Like Settings' own tabs: they replace each other in history.
+            onClick={(e) => {
+              if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+              e.preventDefault();
+              navigateTo(hrefOf(p.key), { replace: true });
+            }}
+            className={`btn btn-sm gap-1.5 rounded-full ${part === p.key ? "btn-primary" : "btn-soft"}`}
+            aria-current={part === p.key ? "page" : undefined}
+          >
+            <span className={`${p.icon} size-4`} />
+            {t(p.label)}
+          </a>
+        ))}
+      </nav>
+      {part === "status" && (
+        <Columns>
           <DemoUsage />
           <HostingUsageCard />
           <DemoSwitches />
@@ -37,31 +85,48 @@ export function Server() {
           <ServerCheck />
           <Updates />
           <ServiceErrors />
-          <ServerAdmin />
-        </div>
-        <div className="flex min-w-0 flex-col gap-4">
+        </Columns>
+      )}
+      {part === "ai" && (
+        <Columns>
           <SearchIndex />
           <AskLimits />
           <ServerAiFillCard />
-          <BarcodeLookups />
-          <RecallChecks />
-          <VehicleLookups />
-          <RepairGuideLinks />
-          <ExchangeRateLookups />
-          <OpenFactsLookups />
-          <SupportLookups />
-          <BookLookups />
-          <MusicLookups />
-          <CardLookups />
-          <CollectorCatalogs />
-          <GradingKeys />
-          <EnergyStarLookups />
-          <BikeIndexLookups />
-          <EbayListings />
-          {!demo && <Certificates />}
           {!demo && <AiPrompts />}
-        </div>
-      </div>
+        </Columns>
+      )}
+      {part === "lookups" && (
+        <>
+          <Group title={t`Products and prices`} intro={t`What a barcode is, what it's worth, and what it costs to run.`}>
+            <BarcodeLookups />
+            <OpenFactsLookups />
+            <EbayListings />
+            <ExchangeRateLookups />
+            <EnergyStarLookups />
+          </Group>
+          <Group title={t`Safety and upkeep`} intro={t`Recalls, vehicles, repair guides and how long things are supported.`}>
+            <RecallChecks />
+            <VehicleLookups />
+            <RepairGuideLinks />
+            <SupportLookups />
+          </Group>
+          <Group title={t`Collections`} intro={t`Books, music, cards, coins and other things people collect.`}>
+            <BookLookups />
+            <MusicLookups />
+            <CardLookups />
+            <CollectorCatalogs />
+            <GradingKeys />
+            <BikeIndexLookups />
+          </Group>
+        </>
+      )}
+      {part === "access" && (
+        <Columns>
+          {!demo && <KeysCard />}
+          <ServerAdmin />
+          {!demo && <Certificates />}
+        </Columns>
+      )}
     </>
   );
 }
@@ -1326,7 +1391,11 @@ function Backups() {
             <Snapshots data={snapshots.data?.data} loading={snapshots.isPending} error={snapshots.error?.message} />
           </>
         )}
-        {s && <FilesKey keyId={s.keyId} keyFile={s.keyFile} folder={s.where} commandLine={!s.elsewhere} />}
+        {s && (
+          <p className="text-sm text-base-content/70">
+            <Trans>A backup opens only with FILES_KEY: keep it, or a key file, somewhere safe — <a href={`${settingsHref("server")}?part=access`} className="link link-primary tap">Access → Keys</a>.</Trans>
+          </p>
+        )}
         {s?.enabled && <Restoring />}
       </div>
     </section>
@@ -1439,6 +1508,20 @@ const SECRET_ROLES: Record<ServerSecrets["secrets"][number]["name"], { what: Mes
  * are made on the command line only (lib/key-file.ts): whoever can run that can already read the server's settings; a
  * page could be misused by anyone holding the admin's session.
  */
+/** The secrets Ferret needs (FILES_KEY above all) and the key file: on Access, apart from Backups, which links here. */
+function KeysCard() {
+  const status = useQuery({ queryKey: ["backup"], queryFn: api.backupStatus });
+  const s = status.data;
+  if (!s) return null;
+  return (
+    <section className="card" aria-label={t`Keys`}>
+      <div className="card-body gap-3">
+        <FilesKey keyId={s.keyId} keyFile={s.keyFile} folder={s.where} commandLine={!s.elsewhere} />
+      </div>
+    </section>
+  );
+}
+
 function FilesKey({
   keyId,
   keyFile,
@@ -1456,7 +1539,10 @@ function FilesKey({
   const filesKeyByFerret = list.some((x) => x.name === "FILES_KEY" && x.source === "ferret");
   return (
     <div className="space-y-3">
-      <h3 className="font-medium"><Trans>Keys</Trans></h3>
+      <h2 className="card-title flex items-center gap-2">
+        <span className="icon-[tabler--key] size-5 text-primary" />
+        <Trans>Keys</Trans>
+      </h2>
       <p className="text-sm text-base-content/70">
         {secrets.data?.file ? (
           <Trans>

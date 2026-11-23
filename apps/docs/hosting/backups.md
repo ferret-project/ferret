@@ -52,7 +52,7 @@ It asks for the passphrase twice and writes `ferret-key-<fingerprint>.json`. Use
 characters at the least — and keep it in your password manager: anyone with the file can try passphrases on their own
 computer, as long as they like. Copy the file off the server.
 
-Making one is never silent: the server admin is told (push, their other apps, email), and **Settings → Server → Keys**
+Making one is never silent: the server admin is told (push, their other apps, email), and **Settings → Server → Access → Keys**
 shows the newest key file — or that none has been made, or that the newest holds an older `FILES_KEY`. While `FILES_KEY`
 is one Ferret made and there's no key file of it, the admin's bell says so. If you're told about a key file you didn't
 make, someone can run commands on your server.

@@ -32,7 +32,7 @@ MAIL_URL=mailtos://example.com:465?smtp=smtp-relay.gmail.com&from=noreply@exampl
 ## Push notifications
 
 Push works out of the box: Ferret makes its key pair the first time it starts ([secrets](./configuration#secrets)), and
-**Settings → Server → Keys** shows the public one. To use your own pair instead — the same on a new server, say:
+**Settings → Server → Access → Keys** shows the public one. To use your own pair instead — the same on a new server, say:
 
 ```bash
 npx web-push generate-vapid-keys

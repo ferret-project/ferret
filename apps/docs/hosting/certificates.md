@@ -2,7 +2,7 @@
 
 Ferret's server connects to your other services: Home Assistant, the AI models, docling, Qdrant, Apprise, your
 sign-in provider. If one of them has a certificate from your own certificate authority, or a self-signed one, or asks
-*Ferret* to show a certificate (mutual TLS), tell Ferret in **Settings → Server → Certificates**. Only the
+*Ferret* to show a certificate (mutual TLS), tell Ferret in **Settings → Server → Access → Certificates**. Only the
 [server admin](./server-admin) sees it.
 
 ## Trusting a certificate
