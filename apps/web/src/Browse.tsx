@@ -57,30 +57,70 @@ export function PropertyCards({ tree, canEdit }: { tree: PlacesTree; canEdit: bo
       </section>
     );
   }
+  // One property: its rooms right here (no extra tap). More: a card per property.
+  const only = tree.properties.length === 1 ? tree.properties[0]! : null;
   return (
-    <section className="flex flex-col gap-3" aria-labelledby="places-title">
-      <div className="flex flex-wrap items-center justify-between gap-x-2">
-        <h2 id="places-title" className="flex items-center gap-2 font-semibold text-base-content">
-          <span className="icon-[tabler--map-pin] size-5 text-primary" />
-          <Trans>Places</Trans>
-        </h2>
-        {canEdit && (
-          <a href={PLACES_HREF} className="tap link link-primary link-hover text-sm">
-            <Trans>Edit places</Trans>
+    <section className="card" aria-labelledby="places-title">
+      <div className="card-body gap-4 p-4 sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-x-2">
+          <h2 id="places-title" className="card-title flex items-center gap-2 text-base">
+            <span className="icon-[tabler--map-pin] size-5 text-primary" />
+            {only ? (
+              <a href={propertyHref(only.id)} className="link link-hover">
+                {only.name}
+              </a>
+            ) : (
+              <Trans>Places</Trans>
+            )}
+          </h2>
+          {canEdit && (
+            <a href={PLACES_HREF} className="tap link link-primary link-hover text-sm">
+              <Trans>Edit places</Trans>
+            </a>
+          )}
+        </div>
+        {only ? (
+          only.locations.length ? (
+            <div className="@container">
+              <div className="grid grid-cols-2 gap-2 @lg:grid-cols-3">
+                {only.locations.map((n) => (
+                  <RoomTile key={n.id} node={n} />
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="-mt-2 text-sm text-base-content/70"><Trans>No rooms yet.</Trans></p>
+          )
+        ) : (
+          <div className="flex flex-col gap-3">
+            {tree.properties.map((p) => (
+              <PropertyCard key={p.id} property={p} />
+            ))}
+          </div>
+        )}
+        {tree.unplacedItems > 0 && (
+          <a href={missingHref("place")} className="tap link link-hover text-sm text-base-content/70">
+            <Trans>{ph({ things: things(tree.unplacedItems) })} not in a place yet →</Trans>
           </a>
         )}
       </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {tree.properties.map((p) => (
-          <PropertyCard key={p.id} property={p} />
-        ))}
-      </div>
-      {tree.unplacedItems > 0 && (
-        <a href={missingHref("place")} className="tap link link-hover text-sm text-base-content/70">
-          <Trans>{ph({ things: things(tree.unplacedItems) })} not in a place yet →</Trans>
-        </a>
-      )}
     </section>
+  );
+}
+
+/** A room on the dashboard: its name and what it's worth, then how many things. */
+function RoomTile({ node: n }: { node: LocationNode }) {
+  const sum = totals([n]);
+  return (
+    <a href={placeHref(n.id)} className="flex min-h-11 flex-col gap-0.5 rounded-field bg-base-200/60 px-3 py-2.5 transition-colors hover:bg-base-200">
+      <span className="flex items-center gap-2">
+        <span className={`${n.children.length ? "icon-[tabler--folder]" : "icon-[tabler--door]"} size-4 shrink-0 text-primary`} />
+        <span className="min-w-0 flex-1 truncate font-medium text-base-content">{n.name}</span>
+        {sum.valueCents > 0 && <span className="shrink-0 text-sm font-medium text-base-content">{money(sum.valueCents)}</span>}
+      </span>
+      {/* Everything in it, places inside included — the room's own page has the split. */}
+      <span className="truncate text-xs text-base-content/70">{things(n.totalCount)}</span>
+    </a>
   );
 }
 

@@ -6,7 +6,7 @@
 import { sql } from "drizzle-orm";
 import { check, index, integer, primaryKey, real, sqliteTable, text, uniqueIndex, type AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import type { SightingHow, SightingKind } from "@ferret/shared/utils";
-import type { CardInfo, ItemCard, ItemCollectible, ItemGraded, ItemSupport, ItemFuelEconomy, VideoHit, VehicleInfo, AiFill, AiFillSwitches, AnalysisStatus, AttachmentAnalysis, CategoryField, CustomFieldValues, HaSnapshot, ItemLink, ItemOrigin, ProductInfo, ReviewOutcome, RoomScanCandidate, RoomScanStatus } from "@ferret/shared";
+import type { CardInfo, DashboardLayout, ItemCard, ItemCollectible, ItemGraded, ItemSupport, ItemFuelEconomy, VideoHit, VehicleInfo, AiFill, AiFillSwitches, AnalysisStatus, AttachmentAnalysis, CategoryField, CustomFieldValues, HaSnapshot, ItemLink, ItemOrigin, ProductInfo, ReviewOutcome, RoomScanCandidate, RoomScanStatus } from "@ferret/shared";
 import { invitation, organization, session, user } from "./auth";
 
 const id = () =>
@@ -1168,6 +1168,25 @@ export const itemSighting = sqliteTable(
 );
 
 /**
+ * What each person opened lately (lib/recently-viewed.ts): one row per person and thing, the newest few kept — the
+ * dashboard's "Recently viewed". Personal, not household data: not history, not in Download everything.
+ */
+export const itemView = sqliteTable(
+  "item_view",
+  {
+    householdId: householdId(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    itemId: text("item_id")
+      .notNull()
+      .references(() => item.id, { onDelete: "cascade" }),
+    at: integer("at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.itemId] }), index("item_view_person_idx").on(t.householdId, t.userId, t.at)],
+);
+
+/**
  * A room review (lib/room-reviews.ts): someone walks a place thing by thing — still here, moved, gone, can't find it.
  * One open per place at a time (anyone in the household carries it on); `finishedAt` set when it's done.
  */
@@ -1437,6 +1456,8 @@ export const personSetting = sqliteTable(
     /** Also by email to the account's address. */
     weeklyEmail: integer("weekly_email", { mode: "boolean" }).notNull().default(false),
     lastWeeklyOn: text("last_weekly_on"),
+    /** Their dashboard (lib/dashboard-layout.ts): sections hidden and the order of the rest; null = Ferret's. */
+    dashboard: text("dashboard", { mode: "json" }).$type<DashboardLayout>(),
   },
   (t) => [primaryKey({ columns: [t.householdId, t.userId] })],
 );

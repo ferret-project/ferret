@@ -25,6 +25,8 @@ import {
   type UsageUnit,
   usageUnits,
   type WarrantyStatus,
+  DASHBOARD_SECTIONS,
+  DASHBOARD_SIDES,
 } from "./utils";
 
 export * from "./utils";
@@ -1132,7 +1134,17 @@ export interface Overview {
   openClaims: WarrantyClaim[];
   /** Open tasks: how many are overdue or due within 14 days, and the next few. */
   maintenance: { overdue: number; due: number; next: MaintenanceTask[] };
-  activity: { id: string; action: string; summary: string | null; via: string; actorName: string | null; entityType: string; entityId: string; /** The item it's about, if it still exists. */ itemId: string | null; createdAt: string }[];
+  /**
+   * The newest changes: up to 12 made by people (anyone in the household, through the app, a key or Claude) and up to 12
+   * Ferret made itself (`actorName` null and `via` "ferret": recall checks, AI fill-in…), newest first.
+   */
+  activity: { id: string; action: string; summary: string | null; via: string; actorName: string | null; entityType: string; entityId: string; /** The item it's about, if it still exists. */ itemId: string | null; /** It's about a thing now in Recently deleted. */ deletedItem: boolean; createdAt: string }[];
+  /** The newest things added (not gone), as photo cards — up to ten. */
+  recentlyAdded: ThingCard[];
+  /** The next warranty to end after today (any distance away), for the Warranties number when none end within 60 days. */
+  nextWarranty: { itemId: string; itemName: string; endsOn: string } | null;
+  /** The picture (an attachment id) of each thing the dashboard names — its cards' thumbnails. Things without one are left out. */
+  photos: Record<string, string>;
   /** Running low: how many things to buy, how many have run out, and the first few. */
   shopping: { count: number; out: number; next: ShoppingItem[] };
   /** Keeping track (lib/room-reviews.ts): things not seen in a year, things nobody can find, and the room checked longest ago. */
@@ -1140,6 +1152,32 @@ export interface Overview {
   /** Replacement forecast (lib/lifespans.ts): past their typical life, and the next five years. */
   replacements: { past: ForecastYear; years: ForecastYear[] };
 }
+
+/**
+ * A thing as a photo card on the dashboard (Recently viewed, Recently added): `at` is when it was opened or added.
+ */
+export interface ThingCard extends Pick<ItemListing, "id" | "name" | "photoId" | "place" | "container" | "category" | "disposition" | "brand" | "model" | "graded"> {
+  at: string;
+  /** The collection it's in (Baseball cards…). */
+  collection: { id: string; name: string } | null;
+  /** What one is worth: its value, else what was paid. */
+  worthCents: number | null;
+}
+
+// ── The dashboard's layout (each person's own) ──────────────────────────────
+export const dashboardLayout = z.object({
+  /** Sections in the order they're shown; ones missing (new since) go after, in Ferret's order. */
+  order: z.array(z.enum(DASHBOARD_SECTIONS)).max(DASHBOARD_SECTIONS.length),
+  hidden: z.array(z.enum(DASHBOARD_SECTIONS)).max(DASHBOARD_SECTIONS.length),
+  /**
+   * How a wide screen lays them out: "auto" (two columns Ferret balances by height) or "chosen" (each section's `sides`:
+   * a full-width one spans the page at its place in the order; the ones between sit in their two columns). A phone is
+   * one column in `order` either way.
+   */
+  arrange: z.enum(["auto", "chosen"]).default("auto"),
+  sides: z.partialRecord(z.enum(DASHBOARD_SECTIONS), z.enum(DASHBOARD_SIDES)).default({}),
+});
+export type DashboardLayout = z.infer<typeof dashboardLayout>;
 
 // ── Lifespans and the replacement forecast ──────────────────────────────────
 /**

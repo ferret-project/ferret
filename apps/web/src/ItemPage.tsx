@@ -93,6 +93,15 @@ interface Upload {
 export function ItemPage({ itemId, householdId }: { itemId: string; householdId: string }) {
   const qc = useQueryClient();
   const item = useQuery({ queryKey: ["item", householdId, itemId], queryFn: () => api.getItem(itemId) });
+  // For the dashboard's Recently viewed: once per opening, once the thing has loaded (a wrong link records nothing).
+  const loaded = item.isSuccess;
+  useEffect(() => {
+    if (!loaded) return;
+    api
+      .viewed(itemId)
+      .then(() => qc.invalidateQueries({ queryKey: ["recently-viewed", householdId] }))
+      .catch(() => {}); // offline, or gone meanwhile: nothing to record
+  }, [loaded, itemId, householdId, qc]);
   const amazonSite = useQuery({ queryKey: ["household-settings", householdId], queryFn: api.householdSettings, staleTime: 5 * 60_000 }).data?.amazonSite;
   const attachmentsKey = ["attachments", householdId, itemId];
   const attachments = useQuery({

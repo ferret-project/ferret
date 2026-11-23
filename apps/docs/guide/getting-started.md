@@ -29,9 +29,21 @@ checklist goes away once they all are, or when you **Hide** it.
 - **+ Add** (the round button on a phone, top right on a computer) is every way to add something: type it in, from
   photos, scan a barcode, walk through a room, import, or print blank QR labels. Looking at a room, category or tag,
   new things go there.
-- **The cards at the top of Home** open what they count: **Worth** opens everything, most valuable first; **Things**
-  opens everything; **Maintenance** opens maintenance; **Warranties** opens every warranty. Further down, each room in
-  *Worth, room by room* opens that room, and **See all** beside *Most valuable* opens the full list.
+- **The top of Home** says what needs you today (tasks overdue, things run out, warranties ending — each opens its
+  list). On a phone, four shortcuts follow: **Scan**, **Add from photos**, **Walk through** and **Shopping**.
+- **Recently viewed** shows the things you opened last, as photos; switch to **Recently added** for the newest things.
+  The list is yours alone and follows you to your other devices. Hover over a card on a computer, or tap its **(i)** on
+  a phone, to see where it's kept, what it's worth and more.
+- **The cards under it** open what they count: **Worth** opens everything, most valuable first; **Things** opens
+  everything; **Maintenance** opens maintenance; **Warranties** opens every warranty (when none is ending soon and
+  something's on your shopping list, that card is **To buy** instead).
+- **The sections below** come in the order things need doing: maintenance, the shopping list, warranties, your
+  rooms, then the rest. **Worth** shows the value over time, room by room or by category — tap to switch. **Recent
+  changes** shows what people changed (**Show Ferret's own** adds what Ferret did itself, like recall checks); a line
+  about something deleted since opens Recently deleted. **Customize this page** at the bottom hides sections or moves
+  them — only for you. On a computer Ferret splits them into two even columns; under **Advanced** you can choose
+  **Left**, **Right** or **Full width** for each instead (a full-width one spans the page where it is in the list, and
+  the ones between sit in their columns). A phone always shows them in the list's order.
 - **Search** and **scan** stay in the top bar as you scroll, on every screen: the search box itself on the home
   screens, and a search field and scan button elsewhere that take you straight to it. Press <kbd>/</kbd> or
   <kbd>⌘</kbd> <kbd>K</kbd> to jump to it from anywhere.

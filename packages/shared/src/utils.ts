@@ -310,6 +310,40 @@ export const NOTIFICATION_SERVICES: Record<string, string> = {
   whatsapp: "WhatsApp",
 };
 
+/** The dashboard's sections a person can hide or move (Overview.tsx); the order here is Ferret's own. */
+export const DASHBOARD_SECTIONS = [
+  "maintenance",
+  "shopping",
+  "warranties",
+  "places",
+  "claim",
+  "collections",
+  "tracking",
+  "worth",
+  "valuable",
+  "activity",
+] as const;
+export type DashboardSection = (typeof DASHBOARD_SECTIONS)[number];
+/** Where a section goes on a wide screen, when a person chooses (Advanced): a column, or the full width. */
+export const DASHBOARD_SIDES = ["left", "right", "wide"] as const;
+export type DashboardSide = (typeof DASHBOARD_SIDES)[number];
+/**
+ * Ferret's own sides, the starting point when someone chooses: alternating down Ferret's order, so the two columns start
+ * out even and a section made full width doesn't leave one side empty above it.
+ */
+export const DEFAULT_DASHBOARD_SIDES: Record<DashboardSection, DashboardSide> = {
+  maintenance: "left",
+  shopping: "right",
+  warranties: "left",
+  places: "right",
+  claim: "left",
+  collections: "right",
+  tracking: "left",
+  worth: "right",
+  valuable: "left",
+  activity: "right",
+};
+
 export * from "./pairing";
 export * from "./import";
 export * from "./amazon";

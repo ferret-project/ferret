@@ -25,7 +25,7 @@ import { type Choice, ItemPicker } from "./Combobox";
 import { Outlet, useSearch } from "@tanstack/react-router";
 import { Breadcrumbs, PlaceTiles, PropertyCards, PropertyHeader } from "./Browse";
 import { FileMatches, FilesSection, filesKey } from "./Files";
-import { MISSING_LABELS, OverviewSections } from "./Overview";
+import { Greeting, MISSING_LABELS, OverviewSections, QuickActions, RecentlyViewed } from "./Overview";
 import { ReviewRoomLink } from "./Tracking";
 import { CategoryTiles, categoryIcon, flattenCategories, useCategories } from "./Catalog";
 import { useAccountLanguage } from "./Language";
@@ -1205,6 +1205,9 @@ export function Home({ householdName, householdId, view }: { householdName: stri
             </div>
           ))}
 
+        {!query && view.name === "home" && <Greeting householdId={householdId} />}
+        {!query && view.name === "home" && <QuickActions householdId={householdId} onScan={() => setScanning("scan")} />}
+        {!query && view.name === "home" && <RecentlyViewed householdId={householdId} />}
         {!query && view.name === "home" && <CapturesCard householdId={householdId} />}
         {!query && view.name === "home" && <DemoNote />}
         {!query && view.name === "home" && <InstallOffer where="home" />}

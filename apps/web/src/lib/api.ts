@@ -108,6 +108,8 @@ import type { TaskVideo, VideoHit, ItemFuelEconomyStatus, FuelEconomyStatus, Dis
   MaintenanceTask,
   MissingDetail,
   Overview,
+  ThingCard,
+  DashboardLayout,
   PlacesTree,
   PropertyInput,
   PropertyPatch,
@@ -304,6 +306,13 @@ export const api = {
   /** Makes a photo its item's main photo (its picture in lists). */
   setMainPhoto: (id: string) => request<{ id: string; itemId: string }>(`/attachments/${encodeURIComponent(id)}/main`, { method: "POST" }),
   overview: () => request<Overview>("/overview"),
+  /** Recently viewed: the signed-in person's own (lib/recently-viewed.ts on the server). */
+  recentlyViewed: (limit = 6) => request<{ data: ThingCard[] }>(`/recently-viewed?limit=${limit}`),
+  /** This person's dashboard: sections in order, and the ones they hid. */
+  dashboardLayout: () => request<DashboardLayout>("/dashboard-layout"),
+  setDashboardLayout: (layout: DashboardLayout | null) => request<DashboardLayout>("/dashboard-layout", { method: "PUT", body: JSON.stringify({ layout }) }),
+  /** A thing's page opened (for Recently viewed). */
+  viewed: (itemId: string) => request<void>(`/items/${encodeURIComponent(itemId)}/viewed`, { method: "POST" }),
   attention: () => request<{ data: AttentionItem[] }>("/attention"),
   /** Scan to count: what a scanned code does (open it, change its count, or ask). */
   scan: (input: ScanInput) => request<ScanResult>("/scan", { method: "POST", body: JSON.stringify(input) }),

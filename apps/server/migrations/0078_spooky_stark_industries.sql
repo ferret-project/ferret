@@ -1,0 +1,1 @@
+ALTER TABLE `person_setting` ADD `dashboard` text;

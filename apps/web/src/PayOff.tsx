@@ -109,30 +109,60 @@ function RecallBox({ recall: r, householdId, showItem }: { recall: ItemRecall; h
  * On the dashboard, before anything else: recalls of things you have (barcode or model) in full; possible ones (same
  * maker and kind of thing) as one line of links — each item's page has the details.
  */
+/**
+ * The dashboard's recalls, folded to one line ("3 recalls on 2 things") so they don't push everything else off the
+ * first screen; Show opens the full notices (the first five; the rest are in the bell). Possible ones ride along.
+ */
 export function RecallAlert({ householdId }: { householdId: string }) {
   const recalls = useQuery({ queryKey: ["recalls", householdId], queryFn: api.recalls });
-  const open = recalls.data?.data ?? [];
-  const sure = open.filter((r) => r.match !== "possible");
-  const maybe = [...new Map(open.filter((r) => r.match === "possible").map((r) => [r.itemId, r])).values()];
-  if (!open.length) return null;
+  const [open, setOpen] = useState(false);
+  const all = recalls.data?.data ?? [];
+  const sure = all.filter((r) => r.match !== "possible");
+  const maybe = [...new Map(all.filter((r) => r.match === "possible").map((r) => [r.itemId, r])).values()];
+  if (!all.length) return null;
+  const things = [...new Map(sure.map((r) => [r.itemId, r.itemName])).entries()];
+  const possible = (
+    <span className="inline-flex flex-wrap gap-x-1">
+      {maybe.map((r, i) => (
+        <span key={r.itemId}>
+          <a href={itemHref(r.itemId)} className="link font-medium">
+            {r.itemName}
+          </a>
+          {i < maybe.length - 1 ? "," : ""}
+        </span>
+      ))}
+    </span>
+  );
   return (
     <div className="flex flex-col gap-2">
-      {sure.slice(0, 5).map((r) => (
-        <RecallBox key={r.id} recall={r} householdId={householdId} showItem />
-      ))}
-      {sure.length > 5 && <p className="text-sm text-base-content/70"><Trans>And {ph({ more: sure.length - 5 })} more — they're in the bell.</Trans></p>}
+      {sure.length > 0 && (
+        <div className="alert alert-soft alert-error flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5 text-sm" role="status">
+          <span className="icon-[tabler--alert-triangle] size-5 shrink-0" />
+          <span className="min-w-0 flex-1">
+            <strong className="block">{plural(sure.length, { one: "# recall on your things", other: "# recalls on your things" })}</strong>
+            {things.slice(0, 3).map(([id, name], i) => (
+              <span key={id}>
+                <a href={itemHref(id)} className="link">
+                  {name}
+                </a>
+                {i < Math.min(things.length, 3) - 1 ? ", " : ""}
+              </span>
+            ))}
+            {things.length > 3 && <> {plural(things.length - 3, { one: "and # more", other: "and # more" })}</>}
+          </span>
+          <button type="button" className="btn btn-error btn-soft btn-sm" aria-expanded={open} onClick={() => setOpen(!open)}>
+            {open ? <Trans>Hide</Trans> : <Trans>Show</Trans>}
+            <span className={`icon-[tabler--chevron-down] size-4 transition-transform ${open ? "rotate-180" : ""}`} />
+          </button>
+        </div>
+      )}
+      {open && sure.slice(0, 5).map((r) => <RecallBox key={r.id} recall={r} householdId={householdId} showItem />)}
+      {open && sure.length > 5 && <p className="text-sm text-base-content/70"><Trans>And {ph({ more: sure.length - 5 })} more — they're in the bell.</Trans></p>}
       {maybe.length > 0 && (
         <div className="alert alert-soft alert-warning flex flex-wrap items-center gap-x-2 gap-y-1 py-2 text-sm" role="status">
           <span className="icon-[tabler--alert-triangle] size-5 shrink-0" />
           <Trans><span>Possible recalls — check the model:</span></Trans>
-          {maybe.map((r, i) => (
-            <span key={r.itemId}>
-              <a href={itemHref(r.itemId)} className="link font-medium">
-                {r.itemName}
-              </a>
-              {i < maybe.length - 1 ? "," : ""}
-            </span>
-          ))}
+          {possible}
         </div>
       )}
     </div>

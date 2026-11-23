@@ -8,6 +8,7 @@ import { sightingsOf } from "./sightings";
 import { trackingSummary } from "./room-reviews";
 import { replacementForecast } from "./lifespans";
 import { PHOTO_ORDER } from "./photo-order";
+import { thingCards } from "./recently-viewed";
 import { meaningSearchAllowed, recordUsage, requireAllowed, requireRoom } from "./plan";
 import {
   type AiFill,
@@ -1193,27 +1194,10 @@ export async function inventoryReport(v: Caller) {
   };
 }
 
-/**
- * The Overview screen: what it's all worth, warranties to act on, what's
- * missing for an insurance claim, and recent changes (including Claude's).
- */
-export async function overview(v: Caller): Promise<Overview> {
-  const countMissing = async (detail: MissingDetail) =>
-    (await v.db.select({ n: count() }).from(item).where(itemScope(v, { missing: detail })))[0]?.n ?? 0;
-  const today = new Date();
-  const monthAgo = new Date(today.getTime() - 30 * 86_400_000).toISOString().slice(0, 10);
-  const [report, tree, warranties, photo, value, place, document, uncategorised, serial, recent, tasks] = await Promise.all([
-    inventoryReport(v),
-    locationTree(v),
-    listWarranties(v),
-    countMissing("photo"),
-    countMissing("value"),
-    countMissing("place"),
-    countMissing("document"),
-    countMissing("category"),
-    countMissing("serial"),
-    v.db
-      .select({
+/** The newest lines of recent changes made by people, or by Ferret itself (jobs: `via` "ferret", no actor). */
+function recentActivity(v: Caller, by: "people" | "ferret") {
+  return v.db
+    .select({
         id: activity.id,
         action: activity.action,
         summary: activity.summary,
@@ -1221,8 +1205,9 @@ export async function overview(v: Caller): Promise<Overview> {
         actorName: user.name,
         entityType: activity.entityType,
         entityId: activity.entityId,
-        // The thing it's about, while it's still there — so the line can open it.
+        // The thing it's about, while it's still there — so the line can open it (or, deleted, Recently deleted).
         itemId: item.id,
+        itemDeletedAt: item.deletedAt,
         createdAt: activity.createdAt,
       })
       .from(activity)
@@ -1232,15 +1217,52 @@ export async function overview(v: Caller): Promise<Overview> {
         and(
           eq(item.id, sql`coalesce(${activity.itemId}, case when ${activity.entityType} = 'item' then ${activity.entityId} end)`),
           eq(item.householdId, v.householdId),
-          isNull(item.deletedAt),
         ),
       )
-      .where(eq(activity.householdId, v.householdId))
+      .where(and(eq(activity.householdId, v.householdId), by === "people" ? and(isNotNull(activity.actorId), ne(activity.via, "ferret")) : or(isNull(activity.actorId), eq(activity.via, "ferret"))))
       .orderBy(desc(activity.createdAt))
-      .limit(8),
+      .limit(12); // the dashboard folds repeats and shows 8
+}
+
+/** Each of these things' picture (PHOTO_ORDER's first), by item id; things without one are left out. */
+export async function firstPhotos(v: Pick<Caller, "db" | "householdId">, itemIds: string[]) {
+  const ids = [...new Set(itemIds)];
+  const first = new Map<string, string>();
+  if (!ids.length) return first;
+  const rows = await v.db
+    .select({ id: attachment.id, itemId: attachment.itemId })
+    .from(attachment)
+    .where(and(eq(attachment.householdId, v.householdId), inList(attachment.itemId, ids), eq(attachment.kind, "photo"), isNull(attachment.deletedAt)))
+    .orderBy(...PHOTO_ORDER);
+  for (const r of rows) if (r.itemId && !first.has(r.itemId)) first.set(r.itemId, r.id);
+  return first;
+}
+
+/**
+ * The Overview screen: what it's all worth, warranties to act on, what's
+ * missing for an insurance claim, and recent changes (including Claude's).
+ */
+export async function overview(v: Caller): Promise<Overview> {
+  const countMissing = async (detail: MissingDetail) =>
+    (await v.db.select({ n: count() }).from(item).where(itemScope(v, { missing: detail })))[0]?.n ?? 0;
+  const today = new Date();
+  const monthAgo = new Date(today.getTime() - 30 * 86_400_000).toISOString().slice(0, 10);
+  const [report, tree, warranties, photo, value, place, document, uncategorised, serial, byPeople, byFerret, tasks] = await Promise.all([
+    inventoryReport(v),
+    locationTree(v),
+    listWarranties(v),
+    countMissing("photo"),
+    countMissing("value"),
+    countMissing("place"),
+    countMissing("document"),
+    countMissing("category"),
+    countMissing("serial"),
+    recentActivity(v, "people"),
+    recentActivity(v, "ferret"),
     listMaintenance(v),
   ]);
   const openClaims = await listClaims(v, { open: true });
+  const shopping = await shoppingList(v).then(({ items }) => ({ count: items.length, out: items.filter((i) => i.quantity === 0).length, next: items.slice(0, 5) }));
   let locations = 0;
   const countNodes = (nodes: LocationNode[]): void =>
     nodes.forEach((n) => {
@@ -1263,8 +1285,25 @@ export async function overview(v: Caller): Promise<Overview> {
       due: tasks.filter((t) => t.status === "due").length,
       next: tasks.slice(0, 4),
     },
-    activity: recent.map((a) => ({ ...a, createdAt: a.createdAt.toISOString() })),
-    shopping: await shoppingList(v).then(({ items }) => ({ count: items.length, out: items.filter((i) => i.quantity === 0).length, next: items.slice(0, 5) })),
+    activity: [...byPeople, ...byFerret].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()).map(({ itemDeletedAt, ...a }) => ({ ...a, itemId: itemDeletedAt ? null : a.itemId, deletedItem: Boolean(itemDeletedAt), createdAt: a.createdAt.toISOString() })),
+    shopping,
+    // created_at is to the second: ties go by the order they went in.
+    recentlyAdded: await thingCards(
+      v,
+      (await v.db.select().from(item).where(itemScope(v)).orderBy(desc(item.createdAt), sql`rowid desc`).limit(10)).map((it) => ({ item: it, at: it.createdAt })),
+    ),
+    nextWarranty: ((w) => (w ? { itemId: w.itemId, itemName: w.itemName, endsOn: w.endsOn } : null))(
+      warranties.find((w) => w.status !== "expired" && w.endsOn >= todayFor(v)),
+    ),
+    photos: Object.fromEntries(
+      await firstPhotos(v, [
+        ...report.mostValuable.slice(0, 5).map((m) => m.id),
+        ...shopping.next.map((s) => s.id),
+        ...tasks.slice(0, 4).flatMap((t) => (t.itemId ? [t.itemId] : [])),
+        ...[...byPeople, ...byFerret].flatMap((a) => (a.itemId && !a.itemDeletedAt ? [a.itemId] : [])),
+        ...warranties.slice(0, 6).map((w) => w.itemId),
+      ]),
+    ),
     tracking: await trackingSummary(v),
     replacements: await replacementForecast(v, { years: 5, items: false }).then(({ past, years }) => ({ past, years })),
   };

@@ -31,7 +31,7 @@ replace*. Once it's past that: *Past its typical life*. If the kind is wrong, or
 
 ## Coming up for replacement
 
-**Coming up for replacement** (in the menu under Insurance, or **See all** on the dashboard card) lists what's past
+**Coming up for replacement** (in the menu under Insurance, or **See all** in the dashboard's *Keeping track* card) lists what's past
 its typical life, then each of the next ten years, with what replacing those things might cost in total. The
 dashboard shows the next five years at a glance.
 

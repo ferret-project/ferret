@@ -540,6 +540,20 @@
       "when": 1795243934336,
       "tag": "0076_fuel_economy",
       "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "6",
+      "when": 1795403732884,
+      "tag": "0077_gifted_baron_strucker",
+      "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "6",
+      "when": 1795405036567,
+      "tag": "0078_spooky_stark_industries",
+      "breakpoints": true
     }
   ]
 }

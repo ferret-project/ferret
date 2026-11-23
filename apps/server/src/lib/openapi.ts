@@ -75,6 +75,7 @@ import {
   reviewItemBody,
   repairInput,
   repairPatch,
+  dashboardLayout,
 } from "@ferret/shared";
 import { z } from "zod";
 import { BROWSER_EVENTS } from "./analytics";
@@ -187,6 +188,10 @@ export const OPERATIONS: Operation[] = [
     returns: "{ data: AttentionItem[] }",
   },
   { method: "get", path: "/summary", tag: "Items", summary: "A household at a glance, for home dashboards (Heimdall, Homepage…): things, their value, what needs attention, what to buy — counts only", returns: "HouseholdSummary" },
+  { method: "post", path: "/items/{id}/viewed", status: 204, tag: "Items", summary: "Say the signed-in person opened a thing (their own Recently viewed; changes nothing of the household's)" },
+  { method: "get", path: "/recently-viewed", tag: "Items", summary: "What the signed-in person opened lately, newest first", query: z.object({ limit: z.coerce.number().int().min(1).max(12).optional() }), returns: "{ data: ThingCard[] }" },
+  { method: "get", path: "/dashboard-layout", tag: "Items", summary: "The signed-in person's dashboard: sections in order, and the ones they hid", returns: "DashboardLayout" },
+  { method: "put", path: "/dashboard-layout", tag: "Items", summary: "Save the signed-in person's dashboard layout (null: Ferret's again)", body: z.object({ layout: dashboardLayout.nullable() }), returns: "DashboardLayout" },
   { method: "get", path: "/overview", tag: "Items", summary: "The dashboard: value, gaps, warranties, maintenance, recent changes", returns: "Overview" },
 
   {

@@ -3,6 +3,8 @@
  * which the MCP tools call too, so the app and Claude always agree.
  * Accepts a session cookie or an API key (see lib/context.ts).
  */
+import { recentlyViewed, recordView } from "../lib/recently-viewed";
+import { getDashboardLayout, setDashboardLayout } from "../lib/dashboard-layout";
 import { musicLookupsOn } from "../lib/products";
 import { cardGamesOn, cardReadsAvailable } from "../lib/cards";
 import { collectiblesOn } from "../lib/collectibles";
@@ -28,6 +30,7 @@ import { fileOwnerQuery, usageReadingInput, itemsBulk, reviewItemBody, repairInp
   propertyPatch,
   warrantyInput,
   warrantyPatch,
+  dashboardLayout,
 } from "@ferret/shared";
 import { and, eq, isNull } from "drizzle-orm";
 import { type Context, Hono } from "hono";
@@ -109,6 +112,8 @@ inventory.use("/usage/*", requireUser, requireHousehold);
 inventory.use("/room-reviews/*", requireUser, requireHousehold);
 inventory.use("/room-reviews", requireUser, requireHousehold);
 inventory.use("/replacements", requireUser, requireHousehold);
+inventory.use("/recently-viewed", requireUser, requireHousehold);
+inventory.use("/dashboard-layout", requireUser, requireHousehold);
 inventory.use("/repairs/*", requireUser, requireHousehold);
 inventory.use("/warranties/*", requireUser, requireHousehold);
 inventory.use("/warranties", requireUser, requireHousehold);
@@ -252,6 +257,19 @@ inventory.post("/items/:id/missing", requireWriter, async (c) => {
   await markMissing(callerOf(c), c.req.param("id"));
   return c.body(null, 204);
 });
+// ── Recently viewed (lib/recently-viewed.ts): each person's own, for the dashboard ──────────────────────────
+/** A thing's page opened: viewers too (it changes nothing of the household's). */
+inventory.post("/items/:id/viewed", async (c) => {
+  await recordView(callerOf(c), c.req.param("id"));
+  return c.body(null, 204);
+});
+inventory.get("/recently-viewed", async (c) => {
+  const { limit } = z.object({ limit: z.coerce.number().int().min(1).max(12).default(6) }).parse(c.req.query());
+  return c.json({ data: await recentlyViewed(callerOf(c), limit) });
+});
+/** Each person's dashboard: sections hidden and their order (lib/dashboard-layout.ts). Viewers too — it's their own. */
+inventory.get("/dashboard-layout", async (c) => c.json(await getDashboardLayout(callerOf(c))));
+inventory.put("/dashboard-layout", async (c) => c.json(await setDashboardLayout(callerOf(c), (await body(c.req.raw, z.object({ layout: dashboardLayout.nullable() }))).layout)));
 // ── Repairs and cost of ownership (lib/repairs.ts) ──────────────────────────
 inventory.get("/items/:id/repairs", async (c) => c.json({ data: await repairs.listRepairs(callerOf(c), c.req.param("id")) }));
 inventory.post("/items/:id/repairs", requireWriter, async (c) => c.json(await repairs.createRepair(callerOf(c), c.req.param("id"), await body(c.req.raw, repairInput)), 201));
