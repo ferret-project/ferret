@@ -117,6 +117,10 @@ jobs:
             FERRET_VERSION=${{ steps.version.outputs.version }}
             FERRET_TRANSLATIONS_REF=${{ steps.translations.outputs.ref || 'main' }}
           labels: ${{ steps.meta.outputs.labels }}
+          # A software bill of materials and full build provenance, attached to the image (`docker buildx imagetools
+          # inspect … --format '{{ json .SBOM }}'`), so anyone can see what's inside and how it was built.
+          sbom: true
+          provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
       # Docker Hub's page shows the README and a one-line description. Its images and links (HTML and Markdown) have relative
