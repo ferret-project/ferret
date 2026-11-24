@@ -1,4 +1,4 @@
-import type { TaskVideo, VideoHit, ItemFuelEconomyStatus, FuelEconomyStatus, DiskSpaceEntry, UpdateStatus,
+import type { ItemSheet, SigningKey, TaskVideo, VideoHit, ItemFuelEconomyStatus, FuelEconomyStatus, DiskSpaceEntry, UpdateStatus,
   ItemDraft,
   ReceiptLinesInput,
   ToConfirm,
@@ -565,6 +565,10 @@ export const api = {
     return request<ItemSearch>(`/items${params.size ? `?${params}` : ""}`);
   },
   getItem: (id: string) => request<ItemListing>(`/items/${id}`),
+  /** Everything about it, written out for its sheet; `parts` leaves out what isn't ticked (details always). */
+  itemSheet: (id: string, parts: string[]) => request<ItemSheet>(`/items/${id}/sheet?parts=${parts.join(",")}`),
+  /** Its signed export (a ZIP): a link to follow, so the browser saves it as it streams. */
+  itemExportUrl: (id: string, parts: string[]) => `/api/v1/items/${encodeURIComponent(id)}/export.zip?parts=${parts.join(",")}`,
   findByBarcode: (code: string) => request<ItemSearch>(`/items?barcode=${encodeURIComponent(code)}`),
   createItem: (input: Partial<ItemInput> & { name: string }) =>
     request<Item>("/items", { method: "POST", body: JSON.stringify(input) }),
@@ -614,6 +618,7 @@ export const api = {
     request<{ updated: number }>("/import/home-assistant/apply", { method: "POST", body: JSON.stringify(input) }),
 
   householdSettings: () => request<HouseholdSettings>("/household/settings"),
+  signingKey: () => request<SigningKey>("/household/signing-key"),
   invitationEmails: () => request<InvitationEmails>("/household/invitations"),
   plan: () => request<PlanReport>("/plan"),
   /** `householdId`: a household other than the active one (just made). */

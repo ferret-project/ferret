@@ -31,6 +31,7 @@ import { fileOwnerQuery, usageReadingInput, itemsBulk, reviewItemBody, repairInp
   warrantyInput,
   warrantyPatch,
   dashboardLayout,
+  sheetPartsFrom,
 } from "@ferret/shared";
 import { and, eq, isNull } from "drizzle-orm";
 import { type Context, Hono } from "hono";
@@ -45,6 +46,8 @@ import { type AppEnv, body, callerOf, householdAccess, requireHousehold, require
 import { languageOf, setLanguage } from "../lib/language";
 import * as svc from "../lib/inventory";
 import { ownLabelsOf } from "../lib/own-labels";
+import { itemDetail } from "../lib/item-detail";
+import { itemExport, itemSheet } from "../lib/item-sheet";
 import { roomScansAvailable } from "../lib/room-scans";
 import { itemChanged, logActivity, withStatus } from "../lib/inventory";
 import { categoryDescendants, findTag } from "../lib/catalog";
@@ -308,12 +311,22 @@ inventory.post("/items/:id/videos", requireWriter, async (c) =>
 );
 inventory.delete("/items/:id/videos/:videoId", requireWriter, async (c) => c.json(await removeItemVideo(callerOf(c), c.req.param("id"), c.req.param("videoId"))));
 
-inventory.get("/items/:id", async (c) => {
-  const v = callerOf(c);
-  const found = await svc.getItem(v, c.req.param("id"));
-  const [listed] = await svc.asListing(v, [found]);
-  const [by] = found.createdBy ? await c.var.db.select({ name: user.name }).from(user).where(eq(user.id, found.createdBy)) : [];
-  return c.json({ ...listed, addedBy: by?.name ?? null, ownLabels: await ownLabelsOf(v, found.id), lifespan: await itemLifespan(v, found), homeAssistantUrl: await homeAssistantLink(v, found), repairGuide: await repairGuideFor(v, found), videos: (await itemVideosOf(v, [found.id])).get(found.id) ?? [], ...(await repairs.replacementsOf(v, found)) });
+inventory.get("/items/:id", async (c) => c.json(await itemDetail(callerOf(c), c.req.param("id"))));
+
+/** Everything about it, written out for its printable sheet (?parts=photos,notes,… — default all; lib/item-sheet.ts). */
+inventory.get("/items/:id/sheet", async (c) => c.json(await itemSheet(callerOf(c), c.req.param("id"), sheetPartsFrom(c.req.query("parts")), c.var.config.PUBLIC_URL)));
+
+/**
+ * The same as Markdown with its photos and documents, signed with the household's key (lib/item-sheet.ts) — a ZIP,
+ * streamed. Files decrypted: a real sign-in, not an API key.
+ */
+inventory.get("/items/:id/export.zip", requireSession, async (c) => {
+  const { filename, stream } = await itemExport(callerOf(c), c.var.files, c.req.param("id"), sheetPartsFrom(c.req.query("parts")), c.var.config.PUBLIC_URL);
+  return c.body(stream, 200, {
+    "Content-Type": "application/zip",
+    "Content-Disposition": `attachment; filename="${filename.replace(/[^\x20-\x7e]|"/g, "_")}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+    "Cache-Control": "no-store",
+  });
 });
 
 /** One change to many things: move, category, tag, untag, delete (≤200 at a time). */

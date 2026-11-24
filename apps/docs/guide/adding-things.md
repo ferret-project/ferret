@@ -74,6 +74,40 @@ Gumtree or Vinted — and tick **My listing**: its button reads **Your eBay list
 says it's already listed. For eBay, the thing's page also shows how it's doing — see
 [your own listing](./past-things#your-own-listing).
 
+The other way round, **Copy link** beside a thing's name copies its address in Ferret, to paste wherever it helps: the
+password manager entry for its login or Wi-Fi, a note, a message to someone in your household. The link opens the thing
+for anyone signed in to your household, and nobody else.
+
+**Print or export**, next to it, puts everything about the thing on one page: its details, notes, links, warranties
+and claims, maintenance and when it was done, repairs, loans, stock, photos, documents and history. Untick what you
+don't want (the details are always there), then:
+
+- **Print or save as PDF** prints it (choose "Save as PDF" in the print dialog). The bottom of the page shows your
+  household's signing key and its fingerprint.
+- **Download signed ZIP** gives you the same sheet as a `.md` file, with a `files` folder of its photos and documents,
+  an `item.json` with the same details as data, and a signature from your household's key. The `.md` opens in any
+  notes app, and the whole ZIP can go into a password manager entry as an attachment.
+
+### Checking a signed export
+
+Each ZIP can prove nothing in it has changed since Ferret made it. Open a terminal in the unzipped folder and run:
+
+```bash
+ssh-keygen -Y verify -f allowed_signers -I ferret -n ferret-export -s SHA256SUMS.sig < SHA256SUMS
+shasum -a 256 -c SHA256SUMS
+```
+
+The first says **Good signature**; the second says **OK** for every file. (`ssh-keygen` comes with every Mac and
+Linux, and with Windows' OpenSSH.)
+
+That proves the files match the key that came with them. To know the key is your household's, work out its
+fingerprint yourself, `ssh-keygen -lf ferret-signing-key.pub`, and compare it with one you got another way:
+**Settings → Household → Signing key**, or the bottom of a sheet you printed earlier. A signature shows what Ferret
+held and when; it doesn't vouch for what people typed in.
+
+Each household has one key. It's kept in the server's backups, so a restored Ferret signs with the same key and
+older exports still check out.
+
 ## Scanning a barcode
 
 **+ Add → Scan a barcode** opens the camera. If Ferret knows the code — someone in your household saved something with

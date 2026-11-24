@@ -17,6 +17,7 @@ import { type FormEvent, useState } from "react";
 import { api } from "./lib/api";
 import { API_HREF, type SettingsSection, settingsHref } from "./lib/route";
 import { CopyField } from "./CopyField";
+import { SigningKeyCard } from "./SigningKey";
 import { DataExport } from "./DataExport";
 import { DeleteHousehold } from "./DeleteForGood";
 import { ShareLinks } from "./Shares";
@@ -107,6 +108,7 @@ export function Settings(props: { section: SettingsSection; householdName: strin
             <AiFillCard householdId={householdId} canManage={role === "owner" || role === "admin"} />
             <PaperlessCard householdId={householdId} canManage={role === "owner" || role === "admin"} />
             <DataExport householdName={householdName} householdId={householdId} />
+            <SigningKeyCard householdId={householdId} />
             <DeleteHousehold householdName={householdName} />
             <ShareLinks householdId={householdId} />
           </>

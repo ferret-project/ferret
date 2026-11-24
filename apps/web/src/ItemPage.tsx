@@ -31,7 +31,7 @@ import { ItemEditor } from "./ItemEditor";
 import { api } from "./lib/api";
 import { keepRecentOfflineSoon } from "./lib/offline-recent";
 import { useCanEdit } from "./lib/auth";
-import { categoryHref, itemHref, placeHref, tagHref, addedHref, roomScanHref } from "./lib/route";
+import { categoryHref, itemHref, itemSheetHref, placeHref, tagHref, addedHref, roomScanHref } from "./lib/route";
 import { ORIGIN_HOW } from "./lib/origin";
 import { BoxContents, LabelBadge } from "./Boxes";
 import { flattenCategories, useCategories } from "./Catalog";
@@ -71,7 +71,7 @@ import { CapturedPhoto, PhotoCrop } from "./PhotoCrop";
 import { t, ph, plural } from "@lingui/core/macro";
 import { conditionPhrase } from "./lib/words";
 import { Trans } from "@lingui/react/macro";
-import { randomId } from "./lib/secure-context";
+import { copyText, randomId } from "./lib/secure-context";
 import { wasJustScanned } from "./lib/scanned";
 
 /**
@@ -365,6 +365,11 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
             </h1>
             {/* Its QR label (and any labels people brought), beside its name — like a room's. */}
             <LabelBadge target={{ itemId }} code={item.data.labelCode} ownLabels={item.data.ownLabels} name={item.data.name} householdId={householdId} />
+            <CopyItemLink itemId={itemId} />
+            <a href={itemSheetHref(itemId)} className="tap badge badge-soft gap-1 border border-dashed border-base-content/30 text-base-content/70">
+              <span className="icon-[tabler--file-export] size-4 shrink-0" />
+              <Trans>Print or export</Trans>
+            </a>
           </div>
           {item.data.container && (
             <a href={itemHref(item.data.container.id)} className="tap link link-hover text-primary flex items-center gap-1 text-sm">
@@ -838,6 +843,35 @@ function ReturnLine({ returnBy, gone }: { returnBy: string | null | undefined; g
       <span className="icon-[tabler--receipt-refund] size-4" />
       <Trans>Return by {when} — {left}</Trans>
     </p>
+  );
+}
+
+/**
+ * Copies this thing's address, to paste where it's useful: a password manager's entry for its login or Wi-Fi, a note,
+ * a message to someone in the household. It opens for anyone signed in to this household, nobody else.
+ */
+function CopyItemLink({ itemId }: { itemId: string }) {
+  const [copied, setCopied] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const label = copied ? t`Link copied` : failed ? t`Couldn't copy` : t`Copy link`;
+  return (
+    <button
+      type="button"
+      className="tap badge badge-soft gap-1 border border-dashed border-base-content/30 text-base-content/70"
+      onClick={async () => {
+        try {
+          await copyText(`${window.location.origin}${window.location.pathname}${itemHref(itemId)}`);
+          setCopied(true);
+          setFailed(false);
+        } catch {
+          setFailed(true);
+        }
+        setTimeout(() => (setCopied(false), setFailed(false)), 2000);
+      }}
+    >
+      <span className={`${copied ? "icon-[tabler--copy-check] text-success" : failed ? "icon-[tabler--alert-triangle] text-error" : "icon-[tabler--link]"} size-4 shrink-0`} />
+      <span aria-live="polite">{label}</span>
+    </button>
   );
 }
 

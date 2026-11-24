@@ -3293,3 +3293,38 @@ export const paperlessAddInput = z.object({
   locationId: z.string().min(1).nullish(),
 });
 export type PaperlessAddInput = z.infer<typeof paperlessAddInput>;
+
+/** One part of a thing's sheet (GET /items/:id/sheet): fields, a text, links, records (a warranty, a task…) and lines. */
+export interface ItemSheetSection {
+  id: string;
+  title: string;
+  rows?: [label: string, value: string][];
+  text?: string | null;
+  links?: { label: string; url: string }[];
+  entries?: { title: string; rows: [label: string, value: string][]; text?: string | null; lines?: string[] }[];
+  lines?: string[];
+}
+/**
+ * Everything about one thing, written out in the asker's language (GET /items/:id/sheet): what the printable page
+ * shows, and what the signed Markdown export (GET /items/:id/export.zip) says.
+ */
+export interface ItemSheet {
+  name: string;
+  subtitle: string[];
+  sections: ItemSheetSection[];
+  photos: { id: string; filename: string; description: string | null }[];
+  documents: { id: string; filename: string }[];
+  /** Its address in Ferret. */
+  url: string;
+}
+/** The household's signing key (GET /household/signing-key): exports are signed with it; anyone can check them with this. */
+export interface SigningKey {
+  /** OpenSSH public key: "ssh-ed25519 AAAA… ferret". */
+  publicKey: string;
+  /** "SHA256:…", as ssh-keygen -l shows it. */
+  fingerprint: string;
+  /** A line for ssh-keygen's allowed_signers file. */
+  allowedSigners: string;
+  /** The namespace exports are signed under (ssh-keygen -n). */
+  namespace: string;
+}

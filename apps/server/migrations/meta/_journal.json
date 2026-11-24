@@ -561,6 +561,13 @@
       "when": 1795502819196,
       "tag": "0079_loud_hellfire_club",
       "breakpoints": true
+    },
+    {
+      "idx": 80,
+      "version": "6",
+      "when": 1795541038934,
+      "tag": "0080_aromatic_firebird",
+      "breakpoints": true
     }
   ]
 }

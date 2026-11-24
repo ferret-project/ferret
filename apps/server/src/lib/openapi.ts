@@ -146,6 +146,8 @@ export const OPERATIONS: Operation[] = [
   },
   { method: "post", path: "/items", status: 201, tag: "Items", summary: "Add an item", body: itemInput, writes: true, returns: "ItemListing" },
   { method: "get", path: "/items/{id}", tag: "Items", summary: "One item", returns: "ItemListing" },
+  { method: "get", path: "/items/{id}/sheet", tag: "Items", summary: "Everything about an item, written out for its printable sheet, in your language (?parts=photos,documents,notes,links,warranties,maintenance,repairs,loans,stock,history — default all; details always)", returns: "ItemSheet" },
+  { method: "get", path: "/items/{id}/export.zip", tag: "Items", summary: "An item as Markdown with its photos and documents, item.json, and SHA256SUMS signed with the household's key (ssh-keygen -Y verify); ?parts= as for the sheet", auth: "session", produces: "application/zip" },
   { method: "get", path: "/items/{id}/parts", tag: "Items", summary: "A thing's parts and supplies (items with partOfItemId set to it, or that its maintenance uses), with stock and where to buy them; and parts its manuals list that it doesn't have yet", returns: "{ parts: ItemPart[], suggested: SuggestedPart[] }" },
   { method: "post", path: "/items/{id}/parts/dismiss", tag: "Items", summary: "Dismiss a part a manual suggested", body: dismissPartInput, writes: true, returns: "204" },
   { method: "get", path: "/items/{id}/find", tag: "Items", summary: "Search inside one item: passages of its documents (by section), its photos' text, warranties and notes that have the words, best first", query: itemFindQuery, returns: "ItemFindResult" },
@@ -420,6 +422,7 @@ export const OPERATIONS: Operation[] = [
   { method: "get", path: "/duplicates", tag: "AI", summary: "Possible duplicates: pairs with the same serial number, the same barcode and name, or that read nearly the same", returns: "{ data: DuplicatePair[] }" },
   { method: "post", path: "/duplicates/not", tag: "AI", summary: "Not a duplicate: the pair { a, b } isn't offered again", body: z.object({ a: z.string(), b: z.string() }), writes: true },
   { method: "post", path: "/items/{id}/merge", tag: "AI", summary: "Merge another item into this one: its details fill the gaps (or replace, per `take`), everything pointing at it moves here, and it goes to Recently deleted", body: mergeInput, writes: true, returns: "Item" },
+  { method: "get", path: "/household/signing-key", tag: "Household", summary: "The household's public signing key: exports are signed with it (OpenSSH format, its fingerprint, and an allowed_signers line)", returns: "SigningKey" },
   { method: "get", path: "/household/settings", tag: "Household", summary: "The household's settings: its time zone (null: not chosen — the server's own zone is used) and its currency (ISO 4217; USD until chosen)", returns: "HouseholdSettings" },
   { method: "put", path: "/household/settings", tag: "Household", summary: "Set the household's time zone and/or currency (owners/admins; only what's sent changes): what \"today\" is, the hour reminders go out, and how amounts are written", body: householdSettingsInput, writes: true, returns: "HouseholdSettings" },
   // ── Collections ────────────────────────────────────────────────────────────

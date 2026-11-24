@@ -31,6 +31,7 @@ import { Misplaced, RoomReviewScreen, RoomsToReview } from "./Tracking";
 import { Replacements } from "./Replacements";
 import { Coverage } from "./PayOff";
 import { ItemPage } from "./ItemPage";
+import { ItemSheet } from "./ItemSheet";
 import { LabelLanding, PrintLabels } from "./Labels";
 import { Maintenance } from "./Maintenance";
 import { MorePage } from "./Nav";
@@ -209,6 +210,14 @@ const itemRoute = createRoute({
   staticData: { name: "item" },
   component: function Item() {
     return <ItemPage itemId={itemRoute.useParams().id} householdId={useHousehold().householdId} />;
+  },
+});
+const itemSheetRoute = createRoute({
+  getParentRoute: () => screensRoute,
+  path: "items/$id/sheet",
+  staticData: { name: "item" },
+  component: function Sheet() {
+    return <ItemSheet itemId={itemSheetRoute.useParams().id} householdId={useHousehold().householdId} />;
   },
 });
 const settingsRoute = createRoute({
@@ -445,6 +454,7 @@ const routeTree = rootRoute.addChildren([
     addedRoute,
     overviewRoute,
     itemRoute,
+    itemSheetRoute,
     settingsRoute,
     settingsSectionRoute,
     providerRoute,

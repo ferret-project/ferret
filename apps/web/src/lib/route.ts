@@ -72,6 +72,8 @@ export type Route =
 export const HOME_HREF = "#/";
 export const ITEMS_HREF = "#/items";
 export const itemHref = (id: string) => `#/items/${encodeURIComponent(id)}`;
+/** Everything about one thing on a page to print, or download as Markdown (ItemSheet.tsx). */
+export const itemSheetHref = (id: string) => `${itemHref(id)}/sheet`;
 export const propertyHref = (id: string) => `#/property/${encodeURIComponent(id)}`;
 /** A room (or shelf…): what's inside it, and everything kept there. */
 export const placeHref = (locationId: string) => `#/in/${encodeURIComponent(locationId)}`;

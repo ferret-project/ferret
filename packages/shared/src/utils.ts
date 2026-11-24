@@ -381,3 +381,12 @@ export function labelCodeIn(scanned: string): string | null {
 
 /** Longest extra instructions the server admin can add to one AI prompt (Settings → Server → AI prompts). */
 export const PROMPT_EXTRA_MAX = 2000;
+
+/** The parts of a thing's sheet and export a person can leave out (its details are always there). */
+export const itemSheetParts = ["photos", "documents", "notes", "links", "warranties", "maintenance", "repairs", "loans", "stock", "history"] as const;
+export type ItemSheetPart = (typeof itemSheetParts)[number];
+/** ?parts=photos,notes,… → the parts asked for; missing or empty → all of them. */
+export function sheetPartsFrom(raw: string | null | undefined): Set<ItemSheetPart> {
+  if (raw == null) return new Set(itemSheetParts);
+  return new Set(raw.split(",").filter((p): p is ItemSheetPart => (itemSheetParts as readonly string[]).includes(p)));
+}

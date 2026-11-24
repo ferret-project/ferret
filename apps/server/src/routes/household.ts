@@ -9,9 +9,10 @@ import { type HouseholdDeletionInfo, householdDeleteInput } from "@ferret/shared
 import type { Context } from "hono";
 import { and, eq, ne } from "drizzle-orm";
 import { member, organization } from "../db/schema";
-import { type AppEnv, body, requireHousehold, requireSession, requireUser, requireWriter } from "../lib/context";
+import { type AppEnv, body, callerOf, requireHousehold, requireSession, requireUser, requireWriter } from "../lib/context";
 import { accountDeletionInfo, confirmIdentity, deleteAccount, deleteHouseholds } from "../lib/deletion";
 import { emailEnabled } from "../lib/email-verification";
+import { signingKey } from "../lib/signing";
 import { invitationEmails } from "../lib/invitation-email";
 import { aiFillSettings, setHouseholdAiFill } from "../lib/ai-fill";
 import { chosenTimeZone, householdAmazon, householdCurrency, serverTimeZone, setHouseholdAmazon, setHouseholdCurrency, setHouseholdTimeZone } from "../lib/household-time";
@@ -29,6 +30,9 @@ const settings = async (c: { var: AppEnv["Variables"] }): Promise<HouseholdSetti
 });
 
 household.get("/settings", async (c) => c.json(await settings(c)));
+
+/** Its public signing key (lib/signing.ts), to check its exports with — made now if it has none yet. Public, so anyone in it. */
+household.get("/signing-key", async (c) => c.json(await signingKey(callerOf(c), c.var.files)));
 
 household.put("/settings", requireWriter, async (c) => {
   if (c.var.role !== "owner" && c.var.role !== "admin") throw new HTTPException(403, { message: "Only the household's owner and admins can change this" });

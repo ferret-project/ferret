@@ -69,7 +69,7 @@ export function safeName(name: string, fallback = "file") {
 }
 
 /** Writes entries into a ZIP as a stream; the stream errors (a broken download) if `produce` throws. */
-function zipStream(produce: (add: (name: string, data: Uint8Array, opts?: { compress?: boolean; mtime?: Date }) => Promise<void>) => Promise<void>) {
+export function zipStream(produce: (add: (name: string, data: Uint8Array, opts?: { compress?: boolean; mtime?: Date }) => Promise<void>) => Promise<void>) {
   const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
   const writer = writable.getWriter();
   const ignore = () => {};

@@ -345,6 +345,12 @@ export const householdSetting = sqliteTable("household_setting", {
    * "Open in Home Assistant" on things imported from there (lib/home-assistant.ts). The browser follows the link.
    */
   homeAssistantUrl: text("home_assistant_url"),
+  /**
+   * Its Ed25519 signing key for exports (lib/signing.ts): the private key (PKCS #8) sealed with the household key,
+   * and the public key (raw, base64). Made when first needed; kept in backups so old exports still check out.
+   */
+  signingKeySealed: text("signing_key_sealed"),
+  signingPublicKey: text("signing_public_key"),
   updatedAt: timestamps.updatedAt,
 });
 
