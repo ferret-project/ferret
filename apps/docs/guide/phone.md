@@ -1,6 +1,7 @@
 # On your phone
 
-Ferret is a web app you can install, so it opens full screen like any other app.
+Ferret is a web app you can install, so it opens full screen like any other app. (On a Mac, there's also
+[Ferret Menu](./mac) for the menu bar.)
 
 Open Ferret on a phone or tablet and it offers to do this for you (**Put Ferret on your Home Screen**, on the sign-in
 screen and the home screen). **Not now** hides the offer on that device for a month.

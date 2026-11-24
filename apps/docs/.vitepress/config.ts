@@ -74,6 +74,7 @@ export default defineConfig({
           items: [
             { text: "Signing in and households", link: "/guide/getting-started" },
             { text: "On your phone", link: "/guide/phone" },
+            { text: "On your Mac: Ferret Menu", link: "/guide/mac" },
           ],
         },
         {

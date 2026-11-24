@@ -144,6 +144,7 @@ Postman, Bruno or Insomnia, or generate a client from it.
 
 | To… | Use |
 | --- | --- |
+| Search, see what needs doing and add things from your Mac's menu bar | [Ferret Menu](./mac) |
 | Show counts on a home dashboard (Heimdall, Homepage) | `GET /api/v1/summary` — [Home dashboards](../hosting/dashboards) |
 | Get maintenance in a calendar app | the calendar feed — [Reminders](./reminders#calendar) |
 | Tell n8n, Home Assistant or a script when things change | [Webhooks](./webhooks) |
