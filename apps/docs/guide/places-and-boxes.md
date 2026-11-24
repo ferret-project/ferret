@@ -36,6 +36,8 @@ they're wherever the box is: move the box to the attic and everything in it move
 
 Box things up from an item's page (choose its box) or from the box (add what's in it).
 
+Boxes can go inside boxes, up to 20 deep. A box can't go inside itself or inside anything that's already in it.
+
 ## Moving things by scanning {#scan}
 
 With [QR labels](./labels) on your shelves, cabinets and boxes, you don't need to remember how the places are laid out:

@@ -1,6 +1,9 @@
 /** Boxes (items that hold items) and QR labels. */
 import type { ItemListing, ItemSearch, Label } from "@ferret/shared";
 import { describe, expect, it } from "vitest";
+import { eq } from "drizzle-orm";
+import { item } from "../src/db/schema";
+import { MAX_BOX_DEPTH } from "../src/lib/inventory";
 import { setup } from "./helpers";
 
 type User = Awaited<ReturnType<Awaited<ReturnType<typeof setup>>["user"]>>;
@@ -70,6 +73,46 @@ describe("boxes", () => {
 
     const bob = await user("bob");
     expect((await send(bob, "POST", "/api/v1/items", { name: "x", containerItemId: inner.id })).status).toBe(404);
+  });
+});
+
+describe("boxes in boxes, deep", () => {
+  it("stop at the depth limit and never let a box end up inside itself, however deep", async () => {
+    const { db, user } = await setup();
+    const ann = await user("ann");
+    const { shelf, attic } = await garage(ann);
+    // 20 levels: the most there can be.
+    const boxes = [await ann.addItem({ name: "Box 1", isContainer: true, locationId: shelf })];
+    for (let n = 2; n <= MAX_BOX_DEPTH; n++) {
+      boxes.push(await ann.addItem({ name: `Box ${n}`, isContainer: true, containerItemId: boxes.at(-1)!.id }));
+    }
+    const deepest = boxes.at(-1)!;
+    const tooDeep = await send(ann, "POST", "/api/v1/items", { name: "Box 21", isContainer: true, containerItemId: deepest.id });
+    expect(tooDeep.status).toBe(422);
+    expect((await send(ann, "PATCH", `/api/v1/items/${boxes[0]!.id}`, { containerItemId: deepest.id })).status).toBe(422);
+    // A two-level box can't go where it would make 21 levels either.
+    const pair = await ann.addItem({ name: "Pair", isContainer: true, locationId: shelf });
+    await ann.addItem({ name: "Pair inner", isContainer: true, containerItemId: pair.id });
+    expect((await send(ann, "PATCH", `/api/v1/items/${pair.id}`, { containerItemId: boxes.at(-2)!.id })).status).toBe(422);
+    expect((await send(ann, "PATCH", `/api/v1/items/${pair.id}`, { containerItemId: boxes.at(-3)!.id })).status).toBe(200);
+
+    // Deeper than the limit (made before it existed): the box at the top still can't go inside the bottom one, and
+    // moving it takes every level along.
+    let parent = deepest.id;
+    const extra: string[] = [];
+    for (let n = 21; n <= 30; n++) {
+      const box = await ann.addItem({ name: `Old box ${n}`, isContainer: true, locationId: shelf });
+      await db.update(item).set({ containerItemId: parent }).where(eq(item.id, box.id));
+      extra.push((parent = box.id));
+    }
+    expect((await send(ann, "PATCH", `/api/v1/items/${boxes[0]!.id}`, { containerItemId: parent })).status).toBe(422);
+    expect((await send(ann, "PATCH", `/api/v1/items/${boxes[0]!.id}`, { locationId: attic })).status).toBe(200);
+    expect(await json<ItemListing>(ann.as(`/api/v1/items/${parent}`))).toMatchObject({ locationId: attic });
+
+    // A cycle somehow already there: checks still finish.
+    await db.update(item).set({ containerItemId: extra.at(-1)! }).where(eq(item.id, boxes[0]!.id));
+    const loose = await ann.addItem({ name: "Loose box", isContainer: true, locationId: shelf });
+    expect((await send(ann, "PATCH", `/api/v1/items/${loose.id}`, { containerItemId: boxes[5]!.id })).status).toBe(422);
   });
 });
 

@@ -763,7 +763,7 @@ export async function getItem(v: Caller, id: string) {
  */
 async function placement(
   v: Caller,
-  input: Pick<ItemPatch, "locationId" | "containerItemId" | "categoryId" | "partOfItemId" | "replacedById">,
+  input: Pick<ItemPatch, "locationId" | "containerItemId" | "categoryId" | "partOfItemId" | "replacedById" | "isContainer">,
   current?: typeof item.$inferSelect,
 ): Promise<Partial<typeof item.$inferInsert>> {
   if (input.replacedById) {
@@ -791,8 +791,17 @@ async function placement(
     const [box] = await v.db.select().from(item).where(and(eq(item.id, input.containerItemId), itemScope(v)));
     if (!box) throw notFound("Box");
     if (!box.isContainer) throw new HTTPException(422, { message: `${box.name} isn't a box — mark it as one first` });
-    if (current && (box.id === current.id || (await insideOf(v, current.id)).includes(box.id))) {
+    // Walk up from the new box: reaching this thing means it would end up inside itself. One parent each, so this
+    // finds a cycle however deep the boxes go (and stops on one that's somehow already there).
+    const above = await boxesAbove(v, box.id);
+    if (current && (box.id === current.id || above.includes(current.id))) {
       throw new HTTPException(422, { message: "A box can't go inside itself" });
+    }
+    // Levels of boxes: the ones above, the new box, and — for a box — itself and the boxes in it.
+    const isBox = input.isContainer ?? current?.isContainer ?? false;
+    const own = isBox ? 1 + (current ? (await boxTree(v, current.id)).depth : 0) : 0;
+    if (above.length + 1 + own > MAX_BOX_DEPTH) {
+      throw new HTTPException(422, { message: `Boxes can go at most ${MAX_BOX_DEPTH} deep` });
     }
     return { locationId: box.locationId };
   }
@@ -801,16 +810,48 @@ async function placement(
   return {};
 }
 
-/** Everything inside a box, boxes within it included (their ids). */
-export async function insideOf(v: Caller, boxId: string) {
+/** How deep boxes can go inside boxes: far more than any home needs, and a bound on every walk through them. */
+export const MAX_BOX_DEPTH = 20;
+
+/** The boxes a box sits in, nearest first — any of the household's, gone or not. Stops on a cycle. */
+async function boxesAbove(v: Caller, boxId: string) {
   const ids: string[] = [];
-  let frontier = [boxId];
-  for (let depth = 0; frontier.length && depth < 20; depth++) {
-    const rows = await v.db.select({ id: item.id }).from(item).where(and(itemScope(v), inList(item.containerItemId, frontier)));
-    frontier = rows.map((r) => r.id);
-    ids.push(...frontier);
+  const seen = new Set([boxId]);
+  let id: string | null = boxId;
+  while (id && ids.length <= MAX_BOX_DEPTH * 2) {
+    const [row]: { parent: string | null }[] = await v.db
+      .select({ parent: item.containerItemId })
+      .from(item)
+      .where(and(eq(item.id, id), eq(item.householdId, v.householdId)));
+    id = row?.parent ?? null;
+    if (!id || seen.has(id)) break;
+    seen.add(id);
+    ids.push(id);
   }
   return ids;
+}
+
+/** Everything inside a box, boxes within it included, and how many levels deep it goes. Stops on a cycle. */
+async function boxTree(v: Caller, boxId: string) {
+  const ids: string[] = [];
+  const seen = new Set([boxId]);
+  let frontier = [boxId];
+  let depth = 0;
+  // Twice the limit: boxes put deeper before it existed are still all found (and moved along with their box).
+  while (frontier.length && depth < MAX_BOX_DEPTH * 2) {
+    const rows = await v.db.select({ id: item.id }).from(item).where(and(itemScope(v), inList(item.containerItemId, frontier)));
+    frontier = rows.map((r) => r.id).filter((id) => !seen.has(id));
+    if (!frontier.length) break;
+    for (const id of frontier) seen.add(id);
+    ids.push(...frontier);
+    depth++;
+  }
+  return { ids, depth };
+}
+
+/** Everything inside a box, boxes within it included (their ids). */
+export async function insideOf(v: Caller, boxId: string) {
+  return (await boxTree(v, boxId)).ids;
 }
 
 /** Where a new thing came from: Claude and scripts as the server knows them; the app says which of its ways. */
