@@ -190,9 +190,9 @@ export const itemDispositions = ["sold", "given", "donated", "discarded", "lost"
 export type ItemDisposition = (typeof itemDispositions)[number];
 
 /** Where a thing came from. The first five are the app's own ways to add one (it says which); the rest are set by the server. */
-export const itemOrigins = ["app", "photos", "walkthrough", "roomscan", "scan", "cards", "collector", "label", "receipt", "words", "spreadsheet", "homeassistant", "paperless", "claude", "api"] as const;
+export const itemOrigins = ["app", "photos", "walkthrough", "roomscan", "scan", "cards", "collector", "label", "receipt", "words", "shared", "spreadsheet", "homeassistant", "paperless", "claude", "api"] as const;
 export type ItemOrigin = (typeof itemOrigins)[number];
-export const appOrigins = ["app", "photos", "walkthrough", "scan", "cards", "collector", "label", "receipt", "words"] as const;
+export const appOrigins = ["app", "photos", "walkthrough", "scan", "cards", "collector", "label", "receipt", "words", "shared"] as const;
 
 // ── Trading cards (Pokémon: TCGdex; Magic: Scryfall) ──────────────────────
 export const cardGames = ["pokemon", "magic"] as const;

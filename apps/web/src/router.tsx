@@ -51,6 +51,7 @@ const InviteScreen = lazyRouteComponent(() => import("./Invite"), "InviteScreen"
 const Report = lazyRouteComponent(() => import("./Report"), "Report");
 const Settings = lazyRouteComponent(() => import("./Settings"), "Settings");
 const Shared = lazyRouteComponent(() => import("./Shared"), "Shared");
+const ShareIn = lazyRouteComponent(() => import("./ShareIn"), "ShareIn");
 const Shopping = lazyRouteComponent(() => import("./Shopping"), "Shopping");
 const Walkthrough = lazyRouteComponent(() => import("./Walkthrough"), "Walkthrough");
 const RoomScanScreen = lazyRouteComponent(() => import("./RoomScan"), "RoomScanScreen");
@@ -268,6 +269,17 @@ const labelsRoute = createRoute({
     return <PrintLabels {...useHousehold()} codes={codes ? codes.split(",").filter(Boolean) : []} />;
   },
 });
+const shareRoute = createRoute({
+  getParentRoute: () => screensRoute,
+  path: "share",
+  staticData: { name: "share" },
+  validateSearch: (search: Record<string, unknown>): { url?: string; title?: string; text?: string; failed?: string } =>
+    Object.fromEntries((["url", "title", "text", "failed"] as const).filter((k) => typeof search[k] === "string").map((k) => [k, search[k] as string])),
+  loader: () => ShareIn.preload?.(),
+  component: function ShareInScreen() {
+    return <ShareIn householdId={useHousehold().householdId} search={shareRoute.useSearch()} />;
+  },
+});
 const walkthroughRoute = createRoute({
   getParentRoute: () => screensRoute,
   path: "walkthrough",
@@ -439,6 +451,7 @@ const routeTree = rootRoute.addChildren([
     labelRoute,
     donationsRoute,
     labelsRoute,
+    shareRoute,
     walkthroughRoute,
     roomScanRoute,
     musicScanRoute,

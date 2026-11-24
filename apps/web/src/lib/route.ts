@@ -9,7 +9,7 @@ import type { MissingDetail } from "@ferret/shared/utils";
  * #/places (edit the tree), #/import[/csv|/home-assistant] (bring things in), #/loans (lent and borrowed),
  * #/s/:token (a share link) and #/b/:token (a borrower's reminder link) — both signed out too, #/maintenance, #/deleted (recently deleted), #/settings[/notifications|/security|/api] (household, reminders, sign-in, API keys),
  * #/review[/:locationId] (room reviews), #/misplaced (things nobody can find),
- * #/providers[/:id] (service providers), #/l/:code (a scanned QR label), #/labels[?codes=A,B] (print labels), #/report (insurance report),
+ * #/providers[/:id] (service providers), #/l/:code (a scanned QR label), #/labels[?codes=A,B] (print labels), #/share (shared to Ferret from another app), #/report (insurance report),
  * #/invite/:id (an invitation link — works signed out too), #/unlock/:token (a "sign in again" link) and
  * #/reset-password/:token (an emailed password-reset link), both signed out. A trailing `?q=` is a search kept in
  * the address (Search.tsx).
@@ -64,6 +64,8 @@ export type Route =
   | { name: "reset-password"; token: string }
   | { name: "label"; code: string }
   | { name: "labels"; codes: string[] }
+  /** What another app shared to Ferret (ShareIn.tsx). */
+  | { name: "share" }
   /** A link that matches nothing. */
   | { name: "notfound" };
 
@@ -76,6 +78,8 @@ export const placeHref = (locationId: string) => `#/in/${encodeURIComponent(loca
 export const PLACES_HREF = "#/places";
 export const CATEGORIES_HREF = "#/categories";
 export const LABELS_HREF = "#/labels";
+/** What another app shared to Ferret, to add (ShareIn.tsx; the service worker opens it). */
+export const SHARE_HREF = "#/share";
 /** The insurance report (print or save as PDF) and CSV download. */
 export const REPORT_HREF = "#/report";
 export const PROVIDERS_HREF = "#/providers";

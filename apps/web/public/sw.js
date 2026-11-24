@@ -6,8 +6,12 @@
  *   once it's loaded and online), and anything no longer listed is dropped.
  * - Pages: the network first, always (so a deploy shows at once); the kept copy only when there's no signal.
  * - Your data is never kept: /api, /mcp, /calendar, the help and share links always go to the server.
+ * - Shared to Ferret (the manifest's share_target: Android's and Chrome's Share menu): the POST to /share-target is
+ *   answered here — its link, text and files are put in the "ferret-share" cache until #/share has added them
+ *   (src/ShareIn.tsx, which also clears it), and the app opens there.
  */
 const SHELL = "ferret-shell-v1";
+const SHARE = "ferret-share";
 const NEVER = [/^\/api\//, /^\/mcp/, /^\/calendar\//, /^\/docs/, /^\/healthz/, /^\/[slb]\//];
 
 async function precache() {
@@ -32,17 +36,38 @@ self.addEventListener("install", (event) => {
 });
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((names) => Promise.all(names.filter((n) => n !== SHELL).map((n) => caches.delete(n)))).then(() => self.clients.claim()),
+    caches.keys().then((names) => Promise.all(names.filter((n) => n !== SHELL && n !== SHARE).map((n) => caches.delete(n)))).then(() => self.clients.claim()),
   );
 });
 self.addEventListener("message", (event) => {
   if (event.data === "precache") event.waitUntil(precache().catch(() => {}));
 });
 
+/** What was shared, kept for #/share: a list at /share-target/shared, each file at /share-target/file/<n>. */
+async function keepShared(req) {
+  const form = await req.formData();
+  await caches.delete(SHARE); // one share at a time: the newest
+  const cache = await caches.open(SHARE);
+  const files = [];
+  for (const [n, file] of form.getAll("files").entries()) {
+    if (typeof file === "string" || !file.size) continue;
+    const at = `/share-target/file/${n}`;
+    await cache.put(at, new Response(file, { headers: { "content-type": file.type || "application/octet-stream" } }));
+    files.push({ at, name: file.name || `file-${n + 1}`, type: file.type || "" });
+  }
+  const text = (key) => (typeof form.get(key) === "string" ? form.get(key).slice(0, 4000) : "");
+  const shared = { title: text("title"), text: text("text"), url: text("url"), files, at: Date.now() };
+  await cache.put("/share-target/shared", new Response(JSON.stringify(shared), { headers: { "content-type": "application/json" } }));
+}
+
 self.addEventListener("fetch", (event) => {
   const req = event.request;
-  if (req.method !== "GET") return;
   const url = new URL(req.url);
+  if (req.method === "POST" && url.origin === self.location.origin && url.pathname === "/share-target") {
+    event.respondWith(keepShared(req).then(() => Response.redirect("/#/share", 303), () => Response.redirect("/#/share?failed=1", 303)));
+    return;
+  }
+  if (req.method !== "GET") return;
   if (url.origin !== self.location.origin || NEVER.some((r) => r.test(url.pathname))) return;
   if (req.mode === "navigate") {
     // The page: fresh when there's signal; the kept one when not.

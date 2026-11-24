@@ -412,6 +412,21 @@ export function createApp(deps: Deps, config: Config, opts: AppOptions = {}) {
   app.route("/api/v1/export", exporter);
   app.route("/api/v1/providers", providers);
   app.route("/l", shortLinks);
+  // Shared to Ferret from another app (the web manifest's share_target). The app's service worker answers this itself,
+  // keeping the files too; one that reaches the server (no worker yet) opens the app with the link and words only.
+  app.post(
+    "/share-target",
+    bodyLimit({ maxSize: 1024 * 1024, onError: (c) => c.redirect("/#/share?failed=1", 303) }),
+    async (c) => {
+      const form = await c.req.parseBody().catch(() => ({}) as Record<string, unknown>);
+      const q = new URLSearchParams();
+      for (const key of ["url", "title", "text"]) {
+        const value = form[key];
+        if (typeof value === "string" && value.trim()) q.set(key, value.trim().slice(0, 2000));
+      }
+      return c.redirect(`/#/share${q.size ? `?${q}` : ""}`, 303);
+    },
+  );
   app.route("/api/v1/push", push);
   app.route("/api/v1/notifications", notifications);
   app.route("/api/v1/security", security);

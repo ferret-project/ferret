@@ -32,6 +32,19 @@ The installed app keeps its own sign-in, separate from Safari's — so add it fi
 Tap **Install** on the offer, or open Ferret in Chrome and choose **Install app** (or **Add to Home screen**) from the ⋮
 menu.
 
+## Share to Ferret
+
+Once Ferret is installed on **Android** (or in **Chrome on a computer**), it's in the **Share** menu of other apps. Share
+a product page from a shop's app or the browser, photos from your gallery, or a PDF (a receipt, a manual), choose
+**Ferret**, and it opens on **Shared to Ferret**:
+
+- **A new thing**: named from what was shared (change it if you like), in the place you pick. The link goes in its
+  links, photos become its photos and PDFs its documents.
+- **Something in Ferret**: pick the thing, and the link and files are added to it.
+
+Nothing is added until you tap **Add it**; **Discard** throws the share away. Ferret has to be reachable to add it.
+iPhones and iPads don't offer this: Safari doesn't let web apps join the Share menu.
+
 ## What works best on a phone
 
 - The **camera**: add things from photos, scan barcodes and QR labels, photograph receipts as documents.

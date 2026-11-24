@@ -386,6 +386,7 @@ const UNDER: Partial<Record<Route["name"], string>> = {
   category: CATEGORIES_HREF,
   tag: CATEGORIES_HREF,
   label: LABELS_HREF,
+  share: HOME_HREF,
 };
 
 /** The sidebar link for where you are: by the screen, else the link whose address the current one starts with. */
