@@ -13,6 +13,7 @@ import { useCanEdit } from "./lib/auth";
 import { itemHref, printLabelsHref, scanRoomHref } from "./lib/route";
 import { useRoomScanOn } from "./lib/room-scan";
 import { QrCode, labelUrl } from "./Labels";
+import { copyText } from "./lib/secure-context";
 import { Modal } from "./Modal";
 import { Scanner } from "./Scanner";
 import { MoveHereButton } from "./MoveHere";
@@ -178,6 +179,28 @@ export function LabelBadge({
   );
 }
 
+/**
+ * Copies the label's link, to write onto an NFC sticker with a phone's NFC app: tapping the sticker then opens the
+ * same thing the QR code does (iPhones read link tags without an app; web pages can't read NFC there).
+ */
+function CopyNfcLink({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      className="btn btn-soft"
+      onClick={async () => {
+        await copyText(labelUrl(code));
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }}
+    >
+      <span className={`${copied ? "icon-[tabler--copy-check] text-success" : "icon-[tabler--nfc]"} size-5`} />
+      {copied ? t`Link copied` : t`Copy link for an NFC tag`}
+    </button>
+  );
+}
+
 /** "Already on Tent" — with a link to it, when the server says which. */
 function InUse({ error }: { error: Error & { details?: unknown } }) {
   const holder = error.details as { itemId?: string; name?: string } | undefined;
@@ -309,12 +332,16 @@ function LabelDialog(props: {
                 <span className="icon-[tabler--printer] size-5" />
                 <Trans>Print</Trans>
               </a>
+              <CopyNfcLink code={code} />
               {canEdit && !confirmOff && (
                 <button type="button" className="btn btn-text btn-error" onClick={() => setConfirmOff(true)}>
                   <Trans>Take label off</Trans>
                 </button>
               )}
             </div>
+            <a href="/docs/guide/labels.html#nfc-tags" className="link tap -mt-2 text-sm text-base-content/70">
+              <Trans>How NFC tags work</Trans>
+            </a>
             {confirmOff && (
               <div className="flex flex-col items-center gap-2 rounded-box bg-base-200 p-3 text-sm">
                 <p><Trans>A printed {code} will stop opening {name} (it becomes a blank label you can use somewhere else).</Trans></p>

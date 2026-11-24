@@ -85,7 +85,7 @@ export default defineConfig({
             { text: "Importing", link: "/guide/importing" },
             { text: "Paperless-ngx", link: "/guide/paperless" },
             { text: "Places and boxes", link: "/guide/places-and-boxes" },
-            { text: "QR labels", link: "/guide/labels" },
+            { text: "QR labels and NFC tags", link: "/guide/labels" },
             { text: "Categories and tags", link: "/guide/categories-and-tags" },
             { text: "Collections", link: "/guide/collections" },
             { text: "Stock: scan to count", link: "/guide/stock" },

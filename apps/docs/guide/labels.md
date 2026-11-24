@@ -1,4 +1,4 @@
-# QR labels
+# QR labels and NFC tags
 
 Stick a QR label on a box, a shelf or a door and scan it with any phone camera: it opens that box or place in Ferret.
 Scanning a thing's label counts as [seeing it](./room-review#last-seen): its page says when, and by whom.
@@ -46,5 +46,26 @@ already have**, and **Scan it** (or type its code). From then on, scanning that 
 Ferret's own labels — and its code finds it in search. A code that's already on something else is refused, with a link
 to whatever has it. Scanning a sticker Ferret doesn't know yet also offers **It's a label — put it on something I
 have**. (Rooms take Ferret's own labels.)
+
+## NFC tags {#nfc-tags}
+
+A label can also be an **NFC sticker**: tap it with a phone and it opens the thing, box or place, the same as
+scanning its QR code (and it counts as seeing it). This is handy where a QR code is hard to scan, for example inside
+a cupboard, on the underside of a shelf, or somewhere the print would wear off.
+
+1. Get **NTAG213, NTAG215 or NTAG216** stickers (any of them fits a Ferret link). On metal, use "on-metal" or
+   "anti-metal" tags: ordinary ones don't read there.
+2. Open the label badge on a thing, box or room → **Copy link for an NFC tag**.
+3. In any NFC writer app on your phone, write the link to the sticker as a **URL / link** record. Some apps can lock
+   the tag afterwards so nobody can write over it. Only do that once it works, because a locked tag can't be changed.
+
+**Reading them:** an **iPhone XS or newer** reads link tags by itself while it's unlocked: hold the top of the phone
+near the tag and tap the notification that appears. Older iPhones need **NFC Tag Reader** in Control Center. On
+**Android**, turn NFC on and tap the tag. Either way, the link opens in the phone's browser (not the app on the Home
+Screen), so you need to be signed in to Ferret there.
+
+The link holds your server's address, so copy it from the address the phones use, the same as for QR labels.
+If that address changes, write the tags again. Taking a label off stops its NFC tag from opening the thing too, and
+the tag becomes a blank label: tapping it asks what it's on.
 
 Each label is a short code (like `K7QM2X`); someone outside your household who scans it gets nothing but a sign-in page.
