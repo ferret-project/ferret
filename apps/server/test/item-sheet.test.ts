@@ -3,6 +3,9 @@ import type { ItemSheet, SigningKey } from "@ferret/shared";
 import { unzipSync } from "fflate";
 import { describe, expect, it } from "vitest";
 import { pdf, setup } from "./helpers";
+import { PdfJsPages } from "../src/adapters/local/pdf";
+import { splitSignedPdf } from "../src/lib/item-pdf";
+import { EXPORT_NAMESPACE, verifySignature } from "../src/lib/signing";
 
 const PHOTO = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, ...new TextEncoder().encode("drill photo")]);
 const RECEIPT = pdf("DeWalt receipt $129.00");
@@ -109,7 +112,7 @@ describe("a thing's export", () => {
     const zip = unzipSync(new Uint8Array(await res.arrayBuffer()));
     const at = (name: string) => zip[`Cordless drill/${name}`]!;
     expect(Object.keys(zip).sort()).toEqual(
-      ["Cordless drill.md", "SHA256SUMS", "SHA256SUMS.sig", "VERIFY.txt", "allowed_signers", "ferret-signing-key.pub", "files/drill.png", "files/receipt.pdf", "item.json"].map((n) => `Cordless drill/${n}`).sort(),
+      ["Cordless drill.md", "Cordless drill.pdf", "SHA256SUMS", "SHA256SUMS.sig", "VERIFY.txt", "allowed_signers", "ferret-signing-key.pub", "files/drill.png", "files/receipt.pdf", "item.json"].map((n) => `Cordless drill/${n}`).sort(),
     );
     const md = text(at("Cordless drill.md"));
     expect(md).toContain("# Cordless drill");
@@ -128,7 +131,7 @@ describe("a thing's export", () => {
       const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", at(path!) as Uint8Array<ArrayBuffer>));
       expect(Array.from(digest, (b) => b.toString(16).padStart(2, "0")).join("")).toBe(hash);
     }
-    expect(sums.split("\n").filter(Boolean)).toHaveLength(4);
+    expect(sums.split("\n").filter(Boolean)).toHaveLength(5);
     // …and SHA256SUMS is signed with the key Settings shows.
     const key = await json<SigningKey>(ann.as("/api/v1/household/signing-key"));
     const pub = await verifySshSig(text(at("SHA256SUMS.sig")), at("SHA256SUMS"), key.namespace);
@@ -163,5 +166,61 @@ describe("a thing's export", () => {
     const res = await ann.as(`/api/v1/items/${drillItem.id}/export.zip`, { headers: { Cookie: "", Authorization: `Bearer ${key.key}` } });
     expect(res.status).toBe(200);
     expect(Object.keys(unzipSync(new Uint8Array(await res.arrayBuffer())))).toContain("Cordless drill/SHA256SUMS.sig");
+  });
+});
+
+describe("a thing's signed PDF", () => {
+  it("is a PDF readers open, with its details, signed by the household's key over every byte before the signature", async () => {
+    const { ann, it: drillItem } = await drill();
+    const res = await ann.as(`/api/v1/items/${drillItem.id}/sheet.pdf`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("application/pdf");
+    expect(res.headers.get("content-disposition")).toContain("Cordless drill.pdf");
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    expect(text(bytes.subarray(0, 5))).toBe("%PDF-");
+
+    // A PDF reader reads it, signature block and all.
+    const pages = await new PdfJsPages().pageTexts(bytes, 5);
+    const all = (pages ?? []).join(" ");
+    expect(all).toContain("Cordless drill");
+    expect(all).toContain("SN-42");
+    expect(all).toContain("Chuck slips");
+
+    const split = splitSignedPdf(bytes)!;
+    const key = await json<SigningKey>(ann.as("/api/v1/household/signing-key"));
+    const signed = await verifySignature(split.signature, split.pdf, EXPORT_NAMESPACE);
+    expect(signed?.fingerprint).toBe(key.fingerprint);
+    expect(all).toContain(key.fingerprint);
+    // One byte changed and it no longer holds.
+    const changed = new Uint8Array(split.pdf);
+    changed[200]! ^= 1;
+    expect(await verifySignature(split.signature, changed, EXPORT_NAMESPACE)).toBeNull();
+  });
+
+  it("writes letters past English (Polish, Greek, Cyrillic) in its own font", async () => {
+    const t = await setup();
+    const ann = await t.user("ann");
+    const it = await ann.addItem({ name: "Wiertarka łódź żółć", notes: "Ελληνικά и кириллица" });
+    const bytes = new Uint8Array(await (await ann.as(`/api/v1/items/${it.id}/sheet.pdf`)).arrayBuffer());
+    const all = ((await new PdfJsPages().pageTexts(bytes, 5)) ?? []).join(" ");
+    expect(all).toContain("Wiertarka łódź żółć");
+    expect(all).toContain("Ελληνικά и кириллица");
+  });
+
+  it("with an API key too; only its own household", async () => {
+    const { ann, user, it: drillItem } = await drill();
+    const key = await json<{ key: string }>(ann.as("/api/v1/api-keys", { method: "POST", body: JSON.stringify({ name: "cli", readOnly: true }) }));
+    expect((await ann.as(`/api/v1/items/${drillItem.id}/sheet.pdf`, { headers: { Cookie: "", Authorization: `Bearer ${key.key}` } })).status).toBe(200);
+    const bob = await user("bob");
+    expect((await bob.as(`/api/v1/items/${drillItem.id}/sheet.pdf`)).status).toBe(404);
+  });
+
+  it("a long history runs onto more pages", async () => {
+    const { ann, it: drillItem } = await drill();
+    for (let n = 0; n < 60; n++) await ann.as(`/api/v1/items/${drillItem.id}`, { method: "PATCH", body: JSON.stringify({ notes: `Note ${n}` }) });
+    const bytes = new Uint8Array(await (await ann.as(`/api/v1/items/${drillItem.id}/sheet.pdf`)).arrayBuffer());
+    const pages = (await new PdfJsPages().pageTexts(bytes, 10)) ?? [];
+    expect(pages.length).toBeGreaterThan(1);
+    expect(pages.at(-1)).toContain(`${pages.length} / ${pages.length}`);
   });
 });

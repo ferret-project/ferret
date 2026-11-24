@@ -54,8 +54,8 @@ export function ItemSheet({ itemId, householdId }: { itemId: string; householdId
           <div className="card-body gap-4 p-4 sm:p-6">
             <p className="text-sm text-base-content/70">
               <Trans>
-                Everything about this thing on one page — print it, save it as a PDF from the print dialog, or download it as a signed ZIP: Markdown with its photos and documents, which anyone can check
-                hasn't changed with your household's public key.
+                Everything about this thing on one page. Download a signed PDF, or a signed ZIP (Markdown with its photos and documents, and the PDF) — anyone can check either hasn't changed
+                with your household's public key. Or just print it.
               </Trans>
             </p>
             <fieldset>
@@ -71,15 +71,19 @@ export function ItemSheet({ itemId, householdId }: { itemId: string; householdId
               <p className="mt-1 text-xs text-base-content/70"><Trans>Its details (what it is, where, what it cost) are always included.</Trans></p>
             </fieldset>
             <div className="flex flex-wrap gap-2">
-              <button type="button" className="btn btn-wrap btn-primary" disabled={!sheet.data || sheet.isFetching} onClick={() => window.print()}>
-                <span className="icon-[tabler--printer] size-5" />
-                <Trans>Print or save as PDF</Trans>
-              </button>
+              <a className={`btn btn-wrap btn-primary ${sheet.data ? "" : "btn-disabled"}`} href={api.itemPdfUrl(itemId, parts)} download>
+                <span className="icon-[tabler--file-certificate] size-5" />
+                <Trans>Download signed PDF</Trans>
+              </a>
               {/* A link, not a fetch: the browser saves the ZIP as the server streams it. */}
               <a className={`btn btn-wrap btn-soft ${sheet.data ? "" : "btn-disabled"}`} href={api.itemExportUrl(itemId, parts)} download>
                 <span className="icon-[tabler--file-zip] size-5" />
                 <Trans>Download signed ZIP</Trans>
               </a>
+              <button type="button" className="btn btn-wrap btn-soft" disabled={!sheet.data || sheet.isFetching} onClick={() => window.print()}>
+                <span className="icon-[tabler--printer] size-5" />
+                <Trans>Print</Trans>
+              </button>
             </div>
             {sheet.isError && <p className="text-sm text-error">{sheet.error.message}</p>}
           </div>

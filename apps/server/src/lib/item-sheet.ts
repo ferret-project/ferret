@@ -5,6 +5,7 @@
  *
  *   <name>/
  *     <name>.md          the sheet, its photos shown and documents linked
+ *     <name>.pdf         the sheet as a PDF the server drew, itself signed too (lib/item-pdf.ts)
  *     item.json          the same thing as data (format "ferret-item", version 1), for bringing it back in
  *     files/…            its photos and documents, decrypted
  *     SHA256SUMS         every file above with its SHA-256
@@ -38,6 +39,9 @@ import { stockSummary } from "./stock";
 import { getTemplate } from "./templates";
 import { itemWarranties } from "./warranties";
 import { safeName, zipStream } from "./household-export";
+import { type SheetPhoto, sheetPdf, withSignature } from "./item-pdf";
+import { previewKey } from "../jobs/analyze";
+import { sniffContentType } from "./sniff";
 
 /** item.json's format: what an import of a thing reads. */
 export const ITEM_FORMAT = { format: "ferret-item", version: 1 } as const;
@@ -374,6 +378,41 @@ function itemData(v: Caller, g: Gathered, paths: Map<string, string>, madeAt: Da
   };
 }
 
+/** Each photo in a shape a PDF takes: its JPEG preview copy, else the original (JPEG/PNG), else its thumbnail. */
+async function pdfPhotos(v: Caller, files: FileStore, g: Gathered): Promise<SheetPhoto[]> {
+  const out: SheetPhoto[] = [];
+  for (const p of g.photos) {
+    const tries = [previewKey(p.blobKey), ...(p.originalRemovedAt ? [] : [p.blobKey]), ...(p.thumbnailKey ? [p.thumbnailKey] : [])];
+    let found: SheetPhoto = { id: p.id, filename: p.filename, bytes: null, type: null };
+    for (const key of tries) {
+      const bytes = await files.get(v.householdId, key).catch(() => null);
+      const type = bytes ? sniffContentType(bytes) : null;
+      if (bytes && (type === "image/jpeg" || type === "image/png")) {
+        found = { ...found, bytes, type: type === "image/jpeg" ? "jpeg" : "png" };
+        break;
+      }
+    }
+    out.push(found);
+  }
+  return out;
+}
+
+/** The signed PDF of what `g` holds. */
+async function signedPdf(v: Caller, files: FileStore, tr: Tr, g: Gathered, sheet: ItemSheet, madeAt: Date) {
+  const key = await signingKey(v, files);
+  const madeOn = tr.date(madeAt, { year: "numeric", month: "long", day: "numeric", timeZone: v.timeZone });
+  const pdf = await sheetPdf(tr, sheet, await pdfPhotos(v, files, g), { currency: v.currency, madeOn, madeAt, fingerprint: key.fingerprint, publicKey: key.publicKey });
+  return withSignature(pdf, await sshSign(v, files, pdf));
+}
+
+/** A thing's sheet as a PDF the server drew, signed with the household's key (lib/item-pdf.ts). */
+export async function itemPdf(v: Caller, files: FileStore, itemId: string, parts: Set<ItemSheetPart>, publicUrl: string) {
+  const tr = await trFor(v.deps, v.userId);
+  const g = await gather(v, itemId, parts);
+  const sheet = buildSheet(v, tr, g, publicUrl);
+  return { filename: `${safeName(g.it.name, "item")}.pdf`, bytes: await signedPdf(v, files, tr, g, sheet, new Date()) };
+}
+
 const hex = (buf: ArrayBuffer) => Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
 
 /** The signed export: a ZIP, streamed (see the top of this file). */
@@ -396,6 +435,7 @@ export async function itemExport(v: Caller, files: FileStore, itemId: string, pa
       await add(`${folder}/${path}`, data, opts);
     };
     await put(`${folder}.md`, text.encode(sheetMarkdown(tr, sheet, paths, madeOn)), { compress: true });
+    await put(`${folder}.pdf`, await signedPdf(v, files, tr, g, sheet, madeAt));
     await put("item.json", text.encode(JSON.stringify(itemData(v, g, paths, madeAt), null, 2)), { compress: true });
     for (const f of uploads) {
       // An original removed to free space: its small copy instead.

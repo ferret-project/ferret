@@ -82,11 +82,13 @@ for anyone signed in to your household, and nobody else.
 and claims, maintenance and when it was done, repairs, loans, stock, photos, documents and history. Untick what you
 don't want (the details are always there), then:
 
-- **Print or save as PDF** prints it (choose "Save as PDF" in the print dialog). The bottom of the page shows your
-  household's signing key and its fingerprint.
-- **Download signed ZIP** gives you the same sheet as a `.md` file, with a `files` folder of its photos and documents,
-  an `item.json` with the same details as data, and a signature from your household's key. The `.md` opens in any
-  notes app, and the whole ZIP can go into a password manager entry as an attachment.
+- **Download signed PDF** — a PDF Ferret draws itself, signed with your household's key. It opens in any PDF reader;
+  the bottom of it shows the key and its fingerprint.
+- **Download signed ZIP** gives you the same sheet as a `.md` file and the signed PDF, with a `files` folder of its
+  photos and documents, an `item.json` with the same details as data, and a signature from your household's key. The
+  `.md` opens in any notes app, and the whole ZIP can go into a password manager entry as an attachment.
+- **Print** prints the page as you see it. A PDF saved from the print dialog isn't signed — use Download signed PDF
+  when you'll want to prove it hasn't changed.
 
 ### Checking a signed export
 
@@ -105,7 +107,10 @@ fingerprint yourself, `ssh-keygen -lf ferret-signing-key.pub`, and compare it wi
 **Settings → Household → Signing key**, or the bottom of a sheet you printed earlier. A signature shows what Ferret
 held and when; it doesn't vouch for what people typed in.
 
-The [ferret command-line tool](https://github.com/ferret-project/ferret-cli) does all of this in one step, against
+A signed PDF carries its signature at its very end, after the PDF itself; the
+[ferret command-line tool](https://github.com/ferret-project/ferret-cli) checks it: `ferret verify "Cordless drill.pdf"`.
+
+The command-line tool does all of the ZIP's checks in one step too, against
 fingerprints you've told it to trust: `ferret verify "Cordless drill.zip"`. With an API key it can also export
 things: `ferret export "cordless drill"`.
 

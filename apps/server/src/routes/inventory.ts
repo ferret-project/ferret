@@ -47,7 +47,7 @@ import { languageOf, setLanguage } from "../lib/language";
 import * as svc from "../lib/inventory";
 import { ownLabelsOf } from "../lib/own-labels";
 import { itemDetail } from "../lib/item-detail";
-import { itemExport, itemSheet } from "../lib/item-sheet";
+import { itemExport, itemPdf, itemSheet } from "../lib/item-sheet";
 import { roomScansAvailable } from "../lib/room-scans";
 import { itemChanged, logActivity, withStatus } from "../lib/inventory";
 import { categoryDescendants, findTag } from "../lib/catalog";
@@ -315,6 +315,16 @@ inventory.get("/items/:id", async (c) => c.json(await itemDetail(callerOf(c), c.
 
 /** Everything about it, written out for its printable sheet (?parts=photos,notes,… — default all; lib/item-sheet.ts). */
 inventory.get("/items/:id/sheet", async (c) => c.json(await itemSheet(callerOf(c), c.req.param("id"), sheetPartsFrom(c.req.query("parts")), c.var.config.PUBLIC_URL)));
+
+/** The sheet as a PDF the server draws, signed with the household's key (lib/item-pdf.ts); ?parts= as for the sheet. */
+inventory.get("/items/:id/sheet.pdf", async (c) => {
+  const { filename, bytes } = await itemPdf(callerOf(c), c.var.files, c.req.param("id"), sheetPartsFrom(c.req.query("parts")), c.var.config.PUBLIC_URL);
+  return c.body(bytes as Uint8Array<ArrayBuffer>, 200, {
+    "Content-Type": "application/pdf",
+    "Content-Disposition": `attachment; filename="${filename.replace(/[^\x20-\x7e]|"/g, "_")}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+    "Cache-Control": "no-store",
+  });
+});
 
 /**
  * The same as Markdown with its photos and documents, signed with the household's key (lib/item-sheet.ts) — a ZIP,
