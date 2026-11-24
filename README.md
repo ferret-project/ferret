@@ -102,7 +102,7 @@ the shopping list, remember what you lent, and print an insurance report. Claude
 ```bash
 curl -O https://raw.githubusercontent.com/ferret-project/ferret/main/compose.yaml
 curl -o .env https://raw.githubusercontent.com/ferret-project/ferret/main/.env.example
-# In .env: AUTH_SECRET and FILES_KEY (each: openssl rand -base64 32), and PUBLIC_URL
+# In .env: set PUBLIC_URL. Ferret makes AUTH_SECRET and FILES_KEY itself on first start (or set your own)
 docker compose up -d
 ```
 
@@ -110,8 +110,9 @@ The image is on [GitHub's registry](https://github.com/ferret-project/ferret/pkg
 (`ghcr.io/ferret-project/ferret`) and [Docker Hub](https://hub.docker.com/r/ferretproject/ferret)
 (`ferretproject/ferret`) — the same tags on both (`latest`, or a release like `2026.11.2`), for x86-64 and 64-bit ARM.
 
-Then open `PUBLIC_URL`; the first account made is the server admin. Keep a copy of `FILES_KEY` somewhere safe —
-without it, uploaded files can't be read. Behind a reverse proxy, set `TRUSTED_PROXIES` to its address.
+Then open `PUBLIC_URL`; the first account made is the server admin. Make a key file for `FILES_KEY` (Settings →
+Server → Access → Keys) and keep it off the server — without that key, uploaded files can't be read. Behind a reverse
+proxy, set `TRUSTED_PROXIES` to its address.
 
 The help is built in at `/docs`: [installing](https://ferret-demo.digitalempire.us/docs/hosting/install),
 [every setting](https://ferret-demo.digitalempire.us/docs/hosting/configuration),
@@ -173,7 +174,7 @@ until someone confirms it.
 Requirements: Node 26+, pnpm 10 (`npm install -g corepack && corepack enable`).
 
 ```bash
-cp .env.example .env      # AUTH_SECRET and FILES_KEY, as above
+cp .env.example .env      # secrets are made on first start, as above
 pnpm install
 pnpm dev                  # server on :8787, web app on :5173
 pnpm test

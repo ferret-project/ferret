@@ -15,5 +15,8 @@ then `2026.11.0`. Each is an image tag (`ghcr.io/ferret-project/ferret:2026.10.0
 `ferretproject/ferret:2026.10.0` on Docker Hub) and a release on GitHub listing what
 changed; **Settings → Server**'s error details say which one is running.
 
+`latest` is always the newest release. To upgrade only when you choose, set `FERRET_TAG` in `.env` to a release
+(`FERRET_TAG=2026.11.2`) and change it when you want the next one.
+
 To go back to an older version, set `FERRET_TAG` in `.env` to that version and restore the backup taken before the
 upgrade — a database that a newer Ferret has updated may not work with an older one.
