@@ -105,6 +105,10 @@ fingerprint yourself, `ssh-keygen -lf ferret-signing-key.pub`, and compare it wi
 **Settings → Household → Signing key**, or the bottom of a sheet you printed earlier. A signature shows what Ferret
 held and when; it doesn't vouch for what people typed in.
 
+The [ferret command-line tool](https://github.com/ferret-project/ferret-cli) does all of this in one step, against
+fingerprints you've told it to trust: `ferret verify "Cordless drill.zip"`. With an API key it can also export
+things: `ferret export "cordless drill"`.
+
 Each household has one key. It's kept in the server's backups, so a restored Ferret signs with the same key and
 older exports still check out.
 

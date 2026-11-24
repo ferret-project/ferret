@@ -24,7 +24,8 @@ cd /path/to/backups
 ssh-keygen -Y verify -f allowed_signers -I ferret -n ferret-backup -s snapshots/ferret-<time>.json.sig < snapshots/ferret-<time>.json
 ```
 
-That checks the list; the ferret command-line tool also checks every file against it. To know the key is your
+That checks the list; the [ferret command-line tool](https://github.com/ferret-project/ferret-cli) also checks the
+database copy and every file against it, and the key against fingerprints you trust: `ferret verify /path/to/backups`. To know the key is your
 server's, compare `ssh-keygen -lf signing-key.pub` with the fingerprint under **Settings → Server → Keys → Backup
 signing key**. The key is kept in the database, so it's in every backup, and a restored Ferret signs with the same key.
 
