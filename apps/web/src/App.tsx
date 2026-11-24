@@ -5,6 +5,7 @@ import { usePlan } from "./PlanUsage";
 import { AskFerret } from "./Ask";
 import { CapturesCard, OfflineCapture, useCaptureSync } from "./Offline";
 import { rememberHome, rememberedHome } from "./lib/offline";
+import { keepRecentOffline } from "./lib/offline-recent";
 import { resumeOAuthRequest } from "./Connect";
 import { AuthLayout, Logo } from "./AuthLayout";
 import { NotFound } from "./NotFound";
@@ -839,6 +840,25 @@ function HouseholdGate() {
   return <Screens householdName={active.name} householdId={active.id} />;
 }
 
+/**
+ * Browsing offline (lib/offline-recent.ts): the things looked at last, kept on this device — on opening Ferret, on
+ * coming back to it, and every 10 minutes while it's open.
+ */
+function useKeepRecentOffline(householdId: string) {
+  useEffect(() => {
+    const keep = () => {
+      if (document.visibilityState === "visible" && navigator.onLine) void keepRecentOffline(householdId);
+    };
+    keep();
+    const every = setInterval(keep, 10 * 60_000);
+    document.addEventListener("visibilitychange", keep);
+    return () => {
+      clearInterval(every);
+      document.removeEventListener("visibilitychange", keep);
+    };
+  }, [householdId]);
+}
+
 function Screens({ householdName, householdId }: { householdName: string; householdId: string }) {
   const route = useRouteName();
   // Emails and notifications in the language you read Ferret in (Language.tsx).
@@ -847,6 +867,7 @@ function Screens({ householdName, householdId }: { householdName: string; househ
   const places = usePlaces(householdId);
   useEffect(() => rememberHome({ householdId, householdName, places: places.data }), [householdId, householdName, places.data]);
   useCaptureSync(householdId);
+  useKeepRecentOffline(householdId);
   const [folded, toggleSidebar] = useSidebarFolded();
   useSearchHotkeys(["home", "property", "place", "items", "category", "tag"].includes(route), route === "item");
   // Amounts in the household's currency: what this device last saw until its settings come (a head start offline).

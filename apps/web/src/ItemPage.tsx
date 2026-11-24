@@ -29,6 +29,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ChangeEvent, type DragEvent, type ReactNode, type RefObject, useEffect, useRef, useState } from "react";
 import { ItemEditor } from "./ItemEditor";
 import { api } from "./lib/api";
+import { keepRecentOfflineSoon } from "./lib/offline-recent";
 import { useCanEdit } from "./lib/auth";
 import { categoryHref, itemHref, placeHref, tagHref, addedHref, roomScanHref } from "./lib/route";
 import { ORIGIN_HOW } from "./lib/origin";
@@ -99,7 +100,10 @@ export function ItemPage({ itemId, householdId }: { itemId: string; householdId:
     if (!loaded) return;
     api
       .viewed(itemId)
-      .then(() => qc.invalidateQueries({ queryKey: ["recently-viewed", householdId] }))
+      .then(() => {
+        void qc.invalidateQueries({ queryKey: ["recently-viewed", householdId] });
+        keepRecentOfflineSoon(householdId); // for browsing offline (lib/offline-recent.ts)
+      })
       .catch(() => {}); // offline, or gone meanwhile: nothing to record
   }, [loaded, itemId, householdId, qc]);
   const amazonSite = useQuery({ queryKey: ["household-settings", householdId], queryFn: api.householdSettings, staleTime: 5 * 60_000 }).data?.amazonSite;

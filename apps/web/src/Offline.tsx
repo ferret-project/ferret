@@ -28,6 +28,9 @@ import { t, ph, plural, msg } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
 import { randomId } from "./lib/secure-context";
+import { Modal } from "./Modal";
+import { money, rememberedCurrency, showAmountsIn } from "./lib/money";
+import { type OfflineThing, offlineThings } from "./lib/offline-recent";
 
 /** The captures waiting on this device for a household, kept up to date. */
 export function useCaptures(householdId: string) {
@@ -182,6 +185,8 @@ export function OfflineCapture({ home }: { home: OfflineHome }) {
           </div>
         </section>
 
+        <OfflineRecent householdId={home.householdId} />
+
         <section className="card" aria-labelledby="waiting-title">
           <div className="card-body gap-3">
             <h2 id="waiting-title" className="font-semibold text-base-content">
@@ -270,6 +275,106 @@ export function OfflineCapture({ home }: { home: OfflineHome }) {
         />
       )}
     </div>
+  );
+}
+
+/** Where a kept thing was: its room, and the box it's in. */
+const whereOf = (item: OfflineThing["item"]) => [item.place, item.container?.name].filter(Boolean).join(" › ");
+
+/** The things looked at last, kept on this device (lib/offline-recent.ts): browsed read-only with no signal. */
+function OfflineRecent({ householdId }: { householdId: string }) {
+  const [things, setThings] = useState<OfflineThing[] | null>(null);
+  const [open, setOpen] = useState<OfflineThing | null>(null);
+  // Amounts in the household's currency, as this device last saw it.
+  useState(() => {
+    showAmountsIn(rememberedCurrency(householdId));
+    return true;
+  });
+  useEffect(() => {
+    let live = true;
+    offlineThings(householdId).then(
+      (kept) => live && setThings(kept),
+      () => live && setThings([]),
+    );
+    return () => {
+      live = false;
+    };
+  }, [householdId]);
+  if (!things?.length) return null;
+  return (
+    <section className="card" aria-labelledby="offline-recent-title">
+      <div className="card-body gap-2">
+        <div>
+          <h2 id="offline-recent-title" className="font-semibold text-base-content">
+            <Trans>Recently viewed</Trans>
+          </h2>
+          <p className="text-sm text-base-content/70">
+            <Trans>Kept on this device: what you looked at last, as it was then.</Trans>
+          </p>
+        </div>
+        <ul className="divide-y divide-base-content/10">
+          {things.map((thing) => (
+            <li key={thing.key}>
+              <button type="button" className="flex min-h-11 w-full items-center gap-3 py-2 text-start" onClick={() => setOpen(thing)}>
+                <span className="w-12 shrink-0">
+                  <Thumb blob={thing.photo ?? undefined} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium text-base-content">{thing.item.name}</span>
+                  {whereOf(thing.item) && <span className="block truncate text-sm text-base-content/70">{whereOf(thing.item)}</span>}
+                </span>
+                <span className="icon-[tabler--chevron-right] size-4 text-base-content/70 rtl:-scale-x-100" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+      {open && <OfflineThingDetails thing={open} onClose={() => setOpen(null)} />}
+    </section>
+  );
+}
+
+/** One kept thing, read-only: what matters when you can't reach Ferret (where it is, what it is, its numbers). */
+function OfflineThingDetails({ thing, onClose }: { thing: OfflineThing; onClose: () => void }) {
+  const item = thing.item;
+  const day = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString();
+  const rows: [string, string | null | undefined][] = [
+    [t`Where`, whereOf(item)],
+    [t`Brand`, item.brand],
+    [t`Model`, item.model],
+    [t`Serial number`, item.serialNumber],
+    [t`How many`, item.quantity > 1 ? String(item.quantity) : null],
+    [t`Category`, item.category],
+    [t`Tags`, item.tags?.length ? item.tags.join(", ") : null],
+    [t`Bought`, item.purchaseDate ? day(item.purchaseDate) : null],
+    [t`Paid`, item.purchasePriceCents != null ? money(item.purchasePriceCents) : null],
+    [t`Worth`, item.valueCents != null ? money(item.valueCents) : null],
+    [t`Description`, item.description],
+    [t`Notes`, item.notes],
+  ];
+  return (
+    <Modal id="offline-thing" title={item.name} onClose={onClose}>
+      <div className="flex flex-col gap-4">
+        {thing.photo && (
+          <div className="mx-auto w-48">
+            <Thumb blob={thing.photo} />
+          </div>
+        )}
+        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+          {rows
+            .filter(([, value]) => value)
+            .map(([label, value]) => (
+              <div key={label} className="contents">
+                <dt className="text-base-content/70">{label}</dt>
+                <dd className="whitespace-pre-line break-words text-base-content">{value}</dd>
+              </div>
+            ))}
+        </dl>
+        <p className="text-xs text-base-content/70">
+          <Trans>Saved on this device {ph({ when: new Date(thing.savedAt).toLocaleString() })}. Changes made since show once Ferret can be reached.</Trans>
+        </p>
+      </div>
+    </Modal>
   );
 }
 

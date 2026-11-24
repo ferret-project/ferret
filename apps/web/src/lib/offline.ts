@@ -7,11 +7,13 @@
  * - A room scan's photos start the scan (POST /room-scans) once there's signal; the bell says when it's ready.
  * - A scan goes to POST /scan with its own id (`clientId`): sent twice, the count changes once. When the answer needs
  *   someone ("which item?", "what to do?", "nothing has this code") it stays here, for the dashboard to ask.
- * - What's kept to work offline: the household's id and name and its places (to pick a room) — in localStorage — and
- *   the captures themselves until they're uploaded. Signing out clears it all.
+ * - What's kept to work offline: the household's id and name and its places (to pick a room) — in localStorage — the
+ *   captures themselves until they're uploaded, and the things looked at last (lib/offline-recent.ts). Signing out
+ *   clears it all.
  */
 import type { PlacesTree, ScanResult } from "@ferret/shared";
 import { api } from "./api";
+import { forgetRecentOffline } from "./offline-recent";
 import { t } from "@lingui/core/macro";
 
 export type ScanAction = "use" | "restock" | "lookup" | "add";
@@ -110,6 +112,7 @@ export async function forgetOffline() {
   } catch {
     // no database yet
   }
+  await forgetRecentOffline();
 }
 
 /** The household this device last used, and its places — enough to capture into it offline. */
