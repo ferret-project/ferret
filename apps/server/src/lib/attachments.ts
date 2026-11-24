@@ -285,17 +285,6 @@ export async function addAttachment(
   }
   await requireRoom(v, { bytes: bytes.length }); // a plan's room for files (lib/plan.ts)
 
-  const id = crypto.randomUUID();
-  const blobKey = `${v.householdId}/${id}`;
-  await files.put(v.householdId, blobKey, bytes);
-  // A thumbnail is a nice-to-have: if it can't be made, the grid shows the original. A PDF's is its first page: drawn
-  // in the background (below), unless it came with one (the demo's receipts — lib/demo.ts).
-  const isImage = contentType.startsWith("image/");
-  const isPdf = contentType === "application/pdf";
-  const made = usable(upload.made?.thumbnail, 400_000);
-  const thumb = isImage ? (made ?? (await v.deps.images?.resize(bytes, THUMBNAIL_PX, "webp"))) : isPdf ? made : null;
-  const thumbnailKey = thumb ? `${blobKey}.thumb` : null;
-  if (thumb && thumbnailKey) await files.put(v.householdId, thumbnailKey, thumb);
   // Photos (vision model) and documents (docling) are analysed in the background (see jobs/analyze.ts) — when the
   // household's plan has AI and some left (lib/plan.ts; counted by the job, once it's done). Without, it's just kept.
   // A property's, a place's or a task's are read for their words only (to find them by): no suggestions, nothing to
@@ -315,6 +304,27 @@ export async function addAttachment(
   const wanted = upload.croppedFrom ? !reading : upload.analyze !== false;
   const job = analysisJob(v.deps, kind, contentType);
   const analyze = job && wanted && (await allow(v, kind === "photo" ? "ai.photo" : "ai.document")).ok ? job : null;
+
+  const id = crypto.randomUUID();
+  const blobKey = `${v.householdId}/${id}`;
+  // From here until the row is in, what's saved belongs to nothing: a failure removes it (below).
+  await files.put(v.householdId, blobKey, bytes).catch(async (err) => {
+    await files.delete(blobKey).catch(() => {});
+    throw err;
+  });
+  // A thumbnail is a nice-to-have: if it can't be made, the grid shows the original. A PDF's is its first page: drawn
+  // in the background (below), unless it came with one (the demo's receipts — lib/demo.ts).
+  const isImage = contentType.startsWith("image/");
+  const isPdf = contentType === "application/pdf";
+  const made = usable(upload.made?.thumbnail, 400_000);
+  const thumb = isImage ? (made ?? (await v.deps.images?.resize(bytes, THUMBNAIL_PX, "webp").catch(() => null))) : isPdf ? made : null;
+  let thumbnailKey = thumb ? `${blobKey}.thumb` : null;
+  if (thumb && thumbnailKey) {
+    await files.put(v.householdId, thumbnailKey, thumb).catch(async () => {
+      await files.delete(`${blobKey}.thumb`).catch(() => {});
+      thumbnailKey = null;
+    });
+  }
   const [row] = await v.db
     .insert(attachment)
     .values({
@@ -335,13 +345,14 @@ export async function addAttachment(
     .returning(attachmentFields)
     .catch(async (err) => {
       // Don't leave orphaned blobs behind.
-      await files.delete(blobKey);
-      if (thumbnailKey) await files.delete(thumbnailKey);
+      await files.delete(blobKey).catch(() => {});
+      if (thumbnailKey) await files.delete(thumbnailKey).catch(() => {});
       throw err;
     });
-  // The browser's vision copy, kept (encrypted) until the analysis has used it.
+  // The browser's vision copy, kept (encrypted) until the analysis has used it. Optional: without it the analysis
+  // reads the original, so failing to save it doesn't fail an upload that's already in.
   const preview = analyze && isImage ? usable(upload.made?.preview, 2_000_000) : undefined;
-  if (preview) await files.put(v.householdId, previewKey(blobKey), preview);
+  if (preview) await files.put(v.householdId, previewKey(blobKey), preview).catch(() => {});
   if (analyze) await v.deps.jobs!.enqueue(analyze, { attachmentId: id });
   // A PDF's thumbnail is its first page, drawn in the background.
   if (isPdf && !thumb && v.deps.pdfPages && v.deps.jobs) await v.deps.jobs.enqueue(PDF_THUMB_JOB, { attachmentId: id });
