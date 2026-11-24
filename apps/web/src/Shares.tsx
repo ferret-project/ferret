@@ -11,7 +11,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { HelpLink } from "./HelpLink";
 import { api } from "./lib/api";
-import { authClient } from "./lib/auth";
+import { useRole } from "./lib/auth";
+import { inFerretApp } from "./lib/install";
 import { DialogActions, Modal } from "./Modal";
 import { NotInPlan, usePlanFeature } from "./PlanUsage";
 import { t, ph, plural } from "@lingui/core/macro";
@@ -24,8 +25,9 @@ const longDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { 
 
 /** Owners and admins share; everyone else doesn't see the button. */
 function useCanShare(householdId: string) {
-  const role = useQuery({ queryKey: ["role", householdId], queryFn: async () => (await authClient.organization.getActiveMemberRole()).data?.role });
-  return role.data === "owner" || role.data === "admin";
+  const role = useRole(householdId);
+  // Share links need a real sign-in: inside the phone app (its own sign-in) there's no button.
+  return !inFerretApp && (role === "owner" || role === "admin");
 }
 
 export function ShareButton({ householdId, target, what, className = "btn btn-soft btn-primary" }: { householdId: string; target: Target; what: string; className?: string }) {

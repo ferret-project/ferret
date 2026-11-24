@@ -39,6 +39,7 @@ import { CHALLENGE_HEADER, solveSignInChallenge } from "./lib/challenge";
 import type { Challenge } from "altcha-lib/types";
 import { TabBar } from "./TabBar";
 import { inFerretApp } from "./lib/install";
+import { useAppAccess } from "./lib/app-session";
 import { type Appearance, useAppearance } from "./lib/appearance";
 import { ShareButton } from "./Shares";
 import { RecallAlert } from "./PayOff";
@@ -76,6 +77,14 @@ export function App() {
 /** The signed-in screens' layout: sign in first (or capture offline), then a household. */
 export function SignedIn() {
   const { data: session, error } = authClient.useSession();
+  const app = useAppAccess();
+  // Inside the phone app: its sign-in (lib/app-session.ts), never a second one here.
+  if (inFerretApp) {
+    if (app.isPending) return <Splash />;
+    const household = app.data?.household;
+    if (household) return <Screens householdName={household.name} householdId={household.id} />;
+    return <AppSignedOut />;
+  }
   // Can't reach Ferret (no signal, or the server's restarting) on a device that was signed in: capture offline.
   const home = !session && (error || !navigator.onLine) ? rememberedHome() : null;
   if (home) return <OfflineCapture home={home} />;
@@ -83,6 +92,18 @@ export function SignedIn() {
   // Signed in for an app that was waiting (Connect.tsx: an emailed link, single sign-on…): back to it.
   if (resumeOAuthRequest()) return <Splash />;
   return <HouseholdGate />;
+}
+
+/** Inside the phone app, its sign-in has ended (disconnected, or no longer in the household). */
+function AppSignedOut() {
+  return (
+    <div className="flex min-h-dvh flex-col items-center justify-center gap-3 p-6 text-center">
+      <span className="icon-[tabler--plug-connected-x] size-10 text-base-content/70" />
+      <p className="max-w-sm text-base-content">
+        <Trans>This screen needs Ferret's sign-in in the app. Go back, sign out under More, and sign in again.</Trans>
+      </p>
+    </div>
+  );
 }
 
 export function Splash() {

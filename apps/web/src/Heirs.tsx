@@ -9,7 +9,7 @@ import { today } from "@ferret/shared/utils";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { api } from "./lib/api";
-import { authClient, useRole } from "./lib/auth";
+import { useAccountName, useRole } from "./lib/auth";
 import { money } from "./lib/money";
 import { itemHref } from "./lib/route";
 import { HelpLink } from "./HelpLink";
@@ -22,7 +22,7 @@ export function Heirs({ householdId, householdName }: { householdId: string; hou
   const role = useRole(householdId);
   const allowed = role === "owner" || role === "admin";
   const list = useQuery({ queryKey: ["heirs", householdId], queryFn: api.heirs, enabled: allowed });
-  const { data: session } = authClient.useSession();
+  const accountName = useAccountName();
   const [photos, setPhotos] = useState(true);
   const [values, setValues] = useState(false);
   const groups = list.data?.data ?? [];
@@ -82,7 +82,7 @@ export function Heirs({ householdId, householdName }: { householdId: string; hou
               <h2 className="mt-1 text-2xl font-bold">{householdName}</h2>
               <p className="mt-1 text-sm text-gray-600">
                 <Trans>Prepared {ph({ date: longDate(today()) })}</Trans>
-                {session?.user.name ? t` by ${ph({ name: session.user.name })}` : ""}
+                {accountName ? t` by ${ph({ name: accountName })}` : ""}
               </p>
               <p className="mt-2 text-sm text-gray-600">
                 {plural(groups.length, { one: "# person", other: "# people" })} · {plural(groups.reduce((n, g) => n + g.items.length, 0), { one: "# thing", other: "# things" })}

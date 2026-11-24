@@ -9,7 +9,7 @@ import { missingDetails } from "@ferret/shared/utils";
 import { everyText } from "./lib/words";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Fragment, useEffect, useRef, useState } from "react";
-import { authClient } from "./lib/auth";
+import { useAccountName } from "./lib/auth";
 import { AddFromPhotos } from "./PhotoAdd";
 import { DialogActions, Modal } from "./Modal";
 import { api } from "./lib/api";
@@ -350,11 +350,11 @@ function CustomizeDialog({ householdId, layout, onClose }: { householdId: string
 /** "Good evening, Sam" and what needs them today, each a link — or that nothing does. */
 export function Greeting({ householdId }: { householdId: string }) {
   const overview = useQuery({ queryKey: ["overview", householdId], queryFn: api.overview });
-  const { data: session } = authClient.useSession();
+  const accountName = useAccountName();
   const o = overview.data;
   if (!o) return null;
   const soon = o.warranties.filter((w) => w.status === "expiring").length;
-  const first = session?.user.name?.split(" ")[0];
+  const first = accountName?.split(" ")[0];
   const hour = new Date().getHours();
   const hello = hour < 5 || hour >= 18 ? (first ? t`Good evening, ${first}` : t`Good evening`) : hour < 12 ? (first ? t`Good morning, ${first}` : t`Good morning`) : first ? t`Good afternoon, ${first}` : t`Good afternoon`;
   const needs: { href: string; text: string; tone: string }[] = [

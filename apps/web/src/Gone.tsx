@@ -12,9 +12,8 @@ import { type FormEvent, useState } from "react";
 import { HelpLink } from "./HelpLink";
 import { type Choice, ItemPicker } from "./Combobox";
 import { api } from "./lib/api";
-import { useCanEdit } from "./lib/auth";
 import { donationsHref, itemHref, PAST_HREF } from "./lib/route";
-import { authClient } from "./lib/auth";
+import { useAccountName, useCanEdit } from "./lib/auth";
 import { DialogActions, Modal } from "./Modal";
 import { money, currencySymbol, toCents } from "./lib/money";
 import { conditionWord } from "./lib/words";
@@ -307,7 +306,7 @@ export function Past({ householdId }: { householdId: string }) {
 /** #/donations/:year — one year's donations on a page that prints (or as a CSV). Records only; no tax advice. */
 export function Donations({ year, householdId, householdName }: { year: number; householdId: string; householdName: string }) {
   const list = useQuery({ queryKey: ["past", householdId, "donations", year], queryFn: () => api.donations(year) });
-  const { data: session } = authClient.useSession();
+  const accountName = useAccountName();
   const rows = list.data?.data ?? [];
   const total = rows.reduce((n, r) => n + (r.valueCents ?? 0), 0);
   const charities = [...new Set(rows.map((r) => r.charity ?? t`Not recorded`))];
@@ -340,7 +339,7 @@ export function Donations({ year, householdId, householdName }: { year: number; 
               <h2 className="mt-1 text-2xl font-bold">{t`${householdName} — donations in ${year}`}</h2>
               <p className="mt-1 text-sm text-gray-600">
                 <Trans>Prepared {ph({ date: formatDate(today()) })}</Trans>
-                {session?.user.name ? t` by ${ph({ name: session.user.name })}` : ""}
+                {accountName ? t` by ${ph({ name: accountName })}` : ""}
               </p>
               <dl className="mt-4 flex flex-wrap gap-x-10 gap-y-3">
                 <div>

@@ -34,6 +34,7 @@ import { TimeZoneCard } from "./TimeZone";
 import { AmazonStoreCard, CurrencyCard } from "./Currency";
 import { AiFillCard } from "./AiFill";
 import { NotInPlan, PlanUsage, usePlanFeature } from "./PlanUsage";
+import { inFerretApp } from "./lib/install";
 import { useRole } from "./lib/auth";
 import { t, ph, msg } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
@@ -53,7 +54,8 @@ export function Settings(props: { section: SettingsSection; householdName: strin
   const me = useQuery({ queryKey: ["me"], queryFn: api.me });
   const serverAdmin = me.data?.serverAdmin ?? false;
   const role = useRole(householdId);
-  const tabs = TABS.filter((tab) => tab.section !== "server" || serverAdmin);
+  // Inside the phone app (its own sign-in, like a key): sign-in security and API keys need Ferret in a browser.
+  const tabs = TABS.filter((tab) => (tab.section !== "server" || serverAdmin) && !(inFerretApp && (tab.section === "security" || tab.section === "api")));
   return (
     <div className="min-h-dvh bg-base-200">
       <header className="sticky top-0 z-10 border-b border-base-300 bg-base-100/85 backdrop-blur-md">
@@ -85,6 +87,17 @@ export function Settings(props: { section: SettingsSection; householdName: strin
       </header>
 
       <main className={`mx-auto flex ${section === "server" && serverAdmin ? "max-w-6xl" : "max-w-3xl"} flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]`}>
+        {inFerretApp && (
+          <div role="note" className="alert alert-soft alert-info items-start">
+            <span className="icon-[tabler--info-circle] size-5 shrink-0" />
+            <span>
+              <Trans>
+                In the app you can change what your sign-in there allows. Your password and security, API keys, Download
+                everything, members and backups need Ferret in your browser.
+              </Trans>
+            </span>
+          </div>
+        )}
         {section === "household" && (
           <>
             <Household householdName={householdName} />

@@ -7,7 +7,7 @@ import type { z } from "zod";
 import type { Extensions } from "../app";
 import type { Auth } from "../auth";
 import type { Config } from "../config";
-import { householdSetting, member, user } from "../db/schema";
+import { householdSetting, member, organization, user } from "../db/schema";
 import type { Db, Deps } from "../ports";
 import { type KeyHolder, keyFromHeaders, verifyKey } from "./api-keys";
 import type { FileStore } from "./files";
@@ -44,12 +44,24 @@ export type AppEnv = {
 };
 
 /**
+ * The phone app's own web screens: the app puts its access token in this cookie (HttpOnly, SameSite=Strict, only in
+ * its web view), so Ferret's pages and their images work with the app's sign-in. It is the same token as the header —
+ * the same limits — and, being a cookie, its changes pass the same-origin check in app.ts like a session's.
+ */
+export const APP_TOKEN_COOKIE = "ferret_app_token";
+
+function appTokenCookie(header: string | undefined) {
+  const value = header?.split(/;\s*/).find((p) => p.startsWith(`${APP_TOKEN_COOKIE}=`))?.slice(APP_TOKEN_COOKIE.length + 1);
+  return value?.startsWith(ACCESS_TOKEN_PREFIX) ? decodeURIComponent(value) : undefined;
+}
+
+/**
  * Requires a signed-in user: a session cookie, an API key (`Authorization: Bearer ferret_…`), or an app's OAuth access
  * token (`Bearer ferret_at_…`, lib/oauth.ts — a phone app signed in with "Sign in to Ferret"). A token acts exactly like
  * a key: one household, maybe read-only, never a real sign-in.
  */
 export const requireUser = createMiddleware<AppEnv>(async (c, next) => {
-  const bearer = c.req.header("authorization")?.match(/^Bearer\s+(\S+)$/i)?.[1];
+  const bearer = c.req.header("authorization")?.match(/^Bearer\s+(\S+)$/i)?.[1] ?? appTokenCookie(c.req.header("cookie"));
   if (bearer?.startsWith(ACCESS_TOKEN_PREFIX)) {
     const app = await verifyOAuthToken(c.var.db, bearer);
     const [owner] = app ? await c.var.db.select().from(user).where(eq(user.id, app.userId)) : [];
@@ -116,6 +128,15 @@ export const requireHousehold = createMiddleware<AppEnv>(async (c, next) => {
 });
 
 /** The user's role in a household, or undefined if they're not in it. */
+/** `/me`'s household: its name, your role, and whether this sign-in can only look (a read-only key or app, a viewer). */
+export async function householdAccess(db: Db, userId: string, householdId: string | null, readOnly: boolean) {
+  if (!householdId) return null;
+  const role = await membership(db, householdId, userId);
+  if (!role) return null;
+  const [found] = await db.select({ name: organization.name }).from(organization).where(eq(organization.id, householdId));
+  return { id: householdId, name: found?.name ?? "", role, readOnly: readOnly || role === "viewer" };
+}
+
 export async function membership(db: Db, householdId: string, userId: string) {
   const [row] = await db
     .select({ role: member.role })

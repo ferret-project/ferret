@@ -4,6 +4,8 @@ import { adminAc, defaultStatements, memberAc, ownerAc } from "better-auth/plugi
 import { magicLinkClient, organizationClient, twoFactorClient } from "better-auth/client/plugins";
 import { passkeyClient } from "@better-auth/passkey/client";
 import { createAuthClient } from "better-auth/react";
+import { appAccess } from "./app-session";
+import { inFerretApp } from "./install";
 import { forgetOffline } from "./offline";
 
 /** The household roles, as on the server (apps/server/src/auth.ts) — viewer is read-only. */
@@ -28,9 +30,23 @@ export function useRole(householdId: string) {
   const role = useQuery({
     queryKey: ["role", householdId],
     // null, never undefined (TanStack Query refuses that) — e.g. while the server can't be reached.
-    queryFn: async () => (await authClient.organization.getActiveMemberRole()).data?.role ?? null,
+    queryFn: async () => {
+      // Inside the phone app: the app's sign-in, read-only ones as a viewer (it hides what can't be done).
+      if (inFerretApp) {
+        const household = (await appAccess())?.household;
+        return household ? (household.readOnly ? "viewer" : household.role) : null;
+      }
+      return (await authClient.organization.getActiveMemberRole()).data?.role ?? null;
+    },
   });
   return role.data ?? null;
+}
+
+/** Your name: from your sign-in, or inside the phone app from the app's. */
+export function useAccountName(): string | null {
+  const { data: session } = authClient.useSession();
+  const app = useQuery({ queryKey: ["app-access"], queryFn: appAccess, enabled: inFerretApp, staleTime: 60_000 });
+  return session?.user.name ?? app.data?.user.name ?? null;
 }
 
 /** Viewers can look and ask but not change anything; the server enforces it, this hides the controls. */

@@ -264,6 +264,35 @@ describe("apps signing in with OAuth", () => {
     expect((await api("/me", "ferret_at_madeup")).status).toBe(401);
   });
 
+  it("work from the phone app's cookie in its web screens, with the same limits and the same-origin check", async () => {
+    const s = await setup();
+    const ann = await s.user("ann");
+    await ann.addItem({ name: "Cordless drill" });
+    const redirect = "com.example.ferret:/oauth";
+    const clientId = await register(s.app, "Ferret for iPhone", redirect);
+    const tokens = await connect(s, ann, clientId, { redirect });
+    const cookie = `other=1; ferret_app_token=${tokens.access_token}`;
+    const web = (path: string, init: RequestInit = {}) => s.app.request(`/api/v1${path}`, { ...init, headers: { Cookie: cookie, "Content-Type": "application/json", ...init.headers } });
+
+    const me = (await (await web("/me")).json()) as { household: { id: string; name: string; role: string; readOnly: boolean } };
+    expect(me.household).toMatchObject({ id: ann.householdId, role: "owner", readOnly: false });
+    expect(me.household.name).not.toBe("");
+    expect((await web("/items?q=drill")).status).toBe(200);
+    // Ferret's own page: allowed. Another site (or no say at all from a browser that sends Sec-Fetch-Site): refused.
+    expect((await web("/items", { method: "POST", body: JSON.stringify({ name: "Ladder" }), headers: { "Sec-Fetch-Site": "same-origin" } })).status).toBe(201);
+    expect((await web("/items", { method: "POST", body: JSON.stringify({ name: "Rake" }), headers: { "Sec-Fetch-Site": "cross-site", Origin: "https://evil.example" } })).status).toBe(403);
+    // Never a real sign-in.
+    expect((await web("/api-keys")).status).toBe(403);
+    // Something that only looks like a token, or a key in the cookie: not a sign-in.
+    const fake = await s.app.request("/api/v1/me", { headers: { Cookie: "ferret_app_token=ferret_at_madeup" } });
+    expect(fake.status).toBe(401);
+
+    // Read-only shows in /me, for the app to hide what it can't do.
+    const readOnly = await connect(s, ann, clientId, { redirect, readOnly: true });
+    const ro = (await (await s.app.request("/api/v1/me", { headers: { Cookie: `ferret_app_token=${readOnly.access_token}` } })).json()) as { household: { readOnly: boolean } };
+    expect(ro.household.readOnly).toBe(true);
+  });
+
   it("only offer households the person is in, and only from a real sign-in", async () => {
     const s = await setup();
     const ann = await s.user("ann");

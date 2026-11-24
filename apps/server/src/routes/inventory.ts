@@ -41,7 +41,7 @@ import { z } from "zod";
 import { attachment, item, user, warranty } from "../db/schema";
 import { dismissSuggestedPart, itemParts } from "../lib/parts";
 import { countEvent } from "../lib/analytics";
-import { type AppEnv, body, callerOf, requireHousehold, requireSession, requireUser, requireWriter } from "../lib/context";
+import { type AppEnv, body, callerOf, householdAccess, requireHousehold, requireSession, requireUser, requireWriter } from "../lib/context";
 import { languageOf, setLanguage } from "../lib/language";
 import * as svc from "../lib/inventory";
 import { ownLabelsOf } from "../lib/own-labels";
@@ -62,10 +62,13 @@ import * as warranties from "../lib/warranties";
 
 export const inventory = new Hono<AppEnv>();
 
-inventory.get("/me", requireUser, async (c) =>
-  c.json({
+inventory.get("/me", requireUser, async (c) => {
+  const activeHouseholdId = c.var.apiKey?.householdId ?? c.var.session?.activeOrganizationId ?? null;
+  return c.json({
     user: c.var.user,
-    activeHouseholdId: c.var.apiKey?.householdId ?? c.var.session?.activeOrganizationId ?? null,
+    activeHouseholdId,
+    /** That household, your role in it, and whether this sign-in may change things (a read-only key or app, a viewer). */
+    household: await householdAccess(c.var.db, c.var.user.id, activeHouseholdId, c.var.apiKey?.readOnly ?? false),
     /** The server admin sees Settings → Server (backups). */
     serverAdmin: await isServerAdmin(c.var.db, c.var.user.id),
     /** The language Ferret writes to them in (emails, push); null = not chosen (English). */
@@ -91,8 +94,8 @@ inventory.get("/me", requireUser, async (c) =>
       // Photos read by the vision model (an unread one offers "Analyze").
       photoAi: Boolean(c.var.deps.ai && c.var.deps.images && c.var.deps.jobs),
     },
-  }),
-);
+  });
+});
 
 /** Your language, for what Ferret sends you (the app saves it when you pick one). A real sign-in: a person's setting. */
 inventory.put("/me/language", requireUser, requireSession, async (c) => {

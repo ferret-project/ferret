@@ -10,7 +10,7 @@ import { today } from "@ferret/shared/utils";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { api } from "./lib/api";
-import { authClient } from "./lib/auth";
+import { useAccountName } from "./lib/auth";
 import { usePlaces } from "./lib/places";
 import { money } from "./lib/money";
 import { PROPERTY_TYPES } from "./Places";
@@ -43,7 +43,7 @@ export function Report({ householdName, householdId }: { householdName: string; 
   const [propertyId, setPropertyId] = useState("");
   const [photos, setPhotos] = useState(true);
   const places = usePlaces(householdId);
-  const { data: session } = authClient.useSession();
+  const accountName = useAccountName();
   const rows = useQuery({ queryKey: ["export", householdId, propertyId], queryFn: () => api.exportItems(propertyId || undefined) });
   const items = rows.data?.data ?? [];
   const properties = (places.data?.properties ?? []).filter((p) => !propertyId || p.id === propertyId);
@@ -106,7 +106,7 @@ export function Report({ householdName, householdId }: { householdName: string; 
         {rows.data && (
           <ReportDocument
             title={householdName}
-            preparedBy={session?.user.name ?? null}
+            preparedBy={accountName}
             items={items}
             properties={properties.map((p) => ({ name: p.name, type: p.type, details: p.details }))}
             byProperty={!propertyId && properties.length > 1}
