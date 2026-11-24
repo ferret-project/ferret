@@ -12,6 +12,7 @@
     { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
     { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }
   ],
+  "protocol_handlers": [{ "protocol": "web+ferret", "url": "/?open=%s" }],
   "share_target": {
     "action": "/share-target",
     "method": "POST",

@@ -3,7 +3,7 @@
 **Ferret Menu** puts Ferret in your Mac's menu bar, behind a paw: find anything you own from any app, see what needs
 doing, ask about your things, and add new ones by dropping their photos and receipts on the paw. It's a small free app
 of its own ([ferret-project/ferret-menu](https://github.com/ferret-project/ferret-menu), open source) that talks to your
-Ferret. Anything it doesn't do opens in Ferret in your browser.
+Ferret. Anything it doesn't do opens in Ferret, in your browser or [Ferret's web app](#opening-things-in-ferret-s-web-app).
 
 It needs **macOS 26** and **Ferret 2026.11.28 or newer**.
 
@@ -84,6 +84,21 @@ A name, a place and how many, plus any photos, receipts or manuals. Add files in
 Everything else about it is filled in in Ferret (**Open in Ferret** after adding).
 
 Drag the window away from the menu bar to keep it open as a window of its own.
+
+## Opening things in Ferret's web app
+
+Things open in your browser, unless you've installed Ferret as an app with **Chrome**, **Edge** or **Brave** (**Install
+Ferret** in the browser's menu, or the install button in its address bar). Then Ferret Menu can open them in that app
+instead:
+
+1. Open the installed Ferret app once, so it learns to open pages for other apps. If the browser asks whether Ferret
+   may open **web+ferret** links, allow it.
+2. In Ferret Menu's **Settings**, under **Open things in**, choose **Choose Web App…** and pick it (Chrome keeps its
+   apps in **Chrome Apps**, in the **Applications** folder of your home folder).
+
+Settings says when it's ready. Until then, or if the web app is for a different Ferret than the one Ferret Menu is
+signed in to, things keep opening in your browser. Safari's web apps (**Add to Dock**) can't open pages for other
+apps.
 
 ## Settings
 

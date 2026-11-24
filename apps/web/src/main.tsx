@@ -1,3 +1,5 @@
+// First, before the router reads the address: a `web+ferret:` link opening a page in the installed app.
+import "./lib/open-link";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
