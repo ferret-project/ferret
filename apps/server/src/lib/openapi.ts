@@ -672,6 +672,7 @@ export const OPERATIONS: Operation[] = [
   { method: "delete", path: "/server/errors", tag: "Server", summary: "Clear the service error log (server admin)", writes: true },
   { method: "delete", path: "/server/errors/{id}", tag: "Server", summary: "Clear one service error (server admin)", writes: true },
   { method: "get", path: "/backup", tag: "Backups", summary: "How the server's backups are doing (the server admin, signed in)", returns: "BackupStatus" },
+  { method: "get", path: "/backup/signing-key", tag: "Backups", summary: "The server's public signing key: each backup's manifest is signed with it, so a backup can be checked without FILES_KEY (the server admin)", returns: "SigningKey" },
   { method: "post", path: "/backup", status: 202, tag: "Backups", summary: "Start a backup now (the server admin)", writes: true, returns: "{ queued }" },
   { method: "get", path: "/backup/snapshots", tag: "Backups", summary: "The nightly copies kept, newest first (the server admin)", returns: "{ data: BackupSnapshot[] }" },
   { method: "post", path: "/backup/snapshots/{name}/check", tag: "Backups", summary: "Open a copy the way a restore would (the server admin)", returns: "{ ok, summary }" },

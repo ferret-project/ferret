@@ -12,6 +12,22 @@ Then it **checks the copy the way a restore would**: reads it back from the fold
 makes sure every file is there, and decrypts a few files with the keys inside the copy. The newest `BACKUP_KEEP` (14)
 copies are kept, with the files they need.
 
+### Signed backups
+
+Each copy's list of contents (`snapshots/ferret-<time>.json`: the database copy's and every file's SHA-256) is
+**signed** with the server's own key (`ferret-<time>.json.sig`), and the folder holds the public key
+(`signing-key.pub`, `allowed_signers`). So anyone can check a backup is whole and unchanged **without `FILES_KEY`** —
+on the NAS, or after copying it somewhere:
+
+```bash
+cd /path/to/backups
+ssh-keygen -Y verify -f allowed_signers -I ferret -n ferret-backup -s snapshots/ferret-<time>.json.sig < snapshots/ferret-<time>.json
+```
+
+That checks the list; the ferret command-line tool also checks every file against it. To know the key is your
+server's, compare `ssh-keygen -lf signing-key.pub` with the fingerprint under **Settings → Server → Keys → Backup
+signing key**. The key is kept in the database, so it's in every backup, and a restored Ferret signs with the same key.
+
 Status is in **Settings → Server** — last backup, what the check found, the copies kept (each with a **Check**
 button), and **Back up now** — for the [server admin](./server-admin), whose bell also says if backups fail.
 

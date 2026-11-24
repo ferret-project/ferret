@@ -5,8 +5,11 @@
  * The folder holds:
  *   snapshots/ferret-<time>.db.enc  the database, encrypted with a key made from FILES_KEY (so there's still one
  *                                   secret to keep, and a backup is useless without it — like the files)
- *   snapshots/ferret-<time>.json    its manifest: when, which FILES_KEY, the files it needs (written last, so a
- *                                   snapshot without one never finished)
+ *   snapshots/ferret-<time>.json    its manifest: when, which FILES_KEY, the database's and every file's SHA-256
+ *                                   (written last, so a snapshot without one never finished)
+ *   snapshots/ferret-<time>.json.sig  the manifest signed with the server's key (lib/signing.ts, OpenSSH): with the
+ *                                   hashes, anyone can check a backup is whole and untouched without FILES_KEY
+ *   signing-key.pub, allowed_signers  the server's public key, for that check (ssh-keygen, or the ferret CLI)
  *   files/<household>/<id>[.thumb]  the encrypted files, copied as they are; they never change, so each is copied once
  *
  * The newest BACKUP_KEEP snapshots are kept, and the files any of them need. The restore check reads the copy back
@@ -19,6 +22,8 @@ import { and, desc, eq, inArray, isNotNull, isNull, lt, notInArray, sql } from "
 import { attachment, backupRun, item } from "../db/schema";
 import type { BackupElsewhere, BackupTarget, Blobs, Db, DbSnapshots, JobHandler } from "../ports";
 import { FileStore, masterKeyId } from "./files";
+import { BACKUP_NAMESPACE, serverSigningKey, signBackup, verifySignature } from "./signing";
+const utf8decode = (bytes: Uint8Array) => new TextDecoder().decode(bytes);
 
 export const BACKUP_JOB = "backup.run";
 const FORMAT_V1 = 1;
@@ -39,7 +44,10 @@ export interface Manifest {
   kekId: string;
   /** SHA-256 of the decrypted database, hex. */
   dbSha256: string;
-  files: { key: string; size: number }[];
+  /** SHA-256 of the encrypted copy (ferret-<time>.db.enc) as it is in the folder: checkable without FILES_KEY. */
+  dbEncSha256?: string;
+  /** Each file with its size and SHA-256 (of the encrypted bytes in files/; manifests before signing had none). */
+  files: { key: string; size: number; sha256?: string }[];
   counts: { items: number; attachments: number };
 }
 
@@ -158,6 +166,11 @@ export async function checkSnapshot(b: Pick<Backups, "snapshots" | "target" | "f
   }
   const sealed = await b.target.get(`snapshots/${snapshot}.db.enc`);
   if (!sealed) throw new Error(`The database copy ${snapshot}.db.enc is missing`);
+  // Signed backups: the signature holds, and the copy is the one it vouches for.
+  const sig = await b.target.get(`snapshots/${snapshot}.json.sig`);
+  const signed = sig ? await verifySignature(utf8decode(sig), (await b.target.get(`snapshots/${snapshot}.json`))!, BACKUP_NAMESPACE) : null;
+  if (sig && !signed) throw new Error(`The manifest's signature (${snapshot}.json.sig) doesn't hold`);
+  if (manifest.dbEncSha256 && (await sha256(sealed)) !== manifest.dbEncSha256) throw new Error("The database copy doesn't match its manifest");
   const plain = await openSnapshot(b.filesKey, snapshot, sealed);
   if ((await sha256(plain)) !== manifest.dbSha256) throw new Error("The database copy doesn't match its manifest");
 
@@ -184,7 +197,7 @@ export async function checkSnapshot(b: Pick<Backups, "snapshots" | "target" | "f
     const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
     return {
       manifest,
-      summary: `Opened the copy: ${plural(items, "item")}, ${plural(manifest.files.length, "file")}, all there${sample.length ? `; ${sample.length} decrypted` : ""}`,
+      summary: `Opened the copy: ${plural(items, "item")}, ${plural(manifest.files.length, "file")}, all there${sample.length ? `; ${sample.length} decrypted` : ""}${signed ? "; signature good" : ""}`,
     };
   } finally {
     await copy.close();
@@ -218,6 +231,11 @@ export async function runBackup(b: Backups, now = new Date()) {
       await copy.close();
     }
 
+    // Files already in the folder keep the hash the last manifest gave them; any without one are read once.
+    const known = new Map<string, string>();
+    const [previous] = await listSnapshots(b.target);
+    if (previous) for (const f of (await readManifest(b.target, previous)).files) if (f.sha256) known.set(f.key, f.sha256);
+
     const files: Manifest["files"] = [];
     const copied: string[] = [];
     let filesBytes = 0;
@@ -225,7 +243,12 @@ export async function runBackup(b: Backups, now = new Date()) {
     for (const { key } of keys) {
       const have = await b.target.size(`files/${key}`);
       if (have !== null) {
-        files.push({ key, size: have });
+        let hash = known.get(key);
+        if (!hash) {
+          const there = await b.target.get(`files/${key}`);
+          hash = there ? await sha256(there as Uint8Array<ArrayBuffer>) : undefined;
+        }
+        files.push({ key, size: have, ...(hash ? { sha256: hash } : {}) });
         filesBytes += have;
         continue;
       }
@@ -236,7 +259,7 @@ export async function runBackup(b: Backups, now = new Date()) {
       }
       const bytes = new Uint8Array(await new Response(blob.body).arrayBuffer());
       await b.target.put(`files/${key}`, bytes);
-      files.push({ key, size: bytes.length });
+      files.push({ key, size: bytes.length, sha256: await sha256(bytes) });
       filesBytes += bytes.length;
       copied.push(key);
     }
@@ -248,10 +271,17 @@ export async function runBackup(b: Backups, now = new Date()) {
       createdAt: now.toISOString(),
       kekId: await masterKeyId(b.filesKey),
       dbSha256: await sha256(plain),
+      dbEncSha256: await sha256(sealed),
       files,
       counts: { items, attachments },
     };
-    await b.target.put(`snapshots/${name}.json`, utf8.encode(JSON.stringify(manifest, null, 1)));
+    // Signed with the server's key, the signature first and the manifest last (a manifest marks a finished backup).
+    const manifestBytes = utf8.encode(JSON.stringify(manifest, null, 1));
+    const key = await serverSigningKey(b.db, b.filesKey);
+    await b.target.put("signing-key.pub", utf8.encode(`${key.publicKey}\n`));
+    await b.target.put("allowed_signers", utf8.encode(`${key.allowedSigners}\n`));
+    await b.target.put(`snapshots/${name}.json.sig`, utf8.encode(await signBackup(b.db, b.filesKey, manifestBytes)));
+    await b.target.put(`snapshots/${name}.json`, manifestBytes);
 
     const { summary } = await checkSnapshot(b, name, copied);
     const checked = gone ? `${summary}. ${gone} ${gone === 1 ? "file was" : "files were"} not on the server to copy` : summary;
@@ -275,7 +305,7 @@ async function prune(b: Backups) {
   const kept = (await listSnapshots(b.target)).slice(0, b.keep);
   const keptSet = new Set(kept);
   for (const n of await b.target.list("snapshots/")) {
-    const base = n.slice("snapshots/".length).replace(/\.(db\.enc|json)$/, "");
+    const base = n.slice("snapshots/".length).replace(/\.(db\.enc|json|json\.sig)$/, "");
     if (!keptSet.has(base)) await b.target.delete(n);
   }
   const needed = new Set<string>();

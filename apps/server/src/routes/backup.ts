@@ -4,6 +4,7 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { type AppEnv, requireServerAdmin, requireUser } from "../lib/context";
 import { masterKeyId } from "../lib/files";
+import { serverSigningKey } from "../lib/signing";
 import { lastKeyFile } from "../lib/key-file-log";
 import { BACKUP_JOB, backupStatus, checkSnapshot, listSnapshots, readManifest } from "../lib/backup";
 
@@ -22,6 +23,9 @@ backup.get("/", async (c) => {
   const keyId = await masterKeyId(c.var.config.FILES_KEY);
   return c.json({ ...status, keyId, keyFile: await lastKeyFile(c.var.db, keyId) } satisfies BackupStatus);
 });
+
+/** The server's public signing key: every backup's manifest is signed with it (lib/signing.ts), to check without FILES_KEY. */
+backup.get("/signing-key", async (c) => c.json(await serverSigningKey(c.var.db, c.var.config.FILES_KEY)));
 
 /** Starts a backup now (in the background); GET shows when it's done. */
 backup.post("/", async (c) => {

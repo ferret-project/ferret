@@ -3,6 +3,7 @@
  * backups (status, "Back up now", the copies kept, each one's restore check, how to restore), the server check, recall checks (on or off),
  * certificates for the server's own connections, and handing the admin role to someone else. Restoring is a command on the server, not a button: see restoreCommands below.
  */
+import { KeyDetails } from "./SigningKey";
 import type { DiskSpaceEntry, BackupRun, BackupSnapshot, BackupStatus, BookLookupStatus, GradingStatus, CollectibleCatalogStatus, CollectibleKind, ServerCertificate, ServerSecrets } from "@ferret/shared";
 import { ServerAiFillCard } from "./AiFill";
 import { AiPrompts, PROMPT_NAMES } from "./Prompts";
@@ -1517,8 +1518,27 @@ function KeysCard() {
     <section className="card" aria-label={t`Keys`}>
       <div className="card-body gap-3">
         <FilesKey keyId={s.keyId} keyFile={s.keyFile} folder={s.where} commandLine={!s.elsewhere} />
+        {s.enabled && <BackupSigningKey />}
       </div>
     </section>
+  );
+}
+
+/** The server's signing key: each backup's manifest is signed with it, so a backup can be checked without FILES_KEY. */
+function BackupSigningKey() {
+  const key = useQuery({ queryKey: ["backup", "signing-key"], queryFn: api.backupSigningKey, staleTime: Infinity });
+  return (
+    <div className="flex flex-col gap-2 border-t border-base-content/10 pt-3">
+      <h3 className="font-semibold"><Trans>Backup signing key</Trans></h3>
+      <p className="text-sm text-base-content/70">
+        <Trans>
+          Every backup is signed with this key, and the backup folder has a copy of it. With the ferret command-line tool or ssh-keygen, anyone can check a backup is whole and unchanged
+          — without FILES_KEY. Compare the fingerprint with this one.
+        </Trans>
+      </p>
+      {key.data && <KeyDetails signingKey={key.data} />}
+      {key.isError && <p className="text-sm text-error">{key.error.message}</p>}
+    </div>
   );
 }
 

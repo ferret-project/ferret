@@ -619,6 +619,7 @@ export const api = {
 
   householdSettings: () => request<HouseholdSettings>("/household/settings"),
   signingKey: () => request<SigningKey>("/household/signing-key"),
+  backupSigningKey: () => request<SigningKey>("/backup/signing-key"),
   /** A thing exported from Ferret: what its ZIP holds and whether it's signed by this household (nothing added yet). */
   checkItemZip: (file: File) => request<ItemImportCheck>("/import/item/check", { method: "POST", body: file, headers: { "Content-Type": "application/zip" } }),
   /** Adds it: `anyway` once the person saw it isn't signed by this household's key. */
