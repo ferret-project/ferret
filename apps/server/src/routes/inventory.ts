@@ -318,9 +318,10 @@ inventory.get("/items/:id/sheet", async (c) => c.json(await itemSheet(callerOf(c
 
 /**
  * The same as Markdown with its photos and documents, signed with the household's key (lib/item-sheet.ts) — a ZIP,
- * streamed. Files decrypted: a real sign-in, not an API key.
+ * streamed. API keys too, read-only ones included (the ferret CLI exports with one): it holds nothing a key can't
+ * already read, one thing at a time. Download everything (the whole household) stays a real sign-in.
  */
-inventory.get("/items/:id/export.zip", requireSession, async (c) => {
+inventory.get("/items/:id/export.zip", async (c) => {
   const { filename, stream } = await itemExport(callerOf(c), c.var.files, c.req.param("id"), sheetPartsFrom(c.req.query("parts")), c.var.config.PUBLIC_URL);
   return c.body(stream, 200, {
     "Content-Type": "application/zip",

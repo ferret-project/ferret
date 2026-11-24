@@ -157,10 +157,11 @@ describe("a thing's export", () => {
     expect(JSON.parse(text(zip["Cordless drill/item.json"]!)).item.notes).toBeNull();
   });
 
-  it("needs a real sign-in, not an API key", async () => {
+  it("works with an API key, a read-only one too (the ferret CLI)", async () => {
     const { ann, it: drillItem } = await drill();
-    const key = await json<{ key: string }>(ann.as("/api/v1/api-keys", { method: "POST", body: JSON.stringify({ name: "script" }) }));
+    const key = await json<{ key: string }>(ann.as("/api/v1/api-keys", { method: "POST", body: JSON.stringify({ name: "cli", readOnly: true }) }));
     const res = await ann.as(`/api/v1/items/${drillItem.id}/export.zip`, { headers: { Cookie: "", Authorization: `Bearer ${key.key}` } });
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(200);
+    expect(Object.keys(unzipSync(new Uint8Array(await res.arrayBuffer())))).toContain("Cordless drill/SHA256SUMS.sig");
   });
 });
