@@ -38,6 +38,7 @@ import { CodeForm } from "./Security";
 import { CHALLENGE_HEADER, solveSignInChallenge } from "./lib/challenge";
 import type { Challenge } from "altcha-lib/types";
 import { TabBar } from "./TabBar";
+import { inFerretApp } from "./lib/install";
 import { type Appearance, useAppearance } from "./lib/appearance";
 import { ShareButton } from "./Shares";
 import { RecallAlert } from "./PayOff";
@@ -834,7 +835,7 @@ function Screens({ householdName, householdId }: { householdName: string; househ
   return (
     // Big screens: the sidebar on the left (folded to icons, or open), each screen beside it.
     <HouseholdContext value={{ householdId, householdName }}>
-      <div className={`transition-[padding] duration-200 motion-reduce:transition-none print:ps-0 ${folded ? "xl:ps-16" : "xl:ps-64"}`}>
+      <div className={`transition-[padding] duration-200 motion-reduce:transition-none print:ps-0 ${inFerretApp ? "" : folded ? "xl:ps-16" : "xl:ps-64"}`}>
         <Sidebar
           route={route}
           householdName={householdName}

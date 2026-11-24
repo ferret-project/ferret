@@ -94,6 +94,11 @@
   padding-block: 0.5rem;
 }
 
+/* Inside the phone app (lib/install.ts inFerretApp): its own floating tab bar covers the bottom edge. */
+html.in-ferret-app body {
+  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
+}
+
 /* Room below every page for the phone tab bar (TabBar.tsx), which covers the bottom edge. */
 @media screen and (width < 40rem) {
   body:has(#tab-bar) {

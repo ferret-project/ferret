@@ -16,6 +16,7 @@ import { LanguageChoice } from "./Language";
 import { api } from "./lib/api";
 import { useAppearance } from "./lib/appearance";
 import { authClient, useCanEdit, signOut } from "./lib/auth";
+import { inFerretApp } from "./lib/install";
 import {
   type Route,
   COVERAGE_HREF,
@@ -403,6 +404,8 @@ function activeHref(route: Route["name"], hash: string, links: Link[]) {
  */
 export function Sidebar(props: { route: Route["name"]; householdName: string; householdId: string; folded: boolean; onToggle: () => void; account: ReactNode }) {
   const { route, folded } = props;
+  // Inside the phone app (an iPad's wide screen too): the app's own tabs are there.
+  if (inFerretApp) return null;
   const hash = (window.location.hash || HOME_HREF).replace(/[?&]q=.*$/, "");
   const main: Link[] = [{ href: HOME_HREF, label: msg`Home`, icon: "icon-[tabler--home]" }, ...MAIN_LINKS];
   const groups = useNavGroups(props.householdId);
@@ -528,6 +531,22 @@ export function TopBar({
 }) {
   const account = useContext(BarAccount);
   const Title = heading ? "h1" : "span";
+  // Inside the phone app: its bar has the title, back and search, and More has the account. The screen's own buttons
+  // and the bell stay; the title stays for screen readers. Nothing left: no bar at all.
+  if (inFerretApp) {
+    return (
+      <>
+        <Title className="sr-only">{title}</Title>
+        {(actions || help) && (
+          <nav className={`navbar z-10 justify-end gap-2 px-4 max-sm:px-2 print:hidden ${sticky ? "sticky top-0 border-b border-base-300 bg-base-100/85 backdrop-blur-md" : ""}`}>
+            {help}
+            {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+            <BarBell />
+          </nav>
+        )}
+      </>
+    );
+  }
   return (
     <nav className={`navbar @container z-10 gap-2 px-4 max-sm:px-2 print:hidden ${sticky ? "sticky top-0 border-b border-base-300 bg-base-100/85 backdrop-blur-md" : ""}`}>
       <div className="flex min-w-0 flex-1 items-center gap-2">

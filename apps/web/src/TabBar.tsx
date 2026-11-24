@@ -7,6 +7,7 @@
 import { type Route, HOME_HREF, ITEMS_HREF, MAINTENANCE_HREF, MORE_HREF, PLACES_HREF } from "./lib/route";
 import { t, msg } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
+import { inFerretApp } from "./lib/install";
 
 type Tab = { href: string; label: MessageDescriptor; icon: string; active: string; routes: Route["name"][] };
 
@@ -26,6 +27,8 @@ const TABS: Tab[] = [
 ];
 
 export function TabBar({ route }: { route: Route["name"] }) {
+  // Inside the phone app: its own tab bar is there.
+  if (inFerretApp) return null;
   return (
     <nav
       id="tab-bar"

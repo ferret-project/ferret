@@ -7,6 +7,13 @@ import { useSyncExternalStore } from "react";
 
 type InstallPromptEvent = Event & { prompt(): Promise<void>; userChoice: Promise<{ outcome: "accepted" | "dismissed" }> };
 
+/**
+ * Opened inside the Ferret phone app's web screens (it adds `FerretApp/` to the user agent): the app has its own tabs,
+ * title, back and search, so the web app leaves out its own bars — and never offers to install itself.
+ */
+export const inFerretApp = /\bFerretApp\//.test(navigator.userAgent);
+if (inFerretApp) document.documentElement.classList.add("in-ferret-app");
+
 let deferred: InstallPromptEvent | null = null;
 const listeners = new Set<() => void>();
 const changed = () => listeners.forEach((l) => l());
@@ -61,7 +68,7 @@ const inAppBrowser = () => /FBAN|FBAV|Instagram|GSA\/|Line\//.test(navigator.use
 export type InstallWay = "ios" | "prompt" | null;
 
 function installWay(): InstallWay {
-  if (isInstalled()) return null;
+  if (inFerretApp || isInstalled()) return null;
   if (deferred) return "prompt";
   return isIOS() && !inAppBrowser() ? "ios" : null;
 }
