@@ -84,6 +84,26 @@ from:
 - **No longer in Home Assistant** lists things whose device has gone from it. Nothing happens to them by itself —
   open one and use *Edit → No longer have it?* if it's really gone.
 
+## A thing exported from Ferret
+
+A thing's **signed ZIP** (**Print or export** on its page — see [Copy link and Print or export](./adding-things#links))
+can come back in, here or on another Ferret: **Import → A thing exported from Ferret**, then choose the ZIP. (The PDF
+is a printout and can't be imported; the ZIP has the data.)
+
+Ferret checks the signature before anything is added, and tells you what it found:
+
+- **Signed by this household** — nothing has changed since it was exported. **Import** adds it.
+- **Signed by another key** — from another Ferret (or this one before its key changed); nothing has changed since it
+  was signed. The key's fingerprint is shown, to compare with the one its owner sees under **Settings → Household →
+  Signing key**. **Import anyway** if you know where it came from.
+- **Not signed** — Ferret can't tell whether anything was changed.
+- **Changed since it was signed** — with which files. Only import it if you made the change yourself.
+
+It comes in as a new thing, with its details, photos and documents, warranties and claims, maintenance (and when it
+was done) and repairs. Its place is found by name in the property you choose, with any missing rooms or shelves made;
+choose **Nowhere yet** to place it yourself. If something here already has its serial number, Ferret says so first.
+Its loans, stock changes and history stay in the ZIP. Like any import, it can be undone.
+
 ## Undoing an import
 
 **Import** → **Recent imports** → **Undo…** moves everything that import added to

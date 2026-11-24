@@ -12,6 +12,9 @@ import { type AppEnv, body, callerOf, requireHousehold, requireSession, requireU
 import { homeAssistantDevices } from "../lib/home-assistant";
 import { applyHomeAssistant, importItems, knownImportKeys, listImports, undoImport } from "../lib/imports";
 import { HomeAssistantError } from "../ports";
+import { checkItemZip, importItemZip } from "../lib/item-import";
+import { bodyLimit } from "hono/body-limit";
+import { createMiddleware } from "hono/factory";
 
 export const imports = new Hono<AppEnv>();
 imports.use(requireUser, requireHousehold);
@@ -19,6 +22,30 @@ imports.use(requireUser, requireHousehold);
 imports.get("/", async (c) => c.json({ data: await listImports(callerOf(c)) }));
 
 imports.post("/", requireWriter, async (c) => c.json(await importItems(callerOf(c), await body(c.req.raw, importInput)), 201));
+
+/**
+ * A thing exported from Ferret (lib/item-import.ts), its ZIP as the body (application/zip): /check says what's in it
+ * and whether it's signed by this household's key; then POST /import/item adds it — ?anyway=true when it isn't
+ * (another key, not signed, or changed), after the person saw that; ?propertyId= where its place goes.
+ */
+const zipLimit = createMiddleware<AppEnv>((c, next) =>
+  bodyLimit({
+    maxSize: c.var.config.MAX_UPLOAD_MB * 10 * 1024 * 1024,
+    onError: (c) => c.json({ error: { code: "http_413", message: `That ZIP is too big (up to ${c.var.config.MAX_UPLOAD_MB * 10} MB)` } }, 413),
+  })(c, next),
+);
+const zipBody = async (req: Request) => new Uint8Array(await req.arrayBuffer());
+imports.post("/item/check", requireWriter, zipLimit, async (c) => c.json(await checkItemZip(callerOf(c), await zipBody(c.req.raw))));
+imports.post("/item", requireWriter, zipLimit, async (c) =>
+  c.json(
+    await importItemZip(callerOf(c), c.var.files, await zipBody(c.req.raw), {
+      anyway: c.req.query("anyway") === "true",
+      propertyId: c.req.query("propertyId") || null,
+      filename: c.req.header("x-filename") ? decodeURIComponent(c.req.header("x-filename")!) : undefined,
+    }),
+    201,
+  ),
+);
 
 /** Before importing a file: which of its lines are already here, so they start unticked. Only looks. */
 imports.post("/known", async (c) => {

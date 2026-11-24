@@ -1,6 +1,7 @@
 /**
  * #/import — bringing things in: a spreadsheet (ImportCsv.tsx: any CSV, with Ferret's own export and
- * Amazon's order history recognised) or Home Assistant's devices (ImportHomeAssistant.tsx). Both send rows to
+ * Amazon's order history recognised), Home Assistant's devices (ImportHomeAssistant.tsx), or one thing exported from
+ * Ferret as a signed ZIP (ImportFerret.tsx). Both send rows to
  * POST /import in parts of 100, as one import that can be undone (server: lib/imports.ts). Recent imports are listed
  * here with Undo — their things go to Recently deleted.
  */
@@ -12,6 +13,7 @@ import { useState } from "react";
 import { HelpLink } from "./HelpLink";
 import { ImportCsv } from "./ImportCsv";
 import { ImportHomeAssistant } from "./ImportHomeAssistant";
+import { ImportFerret } from "./ImportFerret";
 import { api } from "./lib/api";
 import { useCanEdit } from "./lib/auth";
 import { DELETED_HREF, IMPORT_HREF, ITEMS_HREF, PAPERLESS_HREF, importHref } from "./lib/route";
@@ -22,7 +24,7 @@ const PART = 100;
 
 export function Import({ householdId, source }: { householdId: string; source: ImportSource | null }) {
   const canEdit = useCanEdit(householdId);
-  const title = source === "csv" ? t`Import a spreadsheet` : source === "homeassistant" ? t`Import from Home Assistant` : t`Import`;
+  const title = source === "csv" ? t`Import a spreadsheet` : source === "homeassistant" ? t`Import from Home Assistant` : source === "ferret" ? t`Import a Ferret export` : t`Import`;
   return (
     <div className="min-h-dvh bg-base-200">
       <TopBar
@@ -38,6 +40,8 @@ export function Import({ householdId, source }: { householdId: string; source: I
           <ImportCsv householdId={householdId} />
         ) : source === "homeassistant" ? (
           <ImportHomeAssistant householdId={householdId} />
+        ) : source === "ferret" ? (
+          <ImportFerret householdId={householdId} />
         ) : (
           <>
             <Choices />
@@ -65,6 +69,12 @@ function Choices() {
       text: t`The appliances, TVs, speakers, cameras and network gear it knows — with their maker, model and room.`,
       // Only where the server can reach a Home Assistant.
       hidden: features?.homeAssistant === false,
+    },
+    {
+      href: importHref("ferret"),
+      icon: "icon-[tabler--file-zip]",
+      title: t`A thing exported from Ferret`,
+      text: t`The signed ZIP from a thing's Print or export — Ferret checks its signature first and tells you what it found.`,
     },
     {
       href: PAPERLESS_HREF,

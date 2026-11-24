@@ -242,7 +242,7 @@ export async function importItems(v: Caller, input: ImportInput): Promise<Import
           householdId: v.householdId,
           createdBy: v.userId,
           importBatchId: batchId,
-          origin: input.source === "homeassistant" ? ("homeassistant" as const) : ("spreadsheet" as const),
+          origin: input.source === "homeassistant" ? ("homeassistant" as const) : input.source === "ferret" ? ("ferret" as const) : ("spreadsheet" as const),
           originDetail: input.name,
           ...(row.haDeviceId
             ? { haSnapshot: { name: row.name, manufacturer: row.brand ?? null, model: row.model ?? null, serialNumber: row.serialNumber ?? null, areaId: haAreaId ?? null } }

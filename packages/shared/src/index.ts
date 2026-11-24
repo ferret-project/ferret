@@ -190,7 +190,7 @@ export const itemDispositions = ["sold", "given", "donated", "discarded", "lost"
 export type ItemDisposition = (typeof itemDispositions)[number];
 
 /** Where a thing came from. The first five are the app's own ways to add one (it says which); the rest are set by the server. */
-export const itemOrigins = ["app", "photos", "walkthrough", "roomscan", "scan", "cards", "collector", "label", "receipt", "words", "shared", "spreadsheet", "homeassistant", "paperless", "claude", "api"] as const;
+export const itemOrigins = ["app", "photos", "walkthrough", "roomscan", "scan", "cards", "collector", "label", "receipt", "words", "shared", "spreadsheet", "homeassistant", "paperless", "ferret", "claude", "api"] as const;
 export type ItemOrigin = (typeof itemOrigins)[number];
 export const appOrigins = ["app", "photos", "walkthrough", "scan", "cards", "collector", "label", "receipt", "words", "shared"] as const;
 
@@ -1905,7 +1905,7 @@ export interface ApiError {
 }
 
 // ── Importing (a spreadsheet, Home Assistant) ───────────────────────────────
-export const importSources = ["csv", "homeassistant"] as const;
+export const importSources = ["csv", "homeassistant", "ferret"] as const;
 export type ImportSource = (typeof importSources)[number];
 
 /** One thing to import. Places and categories are by name or path ("Main › Kitchen"); missing ones are made. */
@@ -3327,4 +3327,33 @@ export interface SigningKey {
   allowedSigners: string;
   /** The namespace exports are signed under (ssh-keygen -n). */
   namespace: string;
+}
+
+/**
+ * What an exported thing's ZIP holds and whether it can be trusted (POST /import/item/check), shown before importing:
+ * `ours` — signed by this household's key, nothing changed; `other` — signed by another key (another Ferret, or this
+ * one's before its key changed), nothing changed; `unsigned` — no signature; `changed` — a signature that doesn't hold,
+ * or files that don't match it.
+ */
+export interface ItemImportCheck {
+  name: string;
+  signature: "ours" | "other" | "unsigned" | "changed";
+  /** The signing key's fingerprint ("SHA256:…"), when it's signed. */
+  fingerprint: string | null;
+  /** What doesn't match, in words, for `changed`. */
+  problems: string[];
+  exportedAt: string | null;
+  /** Where it was: "Highland House › Garage" — and the property here with that name, if there is one. */
+  place: string | null;
+  propertyId: string | null;
+  category: string | null;
+  counts: { photos: number; documents: number; warranties: number; maintenance: number; repairs: number };
+  /** Something here already has its serial number: importing adds a second. */
+  sameSerial: { id: string; name: string } | null;
+}
+export interface ItemImportResult {
+  itemId: string;
+  batchId: string;
+  /** Files that couldn't be added (a type Ferret doesn't keep, no room left). */
+  skippedFiles: string[];
 }

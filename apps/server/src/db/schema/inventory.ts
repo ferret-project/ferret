@@ -275,7 +275,7 @@ export const importBatch = sqliteTable(
   {
     id: id(),
     householdId: householdId(),
-    source: text("source").$type<"csv" | "homeassistant">().notNull(),
+    source: text("source").$type<"csv" | "homeassistant" | "ferret">().notNull(),
     /** The file's name, or "Home Assistant". */
     name: text("name").notNull(),
     createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),

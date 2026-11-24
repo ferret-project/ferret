@@ -1,4 +1,4 @@
-import type { ItemSheet, SigningKey, TaskVideo, VideoHit, ItemFuelEconomyStatus, FuelEconomyStatus, DiskSpaceEntry, UpdateStatus,
+import type { ItemImportCheck, ItemImportResult, ItemSheet, SigningKey, TaskVideo, VideoHit, ItemFuelEconomyStatus, FuelEconomyStatus, DiskSpaceEntry, UpdateStatus,
   ItemDraft,
   ReceiptLinesInput,
   ToConfirm,
@@ -619,6 +619,15 @@ export const api = {
 
   householdSettings: () => request<HouseholdSettings>("/household/settings"),
   signingKey: () => request<SigningKey>("/household/signing-key"),
+  /** A thing exported from Ferret: what its ZIP holds and whether it's signed by this household (nothing added yet). */
+  checkItemZip: (file: File) => request<ItemImportCheck>("/import/item/check", { method: "POST", body: file, headers: { "Content-Type": "application/zip" } }),
+  /** Adds it: `anyway` once the person saw it isn't signed by this household's key. */
+  importItemZip: (file: File, opts: { anyway: boolean; propertyId: string | null }) =>
+    request<ItemImportResult>(`/import/item?${new URLSearchParams({ ...(opts.anyway ? { anyway: "true" } : {}), ...(opts.propertyId ? { propertyId: opts.propertyId } : {}) })}`, {
+      method: "POST",
+      body: file,
+      headers: { "Content-Type": "application/zip", "X-Filename": encodeURIComponent(file.name) },
+    }),
   invitationEmails: () => request<InvitationEmails>("/household/invitations"),
   plan: () => request<PlanReport>("/plan"),
   /** `householdId`: a household other than the active one (just made). */

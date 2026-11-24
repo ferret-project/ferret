@@ -40,7 +40,7 @@ export type Route =
   | { name: "collector" }
   | { name: "collections" }
   | { name: "collection"; id: string }
-  | { name: "import"; source: "csv" | "homeassistant" | null }
+  | { name: "import"; source: "csv" | "homeassistant" | "ferret" | null }
   | { name: "shared"; token: string }
   | { name: "connect" }
   | { name: "borrower"; token: string }
@@ -170,7 +170,7 @@ export const DUPLICATES_HREF = "#/duplicates";
 export const BY_VALUE_HREF = "#/items?sort=value";
 /** Importing: a spreadsheet, or Home Assistant's devices (Import.tsx). */
 export const IMPORT_HREF = "#/import";
-export const importHref = (source: "csv" | "homeassistant") => `${IMPORT_HREF}/${source === "csv" ? "csv" : "home-assistant"}`;
+export const importHref = (source: "csv" | "homeassistant" | "ferret") => `${IMPORT_HREF}/${source === "homeassistant" ? "home-assistant" : source}`;
 export const missingHref = (detail: MissingDetail) => `#/missing/${detail}`;
 /** Everything added one way: `#/added/claude` — what Claude added. */
 export const addedHref = (origin: ItemOrigin) => `#/added/${origin}`;

@@ -105,3 +105,58 @@ export async function sshSign(v: Caller, files: FileStore, message: Uint8Array, 
   const lines = b64(blob).match(/.{1,70}/g)!;
   return `-----BEGIN SSH SIGNATURE-----\n${lines.join("\n")}\n-----END SSH SIGNATURE-----\n`;
 }
+
+/** A fingerprint as ssh-keygen -l shows it ("SHA256:…"), from the public key's raw bytes. */
+async function fingerprintOf(publicRaw: Uint8Array) {
+  return describe(publicRaw, new Uint8Array(await crypto.subtle.digest("SHA-256", publicBlob(publicRaw)))).fingerprint;
+}
+
+/**
+ * Checks an armoured OpenSSH signature of `message` for `namespace`, against the Ed25519 key inside it. Returns that
+ * key's fingerprint and whether it's this household's own key — or null when the signature doesn't hold (or isn't one).
+ */
+export async function sshVerify(v: Caller, armoured: string, message: Uint8Array, namespace = EXPORT_NAMESPACE): Promise<{ fingerprint: string; ours: boolean } | null> {
+  try {
+    const body = armoured.match(/-----BEGIN SSH SIGNATURE-----([\s\S]*?)-----END SSH SIGNATURE-----/)?.[1];
+    if (!body) return null;
+    const blob = fromB64(body.replace(/\s+/g, ""));
+    let at = 0;
+    const take = (n: number) => {
+      if (at + n > blob.length) throw new Error("short");
+      return blob.subarray(at, (at += n));
+    };
+    const u32 = () => {
+      const n = new DataView(blob.buffer, blob.byteOffset + at, 4).getUint32(0);
+      take(4);
+      return n;
+    };
+    const str = () => take(u32());
+    const fields = (b: Uint8Array) => {
+      const out: Uint8Array[] = [];
+      for (let p = 0; p < b.length; ) {
+        const len = new DataView(b.buffer, b.byteOffset + p, 4).getUint32(0);
+        out.push(b.subarray(p + 4, p + 4 + len));
+        p += 4 + len;
+      }
+      return out;
+    };
+    const text = (b: Uint8Array) => new TextDecoder().decode(b);
+    if (text(take(6)) !== "SSHSIG" || u32() !== 1) return null;
+    const pub = str();
+    const [pubType, publicRaw] = fields(pub);
+    if (text(str()) !== namespace) return null;
+    str(); // reserved
+    const hashAlg = text(str());
+    const [sigType, sig] = fields(str());
+    if (!pubType || text(pubType) !== "ssh-ed25519" || !sigType || text(sigType) !== "ssh-ed25519" || publicRaw?.length !== 32 || sig?.length !== 64) return null;
+    if (hashAlg !== "sha512" && hashAlg !== "sha256") return null;
+    const hash = new Uint8Array(await crypto.subtle.digest(hashAlg === "sha512" ? "SHA-512" : "SHA-256", message as Uint8Array<ArrayBuffer>));
+    const signed = concat(utf8.encode("SSHSIG"), sshString(namespace), sshString(""), sshString(hashAlg), sshString(hash));
+    const key = await crypto.subtle.importKey("raw", publicRaw as Uint8Array<ArrayBuffer>, { name: "Ed25519" }, false, ["verify"]);
+    if (!(await crypto.subtle.verify({ name: "Ed25519" }, key, sig as Uint8Array<ArrayBuffer>, signed as Uint8Array<ArrayBuffer>))) return null;
+    const [row] = await v.db.select({ pub: householdSetting.signingPublicKey }).from(householdSetting).where(eq(householdSetting.householdId, v.householdId));
+    return { fingerprint: await fingerprintOf(publicRaw), ours: row?.pub === b64(publicRaw) };
+  } catch {
+    return null;
+  }
+}

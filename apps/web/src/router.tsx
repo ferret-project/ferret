@@ -428,6 +428,7 @@ const importRoutes = ([
   ["import", null],
   ["import/csv", "csv"],
   ["import/home-assistant", "homeassistant"],
+  ["import/ferret", "ferret"],
 ] as const).map(([path, source]) =>
   createRoute({
     getParentRoute: () => screensRoute,

@@ -19,6 +19,7 @@ export const ORIGIN_HOW: Record<ItemOrigin, MessageDescriptor> = {
   spreadsheet: msg`from a spreadsheet`,
   homeassistant: msg`from Home Assistant`,
   paperless: msg`from a Paperless document`,
+  ferret: msg`from a Ferret export`,
   claude: msg`by Claude`,
   api: msg`by a script (API key)`,
 };
@@ -38,6 +39,7 @@ export const ORIGIN_FILTER: Record<ItemOrigin, MessageDescriptor> = {
   shared: msg`Shared from another app`,
   spreadsheet: msg`Imported from a spreadsheet`,
   homeassistant: msg`Imported from Home Assistant`,
+  ferret: msg`Imported from a Ferret export`,
   paperless: msg`Added from Paperless`,
   claude: msg`Added by Claude`,
   api: msg`Added by a script`,

@@ -85,7 +85,7 @@ export const LABEL_PAGE_STYLE_HASHES = [
 export const YOUTUBE_EMBED = "https://www.youtube-nocookie.com";
 
 /** The /api routes that take files: an item's uploads, and a room scan's photos (each has its own limit). */
-const UPLOAD_PATH = /^\/api\/v1\/(items\/[^/]+\/attachments|room-scans|transcribe)$/;
+const UPLOAD_PATH = /^\/api\/v1\/(items\/[^/]+\/attachments|room-scans|transcribe|import\/item(\/check)?)$/;
 /** The OAuth endpoints apps call themselves (from a server or a browser), and the documents that point at them. */
 const OAUTH_OPEN = /^\/(api\/auth\/oauth2\/(token|register|revoke)|\.well-known\/oauth-(protected-resource|authorization-server)(\/.*)?)$/;
 const isOAuthOpenPath = (path: string) => OAUTH_OPEN.test(path);
