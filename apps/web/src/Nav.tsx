@@ -16,7 +16,7 @@ import { LanguageChoice } from "./Language";
 import { api } from "./lib/api";
 import { useAppearance } from "./lib/appearance";
 import { authClient, useCanEdit, signOut } from "./lib/auth";
-import { inFerretApp } from "./lib/install";
+import { inFerretApp, openInApp } from "./lib/install";
 import {
   type Route,
   COVERAGE_HREF,
@@ -119,6 +119,15 @@ export const NAV_GROUPS: { title: MessageDescriptor; links: Link[] }[] = [
 ];
 
 /** NAV_GROUPS without the links for what the household hasn't set up (a Paperless it hasn't connected). */
+/** Inside the phone app, first on More: the web's tab bar screens the app has no tab for. */
+const APP_EXTRA_GROUP: { title: MessageDescriptor; links: Link[] } = {
+  title: msg`Look through`,
+  links: [
+    { href: ITEMS_HREF, label: msg`Everything`, icon: "icon-[tabler--layout-grid]" },
+    { href: MAINTENANCE_HREF, label: msg`Maintenance`, icon: "icon-[tabler--tool]" },
+  ],
+};
+
 export function useNavGroups(householdId?: string) {
   const id = useContext(HouseholdContext)?.householdId ?? householdId;
   // The same query as Settings' Paperless card, so connecting or disconnecting shows here at once.
@@ -157,12 +166,16 @@ export function MorePage({ householdId }: { householdId: string }) {
   const { data: households } = authClient.useListOrganizations();
   const { choice, set } = useAppearance();
   const [creating, setCreating] = useState(false);
-  const groups = useNavGroups(householdId);
+  const navGroups = useNavGroups(householdId);
+  // Inside the phone app: its own tabs have Home, Places and search, so what the web's tab bar has beside them comes
+  // first; the app's Account has who's signed in and signing out, and its sign-in is for one household.
+  const groups = inFerretApp ? [APP_EXTRA_GROUP, ...navGroups] : navGroups;
   const user = session?.user;
   return (
     <div className="min-h-dvh bg-base-200">
       <TopBar title={<Trans>More</Trans>} />
       <main className="mx-auto flex max-w-xl flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        {!inFerretApp && (
         <section className="card">
           <div className="card-body flex-row items-center gap-3 p-4">
             <div className="avatar avatar-placeholder">
@@ -176,7 +189,8 @@ export function MorePage({ householdId }: { householdId: string }) {
             </div>
           </div>
         </section>
-        {households && (
+        )}
+        {households && !inFerretApp && (
           <section className="card" aria-labelledby="more-households">
             <div className="card-body gap-1 p-2">
               <h2 id="more-households" className="px-3 pt-2 text-sm font-semibold text-base-content/70">
@@ -201,7 +215,13 @@ export function MorePage({ householdId }: { householdId: string }) {
             <div className="card-body gap-0 p-2">
               <h2 className="px-3 pt-2 pb-1 text-sm font-semibold text-base-content/70">{t(g.title)}</h2>
               {g.links.map((l) => (
-                <a key={l.href} href={l.href} className="flex min-h-11 items-center gap-3 rounded-field px-3 hover:bg-base-200">
+                <a
+                  key={l.href}
+                  href={l.href}
+                  className="flex min-h-11 items-center gap-3 rounded-field px-3 hover:bg-base-200"
+                  // Inside the phone app: opened as one of its own screens.
+                  onClick={(e) => openInApp(l.href, t(l.label)) && e.preventDefault()}
+                >
                   <span className={`${l.icon} size-5 text-primary`} />
                   <span className="flex-1">{t(l.label)}</span>
                   <span className="icon-[tabler--chevron-right] size-4 text-base-content/40" />
@@ -210,6 +230,7 @@ export function MorePage({ householdId }: { householdId: string }) {
             </div>
           </section>
         ))}
+        {!inFerretApp && (
         <section className="card" aria-labelledby="more-appearance">
           <div className="card-body gap-2 p-4">
             <h2 id="more-appearance" className="text-sm font-semibold text-base-content/70">
@@ -233,10 +254,13 @@ export function MorePage({ householdId }: { householdId: string }) {
             <LanguageChoice />
           </div>
         </section>
-        <button type="button" className="btn btn-soft btn-error" onClick={() => signOut()}>
-          <span className="icon-[tabler--logout] size-5" />
-          <Trans>Sign out</Trans>
-        </button>
+        )}
+        {!inFerretApp && (
+          <button type="button" className="btn btn-soft btn-error" onClick={() => signOut()}>
+            <span className="icon-[tabler--logout] size-5" />
+            <Trans>Sign out</Trans>
+          </button>
+        )}
       </main>
     </div>
   );

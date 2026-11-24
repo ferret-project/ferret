@@ -1089,7 +1089,7 @@ export function Home({ householdName, householdId, view }: { householdName: stri
   // Everything (not searching) has its own table, filters and pages.
   const everything = !query && view.name === "items";
   // `#/items?sort=value`: Everything in that order (the router hands the search values over as strings).
-  const { sort: itemsSort, unseen: itemsUnseen } = useSearch({ strict: false }) as { sort?: string; unseen?: string };
+  const { sort: itemsSort, unseen: itemsUnseen, ask: askAnyway } = useSearch({ strict: false }) as { sort?: string; unseen?: string; ask?: unknown };
   const listing = Boolean(query) || ["category", "tag"].includes(view.name) || (view.name === "place" && Boolean(place));
   const [withDocuments, setWithDocuments] = useSearchDocuments();
   const documents = withDocuments ? undefined : ("exclude" as const);
@@ -1410,7 +1410,8 @@ export function Home({ householdName, householdId, view }: { householdName: stri
               </p>
             )}
 
-            {looksLikeQuestion(query) && aiAllowed && <AskFerret key={query} question={query} />}
+            {/* `?ask=1&q=…` (q stays last, Search.tsx): asked as a question even if it doesn't look like one (the phone app's "Ask Ferret"). */}
+            {(looksLikeQuestion(query) || Boolean(askAnyway)) && aiAllowed && <AskFerret key={query} question={query} />}
 
             {items.isError && <div className="alert alert-soft alert-error">{items.error.message}</div>}
 

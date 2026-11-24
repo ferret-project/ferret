@@ -14,6 +14,18 @@ type InstallPromptEvent = Event & { prompt(): Promise<void>; userChoice: Promise
 export const inFerretApp = /\bFerretApp\//.test(navigator.userAgent);
 if (inFerretApp) document.documentElement.classList.add("in-ferret-app");
 
+/**
+ * Inside the app: asks it to open a screen as one of its own (its bar, title and back) — the More page's links. The app
+ * listens on `window.webkit.messageHandlers.ferret` (ferret-ios WebBridge) and opens `#/…` routes and `/docs/` only.
+ * False when not in the app, or an app without it: follow the link as usual.
+ */
+export function openInApp(href: string, title: string): boolean {
+  const bridge = (window as { webkit?: { messageHandlers?: { ferret?: { postMessage(message: unknown): void } } } }).webkit?.messageHandlers?.ferret;
+  if (!inFerretApp || !bridge) return false;
+  bridge.postMessage({ type: "open", href, title });
+  return true;
+}
+
 let deferred: InstallPromptEvent | null = null;
 const listeners = new Set<() => void>();
 const changed = () => listeners.forEach((l) => l());
