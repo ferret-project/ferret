@@ -1714,6 +1714,22 @@ export interface OAuthConnectRequest {
   activeHouseholdId: string | null;
 }
 
+/** The phone app asking for a sign-in for its web screens: `to` is the screen to open (a hash route, `#/…`). */
+export const appWebSessionInput = z.object({
+  to: z
+    .string()
+    .max(500)
+    .regex(/^#\/[\x21-\x7e]*$/)
+    .optional(),
+});
+export type AppWebSessionInput = z.infer<typeof appWebSessionInput>;
+
+/** Where the app's web view goes to sign in (once, within a minute), and when that sign-in will end. */
+export interface AppWebSessionStart {
+  url: string;
+  expiresAt: string;
+}
+
 /** An app connected to this household with this person's account (Settings → Claude & API). */
 export interface OAuthGrantSummary {
   id: string;

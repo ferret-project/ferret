@@ -88,6 +88,8 @@ export default defineConfig({
       "^/l/[0-9A-Za-z]+$": "http://localhost:8787",
       // Share links (/s/<token>) and a borrower's link from a reminder email (/b/<token>).
       "^/[sb]/[\\w-]{20,}$": "http://localhost:8787",
+      // The phone app's web screens signing in (a one-time link; the server sets the cookie).
+      "/app/enter": "http://localhost:8787",
     },
   },
 });

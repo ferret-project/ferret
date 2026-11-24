@@ -11,6 +11,7 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { member, oauthAccessToken, oauthClient, oauthConsent, oauthRefreshToken, organization } from "../db/schema";
 import { type AppEnv, body, membership, requireHousehold, requireSession, requireUser } from "../lib/context";
+import { endAppWebSessions } from "../lib/app-web-session";
 import { oauthReference, parseReference, saveChoice } from "../lib/oauth";
 
 export const oauth = new Hono<AppEnv>();
@@ -126,5 +127,7 @@ oauth.delete("/grants/:id", requireHousehold, async (c) => {
   await c.var.db.update(oauthRefreshToken).set({ revoked: now }).where(same(oauthRefreshToken));
   await c.var.db.update(oauthAccessToken).set({ revoked: now }).where(same(oauthAccessToken));
   await c.var.db.delete(oauthConsent).where(eq(oauthConsent.id, grant.id));
+  // Its web screens in the phone app too (they'd be refused anyway: they need the approval just removed).
+  await endAppWebSessions(c.var.db, { clientId: grant.clientId, userId: c.var.user.id, referenceId: grant.referenceId! });
   return c.body(null, 204);
 });

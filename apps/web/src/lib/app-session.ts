@@ -1,7 +1,7 @@
 /**
- * The phone app's sign-in in its web screens (lib/install.ts inFerretApp). The app keeps its access token in a cookie
- * only its web view has, so requests work like a key's: one household, maybe read-only, never a real sign-in. Who and
- * which household come from /api/v1/me instead of a session.
+ * The phone app's sign-in in its web screens (lib/install.ts inFerretApp). The app opens a one-time link and the server
+ * sets a cookie only its web view has (apps/server lib/app-web-session.ts), so requests work like a key's: one
+ * household, maybe read-only, never a real sign-in. Who and which household come from /api/v1/me instead of a session.
  */
 import { useQuery } from "@tanstack/react-query";
 import { inFerretApp } from "./install";

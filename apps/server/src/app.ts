@@ -29,6 +29,7 @@ import { FileStore } from "./lib/files";
 import type { Deps, JobHandler, Jobs } from "./ports";
 import { apiKeys } from "./routes/api-keys";
 import { oauth } from "./routes/oauth";
+import { appEnter, appWebSessions } from "./routes/app-session";
 import { loopbackIsNative, mcpResource, OAUTH_SCOPES } from "./lib/oauth";
 import { oauthProviderAuthServerMetadata } from "@better-auth/oauth-provider";
 import { attention } from "./routes/attention";
@@ -405,6 +406,9 @@ export function createApp(deps: Deps, config: Config, opts: AppOptions = {}) {
   app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw));
   app.route("/api/v1/api-keys", apiKeys);
   app.route("/api/v1/oauth", oauth);
+  // The phone app's web screens signing in (lib/app-web-session.ts).
+  app.route("/api/v1/app", appWebSessions);
+  app.route("/app", appEnter);
   app.route("/api/v1/maintenance", maintenance);
   app.route("/api/v1/attention", attention);
   app.route("/api/v1/calendar", calendarSettings);

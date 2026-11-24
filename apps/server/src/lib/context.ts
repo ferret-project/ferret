@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { DEFAULT_CURRENCY } from "@ferret/shared";
 import type { Context } from "hono";
+import { getCookie } from "hono/cookie";
 import { createMiddleware } from "hono/factory";
 import { HTTPException } from "hono/http-exception";
 import type { z } from "zod";
@@ -11,7 +12,8 @@ import { householdSetting, member, organization, user } from "../db/schema";
 import type { Db, Deps } from "../ports";
 import { type KeyHolder, keyFromHeaders, verifyKey } from "./api-keys";
 import type { FileStore } from "./files";
-import { ACCESS_TOKEN_PREFIX, verifyOAuthToken } from "./oauth";
+import { ACCESS_TOKEN_PREFIX, type OAuthHolder, verifyOAuthToken } from "./oauth";
+import { appWebCookieName, verifyAppWebSession } from "./app-web-session";
 import { isServerAdmin } from "./server-admin";
 import type { Caller } from "./inventory";
 import { serverTimeZone } from "./household-time";
@@ -44,32 +46,15 @@ export type AppEnv = {
 };
 
 /**
- * The phone app's own web screens: the app puts its access token in this cookie (HttpOnly, SameSite=Strict, only in
- * its web view), so Ferret's pages and their images work with the app's sign-in. It is the same token as the header —
- * the same limits — and, being a cookie, its changes pass the same-origin check in app.ts like a session's.
- */
-export const APP_TOKEN_COOKIE = "ferret_app_token";
-
-function appTokenCookie(header: string | undefined) {
-  const value = header?.split(/;\s*/).find((p) => p.startsWith(`${APP_TOKEN_COOKIE}=`))?.slice(APP_TOKEN_COOKIE.length + 1);
-  return value?.startsWith(ACCESS_TOKEN_PREFIX) ? decodeURIComponent(value) : undefined;
-}
-
-/**
- * Requires a signed-in user: a session cookie, an API key (`Authorization: Bearer ferret_…`), or an app's OAuth access
- * token (`Bearer ferret_at_…`, lib/oauth.ts — a phone app signed in with "Sign in to Ferret"). A token acts exactly like
- * a key: one household, maybe read-only, never a real sign-in.
+ * Requires a signed-in user: a session cookie, an API key (`Authorization: Bearer ferret_…`), an app's OAuth access
+ * token (`Bearer ferret_at_…`, lib/oauth.ts — e.g. the phone app), or the phone app's web screens' cookie
+ * (lib/app-web-session.ts). A token or that cookie acts exactly like a key: one household, maybe read-only, never a real
+ * sign-in. The cookie counts only when there's no real sign-in, so one planted in a browser can't take its place.
  */
 export const requireUser = createMiddleware<AppEnv>(async (c, next) => {
-  const bearer = c.req.header("authorization")?.match(/^Bearer\s+(\S+)$/i)?.[1] ?? appTokenCookie(c.req.header("cookie"));
+  const bearer = c.req.header("authorization")?.match(/^Bearer\s+(\S+)$/i)?.[1];
   if (bearer?.startsWith(ACCESS_TOKEN_PREFIX)) {
-    const app = await verifyOAuthToken(c.var.db, bearer);
-    const [owner] = app ? await c.var.db.select().from(user).where(eq(user.id, app.userId)) : [];
-    if (!app || !owner) throw new HTTPException(401, { message: "Sign in again: this app's sign-in has ended" });
-    await requireFeature({ deps: c.var.deps, householdId: app.householdId }, "apiKeys");
-    c.set("user", owner);
-    c.set("apiKey", { id: `oauth:${app.clientId}`, name: app.clientName, householdId: app.householdId, readOnly: app.readOnly });
-    c.set("session", undefined);
+    await actForApp(c, await verifyOAuthToken(c.var.db, bearer));
     return next();
   }
   const key = keyFromHeaders(c.req.raw.headers);
@@ -81,14 +66,29 @@ export const requireUser = createMiddleware<AppEnv>(async (c, next) => {
     c.set("user", holder.user);
     c.set("apiKey", holder.key);
     c.set("session", undefined);
-  } else {
-    const result = await c.var.auth.api.getSession({ headers: c.req.raw.headers });
-    if (!result) throw new HTTPException(401, { message: "Sign in required" });
+    return next();
+  }
+  const result = await c.var.auth.api.getSession({ headers: c.req.raw.headers });
+  if (result) {
     c.set("user", result.user);
     c.set("session", result.session);
+    return next();
   }
+  const appCookie = getCookie(c, appWebCookieName(c.var.config));
+  if (!appCookie) throw new HTTPException(401, { message: "Sign in required" });
+  await actForApp(c, await verifyAppWebSession(c.var.db, appCookie));
   await next();
 });
+
+/** Acts for an app signed in with OAuth (its token, or its web screens' cookie): like an API key. */
+async function actForApp(c: Context<AppEnv>, app: OAuthHolder | null) {
+  const [owner] = app ? await c.var.db.select().from(user).where(eq(user.id, app.userId)) : [];
+  if (!app || !owner) throw new HTTPException(401, { message: "Sign in again: this app's sign-in has ended" });
+  await requireFeature({ deps: c.var.deps, householdId: app.householdId }, "apiKeys");
+  c.set("user", owner);
+  c.set("apiKey", { id: `oauth:${app.clientId}`, name: app.clientName, householdId: app.householdId, readOnly: app.readOnly });
+  c.set("session", undefined);
+}
 
 /** For account settings (like managing API keys): a real sign-in, not a key. */
 export const requireSession = createMiddleware<AppEnv>(async (c, next) => {
@@ -127,7 +127,6 @@ export const requireHousehold = createMiddleware<AppEnv>(async (c, next) => {
   await next();
 });
 
-/** The user's role in a household, or undefined if they're not in it. */
 /** `/me`'s household: its name, your role, and whether this sign-in can only look (a read-only key or app, a viewer). */
 export async function householdAccess(db: Db, userId: string, householdId: string | null, readOnly: boolean) {
   if (!householdId) return null;
@@ -137,6 +136,7 @@ export async function householdAccess(db: Db, userId: string, householdId: strin
   return { id: householdId, name: found?.name ?? "", role, readOnly: readOnly || role === "viewer" };
 }
 
+/** The user's role in a household, or undefined if they're not in it. */
 export async function membership(db: Db, householdId: string, userId: string) {
   const [row] = await db
     .select({ role: member.role })

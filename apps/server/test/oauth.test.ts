@@ -1,11 +1,12 @@
 /** Apps signing in to Ferret with OAuth for /mcp (lib/oauth.ts): the whole flow, as claude.ai runs it. */
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
-import { job, member, oauthConsent, oauthResource } from "../src/db/schema";
+import { appWebSession, job, member, oauthConsent, oauthResource } from "../src/db/schema";
 import { APP_CONNECTED_JOB } from "../src/jobs/security-alert";
+import { appWebCookieName } from "../src/lib/app-web-session";
 import { purgeOAuth } from "../src/lib/oauth";
-import { config, setup } from "./helpers";
+import { config, setup, verifiedAccount } from "./helpers";
 
 type Setup = Awaited<ReturnType<typeof setup>>;
 type User = Awaited<ReturnType<Setup["user"]>>;
@@ -264,33 +265,146 @@ describe("apps signing in with OAuth", () => {
     expect((await api("/me", "ferret_at_madeup")).status).toBe(401);
   });
 
-  it("work from the phone app's cookie in its web screens, with the same limits and the same-origin check", async () => {
-    const s = await setup();
-    const ann = await s.user("ann");
-    await ann.addItem({ name: "Cordless drill" });
-    const redirect = "com.example.ferret:/oauth";
-    const clientId = await register(s.app, "Ferret for iPhone", redirect);
-    const tokens = await connect(s, ann, clientId, { redirect });
-    const cookie = `other=1; ferret_app_token=${tokens.access_token}`;
-    const web = (path: string, init: RequestInit = {}) => s.app.request(`/api/v1${path}`, { ...init, headers: { Cookie: cookie, "Content-Type": "application/json", ...init.headers } });
+  describe("the phone app's web screens", () => {
+    /** A phone app signed in, and a helper for its REST calls with the access token. */
+    async function phone(readOnly = false) {
+      const s = await setup();
+      const ann = await s.user("ann");
+      await ann.addItem({ name: "Cordless drill" });
+      const redirect = "com.example.ferret:/oauth";
+      const clientId = await register(s.app, "Ferret for iPhone", redirect);
+      const tokens = await connect(s, ann, clientId, { redirect, readOnly });
+      const api = (path: string, init: RequestInit = {}, token = tokens.access_token) =>
+        s.app.request(`/api/v1${path}`, { ...init, headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...init.headers } });
+      /** The app asking for a link, then its web view opening it: the cookie Ferret set, and where it went. */
+      const handoff = async (to?: string, site: string | undefined = "none") => {
+        const started = await api("/app/web-session", { method: "POST", body: JSON.stringify(to ? { to } : {}) });
+        expect(started.status).toBe(201);
+        const { url } = (await started.json()) as { url: string; expiresAt: string };
+        const opened = await s.app.request(url, { headers: site ? { "Sec-Fetch-Site": site } : {} });
+        const set = opened.headers.get("set-cookie") ?? "";
+        return { url, opened, set, cookie: set.split(";")[0]! };
+      };
+      const web = (path: string, cookie: string, init: RequestInit = {}) =>
+        s.app.request(`/api/v1${path}`, { ...init, headers: { Cookie: cookie, "Content-Type": "application/json", ...init.headers } });
+      return { s, ann, clientId, tokens, api, handoff, web };
+    }
 
-    const me = (await (await web("/me")).json()) as { household: { id: string; name: string; role: string; readOnly: boolean } };
-    expect(me.household).toMatchObject({ id: ann.householdId, role: "owner", readOnly: false });
-    expect(me.household.name).not.toBe("");
-    expect((await web("/items?q=drill")).status).toBe(200);
-    // Ferret's own page: allowed. Another site (or no say at all from a browser that sends Sec-Fetch-Site): refused.
-    expect((await web("/items", { method: "POST", body: JSON.stringify({ name: "Ladder" }), headers: { "Sec-Fetch-Site": "same-origin" } })).status).toBe(201);
-    expect((await web("/items", { method: "POST", body: JSON.stringify({ name: "Rake" }), headers: { "Sec-Fetch-Site": "cross-site", Origin: "https://evil.example" } })).status).toBe(403);
-    // Never a real sign-in.
-    expect((await web("/api-keys")).status).toBe(403);
-    // Something that only looks like a token, or a key in the cookie: not a sign-in.
-    const fake = await s.app.request("/api/v1/me", { headers: { Cookie: "ferret_app_token=ferret_at_madeup" } });
-    expect(fake.status).toBe(401);
+    it("sign in through a one-time link, with the app's limits and the same-origin check", async () => {
+      const { ann, handoff, web } = await phone();
+      const { opened, set, cookie } = await handoff("#/settings/household");
+      expect(opened.status).toBe(303);
+      expect(opened.headers.get("location")).toBe("/#/settings/household");
+      expect(opened.headers.get("cache-control")).toBe("no-store");
+      expect(set).toMatch(/^ferret_app=[\w-]{43};/);
+      expect(set).toMatch(/HttpOnly/);
+      expect(set).toMatch(/SameSite=Strict/);
+      expect(set).toMatch(/Path=\//);
+      // Not the access token: a new secret only for these screens.
+      expect(cookie).not.toContain("ferret_at_");
 
-    // Read-only shows in /me, for the app to hide what it can't do.
-    const readOnly = await connect(s, ann, clientId, { redirect, readOnly: true });
-    const ro = (await (await s.app.request("/api/v1/me", { headers: { Cookie: `ferret_app_token=${readOnly.access_token}` } })).json()) as { household: { readOnly: boolean } };
-    expect(ro.household.readOnly).toBe(true);
+      const me = (await (await web("/me", cookie)).json()) as { household: { id: string; name: string; role: string; readOnly: boolean } };
+      expect(me.household).toMatchObject({ id: ann.householdId, role: "owner", readOnly: false });
+      expect(me.household.name).not.toBe("");
+      expect((await web("/items?q=drill", cookie)).status).toBe(200);
+      // Ferret's own page: allowed. Another site: refused.
+      expect((await web("/items", cookie, { method: "POST", body: JSON.stringify({ name: "Ladder" }), headers: { "Sec-Fetch-Site": "same-origin" } })).status).toBe(201);
+      expect((await web("/items", cookie, { method: "POST", body: JSON.stringify({ name: "Rake" }), headers: { "Sec-Fetch-Site": "cross-site", Origin: "https://evil.example" } })).status).toBe(403);
+      // Never a real sign-in.
+      expect((await web("/api-keys", cookie)).status).toBe(403);
+      expect((await web("/oauth/grants", cookie)).status).toBe(403);
+      // The cookie isn't a bearer token, and can't ask for more links.
+      const asBearer = { headers: { Authorization: `Bearer ${cookie.split("=")[1]}` } };
+      expect((await web("/me", "", asBearer)).status).toBe(401);
+      expect((await web("/app/web-session", cookie, { method: "POST", body: "{}", headers: { "Sec-Fetch-Site": "same-origin" } })).status).toBe(401);
+    });
+
+    it("use each link once, within a minute, and only when the app opens it", async () => {
+      const { s, handoff, api } = await phone();
+      const first = await handoff();
+      expect(first.cookie).toMatch(/^ferret_app=/);
+      expect(first.opened.headers.get("location")).toBe("/#/");
+      // Again: no cookie, just Ferret.
+      const again = await s.app.request(first.url, { headers: { "Sec-Fetch-Site": "none" } });
+      expect(again.headers.get("set-cookie")).toBeNull();
+      expect(again.headers.get("location")).toBe("/#/");
+      // A link from another site (someone planting their own sign-in): no cookie.
+      const planted = await handoff(undefined, "cross-site");
+      expect(planted.set).toBe("");
+      // A browser that doesn't say: allowed (as for the same-origin check).
+      expect((await handoff(undefined, undefined)).cookie).toMatch(/^ferret_app=/);
+      // Made up, or a screen that isn't a hash route: no cookie, and never sent elsewhere.
+      const madeUp = await s.app.request("/app/enter?code=nope&to=%2F%2Fevil.example", { headers: { "Sec-Fetch-Site": "none" } });
+      expect(madeUp.headers.get("set-cookie")).toBeNull();
+      expect(madeUp.headers.get("location")).toBe("/#/");
+      expect((await api("/app/web-session", { method: "POST", body: JSON.stringify({ to: "https://evil.example" }) })).status).toBe(422);
+      // Past its minute.
+      const started = (await (await api("/app/web-session", { method: "POST", body: "{}" })).json()) as { url: string };
+      await s.db.update(appWebSession).set({ expiresAt: new Date(Date.now() - 1) }).where(isNull(appWebSession.tokenHash));
+      expect((await s.app.request(started.url, { headers: { "Sec-Fetch-Site": "none" } })).headers.get("set-cookie")).toBeNull();
+    });
+
+    it("only for an app's own token: not a key, a session, or nothing", async () => {
+      const { s, ann } = await phone();
+      expect((await s.app.request("/api/v1/app/web-session", { method: "POST", body: "{}", headers: { "Content-Type": "application/json" } })).status).toBe(401);
+      expect((await ann.as("/api/v1/app/web-session", { method: "POST", body: "{}" })).status).toBe(401);
+      const key = (await (await ann.as("/api/v1/api-keys", { method: "POST", body: JSON.stringify({ name: "script" }) })).json()) as { key: string };
+      const withKey = await s.app.request("/api/v1/app/web-session", { method: "POST", body: "{}", headers: { Authorization: `Bearer ${key.key}`, "Content-Type": "application/json" } });
+      expect(withKey.status).toBe(401);
+    });
+
+    it("never take the place of a real sign-in in the same browser", async () => {
+      const { s, ann, handoff } = await phone();
+      const { cookie: annApp } = await handoff();
+      const { cookie: bobSession } = await verifiedAccount(s.app, s.auth, "bob");
+      const both = (await (await s.app.request("/api/v1/me", { headers: { Cookie: `${bobSession}; ${annApp}` } })).json()) as { user: { name: string }; household: { id: string } | null };
+      expect(both.user.name).toBe("bob");
+      expect(both.household?.id).not.toBe(ann.householdId);
+      // A bad one beside a real sign-in changes nothing.
+      expect((await s.app.request("/api/v1/me", { headers: { Cookie: `${bobSession}; ferret_app=madeup` } })).status).toBe(200);
+      expect((await s.app.request("/api/v1/me", { headers: { Cookie: "ferret_app=madeup" } })).status).toBe(401);
+      expect((await s.app.request("/api/v1/me", { headers: { Cookie: "ferret_app=%E0%A4%A" } })).status).toBe(401);
+    });
+
+    it("show read-only in /me, and refuse changes", async () => {
+      const { handoff, web } = await phone(true);
+      const { cookie } = await handoff();
+      const me = (await (await web("/me", cookie)).json()) as { household: { readOnly: boolean } };
+      expect(me.household.readOnly).toBe(true);
+      expect((await web("/items", cookie, { method: "POST", body: JSON.stringify({ name: "Rake" }), headers: { "Sec-Fetch-Site": "same-origin" } })).status).toBe(403);
+    });
+
+    it("end when the app signs out or is disconnected", async () => {
+      const { s, ann, api, handoff, web } = await phone();
+      // Signing out of the app.
+      const out = await handoff();
+      expect((await api("/app/web-session", { method: "DELETE" })).status).toBe(204);
+      expect((await web("/me", out.cookie)).status).toBe(401);
+      // Disconnected in Settings.
+      const disconnected = await handoff();
+      expect((await web("/me", disconnected.cookie)).status).toBe(200);
+      const grants = ((await (await ann.as("/api/v1/oauth/grants")).json()) as { data: { id: string }[] }).data;
+      for (const g of grants) await ann.as(`/api/v1/oauth/grants/${g.id}`, { method: "DELETE" });
+      expect((await web("/me", disconnected.cookie)).status).toBe(401);
+      expect(await s.db.select().from(appWebSession)).toEqual([]);
+    });
+
+    it("stop for someone no longer in the household, and get purged once ended", async () => {
+      const { s, ann, handoff, web } = await phone();
+      const { cookie } = await handoff();
+      await s.db.update(appWebSession).set({ expiresAt: new Date(Date.now() - 1) });
+      expect((await web("/me", cookie)).status).toBe(401);
+      expect(await purgeOAuth(s.db)).toBeGreaterThan(0);
+      expect(await s.db.select().from(appWebSession)).toEqual([]);
+      const fresh = await handoff();
+      await s.db.delete(member).where(eq(member.organizationId, ann.householdId));
+      expect((await web("/me", fresh.cookie)).status).toBe(401);
+    });
+
+    it("use a __Host- cookie on HTTPS", () => {
+      expect(appWebCookieName({ PUBLIC_URL: "https://ferret.example.com" })).toBe("__Host-ferret_app");
+      expect(appWebCookieName({ PUBLIC_URL: "http://10.0.0.2:8787" })).toBe("ferret_app");
+    });
   });
 
   it("only offer households the person is in, and only from a real sign-in", async () => {

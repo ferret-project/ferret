@@ -7,7 +7,7 @@ import { sql } from "drizzle-orm";
 import { check, index, integer, primaryKey, real, sqliteTable, text, uniqueIndex, type AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import type { SightingHow, SightingKind } from "@ferret/shared/utils";
 import type { CardInfo, DashboardLayout, ItemCard, ItemCollectible, ItemGraded, ItemSupport, ItemFuelEconomy, VideoHit, VehicleInfo, AiFill, AiFillSwitches, AnalysisStatus, AttachmentAnalysis, CategoryField, CustomFieldValues, HaSnapshot, ItemLink, ItemOrigin, ProductInfo, ReviewOutcome, RoomScanCandidate, RoomScanStatus } from "@ferret/shared";
-import { invitation, organization, session, user } from "./auth";
+import { invitation, oauthClient, organization, session, user } from "./auth";
 
 const id = () =>
   text("id")
@@ -1659,3 +1659,30 @@ export const oauthChoice = sqliteTable("oauth_choice", {
   clientId: text("client_id").notNull().default(""),
   createdAt: timestamps.createdAt,
 });
+
+/**
+ * The phone app's web screens (lib/app-web-session.ts): a sign-in the app hands its web view through a one-time code.
+ * It acts for one approved app (client, person, `<householdId>:read|write` reference) and stops when that approval is
+ * removed. Only hashes are kept; expired rows are purged daily.
+ */
+export const appWebSession = sqliteTable(
+  "app_web_session",
+  {
+    id: id(),
+    /** The one-time code's hash, until it's swapped for the cookie (then null). */
+    codeHash: text("code_hash").unique(),
+    /** The cookie's hash, once the code was swapped. */
+    tokenHash: text("token_hash").unique(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    clientId: text("client_id")
+      .notNull()
+      .references(() => oauthClient.clientId, { onDelete: "cascade" }),
+    referenceId: text("reference_id").notNull(),
+    createdAt: timestamps.createdAt,
+    /** The code's end (a minute) until it's swapped, then the cookie's. */
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (t) => [index("app_web_session_grant_idx").on(t.clientId, t.userId, t.referenceId)],
+);

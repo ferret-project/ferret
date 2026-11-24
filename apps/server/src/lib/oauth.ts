@@ -18,7 +18,7 @@ import type { BetterAuthPlugin } from "better-auth";
 import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
 import { and, eq, gt, lt, notExists, or, sql } from "drizzle-orm";
 import type { Config } from "../config";
-import { oauthAccessToken, oauthChoice, oauthClient, oauthConsent, oauthRefreshToken } from "../db/schema";
+import { appWebSession, oauthAccessToken, oauthChoice, oauthClient, oauthConsent, oauthRefreshToken } from "../db/schema";
 import type { Db } from "../ports";
 import { membership } from "./context";
 
@@ -180,6 +180,8 @@ export type OAuthHolder = {
   clientId: string;
   /** What the app calls itself (its own claim, from registering). */
   clientName: string;
+  /** Its approval's reference (`<householdId>:read|write`). */
+  referenceId: string;
 };
 
 /** A `ferret_at_…` access token → who it acts for, or null (unknown, expired, revoked, app disabled, left the household). */
@@ -213,17 +215,29 @@ export async function verifyOAuthToken(db: Db, token: string): Promise<OAuthHold
   if (!row?.userId || row.revoked || row.disabled || !row.expiresAt || row.expiresAt <= new Date()) return null;
   const scopes = scopeList(row.scopes);
   if (!scopes.includes("ferret")) return null;
-  const reference = parseReference(row.referenceId);
+  return oauthHolder(db, { userId: row.userId, clientId: row.clientId, clientName: row.clientName, referenceId: row.referenceId });
+}
+
+/**
+ * Who an approved app acts for (its approval already found): the household in its reference, if they're still in it;
+ * read-only when chosen, or when they're a viewer. Shared with the app's web screens (lib/app-web-session.ts).
+ */
+export async function oauthHolder(
+  db: Db,
+  grant: { userId: string; clientId: string; clientName: string | null; referenceId: string | null },
+): Promise<OAuthHolder | null> {
+  const reference = parseReference(grant.referenceId);
   if (!reference) return null;
-  const role = await membership(db, reference.householdId, row.userId);
+  const role = await membership(db, reference.householdId, grant.userId);
   if (!role) return null;
   return {
-    userId: row.userId,
+    userId: grant.userId,
     householdId: reference.householdId,
     role,
     readOnly: reference.readOnly || role === "viewer",
-    clientId: row.clientId,
-    clientName: row.clientName ?? "An app",
+    clientId: grant.clientId,
+    clientName: grant.clientName ?? "An app",
+    referenceId: grant.referenceId!,
   };
 }
 
@@ -242,8 +256,8 @@ export function scopeList(value: unknown): string[] {
 
 /**
  * Daily (jobs/purge.ts): picks from #/connect older than a day, access and refresh tokens a week past expiring or
- * being revoked, and apps that registered themselves but nobody approved within a week (registration is open, so
- * anything could register).
+ * being revoked, the app's web-screen sign-ins and codes that ended, and apps that registered themselves but nobody
+ * approved within a week (registration is open, so anything could register).
  */
 export async function purgeOAuth(db: Db, now = Date.now()) {
   const day = 24 * 60 * 60 * 1000;
@@ -257,6 +271,8 @@ export async function purgeOAuth(db: Db, now = Date.now()) {
     .delete(oauthRefreshToken)
     .where(or(lt(oauthRefreshToken.expiresAt, weekAgo), lt(oauthRefreshToken.revoked, weekAgo)))
     .returning({ id: oauthRefreshToken.id });
+  // The phone app's web screens (lib/app-web-session.ts): codes never swapped, and sign-ins that ended.
+  const webSessions = await db.delete(appWebSession).where(lt(appWebSession.expiresAt, new Date(now))).returning({ id: appWebSession.id });
   const apps = await db
     .delete(oauthClient)
     .where(
@@ -267,7 +283,7 @@ export async function purgeOAuth(db: Db, now = Date.now()) {
       ),
     )
     .returning({ id: oauthClient.id });
-  return choices.length + access.length + refresh.length + apps.length;
+  return choices.length + access.length + refresh.length + webSessions.length + apps.length;
 }
 
 /** A registration (RFC 7591) whose redirect addresses are all http loopback, marked `application_type: native` unless it says. */
