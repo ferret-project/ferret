@@ -20,13 +20,14 @@ function base64url(bytes: Uint8Array) {
 }
 
 /** An app registering itself (RFC 7591), like claude.ai does the first time. */
-async function register(app: Setup["app"], name = "Claude") {
+async function register(app: Setup["app"], name = "Claude", native?: string) {
   const res = await app.request("/api/auth/oauth2/register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       client_name: name,
-      redirect_uris: [REDIRECT],
+      redirect_uris: [native ?? REDIRECT],
+      ...(native ? { application_type: "native" } : {}),
       token_endpoint_auth_method: "none",
       grant_types: ["authorization_code", "refresh_token"],
       response_types: ["code"],
@@ -40,13 +41,13 @@ async function register(app: Setup["app"], name = "Claude") {
 /** The part after `?` of a redirect into the web app (`/#/connect?…`). */
 const queryOf = (location: string) => location.slice(location.indexOf("?") + 1);
 
-async function startAuthorize(as: User["as"] | Setup["app"]["request"], clientId: string) {
+async function startAuthorize(as: User["as"] | Setup["app"]["request"], clientId: string, redirect = REDIRECT) {
   const verifier = base64url(crypto.getRandomValues(new Uint8Array(32)));
   const challenge = base64url(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier))));
   const params = new URLSearchParams({
     response_type: "code",
     client_id: clientId,
-    redirect_uri: REDIRECT,
+    redirect_uri: redirect,
     scope: "ferret offline_access",
     state: "state-123",
     code_challenge: challenge,
@@ -59,8 +60,9 @@ async function startAuthorize(as: User["as"] | Setup["app"]["request"], clientId
 }
 
 /** Everything a person does on #/connect, then the app swapping its code for tokens. */
-async function connect(s: Setup, u: User, clientId: string, pick: { householdId?: string; readOnly?: boolean } = {}) {
-  const { location, verifier } = await startAuthorize(u.as, clientId);
+async function connect(s: Setup, u: User, clientId: string, pick: { householdId?: string; readOnly?: boolean; redirect?: string } = {}) {
+  const redirect = pick.redirect ?? REDIRECT;
+  const { location, verifier } = await startAuthorize(u.as, clientId, redirect);
   expect(location.startsWith("/#/connect?")).toBe(true);
   const chosen = await u.as("/api/v1/oauth/connect", {
     method: "POST",
@@ -76,7 +78,7 @@ async function connect(s: Setup, u: User, clientId: string, pick: { householdId?
     url = ((await consent.json()) as { url: string }).url;
   }
   const back = new URL(url);
-  expect(back.origin + back.pathname).toBe(REDIRECT);
+  expect(`${back.protocol}${back.host ? `//${back.host}` : ""}${back.pathname}`).toBe(redirect);
   expect(back.searchParams.get("state")).toBe("state-123");
   const token = await s.app.request("/api/auth/oauth2/token", {
     method: "POST",
@@ -84,7 +86,7 @@ async function connect(s: Setup, u: User, clientId: string, pick: { householdId?
     body: new URLSearchParams({
       grant_type: "authorization_code",
       code: back.searchParams.get("code")!,
-      redirect_uri: REDIRECT,
+      redirect_uri: redirect,
       client_id: clientId,
       code_verifier: verifier,
       resource: RESOURCE,
@@ -227,6 +229,39 @@ describe("apps signing in with OAuth", () => {
     expect((await mcpStatus(s.app, again.access_token)).status).toBe(200);
     await s.db.delete(member).where(and(eq(member.organizationId, ann.householdId)));
     expect((await mcpStatus(s.app, again.access_token)).status).toBe(401);
+  });
+
+  it("let a phone app sign in with its own address scheme and use the REST API like a key", async () => {
+    const s = await setup();
+    const ann = await s.user("ann");
+    await ann.addItem({ name: "Cordless drill" });
+    const redirect = "com.example.ferret:/oauth";
+    const clientId = await register(s.app, "Ferret for iPhone", redirect);
+    const tokens = await connect(s, ann, clientId, { redirect });
+    const api = (path: string, token = tokens.access_token, init: RequestInit = {}) =>
+      s.app.request(`/api/v1${path}`, { ...init, headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...init.headers } });
+
+    const me = (await (await api("/me")).json()) as { user: { id: string }; activeHouseholdId: string };
+    const mine = (await (await ann.as("/api/v1/me")).json()) as { user: { id: string } };
+    expect(me).toMatchObject({ user: { id: mine.user.id }, activeHouseholdId: ann.householdId });
+    const found = (await (await api("/items?q=drill")).json()) as { data: { name: string }[] };
+    expect(found.data.map((i) => i.name)).toContain("Cordless drill");
+    const added = await api("/items", tokens.access_token, { method: "POST", body: JSON.stringify({ name: "Ladder" }) });
+    expect(added.status).toBe(201);
+    expect(await added.json()).toMatchObject({ origin: "api", originDetail: "Ferret for iPhone" });
+    // Never a real sign-in: what needs one refuses it, as it refuses keys.
+    expect((await api("/api-keys")).status).toBe(403);
+
+    // Read-only means read-only here too.
+    const readOnly = await connect(s, ann, clientId, { redirect, readOnly: true });
+    expect((await api("/items?q=drill", readOnly.access_token)).status).toBe(200);
+    expect((await api("/items", readOnly.access_token, { method: "POST", body: JSON.stringify({ name: "Rake" }) })).status).toBe(403);
+
+    // Disconnected in Settings: refused at once, with a 401 the app can act on.
+    const grants = ((await (await ann.as("/api/v1/oauth/grants")).json()) as { data: { id: string; readOnly: boolean }[] }).data;
+    for (const g of grants) await ann.as(`/api/v1/oauth/grants/${g.id}`, { method: "DELETE" });
+    expect((await api("/me")).status).toBe(401);
+    expect((await api("/me", "ferret_at_madeup")).status).toBe(401);
   });
 
   it("only offer households the person is in, and only from a real sign-in", async () => {

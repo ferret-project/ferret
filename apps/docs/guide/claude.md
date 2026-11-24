@@ -134,6 +134,9 @@ page) lists every endpoint, with a ready-to-copy request in curl, JavaScript or 
 typing part of its name. A few things — managing keys, your sign-in security, [Download everything](./download-everything),
 backups — need a real sign-in, not a key.
 
+[Apps that sign in](#claude-ai-and-other-apps-that-sign-in) can use the REST API as well as `/mcp`: their access token
+(`Authorization: Bearer ferret_at_…`) works like a key — one household, maybe read-only, and never a real sign-in.
+
 The API is also described as **OpenAPI 3.1** at `/api/v1/openapi.json` — import it into
 Postman, Bruno or Insomnia, or generate a client from it.
 

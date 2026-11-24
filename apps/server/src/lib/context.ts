@@ -7,10 +7,11 @@ import type { z } from "zod";
 import type { Extensions } from "../app";
 import type { Auth } from "../auth";
 import type { Config } from "../config";
-import { householdSetting, member } from "../db/schema";
+import { householdSetting, member, user } from "../db/schema";
 import type { Db, Deps } from "../ports";
 import { type KeyHolder, keyFromHeaders, verifyKey } from "./api-keys";
 import type { FileStore } from "./files";
+import { ACCESS_TOKEN_PREFIX, verifyOAuthToken } from "./oauth";
 import { isServerAdmin } from "./server-admin";
 import type { Caller } from "./inventory";
 import { serverTimeZone } from "./household-time";
@@ -42,8 +43,23 @@ export type AppEnv = {
   };
 };
 
-/** Requires a signed-in user: a session cookie, or an API key (`Authorization: Bearer ferret_…`). */
+/**
+ * Requires a signed-in user: a session cookie, an API key (`Authorization: Bearer ferret_…`), or an app's OAuth access
+ * token (`Bearer ferret_at_…`, lib/oauth.ts — a phone app signed in with "Sign in to Ferret"). A token acts exactly like
+ * a key: one household, maybe read-only, never a real sign-in.
+ */
 export const requireUser = createMiddleware<AppEnv>(async (c, next) => {
+  const bearer = c.req.header("authorization")?.match(/^Bearer\s+(\S+)$/i)?.[1];
+  if (bearer?.startsWith(ACCESS_TOKEN_PREFIX)) {
+    const app = await verifyOAuthToken(c.var.db, bearer);
+    const [owner] = app ? await c.var.db.select().from(user).where(eq(user.id, app.userId)) : [];
+    if (!app || !owner) throw new HTTPException(401, { message: "Sign in again: this app's sign-in has ended" });
+    await requireFeature({ deps: c.var.deps, householdId: app.householdId }, "apiKeys");
+    c.set("user", owner);
+    c.set("apiKey", { id: `oauth:${app.clientId}`, name: app.clientName, householdId: app.householdId, readOnly: app.readOnly });
+    c.set("session", undefined);
+    return next();
+  }
   const key = keyFromHeaders(c.req.raw.headers);
   if (key) {
     const holder = await verifyKey(c.var.auth, c.var.db, key);
