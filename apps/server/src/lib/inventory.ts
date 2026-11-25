@@ -76,6 +76,9 @@ export interface Caller {
   via: "web" | "api" | "mcp" | "ferret";
   /** The API key's name, when it came with one (recorded as where things it adds came from). */
   keyName?: string | null;
+  /** An app signed in through "Sign in to Ferret" (OAuth) on the REST API (Ferret for iPhone, Ferret Menu): it says
+   * which of the app's ways added a thing, as the web app does, and its name is kept beside it. */
+  app?: boolean;
 }
 
 export const notFound = (what: string) => new HTTPException(404, { message: `${what} not found` });
@@ -857,6 +860,7 @@ export async function insideOf(v: Caller, boxId: string) {
 /** Where a new thing came from: Claude and scripts as the server knows them; the app says which of its ways. */
 export function originOf(v: Caller, said?: ItemOrigin): { origin: ItemOrigin; originDetail: string | null } {
   if (v.via === "mcp") return { origin: "claude", originDetail: v.keyName ?? null };
+  if (v.via === "api" && v.app) return { origin: said ?? "app", originDetail: v.keyName ?? null };
   if (v.via === "api") return { origin: "api", originDetail: v.keyName ?? null };
   return { origin: said ?? "app", originDetail: null };
 }

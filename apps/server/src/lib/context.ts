@@ -170,6 +170,7 @@ export const callerOf = (c: Context<AppEnv>): Caller => ({
   currency: c.var.currency,
   via: c.var.apiKey ? "api" : "web",
   keyName: c.var.apiKey?.name ?? null,
+  app: c.var.apiKey?.id.startsWith("oauth:") ?? false,
 });
 
 /** Parses and validates a JSON body: 400 if it isn't JSON, 422 (with the issues) if it doesn't fit. */

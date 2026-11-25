@@ -250,7 +250,8 @@ one?** and has the same **Add another** button.
 Each thing's page says when it was added, by whom, and how: in the app, with **Add from photos**, on a
 [walkthrough](./walkthrough), by scanning its barcode, from a [QR label](./labels), from a receipt with several things on
 it, by describing it in words, from a spreadsheet or Home Assistant
-[import](./importing) (with the file's name), by Claude, or by a script — with the name of the API key it used.
+[import](./importing) (with the file's name), by Claude, or by a script — with the name of the API key it used. Things
+added from Ferret for iPhone or [Ferret Menu](./mac) say how, as in the web app, with the app's name beside it.
 
 To see everything added one way — say, **what Claude added**, to check its work — use **Where from** on the
 **Everything** list, or tap the "by Claude" on any thing's page. Claude can list its own additions too.

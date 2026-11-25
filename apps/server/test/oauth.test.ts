@@ -249,7 +249,12 @@ describe("apps signing in with OAuth", () => {
     expect(found.data.map((i) => i.name)).toContain("Cordless drill");
     const added = await api("/items", tokens.access_token, { method: "POST", body: JSON.stringify({ name: "Ladder" }) });
     expect(added.status).toBe(201);
-    expect(await added.json()).toMatchObject({ origin: "api", originDetail: "Ferret for iPhone" });
+    // Added in the app, not by a script: the app says which of its ways, and its name is kept beside it.
+    expect(await added.json()).toMatchObject({ origin: "app", originDetail: "Ferret for iPhone" });
+    const scanned = await api("/items", tokens.access_token, { method: "POST", body: JSON.stringify({ name: "Batteries", origin: "scan" }) });
+    expect(await scanned.json()).toMatchObject({ origin: "scan", originDetail: "Ferret for iPhone" });
+    const claiming = await api("/items", tokens.access_token, { method: "POST", body: JSON.stringify({ name: "Sneaky", origin: "claude" }) });
+    expect(claiming.status).toBe(422);
     // Never a real sign-in: what needs one refuses it, as it refuses keys.
     expect((await api("/api-keys")).status).toBe(403);
 
