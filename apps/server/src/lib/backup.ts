@@ -134,20 +134,25 @@ export async function readManifest(target: BackupTarget, snapshot: string) {
  * columns every version has are read, and removed originals only where the column exists.
  */
 async function fileKeys(db: Db) {
-  const rows = await db.select({ householdId: attachment.householdId, blobKey: attachment.blobKey, thumbnailKey: attachment.thumbnailKey }).from(attachment);
+  const rows = await db.select({ id: attachment.id, householdId: attachment.householdId, blobKey: attachment.blobKey, thumbnailKey: attachment.thumbnailKey }).from(attachment);
   const removed = new Set(
     (await db
-      .select({ blobKey: attachment.blobKey })
+      .select({ id: attachment.id })
       .from(attachment)
       .where(isNotNull(attachment.originalRemovedAt))
       .catch(() => [])) // a backup from before originals could be removed
-      .map((r) => r.blobKey),
+      .map((r) => r.id),
   );
+  // A file shared by several rows (a receipt on each thing bought on it) is there while any of them keeps its original,
+  // and listed once.
+  const kept = new Set(rows.filter((r) => !removed.has(r.id)).map((r) => r.blobKey));
   const roomPhotos = await roomPhotoKeys(db).catch(() => []); // a backup from before room scans
+  const seen = new Set<string>();
+  const once = (f: { householdId: string; key: string }) => (seen.has(f.key) ? [] : (seen.add(f.key), [f]));
   return [
     ...rows.flatMap((r) => [
-      ...(removed.has(r.blobKey) ? [] : [{ householdId: r.householdId, key: r.blobKey }]),
-      ...(r.thumbnailKey ? [{ householdId: r.householdId, key: r.thumbnailKey }] : []),
+      ...(kept.has(r.blobKey) ? once({ householdId: r.householdId, key: r.blobKey }) : []),
+      ...(r.thumbnailKey ? once({ householdId: r.householdId, key: r.thumbnailKey }) : []),
     ]),
     ...roomPhotos,
   ];

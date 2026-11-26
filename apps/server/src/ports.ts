@@ -128,7 +128,11 @@ export interface Vectors {
  * included — for long answers (a room's list) a model can otherwise reason on for minutes.
  */
 export interface TextModel {
-  json(request: { prompt: string; schema: object; image?: { data: Uint8Array; contentType: string }; maxTokens?: number }): Promise<unknown>;
+  /**
+   * `timeoutMs`: longer than the adapter's usual wait, for a reply known to be long (every product of a long invoice).
+   * `effort`: more thinking than configured, for a reasoning model, to read again what a quick read got wrong.
+   */
+  json(request: { prompt: string; schema: object; image?: { data: Uint8Array; contentType: string }; maxTokens?: number; timeoutMs?: number; effort?: "medium" | "high" }): Promise<unknown>;
 }
 
 /** The vision + embedding models (json() accepts an image). */
@@ -560,6 +564,12 @@ export interface PdfPages {
    * document reader can miss (tables, a page it took for a picture). Null if it can't be read.
    */
   pageTexts?(pdf: Uint8Array, maxPages: number): Promise<string[] | null>;
+  /**
+   * The pictures a PDF draws (up to `maxPages`), each with the text beside it — on the same row of the page, as an
+   * invoice prints a product's photo by its name and SKU — as JPEG, only those `want` says yes to (by that text). Null
+   * if it can't be read.
+   */
+  pictures?(pdf: Uint8Array, maxPages: number, want: (beside: string) => boolean): Promise<{ page: number; beside: string; image: Uint8Array }[] | null>;
 }
 
 /**

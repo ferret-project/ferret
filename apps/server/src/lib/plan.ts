@@ -127,12 +127,15 @@ async function itemCount(w: Pick<Who, "db" | "householdId">) {
   return Number(row?.n ?? 0);
 }
 
-/** Bytes of the household's uploads (not removed ones). */
+/** Bytes of the household's uploads (not removed ones), each stored file once (a receipt shared by several things). */
 async function fileBytes(w: Pick<Who, "db" | "householdId">) {
-  const [row] = await w.db
-    .select({ n: sql<number>`coalesce(sum(${attachment.size}), 0)` })
+  const stored = w.db
+    .select({ size: sql<number>`max(${attachment.size})`.as("size") })
     .from(attachment)
-    .where(and(eq(attachment.householdId, w.householdId), isNull(attachment.deletedAt), isNull(attachment.originalRemovedAt)));
+    .where(and(eq(attachment.householdId, w.householdId), isNull(attachment.deletedAt), isNull(attachment.originalRemovedAt)))
+    .groupBy(attachment.blobKey)
+    .as("stored");
+  const [row] = await w.db.select({ n: sql<number>`coalesce(sum(${stored.size}), 0)` }).from(stored);
   return Number(row?.n ?? 0);
 }
 

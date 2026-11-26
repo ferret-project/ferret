@@ -1,4 +1,8 @@
+import { eq } from "drizzle-orm";
+import sharp from "sharp";
 import { describe, expect, it } from "vitest";
+import { attachment } from "../src/db/schema";
+import { purgeDeleted } from "../src/lib/trash";
 import { FakeAi, FakeDocuments, pdf, setup } from "./helpers";
 
 type J = Record<string, unknown>;
@@ -120,7 +124,8 @@ describe("a receipt with several things on it", () => {
     expect(copies).toHaveLength(1);
     expect(copies[0]).toMatchObject({ filename: "costco.pdf", analysisStatus: "done" });
     await jobs.drain();
-    expect(chat.calls).toHaveLength(1);
+    // Read twice (everything, then its products checked) — and the copies not at all.
+    expect(chat.calls).toHaveLength(2);
     expect((await pat.search("NINJA")).data.map((i) => i.name)).toContain("Air fryer");
 
     // Offered once.
@@ -145,6 +150,117 @@ describe("a receipt with several things on it", () => {
     expect(await json(pat.as(`/api/v1/items/${thing.id}`))).toMatchObject({ name: "Stand mixer", brand: "KitchenAid", purchasePriceCents: 29999, purchaseDate: "2026-11-01" });
     expect(await pat.attachments(thing.id)).toHaveLength(1); // it has the receipt already
     expect(await pat.attachments(items[1]!.id)).toHaveLength(1);
+  });
+
+  it("knows the same order added again — by its order number, or by product and price — but not another order's", async () => {
+    const order = (orderNumber: string, purchaseDate: string) => ({ ...receipt, name: null, purchasePrice: null, orderNumber, invoiceNumber: `INV-${orderNumber}`, purchaseDate });
+    // Each receipt is read twice (everything, then its products).
+    const chat = new FakeAi([order("ORD-1", "2026-11-01"), order("ORD-1", "2026-11-01"), order("ORD-1", "2026-11-01"), order("ORD-1", "2026-11-01"), order("ORD-2", "2026-11-05"), order("ORD-2", "2026-11-05")]);
+    const { user, jobs } = await setup({ chat, documents: new FakeDocuments(["COSTCO"]) });
+    const pat = await user("pat");
+    const read = async (name: string) => {
+      const thing = await pat.addItem({ name });
+      await pat.upload(thing.id, pdf(), "costco.pdf", "document");
+      await jobs.drain();
+      const [file] = await pat.attachments(thing.id);
+      return { thing, file: file! };
+    };
+    const lines = [
+      { name: "Stand mixer", brand: "KitchenAid", quantity: 1, priceCents: 29999 },
+      { name: "Air fryer", brand: "Ninja", model: "AF101", quantity: 1, priceCents: 8999 },
+      { name: "Bath towel", quantity: 4, priceCents: 1250 },
+    ];
+
+    // The first time: nothing's known. Added, each part of what it's for if asked.
+    const first = await read("New item");
+    expect(await json(pat.as(`/api/v1/attachments/${first.file.id}/lines`))).toEqual({ lines: [null, null, null] });
+    const mixer = await pat.addItem({ name: "Kitchen counter" });
+    const { items } = await json<{ items: { id: string }[] }>(
+      pat.as(`/api/v1/attachments/${first.file.id}/lines`, post({ intoItem: true, lines: lines.map((l, i) => ({ ...l, partOfItemId: i === 1 ? mixer.id : null })) })),
+    );
+    const fryer = await json<J>(pat.as(`/api/v1/items/${items[1]!.id}`));
+    expect(fryer).toMatchObject({ importKey: "receipt:ord-1:af101", partOfItemId: mixer.id });
+
+    // The same receipt again: its order, and every line, are known.
+    const again = await read("New item");
+    const known = await json<{ order: { number: string; things: number }; lines: ({ id: string } | null)[] }>(pat.as(`/api/v1/attachments/${again.file.id}/lines`));
+    expect(known.order).toMatchObject({ number: "ORD-1", things: 3 });
+    expect(known.lines.map((l) => l?.id)).toEqual(items.map((i) => i.id));
+
+    // Another order with the same towels at the same price four days later: those are that order's, not these.
+    const other = await read("New item");
+    expect(await json(pat.as(`/api/v1/attachments/${other.file.id}/lines`))).toEqual({ lines: [null, null, null] });
+    // But towels added by hand (no order) at that price, that week, probably are.
+    const towels = await pat.addItem({ name: "Bath towel", quantity: 4, purchasePriceCents: 1250, purchaseDate: "2026-11-04" });
+    expect((await json<{ lines: ({ id: string } | null)[] }>(pat.as(`/api/v1/attachments/${other.file.id}/lines`))).lines[2]?.id).toBe(towels.id);
+  });
+
+  it("gives each thing its photo from an invoice that prints one by each product, and the receipt's own thing its", async () => {
+    const chat = new FakeAi([{ ...receipt, name: null, purchasePrice: null }]);
+    const jpeg = async (colour: string) => new Uint8Array(await sharp({ create: { width: 40, height: 40, channels: 3, background: colour } }).jpeg().toBuffer());
+    const printed = [
+      // A row whose SKU only shares the start of the fryer's: not its photo.
+      { page: 1, beside: "Air fryer SKU: AF101-XL $129.99", image: await jpeg("#000000") },
+      { page: 1, beside: "Stand mixer KitchenAid $299.99", image: await jpeg("#ff0000") },
+      { page: 2, beside: "Air fryer SKU: AF101 $89.99", image: await jpeg("#00ff00") },
+    ];
+    const asked: string[] = [];
+    const pdfPages = {
+      firstPage: async () => null,
+      pageTexts: async () => ["COSTCO"],
+      pictures: async (_pdf: Uint8Array, _max: number, want: (beside: string) => boolean) => printed.filter((p) => (asked.push(p.beside), want(p.beside))),
+    };
+    const { user, jobs } = await setup({ chat, documents: new FakeDocuments(["COSTCO"]), pdfPages });
+    const pat = await user("pat");
+    const mixer = await pat.addItem({ name: "Mixer" });
+    await pat.upload(mixer.id, pdf(), "costco.pdf", "document");
+    await jobs.drain();
+    const [file] = await pat.attachments(mixer.id);
+    const { items } = await json<{ items: { id: string }[] }>(
+      pat.as(`/api/v1/attachments/${file!.id}/lines`, post({ ownLine: { name: "Stand mixer" }, lines: [{ name: "Air fryer", model: "AF101", priceCents: 8999 }, { name: "Bath towel", quantity: 4 }] })),
+    );
+    const photosOf = async (id: string) => (await pat.attachments(id)).filter((a) => a.kind === "photo");
+    const [fryerPhoto] = await photosOf(items[0]!.id);
+    const green = await sharp(new Uint8Array(await (await pat.as(`/api/v1/attachments/${fryerPhoto!.id}/content`)).arrayBuffer())).stats();
+    expect(green.channels[1]!.mean).toBeGreaterThan(200);
+    expect(green.channels[0]!.mean).toBeLessThan(50);
+    // No picture by the towels; the receipt's own thing (the mixer, which had none) gets its.
+    expect(await photosOf(items[1]!.id)).toHaveLength(0);
+    expect(await photosOf(mixer.id)).toHaveLength(1);
+    expect(asked).toHaveLength(3);
+  });
+
+  it("shares one stored receipt between the things bought on it, kept until the last of them goes", async () => {
+    const chat = new FakeAi([receipt]);
+    const { user, jobs, db, deps, files } = await setup({ chat, documents: new FakeDocuments(["COSTCO"]) });
+    const pat = await user("pat");
+    const mixer = await pat.addItem({ name: "Mixer" });
+    await pat.upload(mixer.id, pdf(), "costco.pdf", "document");
+    await jobs.drain();
+    const [file] = await pat.attachments(mixer.id);
+    const usage = async () => (await json<{ fileBytes: { used: number } }>(pat.as("/api/v1/plan"))).fileBytes.used;
+    const before = await usage();
+    const { items } = await json<{ items: { id: string }[] }>(
+      pat.as(`/api/v1/attachments/${file!.id}/lines`, post({ lines: [{ name: "Air fryer", priceCents: 8999 }, { name: "Bath towel", quantity: 4 }] })),
+    );
+    const rows = await db.select().from(attachment).where(eq(attachment.householdId, pat.householdId));
+    expect(new Set(rows.map((r) => r.blobKey)).size).toBe(1); // one stored file, three rows
+    expect(rows).toHaveLength(3);
+    // Counted once.
+    expect(await usage()).toBe(before);
+    // Each opens.
+    const [fryerCopy] = await pat.attachments(items[0]!.id);
+    expect((await pat.as(`/api/v1/attachments/${fryerCopy!.id}/content`)).status).toBe(200);
+
+    // Two of the three things deleted and purged: the file stays for the last one, then goes with it.
+    const later = Date.now() + 31 * 24 * 60 * 60 * 1000;
+    for (const id of [mixer.id, items[0]!.id]) await pat.as(`/api/v1/items/${id}`, { method: "DELETE" });
+    await purgeDeleted({ db, deps, files }, later);
+    const [towelCopy] = await pat.attachments(items[1]!.id);
+    expect((await pat.as(`/api/v1/attachments/${towelCopy!.id}/content`)).status).toBe(200);
+    await pat.as(`/api/v1/items/${items[1]!.id}`, { method: "DELETE" });
+    await purgeDeleted({ db, deps, files }, later);
+    expect(await files.get(pat.householdId, rows[0]!.blobKey)).toBeNull();
   });
 
   it("can be told not these", async () => {

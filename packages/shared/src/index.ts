@@ -704,6 +704,9 @@ export type AttachmentSuggestions = Partial<
   categoryId?: string;
   /** A receipt, invoice or order with several different products on it: each one (the other things it bought). */
   lines?: ReceiptLine[];
+  /** The receipt's order number, and its invoice number, as printed: what tells it was added before. */
+  orderNumber?: string;
+  invoiceNumber?: string;
   /** Its lines were added (or "Not these"): kept, so it's still read as a receipt of several things, but not offered again. */
   linesHandled?: boolean;
   /** The fields the model said it read plainly off the file (not inferred) — the only ones the AI may fill in by itself. */
@@ -721,14 +724,19 @@ export const receiptLinesInput = z.object({
         quantity: z.number().int().min(1).max(100_000).default(1),
         priceCents: z.number().int().min(0).max(1_000_000_000).nullish(),
         categoryId: z.string().nullish(),
+        /** The thing it's a part or supply for (an accessory of the printer it came with). */
+        partOfItemId: z.string().min(1).nullish(),
+        barcode: z.string().trim().regex(/^\d{8,14}$/).nullish(),
       }),
     )
     .min(1)
-    .max(30),
+    .max(200),
   /** Where they go; left out, where the receipt's thing is. */
   locationId: z.string().nullish(),
   /** The receipt's own thing is an unnamed "New item" (the receipt photographed on its own): the first line becomes it. */
   intoItem: z.boolean().default(false),
+  /** The line that's the receipt's own thing (not added): its photo from the invoice goes to that thing, if it has none. */
+  ownLine: z.object({ name: z.string().trim().min(1).max(200), model: z.string().trim().max(120).nullish() }).nullish(),
 });
 export type ReceiptLinesInput = z.infer<typeof receiptLinesInput>;
 
@@ -737,11 +745,25 @@ export interface ReceiptLine {
   name: string;
   brand?: string;
   model?: string;
+  /** For an accessory or supply: the model of the machine it's printed as being for ("R1"), to suggest it's a part of that. */
+  fits?: string;
+  /** Its UPC/EAN as the receipt prints it. */
+  barcode?: string;
+  /** Food or drink (groceries): starts unticked — not usually kept track of. */
+  food?: boolean;
   quantity: number;
   /** The price paid for one, in cents. */
   priceCents?: number;
   /** One of the household's categories, if the model picked one. */
   categoryId?: string;
+}
+
+/** What of a receipt is already in Ferret (GET /attachments/{id}/lines). */
+export interface ReceiptLinesKnown {
+  /** Things already added from a receipt with the same order number: how many, and when the first was. */
+  order?: { number: string; things: number; addedAt: string };
+  /** For each of its lines, in order: the thing already in Ferret that's probably it, or null. */
+  lines: ({ id: string; name: string } | null)[];
 }
 
 /** One of a thing's parts or supplies (Parts & supplies on its page): an item of the household's. */

@@ -8,6 +8,7 @@
  * An item's photos, warranties and maintenance stay with it while it's deleted
  * (they're hidden because it is), so a restore brings them all back.
  */
+import { blobsStillUsed } from "./attachments";
 import { PHOTO_ORDER } from "./photo-order";
 import { previewKey } from "../jobs/analyze";
 import { requireRoom } from "./plan";
@@ -109,12 +110,24 @@ export async function deleteItemForGood(v: Caller, files: FileStore, id: string)
 
 type Purger = { db: Db; deps: Pick<Deps, "vectors">; files: FileStore };
 
-/** The encrypted files of these attachments (originals, thumbnails, and a vision copy never analysed). */
-async function deleteFiles(p: Purger, rows: { blobKey: string; thumbnailKey: string | null }[]) {
+/**
+ * The encrypted files of these attachments (originals, thumbnails, and a vision copy never analysed) — except those
+ * another attachment still uses (a receipt shared by the things bought on it).
+ */
+async function deleteFiles(p: Purger, rows: { id: string; blobKey: string; thumbnailKey: string | null }[]) {
+  const keys = rows.flatMap((r) => [r.blobKey, ...(r.thumbnailKey ? [r.thumbnailKey] : [])]);
+  const kept = await blobsStillUsed(p.db, [...new Set(keys)], rows.map((r) => r.id));
+  const gone = new Set<string>();
   for (const r of rows) {
-    await p.files.delete(r.blobKey);
-    if (r.thumbnailKey) await p.files.delete(r.thumbnailKey);
-    await p.files.delete(previewKey(r.blobKey)).catch(() => {});
+    if (!kept.has(r.blobKey) && !gone.has(r.blobKey)) {
+      await p.files.delete(r.blobKey);
+      await p.files.delete(previewKey(r.blobKey)).catch(() => {});
+      gone.add(r.blobKey);
+    }
+    if (r.thumbnailKey && !kept.has(r.thumbnailKey) && !gone.has(r.thumbnailKey)) {
+      await p.files.delete(r.thumbnailKey);
+      gone.add(r.thumbnailKey);
+    }
   }
 }
 
@@ -123,7 +136,7 @@ async function purgeItems(p: Purger, ids: string[]) {
   if (!ids.length) return;
   await deleteFiles(
     p,
-    await p.db.select({ blobKey: attachment.blobKey, thumbnailKey: attachment.thumbnailKey }).from(attachment).where(inList(attachment.itemId, ids)),
+    await p.db.select({ id: attachment.id, blobKey: attachment.blobKey, thumbnailKey: attachment.thumbnailKey }).from(attachment).where(inList(attachment.itemId, ids)),
   );
   for (const id of ids) {
     await p.db.run(sql`DELETE FROM item_search WHERE item_id = ${id}`);

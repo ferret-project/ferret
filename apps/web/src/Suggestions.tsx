@@ -28,16 +28,34 @@ const fields: { key: Field; label: MessageDescriptor; format?: (v: string | numb
 const same = (a: unknown, b: unknown) =>
   String(a ?? "").trim().toLowerCase() === String(b ?? "").trim().toLowerCase();
 
-/** Which of a receipt's lines is this thing: the one at its price (or the receipt's), else one sharing its name; -1 for none. */
-export function receiptLineOf(lines: ReceiptLine[], item: Pick<Item, "name" | "purchasePriceCents">, s?: AttachmentSuggestions) {
-  const price = item.purchasePriceCents ?? s?.purchasePriceCents;
-  const byPrice = price != null ? lines.findIndex((l) => l.priceCents === price) : -1;
-  if (byPrice >= 0 || item.name === "New item") return byPrice;
+/** Which of a receipt's lines is this thing: the one at its price (or the receipt's), else one sharing its name, else the dearest when its model names it; -1 for none. */
+export function receiptLineOf(lines: ReceiptLine[], item: Pick<Item, "name" | "model" | "purchasePriceCents">, s?: AttachmentSuggestions) {
+  const at = (price?: number | null) => (price != null ? lines.findIndex((l) => l.priceCents === price) : -1);
+  const own = at(item.purchasePriceCents);
+  if (own >= 0) return own;
+  if (item.name === "New item") return at(s?.purchasePriceCents);
+  // Its name before the receipt's price: the receipt's top-level price can be any product's.
   const name = item.name.toLowerCase();
-  return lines.findIndex((l) => {
+  const byName = lines.findIndex((l) => {
     const line = l.name.toLowerCase();
     return line.includes(name) || name.includes(line);
   });
+  if (byName >= 0) return byName;
+  const byPrice = at(s?.purchasePriceCents);
+  if (byPrice >= 0) return byPrice;
+  // "Bambu Lab R1" and its line "R1 Long Material Bundle", model R1: the dearest line, when its model is in this
+  // thing's name (or is its model). Only the dearest — an R1's lenses are model R1 too.
+  const dearest = lines.reduce((best, l, i) => ((l.priceCents ?? -1) > (lines[best]?.priceCents ?? -1) ? i : best), 0);
+  return namesModel(item, lines[dearest]?.model) ? dearest : -1;
+}
+
+/** A model ("R1") that's this thing's model, or a whole word of its name. */
+export function namesModel(item: Pick<Item, "name"> & { model?: string | null }, model?: string | null) {
+  const m = model?.trim().toLowerCase();
+  if (!m || m.length < 2) return false;
+  if (item.model?.trim().toLowerCase() === m) return true;
+  const words = item.name.toLowerCase().split(/[^\p{L}\p{N}-]+/u);
+  return words.includes(m);
 }
 
 /**

@@ -21,7 +21,7 @@ export function modelHeaders(apiKey: string | undefined, json = true): Record<st
   return { ...(json ? { "Content-Type": "application/json" } : {}), ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}) };
 }
 
-type JsonRequest = { prompt: string; schema: object; image?: { data: Uint8Array; contentType: string }; maxTokens?: number };
+type JsonRequest = { prompt: string; schema: object; image?: { data: Uint8Array; contentType: string }; maxTokens?: number; timeoutMs?: number; effort?: "medium" | "high" };
 
 /**
  * A model's JSON answer: asked once, and once more (a little less strictly) if the reply doesn't parse — now and then
@@ -157,13 +157,14 @@ export class OpenAiChat implements TextModel {
         method: "POST",
         headers: modelHeaders(this.opts.apiKey),
         // A cold model load plus a busy GPU can take minutes.
-        signal: AbortSignal.timeout(this.opts.timeoutMs ?? 300_000),
+        signal: AbortSignal.timeout(request.timeoutMs ?? this.opts.timeoutMs ?? 300_000),
         body: JSON.stringify({
           model: this.model,
           temperature,
           messages: [{ role: "user", content: image ? content : prompt }],
           response_format: { type: "json_schema", json_schema: { name: "reply", schema: portableSchema(schema) } },
-          ...(this.opts.reasoningEffort ? { reasoning_effort: this.opts.reasoningEffort } : {}),
+          // Only to a model that takes it (configured with one): more when the request asks.
+          ...(this.opts.reasoningEffort ? { reasoning_effort: request.effort ?? this.opts.reasoningEffort } : {}),
           ...(maxTokens ? { max_tokens: maxTokens } : {}),
         }),
       });

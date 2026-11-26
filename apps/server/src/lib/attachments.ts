@@ -189,10 +189,53 @@ export async function removeOriginals(deps: { db: Db; files: FileStore }, househ
     if (!row) continue;
     // The row first: if deleting the file then fails, it's an orphan blob, never a row pointing at nothing.
     await deps.db.update(attachment).set({ originalRemovedAt: new Date() }).where(eq(attachment.id, id));
+    // A file other things still show in full (a shared receipt) stays.
+    const [other] = await deps.db.select({ id: attachment.id }).from(attachment).where(and(eq(attachment.blobKey, row.blobKey), ne(attachment.id, id), isNull(attachment.originalRemovedAt))).limit(1);
+    if (other) continue;
     await deps.files.delete(row.blobKey);
     freed += row.size;
   }
   return freed;
+}
+
+/**
+ * Another thing's copy of a file — a receipt's, on each thing bought on it — sharing its stored file and thumbnail
+ * (one invoice on 58 things is stored once). Already read: the same words to find it by, and no suggestions (they're
+ * the first one's). The stored file goes only when no row uses it any more (lib/trash.ts, removeOriginals, backups).
+ */
+export async function addSharedCopy(v: Caller, to: FileOwner, of: typeof attachment.$inferSelect) {
+  const owner = await resolveOwner(v, to);
+  const [row] = await v.db
+    .insert(attachment)
+    .values({
+      id: crypto.randomUUID(),
+      householdId: v.householdId,
+      ...owner.columns,
+      kind: of.kind,
+      filename: of.filename,
+      contentType: of.contentType,
+      size: of.size,
+      blobKey: of.blobKey,
+      thumbnailKey: of.thumbnailKey,
+      analysisStatus: "done",
+      analysis: of.analysis ? { description: of.analysis.description, text: of.analysis.text, suggestions: {} } : null,
+      analyzedAt: new Date(),
+      createdBy: v.userId,
+    })
+    .returning(attachmentFields);
+  await refreshFileSearch(v.db, row!.id);
+  return row!;
+}
+
+/** Of these stored files, the ones a row other than `except` still uses (shared copies): not to be deleted. */
+export async function blobsStillUsed(db: Db, keys: string[], except: string[]) {
+  if (!keys.length) return new Set<string>();
+  const leaving = new Set(except);
+  const users = [
+    ...(await db.select({ id: attachment.id, key: attachment.blobKey }).from(attachment).where(inList(attachment.blobKey, keys))),
+    ...(await db.select({ id: attachment.id, key: attachment.thumbnailKey }).from(attachment).where(inList(attachment.thumbnailKey, keys))),
+  ];
+  return new Set(users.filter((u) => !leaving.has(u.id) && u.key).map((u) => u.key!));
 }
 
 /** Longest side of a thumbnail, in px: crisp on a 3× phone screen, even for the 2×2 cover tile. */

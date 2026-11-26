@@ -57,6 +57,22 @@ window, and gets its own copy of the receipt. A receipt photographed on its own 
 things on this receipt…** with every line ticked, its own first: the first one ticked becomes that *New item*.
 **Not these** stops offering them.
 
+Every product is read, however long the receipt: a PDF of several pages is read a few pages at a time, and the
+products are checked against the subtotal it prints — when they don't add up, Ferret reads them again, more carefully,
+before offering them. Prices are what each one cost after its discounts and before tax, and a free gift comes in at
+nothing. It takes a few minutes for a long invoice. Food and drink on a grocery receipt start unticked — tick them if
+you do keep track of them — and a barcode printed by a product becomes its barcode.
+
+**Added before?** Things added from a receipt remember its order number. Add the same receipt again — or one you're
+not sure about — and the lines already in Ferret start unticked, marked **Already in Ferret** with a link to the
+thing; a line also counts when you added that product some other way at the same price or the same week. A note at
+the top says when things from that order were first added.
+
+**Parts and photos.** An accessory printed as being for a machine — a lens "for R1", hotends for an H3C — starts as a
+**Part of** that thing when you have it (**Change** or **Not a part** to say otherwise; **Part of…** on any line). An
+invoice that prints a photo by each product gives each new thing that photo, and the receipt's own thing too if it
+has none yet.
+
 ![On this receipt: a blender, a Dutch oven, a scale and two peelers, each ticked, with how many and the price, and Add 4 things](/screenshots/receipt-lines-light.webp){.shot .light-only}
 ![On this receipt: a blender, a Dutch oven, a scale and two peelers, each ticked, with how many and the price, and Add 4 things](/screenshots/receipt-lines-dark.webp){.shot .dark-only}
 

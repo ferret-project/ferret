@@ -2,21 +2,25 @@
  * "Also on this receipt" (server: lib/receipt-lines.ts): a receipt with several things on it lists the others, and
  * each one ticked becomes a thing of its own — bought the same day at its own price, where this thing is (or another
  * place), in the category the AI picked, with a copy of the receipt. The line that's probably this thing starts
- * unticked. Names, how many and prices can be corrected first; nothing is added until Add.
+ * unticked, and so does food or drink (groceries aren't usually kept track of), and each one already in Ferret (added from the same order before, or the same product bought then —
+ * GET /attachments/{id}/lines). An accessory whose model names a thing (an R1's lens, model R1) starts as a part of
+ * it. Names, how many, prices and parts can be corrected first; nothing is added until Add.
  */
 import type { Attachment, Item, ReceiptLine } from "@ferret/shared";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { flattenCategories, useCategories } from "./Catalog";
-import { PlacePicker } from "./Combobox";
+import { type Choice, ItemPicker, PlacePicker } from "./Combobox";
 import { DialogActions, Modal } from "./Modal";
-import { receiptLineOf } from "./Suggestions";
+import { namesModel, receiptLineOf } from "./Suggestions";
 import { api } from "./lib/api";
+import { itemHref } from "./lib/route";
 import { currencySymbol, money, toCents } from "./lib/money";
 import { t, ph, plural } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 
-type Row = ReceiptLine & { key: number; ticked: boolean; price: string; thisOne: boolean };
+/** `ticked` and `partOf` stay undefined until changed: until then what Ferret found decides them. */
+type Row = ReceiptLine & { key: number; ticked?: boolean; price: string; thisOne: boolean; partOf?: Choice | null; pickPart?: boolean };
 
 /** The line that's this thing (Suggestions.tsx decides the same way). */
 const thisOne = (lines: ReceiptLine[], item: Item, receipt: Attachment) => receiptLineOf(lines, item, receipt.analysis?.suggestions);
@@ -50,11 +54,39 @@ function ReceiptLinesDialog({ item, receipt, householdId, onClose }: { item: Ite
   // A named thing already is its line, so that one starts unticked. An unnamed "New item" becomes the first line ticked,
   // so every line starts ticked and its own line goes first — otherwise the next line would take its place and its own
   // (often the dearest) would never be added.
+  const known = useQuery({ queryKey: ["receipt-lines", householdId, receipt.id], queryFn: () => api.receiptLinesKnown(receipt.id) });
+  // What an accessory is for: the machine it's printed as fitting ("R1 / Medium Focal"), else its own model.
+  const fitsOf = (l: ReceiptLine) => (l.fits ?? l.model)?.trim() || null;
+  // The things each other one names (an H3C's hotends → the H3C): the dearest thing whose model or name it is.
+  const models = [...new Set(lines.filter((l, key) => key !== mine && fitsOf(l) && !namesModel(item, fitsOf(l))).map((l) => fitsOf(l)!))];
+  const named = useQuery({
+    queryKey: ["items", householdId, "receipt-parts", models],
+    queryFn: async () => {
+      const out = new Map<string, Choice>();
+      for (const model of models.slice(0, 20)) {
+        const hits = (await api.listItems(model, { limit: 10 })).data.filter((it) => it.id !== item.id && namesModel(it, model));
+        const best = hits.sort((a, b) => (b.purchasePriceCents ?? 0) - (a.purchasePriceCents ?? 0))[0];
+        if (best) out.set(model.toLowerCase(), { id: best.id, label: best.name });
+      }
+      return out;
+    },
+    enabled: models.length > 0,
+  });
+  // The line that's this thing is "in Ferret" as this thing, not as another.
+  const already = (r: Row) => (r.thisOne ? null : (known.data?.lines[r.key] ?? null));
+  const ownChoice: Choice = { id: item.id, label: item.name };
+  const suggestedPart = (r: Row): Choice | null => {
+    const fits = fitsOf(r);
+    if (r.thisOne || !fits) return null;
+    if (!unnamed(item) && namesModel(item, fits)) return ownChoice;
+    return named.data?.get(fits.toLowerCase()) ?? null;
+  };
+  const partOf = (r: Row) => (r.partOf !== undefined ? r.partOf : suggestedPart(r));
+  const isTicked = (r: Row) => r.ticked ?? ((unnamed(item) || r.key !== mine) && !already(r) && !r.food);
   const [rows, setRows] = useState<Row[]>(() => {
     const all = lines.map((l, key) => ({
       ...l,
       key,
-      ticked: unnamed(item) || key !== mine,
       thisOne: key === mine,
       price: l.priceCents != null ? (l.priceCents / 100).toFixed(2) : "",
     }));
@@ -62,9 +94,10 @@ function ReceiptLinesDialog({ item, receipt, householdId, onClose }: { item: Ite
   });
   const [place, setPlace] = useState<string | null>(item.locationId ?? null);
   const change = (key: number, patch: Partial<Row>) => setRows((all) => all.map((r) => (r.key === key ? { ...r, ...patch } : r)));
-  const ticked = rows.filter((r) => r.ticked && r.name.trim());
+  const ticked = rows.filter((r) => isTicked(r) && r.name.trim());
+  const alreadyCount = rows.filter((r) => already(r)).length;
   const refresh = async () => {
-    for (const k of ["items", "places", "overview", "to-confirm"]) await qc.invalidateQueries({ queryKey: [k, householdId] });
+    for (const k of ["items", "places", "overview", "to-confirm", "receipt-lines"]) await qc.invalidateQueries({ queryKey: [k, householdId] });
     await qc.invalidateQueries({ queryKey: ["attachments", householdId, item.id] });
     await qc.invalidateQueries({ queryKey: ["item", householdId, item.id] });
   };
@@ -73,7 +106,8 @@ function ReceiptLinesDialog({ item, receipt, householdId, onClose }: { item: Ite
       api.addReceiptLines(receipt.id, {
         locationId: place,
         intoItem: unnamed(item),
-        lines: ticked.map((r) => ({ name: r.name.trim(), brand: r.brand ?? null, model: r.model ?? null, quantity: r.quantity, priceCents: toCents(r.price), categoryId: r.categoryId ?? null })),
+        ownLine: !unnamed(item) && mine >= 0 ? { name: lines[mine]!.name, model: lines[mine]!.model ?? null } : null,
+        lines: ticked.map((r) => ({ name: r.name.trim(), brand: r.brand ?? null, model: r.model ?? null, quantity: r.quantity, priceCents: toCents(r.price), categoryId: r.categoryId ?? null, partOfItemId: partOf(r)?.id ?? null, barcode: r.barcode ?? null })),
       }),
     onSuccess: async () => {
       await refresh();
@@ -104,13 +138,29 @@ function ReceiptLinesDialog({ item, receipt, householdId, onClose }: { item: Ite
             <Trans>Each one ticked becomes a thing of its own, bought the same day, with a copy of the receipt. Check what AI read first.</Trans>
           )}
         </p>
+        {known.data?.order && (
+          <div className="alert alert-soft alert-warning" role="status">
+            <span className="icon-[tabler--copy-check] size-5 shrink-0" />
+            <span>
+              {plural(known.data.order.things, {
+                one: `# thing from order ${ph({ number: known.data.order.number })} was already added, on ${ph({ day: new Date(known.data.order.addedAt).toLocaleDateString() })}.`,
+                other: `# things from order ${ph({ number: known.data.order.number })} were already added, on ${ph({ day: new Date(known.data.order.addedAt).toLocaleDateString() })}.`,
+              })}
+            </span>
+          </div>
+        )}
+        {alreadyCount > 0 && (
+          <p className="text-sm">
+            {plural(alreadyCount, { one: "# of them is probably in Ferret already, so it isn't ticked.", other: "# of them are probably in Ferret already, so they aren't ticked." })}
+          </p>
+        )}
         <ul className="flex flex-col gap-3">
           {rows.map((r) => (
             <li key={r.key} className="flex items-start gap-3 rounded-box border border-base-content/10 p-3">
               <input
                 type="checkbox"
                 className="checkbox checkbox-primary mt-2.5"
-                checked={r.ticked}
+                checked={isTicked(r)}
                 onChange={(e) => change(r.key, { ticked: e.target.checked })}
                 aria-label={t`Add ${ph({ name: r.name })}`}
               />
@@ -140,6 +190,51 @@ function ReceiptLinesDialog({ item, receipt, householdId, onClose }: { item: Ite
                     </span>
                   )}
                 </p>
+                {r.food && !already(r) && (
+                  <p className="text-base-content/70 text-sm">
+                    <span className="icon-[tabler--apple] me-1 size-4 align-[-3px]" />
+                    <Trans>Food or drink, so it isn't ticked</Trans>
+                  </p>
+                )}
+                {already(r) && (
+                  <p className="text-sm">
+                    <span className="icon-[tabler--copy-check] me-1 size-4 align-[-3px]" />
+                    <Trans>
+                      Already in Ferret:{" "}
+                      <a className="link link-primary tap" href={itemHref(already(r)!.id)} target="_blank" rel="noreferrer">
+                        {already(r)!.name}
+                      </a>
+                    </Trans>
+                  </p>
+                )}
+                {isTicked(r) && !r.thisOne && (partOf(r) || r.pickPart ? (
+                  r.pickPart ? (
+                    <ItemPicker
+                      householdId={householdId}
+                      id={`receipt-line-part-${r.key}`}
+                      name={`part-${r.key}`}
+                      label={t`Part of`}
+                      value={partOf(r)}
+                      onChange={(choice) => change(r.key, { partOf: choice, pickPart: !choice })}
+                      noneLabel={t`Not a part of anything`}
+                    />
+                  ) : (
+                    <p className="flex flex-wrap items-center gap-1 text-sm">
+                      <Trans>Part of {ph({ thing: partOf(r)!.label })}</Trans>
+                      <button type="button" className="btn btn-text btn-xs tap" onClick={() => change(r.key, { pickPart: true })}>
+                        <Trans>Change</Trans>
+                      </button>
+                      <button type="button" className="btn btn-text btn-xs tap" onClick={() => change(r.key, { partOf: null })}>
+                        <Trans>Not a part</Trans>
+                      </button>
+                    </p>
+                  )
+                ) : (
+                  <button type="button" className="btn btn-text btn-xs tap self-start" onClick={() => change(r.key, { pickPart: true })}>
+                    <span className="icon-[tabler--puzzle] size-4" />
+                    <Trans>Part of…</Trans>
+                  </button>
+                ))}
               </div>
             </li>
           ))}

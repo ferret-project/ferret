@@ -13,7 +13,7 @@ import { getAiRun } from "../lib/ai-runs";
 import { askReplacementEstimate, askReplacementEstimates, dismissReplacementEstimate } from "../lib/replacement";
 import { itemFromText } from "../lib/item-from-text";
 import { toConfirm } from "../lib/to-confirm";
-import { addReceiptLines, dismissReceiptLines } from "../lib/receipt-lines";
+import { addReceiptLines, dismissReceiptLines, receiptLinesKnown } from "../lib/receipt-lines";
 import { filtersFromText } from "../lib/plain-filters";
 import { draftListing } from "../lib/listing";
 import { filtersFromTextInput, itemFromTextInput, receiptLinesInput, replacementEstimatesInput } from "@ferret/shared";
@@ -61,6 +61,7 @@ ai.post("/items/from-text", requireWriter, async (c) => {
 ai.get("/to-confirm", async (c) => c.json(await toConfirm(callerOf(c))));
 
 /** A receipt's other things: add the ones ticked (each with a copy of the receipt), or not these. */
+ai.get("/attachments/:id/lines", async (c) => c.json(await receiptLinesKnown(callerOf(c), c.req.param("id"))));
 ai.post("/attachments/:id/lines", requireWriter, async (c) => c.json(await addReceiptLines(callerOf(c), c.var.files, c.req.param("id"), await body(c.req.raw, receiptLinesInput)), 201));
 ai.delete("/attachments/:id/lines", requireWriter, async (c) => {
   await dismissReceiptLines(callerOf(c), c.req.param("id"));

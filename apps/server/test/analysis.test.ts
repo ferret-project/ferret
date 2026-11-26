@@ -3,7 +3,7 @@ import sharp from "sharp";
 import { describe, expect, it, vi } from "vitest";
 import { SharpImages } from "../src/adapters/local/images";
 import { attachment, job } from "../src/db/schema";
-import { previewKey, toAnalysis } from "../src/jobs/analyze";
+import { joinPages, lineName, previewKey, printedSubtotal, readEveryLine, receiptParts, toAnalysis } from "../src/jobs/analyze";
 import { FakeAi, FakeDocuments, pdf, photo, setup } from "./helpers";
 
 const drillReply = {
@@ -442,5 +442,101 @@ describe("toAnalysis", () => {
       { title: "Replace the air filter", intervalCount: 3, intervalUnit: "month" },
       { title: "Have it serviced", intervalCount: 1, intervalUnit: "year" },
     ]);
+  });
+});
+
+describe("every product on a long receipt", () => {
+  const row = (name: string, sku: string, price: string, total: string) => `${name}\nSKU: ${sku}\n1 $${price}\nTAX(1%)\n$0.10 $${total}`;
+
+  it("cuts its text into parts after a row's last amount, keeping every line", () => {
+    const text = Array.from({ length: 40 }, (_, i) => row(`PLA Basic ${i}`, `A00-${i}`, "14.99", "9.74")).join("\n");
+    const parts = receiptParts(text, 600);
+    expect(parts.length).toBeGreaterThan(2);
+    for (const part of parts.slice(0, -1)) expect(part).toMatch(/\$9\.74$/);
+    expect(parts.join("\n")).toBe(text);
+  });
+
+  it("joins pages without the column names each one starts with", () => {
+    const heading = "Items Qty Price\nSubTotal";
+    const pages = [`INVOICE\n${heading}\n${row("PLA Basic", "A00-Y4", "14.99", "9.74")}`, `${heading}\nVariant: Gold\n${row("PLA Basic", "A00-G3", "14.99", "9.74")}`];
+    const text = joinPages(pages);
+    expect(text.match(/Items Qty Price/g)).toHaveLength(1);
+    // The variant cut off by the page break follows its product's row straight away.
+    expect(text).toContain("$0.10 $9.74\nVariant: Gold");
+  });
+
+  it("tidies names of codes, packaging and a variant that repeats the name", () => {
+    expect(lineName("ABS-GF, Orange (41300) / Filament with spool / 1 kg")).toBe("ABS-GF, Orange");
+    expect(lineName("Maker's Supply Flush Cutter, Flush Cutter")).toBe("Maker's Supply Flush Cutter");
+    expect(lineName("Gift, PETG Matte, Lime")).toBe("PETG Matte, Lime");
+    expect(lineName("Stand mixer")).toBe("Stand mixer");
+  });
+
+  it("prices each at its line's total after discounts, shared out; a gift at nothing; tells same-named ones apart", () => {
+    const a = toAnalysis({
+      description: "x",
+      lines: [
+        { name: "PLA Silk+, Gold", model: "A06-Y1", quantity: 1, price: 18.99, total: 12.34 },
+        { name: "Acrylic Kit", model: "B-ZE016", quantity: 2, price: 89, total: 124.58 },
+        { name: "Mini SUV", model: "B-ZK012", quantity: 2, price: 49.99, total: 0 },
+        { name: "Focusing Lens", model: "SLA099", fits: "R1", quantity: 1, price: 30.99, total: 30.99 },
+        { name: "Focusing Lens", model: "SLA100", fits: "R1", quantity: 1, price: 31.99, total: 31.99 },
+        { name: "PLA Basic, Blue", model: "A00-B9", quantity: 1, price: 17.99, total: 11.69 },
+        { name: "PLA Basic, Blue", model: "A00-B9", quantity: 1, price: 17.99, total: 0 },
+      ],
+      parts: [{ name: "Flush cutter", partNumber: "B-QA018", packSize: null }],
+    }).suggestions;
+    expect(a.lines?.map((l) => [l.name, l.priceCents])).toEqual([
+      ["PLA Silk+, Gold", 1234],
+      ["Acrylic Kit", 6229],
+      ["Mini SUV", 0],
+      ["Focusing Lens, SLA099", 3099],
+      ["Focusing Lens, SLA100", 3199],
+      // One bought, the same one free: one model, nothing to tell apart.
+      ["PLA Basic, Blue", 1169],
+      ["PLA Basic, Blue", 0],
+    ]);
+    expect(a.lines?.[3]?.fits).toBe("R1");
+    // A receipt's products aren't a manual's spare parts.
+    expect(a.parts).toBeUndefined();
+  });
+
+  it("finds the subtotal a receipt prints, in its own style", () => {
+    expect(printedSubtotal("SUBTOTAL 536.35\nTAX 29.94\n**** TOTAL 566.29")).toBe(536.35);
+    expect(printedSubtotal("Items Subtotal $1073.68\nShipping $0.00")).toBe(1073.68);
+    expect(printedSubtotal("Subtotal (9 Items) $6,469.91")).toBe(6469.91);
+    expect(printedSubtotal("Zwischensumme\nSub-total: 1.234,56 EUR")).toBe(1234.56);
+    expect(printedSubtotal("Order Total 9.99")).toBeNull();
+  });
+
+  it("doesn't take a summing-up name with no price for a product", () => {
+    const lines = [{ name: "Rotary Attachment", quantity: 1, price: 275.99 }, { name: "Focusing Lens", quantity: 1, price: 30.99 }];
+    expect(toAnalysis({ description: "x", name: "3D printing supplies", lines }).suggestions.lines).toHaveLength(2);
+  });
+
+  it("reads again in parts of other sizes while the products don't add up to the subtotal, and keeps the closest", async () => {
+    const text = Array.from({ length: 12 }, (_, i) => row(`PLA ${i}`, `A00-${i}`, "14.99", "9.74")).join("\n");
+    const all = Array.from({ length: 12 }, (_, i) => ({ name: `PLA ${i}`, model: `A00-${i}`, quantity: 1, price: 14.99, total: 9.74 }));
+    // Each part lists the products whose rows are in it — except that the first read leaves out its last part's.
+    let reads = 0;
+    const efforts: (string | undefined)[] = [];
+    const model = {
+      async json(req: { prompt: string; effort?: string }) {
+        const [, part, parts] = /part (\d+) of (\d+)/.exec(req.prompt)!.map(Number);
+        if (part === 1) {
+          reads++;
+          efforts.push(req.effort);
+        }
+        const document = req.prompt.slice(req.prompt.indexOf("<document>"), req.prompt.indexOf("</document>"));
+        const mine = all.filter((l) => document.includes(`SKU: ${l.model}\n`));
+        return { lines: reads === 1 && part === parts ? [] : mine };
+      },
+    };
+    const lines = await readEveryLine(model, text, "USD", undefined, 116.88);
+    expect(lines).toHaveLength(12);
+    expect(lines.reduce((s, l) => s + (l.priceCents ?? 0), 0)).toBe(11688);
+    expect(reads).toBe(2);
+    // The second read thinks harder.
+    expect(efforts).toEqual([undefined, "medium"]);
   });
 });
