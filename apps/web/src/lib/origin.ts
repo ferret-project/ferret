@@ -13,7 +13,7 @@ export const ORIGIN_HOW: Record<ItemOrigin, MessageDescriptor> = {
   cards: msg`with Scan cards`,
   collector: msg`from a collector catalog`,
   label: msg`from a QR label`,
-  receipt: msg`from a receipt with several things on it`,
+  receipt: msg`from a receipt`,
   words: msg`by describing it in words`,
   shared: msg`by sharing it to Ferret from another app`,
   spreadsheet: msg`from a spreadsheet`,

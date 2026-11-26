@@ -12,6 +12,7 @@ import { useState } from "react";
 import { flattenCategories, useCategories } from "./Catalog";
 import { type Choice, ItemPicker, PlacePicker } from "./Combobox";
 import { DialogActions, Modal } from "./Modal";
+import { navigateTo } from "./lib/navigate";
 import { namesModel, receiptLineOf } from "./Suggestions";
 import { api } from "./lib/api";
 import { itemHref } from "./lib/route";
@@ -72,8 +73,9 @@ function ReceiptLinesDialog({ item, receipt, householdId, onClose }: { item: Ite
     },
     enabled: models.length > 0,
   });
-  // The line that's this thing is "in Ferret" as this thing, not as another.
-  const already = (r: Row) => (r.thisOne ? null : (known.data?.lines[r.key] ?? null));
+  // A named thing's own line is "in Ferret" as this thing, not as another. An unnamed "New item" isn't any line yet: a
+  // receipt added again (+ Add → From a receipt) finds its lines already in Ferret, and none of them starts ticked.
+  const already = (r: Row) => (r.thisOne && !unnamed(item) ? null : (known.data?.lines[r.key] ?? null));
   const ownChoice: Choice = { id: item.id, label: item.name };
   const suggestedPart = (r: Row): Choice | null => {
     const fits = fitsOf(r);
@@ -96,6 +98,9 @@ function ReceiptLinesDialog({ item, receipt, householdId, onClose }: { item: Ite
   const change = (key: number, patch: Partial<Row>) => setRows((all) => all.map((r) => (r.key === key ? { ...r, ...patch } : r)));
   const ticked = rows.filter((r) => isTicked(r) && r.name.trim());
   const alreadyCount = rows.filter((r) => already(r)).length;
+  // Everything on it is in Ferret already: the unnamed "New item" made for it has nothing to become.
+  const allKnown = unnamed(item) && rows.length > 0 && alreadyCount === rows.length;
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const refresh = async () => {
     for (const k of ["items", "places", "overview", "to-confirm", "receipt-lines"]) await qc.invalidateQueries({ queryKey: [k, householdId] });
     await qc.invalidateQueries({ queryKey: ["attachments", householdId, item.id] });
@@ -112,6 +117,14 @@ function ReceiptLinesDialog({ item, receipt, householdId, onClose }: { item: Ite
     onSuccess: async () => {
       await refresh();
       onClose();
+    },
+  });
+  const remove = useMutation({
+    mutationFn: () => api.deleteItem(item.id),
+    onSuccess: async () => {
+      for (const k of ["items", "places", "overview", "to-confirm", "attention"]) await qc.invalidateQueries({ queryKey: [k, householdId] });
+      onClose();
+      navigateTo("#/");
     },
   });
   const dismiss = useMutation({
@@ -147,6 +160,22 @@ function ReceiptLinesDialog({ item, receipt, householdId, onClose }: { item: Ite
                 other: `# things from order ${ph({ number: known.data.order.number })} were already added, on ${ph({ day: new Date(known.data.order.addedAt).toLocaleDateString() })}.`,
               })}
             </span>
+          </div>
+        )}
+        {allKnown && (
+          <div className="alert alert-soft alert-warning flex-wrap" role="status">
+            <span className="icon-[tabler--copy-check] size-5 shrink-0" />
+            <span className="min-w-0 flex-1">
+              <Trans>Everything on this receipt is in Ferret already. If you added it before, you don't need this "New item".</Trans>
+            </span>
+            <button
+              type="button"
+              className={`btn btn-sm ${confirmDelete ? "btn-error" : "btn-soft btn-error"}`}
+              disabled={remove.isPending}
+              onClick={() => (confirmDelete ? remove.mutate() : setConfirmDelete(true))}
+            >
+              {confirmDelete ? t`Delete it and this copy of the receipt` : t`Delete this New item`}
+            </button>
           </div>
         )}
         {alreadyCount > 0 && (
@@ -240,7 +269,7 @@ function ReceiptLinesDialog({ item, receipt, householdId, onClose }: { item: Ite
           ))}
         </ul>
         <PlacePicker householdId={householdId} id="receipt-lines-place" name="place" label={t`Where are they?`} value={place} onChange={setPlace} noneLabel={t`Not in a place yet`} />
-        {(add.isError || dismiss.isError) && <div className="alert alert-soft alert-error">{(add.error ?? dismiss.error)!.message}</div>}
+        {(add.isError || dismiss.isError || remove.isError) && <div className="alert alert-soft alert-error">{(add.error ?? dismiss.error ?? remove.error)!.message}</div>}
         <DialogActions>
           <button type="button" className="btn btn-text me-auto" disabled={dismiss.isPending} onClick={() => dismiss.mutate()}>
             <Trans>Not these</Trans>
