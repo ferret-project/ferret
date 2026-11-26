@@ -145,6 +145,50 @@ async function linePhotos(v: Caller, bytes: Uint8Array, contentType: string, lin
   });
 }
 
+/** Where a receipt's products' small pictures are kept, all in one file beside it (deleted with its other copies). */
+export const linePhotosKey = (blobKey: string) => `${blobKey}.lines`;
+/** Longest side of a product's small picture in the list. */
+const LINE_PHOTO_PX = 240;
+
+/**
+ * Each product's small picture, as the invoice prints one beside it (linePhotos), for the list of things on a receipt
+ * before they're added: a data URL per line, or null. Cut out of the PDF the first time and kept, so opening the list
+ * again doesn't redraw the PDF. A receipt on a thing or waiting in the inbox.
+ */
+export async function receiptLinePhotos(v: Caller, files: FileStore, attachmentId: string): Promise<{ photos: (string | null)[] }> {
+  const [row] = await v.db
+    .select()
+    .from(attachment)
+    .where(and(eq(attachment.id, attachmentId), eq(attachment.householdId, v.householdId), isNull(attachment.deletedAt)));
+  if (!row || (!row.itemId && !row.inboxId)) throw notFound("File");
+  const lines = row.analysis?.suggestions.lines ?? [];
+  if (!lines.length || row.contentType !== "application/pdf") return { photos: lines.map(() => null) };
+  const key = linePhotosKey(row.blobKey);
+  const kept = await files.get(v.householdId, key).catch(() => null);
+  if (kept) {
+    const saved = JSON.parse(new TextDecoder().decode(kept)) as { photos: (string | null)[] };
+    if (saved.photos.length === lines.length) return saved;
+  }
+  const bytes = await files.get(v.householdId, row.blobKey).catch(() => null);
+  const images = bytes ? await linePhotos(v, bytes, row.contentType, lines).catch(() => []) : [];
+  const photos: (string | null)[] = [];
+  for (const [i] of lines.entries()) {
+    const image = images[i];
+    const small = image ? await v.deps.images?.resize(image, LINE_PHOTO_PX, "webp").catch(() => null) : null;
+    const shown = small ?? image ?? null;
+    photos.push(shown ? `data:image/${small ? "webp" : "jpeg"};base64,${base64(shown)}` : null);
+  }
+  const saved = { photos };
+  await files.put(v.householdId, key, new TextEncoder().encode(JSON.stringify(saved))).catch(() => {});
+  return saved;
+}
+
+const base64 = (bytes: Uint8Array) => {
+  let out = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) out += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(out);
+};
+
 /** The lines are handled: marked, so they aren't offered again. */
 async function forgetLines(v: Caller, row: Awaited<ReturnType<typeof receiptOf>>) {
   await v.db.update(attachment).set({ analysis: { ...row.analysis, suggestions: { ...row.analysis.suggestions, linesHandled: true } } }).where(eq(attachment.id, row.id));

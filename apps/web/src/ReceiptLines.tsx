@@ -73,6 +73,8 @@ export function ReceiptLinesDialog({
   // so every line starts ticked and its own line goes first — otherwise the next line would take its place and its own
   // (often the dearest) would never be added.
   const known = useQuery({ queryKey: ["receipt-lines", householdId, receipt.id], queryFn: () => api.receiptLinesKnown(receipt.id) });
+  // Each product's picture from an invoice that prints one beside it (cut out of the PDF once, on the server).
+  const pictures = useQuery({ queryKey: ["receipt-line-photos", householdId, receipt.id], queryFn: () => api.receiptLinePhotos(receipt.id), staleTime: Infinity });
   // What an accessory is for: the machine it's printed as fitting ("R1 / Medium Focal"), else its own model.
   const fitsOf = (l: ReceiptLine) => (l.fits ?? l.model)?.trim() || null;
   // The things each other one names (an H3C's hotends → the H3C): the dearest thing whose model or name it is.
@@ -215,6 +217,9 @@ export function ReceiptLinesDialog({
                 onChange={(e) => change(r.key, { ticked: e.target.checked })}
                 aria-label={t`Add ${ph({ name: r.name })}`}
               />
+              {pictures.data?.photos[r.key] && (
+                <img src={pictures.data.photos[r.key]!} alt="" className="size-14 shrink-0 rounded-field border border-base-content/10 bg-white object-contain" />
+              )}
               <div className="flex min-w-0 flex-1 flex-col gap-2">
                 <input className="input" value={r.name} maxLength={200} onChange={(e) => change(r.key, { name: e.target.value })} aria-label={t`Name`} />
                 <div className="flex flex-wrap items-center gap-2">

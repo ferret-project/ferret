@@ -11,6 +11,7 @@ import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { account, attachment, apikey, member, organization, session, shareLink, user } from "../db/schema";
 import { previewKey } from "../jobs/analyze";
+import { linePhotosKey } from "./receipt-lines";
 import type { Db, Deps } from "../ports";
 import type { AppEnv } from "./context";
 import type { FileStore } from "./files";
@@ -48,6 +49,7 @@ export async function deleteHouseholds(p: { deps: Pick<Deps, "db" | "vectors">; 
     await p.files.delete(f.blobKey).catch(() => {}); // an original already removed to free space
     if (f.thumbnailKey) await p.files.delete(f.thumbnailKey);
     await p.files.delete(previewKey(f.blobKey)).catch(() => {});
+    await p.files.delete(linePhotosKey(f.blobKey)).catch(() => {});
   }
   for (const id of ids) {
     await vectors?.deleteWhere({ householdId: id });

@@ -865,6 +865,7 @@ export const api = {
   toConfirm: () => request<ToConfirm>("/to-confirm"),
   addReceiptLines: (attachmentId: string, input: ReceiptLinesInput) => request<{ items: { id: string; name: string }[] }>(`/attachments/${attachmentId}/lines`, { method: "POST", body: JSON.stringify(input) }),
   receiptLinesKnown: (attachmentId: string) => request<ReceiptLinesKnown>(`/attachments/${attachmentId}/lines`),
+  receiptLinePhotos: (attachmentId: string) => request<{ photos: (string | null)[] }>(`/attachments/${attachmentId}/lines/photos`),
   dismissReceiptLines: (attachmentId: string) => request<void>(`/attachments/${attachmentId}/lines`, { method: "DELETE" }),
   duplicates: () => request<{ data: DuplicatePair[] }>("/duplicates"),
   notDuplicate: (a: string, b: string) => request<{ ok: true }>("/duplicates/not", { method: "POST", body: JSON.stringify({ a, b }) }),

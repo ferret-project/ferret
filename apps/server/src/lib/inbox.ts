@@ -23,7 +23,7 @@ import type { FileStore } from "./files";
 import { fullTextSearch } from "./fulltext";
 import { type Caller, createItem, getItem, itemChanged, itemScope, locationIn, locationPaths, logActivity, notFound, updateItem } from "./inventory";
 import { PHOTO_ORDER } from "./photo-order";
-import { addReceiptLines } from "./receipt-lines";
+import { addReceiptLines, linePhotosKey } from "./receipt-lines";
 import { suggestTasks } from "./suggested-tasks";
 
 type Entry = typeof inboxEntry.$inferSelect;
@@ -280,5 +280,6 @@ export async function discardInboxEntry(v: Caller, files: FileStore, id: string)
     if (!kept.has(r.blobKey)) await files.delete(r.blobKey).catch(() => {});
     if (r.thumbnailKey && !kept.has(r.thumbnailKey)) await files.delete(r.thumbnailKey).catch(() => {});
     await files.delete(previewKey(r.blobKey)).catch(() => {});
+    if (!kept.has(r.blobKey)) await files.delete(linePhotosKey(r.blobKey)).catch(() => {});
   }
 }

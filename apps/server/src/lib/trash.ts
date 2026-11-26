@@ -11,6 +11,7 @@
 import { blobsStillUsed } from "./attachments";
 import { PHOTO_ORDER } from "./photo-order";
 import { previewKey } from "../jobs/analyze";
+import { linePhotosKey } from "./receipt-lines";
 import { requireRoom } from "./plan";
 import { addDays, type DeletedItem, TRASH_DAYS } from "@ferret/shared";
 import { and, asc, desc, eq, isNotNull, isNull, lt, sql } from "drizzle-orm";
@@ -122,6 +123,7 @@ async function deleteFiles(p: Purger, rows: { id: string; blobKey: string; thumb
     if (!kept.has(r.blobKey) && !gone.has(r.blobKey)) {
       await p.files.delete(r.blobKey);
       await p.files.delete(previewKey(r.blobKey)).catch(() => {});
+      await p.files.delete(linePhotosKey(r.blobKey)).catch(() => {});
       gone.add(r.blobKey);
     }
     if (r.thumbnailKey && !kept.has(r.thumbnailKey) && !gone.has(r.thumbnailKey)) {

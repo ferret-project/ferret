@@ -13,7 +13,7 @@ import { getAiRun } from "../lib/ai-runs";
 import { askReplacementEstimate, askReplacementEstimates, dismissReplacementEstimate } from "../lib/replacement";
 import { itemFromText } from "../lib/item-from-text";
 import { toConfirm } from "../lib/to-confirm";
-import { addReceiptLines, dismissReceiptLines, receiptLinesKnown } from "../lib/receipt-lines";
+import { addReceiptLines, dismissReceiptLines, receiptLinePhotos, receiptLinesKnown } from "../lib/receipt-lines";
 import { filtersFromText } from "../lib/plain-filters";
 import { draftListing } from "../lib/listing";
 import { filtersFromTextInput, itemFromTextInput, receiptLinesInput, replacementEstimatesInput } from "@ferret/shared";
@@ -22,7 +22,7 @@ import { bodyLimit } from "hono/body-limit";
 import { recordUsage, requireAllowed } from "../lib/plan";
 
 export const ai = new Hono<AppEnv>();
-for (const path of ["/ai-fills", "/items/:id/ai-fills/*", "/duplicates", "/duplicates/*", "/items/:id/merge", "/ai-runs/*", "/items/:id/replacement-estimate", "/items/filters-from-text", "/items/:id/listing", "/transcribe", "/items/from-text", "/replacement-estimates", "/to-confirm", "/attachments/:id/lines"]) ai.use(path, requireUser, requireHousehold);
+for (const path of ["/ai-fills", "/items/:id/ai-fills/*", "/duplicates", "/duplicates/*", "/items/:id/merge", "/ai-runs/*", "/items/:id/replacement-estimate", "/items/filters-from-text", "/items/:id/listing", "/transcribe", "/items/from-text", "/replacement-estimates", "/to-confirm", "/attachments/:id/lines", "/attachments/:id/lines/photos"]) ai.use(path, requireUser, requireHousehold);
 
 /** "Filled in by AI": every field the AI filled in that nobody has looked at yet. */
 ai.get("/ai-fills", async (c) => c.json({ data: await aiFillEntries(callerOf(c)) }));
@@ -62,6 +62,8 @@ ai.get("/to-confirm", async (c) => c.json(await toConfirm(callerOf(c))));
 
 /** A receipt's other things: add the ones ticked (each with a copy of the receipt), or not these. */
 ai.get("/attachments/:id/lines", async (c) => c.json(await receiptLinesKnown(callerOf(c), c.req.param("id"))));
+/** Each product's small picture from the invoice (a data URL, or null), for the list before they're added. */
+ai.get("/attachments/:id/lines/photos", async (c) => c.json(await receiptLinePhotos(callerOf(c), c.var.files, c.req.param("id"))));
 ai.post("/attachments/:id/lines", requireWriter, async (c) => c.json(await addReceiptLines(callerOf(c), c.var.files, c.req.param("id"), await body(c.req.raw, receiptLinesInput)), 201));
 ai.delete("/attachments/:id/lines", requireWriter, async (c) => {
   await dismissReceiptLines(callerOf(c), c.req.param("id"));

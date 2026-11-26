@@ -230,6 +230,35 @@ describe("a receipt with several things on it", () => {
     expect(asked).toHaveLength(3);
   });
 
+  it("shows each product's small picture from the invoice before they're added, cut out once", async () => {
+    const chat = new FakeAi([{ ...receipt, name: null, purchasePrice: null }]);
+    const jpeg = async (colour: string) => new Uint8Array(await sharp({ create: { width: 40, height: 40, channels: 3, background: colour } }).jpeg().toBuffer());
+    const printed = [
+      { page: 1, beside: "Stand mixer KitchenAid $299.99", image: await jpeg("#ff0000") },
+      { page: 2, beside: "Air fryer SKU: AF101 $89.99", image: await jpeg("#00ff00") },
+    ];
+    let drawn = 0;
+    const pdfPages = {
+      firstPage: async () => null,
+      pageTexts: async () => ["COSTCO"],
+      pictures: async (_pdf: Uint8Array, _max: number, want: (beside: string) => boolean) => (drawn++, printed.filter((p) => want(p.beside))),
+    };
+    const { user, jobs } = await setup({ chat, documents: new FakeDocuments(["COSTCO"]), pdfPages });
+    const pat = await user("pat");
+    const mixer = await pat.addItem({ name: "Mixer" });
+    await pat.upload(mixer.id, pdf(), "costco.pdf", "document");
+    await jobs.drain();
+    const [file] = await pat.attachments(mixer.id);
+    const { photos } = await json<{ photos: (string | null)[] }>(pat.as(`/api/v1/attachments/${file!.id}/lines/photos`));
+    // Stand mixer, Air fryer, Bath towel (no picture by it).
+    expect(photos.map((p) => (p ? p.slice(0, 15) : null))).toEqual(["data:image/webp", "data:image/webp", null]);
+    const fryer = await sharp(Buffer.from(photos[1]!.split(",")[1]!, "base64")).stats();
+    expect(fryer.channels[1]!.mean).toBeGreaterThan(200);
+    // Kept: opening the list again doesn't draw the PDF again.
+    expect(await json(pat.as(`/api/v1/attachments/${file!.id}/lines/photos`))).toEqual({ photos });
+    expect(drawn).toBe(1);
+  });
+
   it("shares one stored receipt between the things bought on it, kept until the last of them goes", async () => {
     const chat = new FakeAi([receipt]);
     const { user, jobs, db, deps, files } = await setup({ chat, documents: new FakeDocuments(["COSTCO"]) });

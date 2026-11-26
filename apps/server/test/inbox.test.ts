@@ -150,7 +150,9 @@ describe("the inbox: read before adding", () => {
     const file = await sendFile(e.id, await photo(), "drill.jpg");
     await jobs.drain();
     const [row] = await db.select().from(attachment).where(eq(attachment.id, file.id));
+    await files.put(row!.householdId, `${row!.blobKey}.lines`, new TextEncoder().encode("{}")); // a receipt's product pictures
     expect((await pat.as(`/api/v1/inbox/${e.id}`, { method: "DELETE" })).status).toBe(204);
+    expect(await files.get(row!.householdId, `${row!.blobKey}.lines`).catch(() => null)).toBeNull();
     expect(await db.select().from(attachment).where(eq(attachment.id, file.id))).toEqual([]);
     expect(await files.get(row!.householdId, row!.blobKey).catch(() => null)).toBeNull();
     expect(await count()).toBe(0);
