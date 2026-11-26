@@ -60,6 +60,21 @@ interface Source {
   text: string;
 }
 
+/**
+ * How many of it they have, for Ask only (not the search index's summary: counts change too often to embed). Without
+ * it the model counted from the name — "(5-pack)" with none left was "You have five".
+ */
+export function howMany(it: Pick<SearchDoc["item"], "quantity" | "minQuantity">) {
+  const keep = it.minQuantity != null ? `; they keep at least ${it.minQuantity}` : "";
+  return `How many they have: ${it.quantity}${it.quantity === 0 ? " (none left)" : ""}${keep}`;
+}
+
+/** Its summary with how many they have, after its name (first, so a cut summary still has it). */
+const summaryWithCount = (doc: SearchDoc) => {
+  const [name, ...rest] = itemSummary(doc).split("\n");
+  return [name, howMany(doc.item), ...rest].join("\n");
+};
+
 /** The words that name a thing: in its own manual they're everywhere, so they don't say which part answers. */
 const named = (doc: SearchDoc) => [doc.item.name, doc.item.brand, doc.item.model].filter(Boolean).join(" ");
 
@@ -128,7 +143,7 @@ export async function askInventory(
     const doc = await loadSearchDoc(deps.db, row.id);
     if (!doc) continue;
     const item = { id: row.id, name: row.name };
-    add({ item, text: itemSummary(doc).slice(0, SUMMARY_CHARS) });
+    add({ item, text: summaryWithCount(doc).slice(0, SUMMARY_CHARS) });
     // Its documents: the passage search matched (deep in a long manual), and the start of
     // each — a receipt fits whole, so "where did I buy it and for how much" can be answered.
     const hit = results.hits[row.id];
@@ -233,7 +248,7 @@ export async function askAboutItem(
     budget -= text.length;
     sources.push({ ...source, item, text, n: sources.length + 1 });
   };
-  add({ text: itemSummary(doc).slice(0, ITEM_SUMMARY_CHARS) });
+  add({ text: summaryWithCount(doc).slice(0, ITEM_SUMMARY_CHARS) });
   for (const w of doc.warranties) {
     const status = warrantyStatus(w.endsOn, on);
     add({
@@ -288,6 +303,7 @@ export function askPrompt(question: string, context: string, on: string) {
 
 Reply with JSON only:
 - answer: a short, direct answer in plain language (one to three sentences), written in the language the question is written in, even when the sources are in another. Mention where an item is kept when that helps. But when the question asks how to do something and a source gives the steps, give every one of them, in order, as a numbered list with one step per line (a line break before each number) (the answer may then be longer): don't merge, skip or add steps, keep any warning or caution that goes with them (safety warnings word for word, translated if the question is in another language), and if the source ends with "the section goes on in the document", say the rest of the steps are in the document. The question may name things differently from the sources — a synonym, an everyday or regional word, another language (a "paddle" is a "racket") — so match it to the item it means. Every fact in the answer must come from the sources: if they don't contain the answer, say so plainly and never invent one.
+  For how many they have, use an item's "How many they have" line and never count from its name: a pack, box or set counts as one, so "Filter bags (5-pack)" with 2 is two packs of five, and 0 means they have none left.
 - found: true if the sources answer the question, false otherwise.
 - sources: the numbers of the sources the answer relies on.
 

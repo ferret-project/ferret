@@ -69,6 +69,16 @@ describe("Ask Ferret", () => {
     expect(ai.calls).toHaveLength(before); // nothing of his matched; Ann's report never reached the model
   });
 
+  it("tells the model how many of a thing they have, so a pack's name isn't counted", async () => {
+    const { ai, pat, ask, jobs } = await askSetup({ answer: "You have none left.", found: true, sources: [1] });
+    await pat.addItem({ name: "JET 717511 canister collection bags (5-pack)", brand: "JET", quantity: 0, minQuantity: 1 });
+    await jobs.drain();
+    await ask("jet canister bags");
+    const prompt = ai.calls.at(-1)!.prompt;
+    expect(prompt).toContain("JET 717511 canister collection bags (5-pack)\nHow many they have: 0 (none left); they keep at least 1\n");
+    expect(prompt).toContain('never count from its name');
+  });
+
   it("says so when the inventory doesn't know, without citations", async () => {
     const { ask } = await askSetup({ answer: "Your documents don't say.", found: false, sources: [1] });
     const { body } = await ask("what color is the kitchenaid?");
