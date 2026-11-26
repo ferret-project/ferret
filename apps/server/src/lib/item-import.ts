@@ -7,7 +7,7 @@
  * and when it was done, and repairs. Its loans, stock moves and history stay in the ZIP: they were another
  * household's. Anything not signed by this household's key is only imported when the caller says so (`anyway`).
  */
-import type { ItemImportCheck, ItemImportResult, ItemPatch } from "@ferret/shared";
+import { type ItemImportCheck, type ItemImportResult, type ItemPatch, itemPatch } from "@ferret/shared";
 import { claimStatuses, intervalUnits, itemConditions } from "@ferret/shared/utils";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { unzipSync } from "fflate";
@@ -195,25 +195,32 @@ export async function importItemZip(v: Caller, store: FileStore, bytes: Uint8Arr
   const [row] = await v.db.select({ id: item.id }).from(item).where(eq(item.importBatchId, imported.batchId));
   const itemId = row!.id;
 
-  // The rest of its own fields, as one change (each one checked as an edit would be).
-  const patch: ItemPatch = {};
+  // The rest of its own fields, as one change — each checked against the same schema as an edit (a ZIP that isn't
+  // ours may hold anything: a `javascript:` link, a custom field of the wrong shape); one that doesn't fit is left out.
+  const raw: Record<string, unknown> = {};
   const serial = str(it.serialNumber, 120);
-  if (serial) patch.serialNumber = serial;
-  if (int(it.replacementCents) != null) patch.replacementCents = int(it.replacementCents);
-  if (int(it.lifespanYears) != null) patch.lifespanYears = int(it.lifespanYears);
-  if (int(it.minQuantity) != null) patch.minQuantity = int(it.minQuantity);
-  if (it.favorite === true) patch.favorite = true;
-  if (str(it.heir, 120)) patch.heir = str(it.heir, 120);
-  if (it.customFields && typeof it.customFields === "object") patch.customFields = it.customFields as ItemPatch["customFields"];
-  if (Array.isArray(it.links) && it.links.length) patch.links = it.links as ItemPatch["links"];
+  if (serial) raw.serialNumber = serial;
+  if (int(it.replacementCents) != null) raw.replacementCents = int(it.replacementCents);
+  if (int(it.lifespanYears) != null) raw.lifespanYears = int(it.lifespanYears);
+  if (int(it.minQuantity) != null) raw.minQuantity = int(it.minQuantity);
+  if (it.favorite === true) raw.favorite = true;
+  if (str(it.heir, 120)) raw.heir = str(it.heir, 120);
+  if (it.customFields && typeof it.customFields === "object") raw.customFields = it.customFields;
+  if (Array.isArray(it.links) && it.links.length) raw.links = it.links;
+  const patch: ItemPatch = {};
+  for (const [key, value] of Object.entries(raw)) {
+    const one = itemPatch.safeParse({ [key]: value });
+    if (one.success) Object.assign(patch, one.data);
+  }
   if (typeof it.disposition === "string" && isoDay(it.disposedOn)) {
-    Object.assign(patch, {
+    const gone = itemPatch.safeParse({
       disposition: it.disposition,
       disposedOn: isoDay(it.disposedOn),
       disposalCents: int(it.disposalCents),
       disposedTo: str(it.disposedTo, 200),
       disposalNote: str(it.disposalNote, 2000),
     });
+    if (gone.success) Object.assign(patch, gone.data);
   }
   if (Object.keys(patch).length) {
     try {

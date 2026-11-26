@@ -114,6 +114,23 @@ describe("importing a thing exported from Ferret", () => {
     expect(seen.problems).toContain("The signature doesn't match SHA256SUMS");
   });
 
+  it("a doctored item.json imported anyway: fields an edit wouldn't take are left out", async () => {
+    const { ann, zip } = await exported();
+    const files = unzipSync(zip);
+    const name = Object.keys(files).find((n) => n.endsWith("/item.json"))!;
+    const data = JSON.parse(new TextDecoder().decode(files[name]!));
+    data.item.links = [{ label: "Manual", url: "javascript:alert(1)" }];
+    data.item.customFields = "not an object of fields";
+    data.item.disposition = "vaporised";
+    data.item.disposedOn = "2026-01-01";
+    files[name] = strToU8(JSON.stringify(data));
+    const res = await post(ann.as, "/api/v1/import/item?anyway=true", zipSync(files));
+    expect(res.status).toBe(201);
+    const copy = await json<ItemListing & { links: unknown[] | null; disposition: string | null }>(ann.as(`/api/v1/items/${((await res.json()) as ItemImportResult).itemId}`));
+    expect(copy).toMatchObject({ name: "Cordless drill", serialNumber: "SN-42", replacementCents: 15000, disposition: null });
+    expect(copy.links ?? []).toEqual([]);
+  });
+
   it("without its signature: unsigned", async () => {
     const { ann, zip } = await exported();
     const seen = await check(ann.as, altered(zip, "SHA256SUMS.sig", null));
