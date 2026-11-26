@@ -39,6 +39,8 @@ Once Ferret is installed on **Android** (or in **Chrome on a computer**), it's i
 a product page from a shop's app or the browser, photos from your gallery, or a PDF (a receipt, a manual), choose
 **Ferret**, and it opens on **Shared to Ferret**:
 
+- **Read it first** (when photos or PDFs were shared and the server has the AI features): they go to
+  [the inbox](./adding-things#the-inbox) to be read, with the link and any text, and you add them from there.
 - **A new thing**: named from what was shared (change it if you like), in the place you pick. The link goes in its
   links, photos become its photos and PDFs its documents.
 - **Something in Ferret**: pick the thing, and the link and files are added to it.

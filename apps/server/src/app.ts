@@ -68,6 +68,7 @@ import { ai } from "./routes/ai";
 import { unlock } from "./routes/unlock";
 import { household } from "./routes/household";
 import { roomScans } from "./routes/room-scans";
+import { inbox } from "./routes/inbox";
 import { plan } from "./routes/plan";
 import { memberLimit } from "./lib/plan";
 
@@ -443,6 +444,7 @@ export function createApp(deps: Deps, config: Config, opts: AppOptions = {}) {
   app.route("/api/v1/household", household);
   app.route("/api/v1/plan", plan);
   app.route("/api/v1/room-scans", roomScans);
+  app.route("/api/v1/inbox", inbox);
   app.route("/api/v1/shared", shared);
   app.route("/s", shareShortLinks);
   app.route("/api/v1/borrowed", borrowed);

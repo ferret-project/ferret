@@ -6,7 +6,7 @@
 import { type AttachmentKind, type FileHit, type FileOwnerQuery, uploadTypes } from "@ferret/shared";
 import { and, eq, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
-import { attachment, item, location, maintenanceLog, maintenanceTask, property } from "../db/schema";
+import { attachment, inboxEntry, item, location, maintenanceLog, maintenanceTask, property } from "../db/schema";
 import type { Db } from "../ports";
 import { analysisJob, previewKey } from "../jobs/analyze";
 import { PDF_THUMB_JOB } from "../jobs/pdf-thumbnail";
@@ -26,6 +26,7 @@ export const attachmentFields = {
   propertyId: attachment.propertyId,
   locationId: attachment.locationId,
   taskId: attachment.taskId,
+  inboxId: attachment.inboxId,
   doneId: attachment.doneId,
   kind: attachment.kind,
   filename: attachment.filename,
@@ -258,7 +259,7 @@ const usable = (bytes: Uint8Array | undefined, maxBytes: number) =>
  * What a file is added to: a thing (an id alone means one), a property, a place, a maintenance task, or a done record —
  * whose files belong to its task's thing (or the house-wide task) and are shown with the record too, like a repair's.
  */
-export type FileOwner = string | { itemId: string } | { propertyId: string } | { locationId: string } | { taskId: string } | { doneId: string };
+export type FileOwner = string | { itemId: string } | { propertyId: string } | { locationId: string } | { taskId: string } | { doneId: string } | { inboxId: string };
 
 /** Who a new file belongs to, checked to be this household's: its owner columns, a name for the history, its thing. */
 async function resolveOwner(v: Caller, owner: FileOwner) {
@@ -270,6 +271,11 @@ async function resolveOwner(v: Caller, owner: FileOwner) {
   if ("itemId" in o) {
     const it = mine(await v.db.select({ id: item.id, name: item.name }).from(item).where(and(eq(item.id, o.itemId), eq(item.householdId, v.householdId), isNull(item.deletedAt))), "Item");
     return { columns: { itemId: it.id }, name: it.name, itemId: it.id as string | null };
+  }
+  if ("inboxId" in o) {
+    // Waiting in the inbox (lib/inbox.ts): read like a thing's file, but not anyone's until it's accepted.
+    const e = mine(await v.db.select({ id: inboxEntry.id }).from(inboxEntry).where(and(eq(inboxEntry.id, o.inboxId), eq(inboxEntry.householdId, v.householdId))), "Inbox entry");
+    return { columns: { inboxId: e.id }, name: "the inbox", itemId: null };
   }
   if ("propertyId" in o) {
     const p = mine(await v.db.select({ id: property.id, name: property.name }).from(property).where(and(eq(property.id, o.propertyId), eq(property.householdId, v.householdId), isNull(property.deletedAt))), "Property");

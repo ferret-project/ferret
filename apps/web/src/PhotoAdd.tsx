@@ -1,14 +1,16 @@
 /**
- * "Add from photos": snap (or pick) photos and each becomes an item — "New
- * item" until someone applies what the vision model reads off it on the
- * item's page (model output is never applied by itself). One photo opens its
- * item; several stay in the list to review one by one — or, picked as "all of one thing" (its front, its label, its
- * receipt), they make one item together, which opens; the AI reads them together.
+ * "Add from photos": snap (or pick) photos. With the vision model they go to the inbox (Inbox.tsx, server lib/inbox.ts)
+ * to be read before anything is added — one entry per photo, or one for "all of one thing" (its front, its label, its
+ * receipt) — and the inbox opens. Without it there's nothing to read, so each becomes a "New item" at once, as before:
+ * one photo opens its item; several stay in the list — or, as "all of one thing", make one item, which opens.
+ *
+ * "From a receipt" (AddFromReceipt): a photo or PDF of one receipt, invoice or order, to the inbox the same way; its
+ * things are added from there. Offered when the server can read receipts.
  */
-import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { api } from "./lib/api";
-import { itemHref } from "./lib/route";
+import { INBOX_HREF, itemHref } from "./lib/route";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { navigateTo } from "./lib/navigate";
 import { Modal } from "./Modal";
 import { Trans } from "@lingui/react/macro";
@@ -29,8 +31,48 @@ export function AddFromPhotos(props: {
   const [error, setError] = useState<string | null>(null);
   /** Several picked: one thing or several? */
   const [choosing, setChoosing] = useState<File[] | null>(null);
+  const me = useQuery({ queryKey: ["me"], queryFn: api.me, staleTime: 60_000 });
+  const reads = Boolean(me.data?.features.photoAi);
+
+  /** To the inbox, to be read first: one entry per photo, or one for all of them. */
+  async function toInbox(files: File[], oneThing: boolean) {
+    setError(null);
+    setProgress({ done: 0, total: files.length });
+    const groups = oneThing ? [files] : files.map((f) => [f]);
+    let sent = 0;
+    for (const group of groups) {
+      try {
+        const entry = await api.startInbox({
+          kind: "photos",
+          locationId: props.containerItemId ? null : (props.locationId ?? null),
+          containerItemId: props.containerItemId ?? null,
+          categoryId: props.categoryId ?? null,
+          tags: props.tags ?? [],
+        });
+        let uploaded = 0;
+        for (const file of group) {
+          try {
+            await api.uploadInboxFile(entry.id, file, "photo");
+            uploaded++;
+          } catch (err) {
+            setError(`${file.name}: ${(err as Error).message}`);
+          }
+          setProgress((p) => p && { ...p, done: p.done + 1 });
+        }
+        if (!uploaded) await api.discardInbox(entry.id).catch(() => {}); // no photo, no entry
+        else sent++;
+      } catch (err) {
+        setError((err as Error).message);
+      }
+    }
+    setProgress(null);
+    await qc.invalidateQueries({ queryKey: ["inbox", props.householdId] });
+    await qc.invalidateQueries({ queryKey: ["inbox-count", props.householdId] });
+    if (sent) navigateTo(INBOX_HREF);
+  }
 
   async function add(files: File[], oneThing = false) {
+    if (reads) return toInbox(files, oneThing);
     setError(null);
     setProgress({ done: 0, total: files.length });
     const made: string[] = [];
@@ -167,6 +209,68 @@ export function AddFromPhotos(props: {
           </div>
         </Modal>
       )}
+    </>
+  );
+}
+
+/** "From a receipt": one receipt, invoice or order (a photo or a PDF) to the inbox, where its things are added. */
+export function AddFromReceipt(props: { householdId: string; locationId?: string | null; containerItemId?: string | null; categoryId?: string | null; tags?: string[]; className?: string }) {
+  const qc = useQueryClient();
+  const input = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function add(file: File) {
+    setError(null);
+    setBusy(true);
+    try {
+      const entry = await api.startInbox({
+        kind: "receipt",
+        locationId: props.containerItemId ? null : (props.locationId ?? null),
+        containerItemId: props.containerItemId ?? null,
+        categoryId: props.categoryId ?? null,
+        tags: props.tags ?? [],
+      });
+      try {
+        await api.uploadInboxFile(entry.id, file, "document");
+      } catch (err) {
+        await api.discardInbox(entry.id).catch(() => {}); // no receipt, no entry
+        throw err;
+      }
+      await qc.invalidateQueries({ queryKey: ["inbox", props.householdId] });
+      await qc.invalidateQueries({ queryKey: ["inbox-count", props.householdId] });
+      navigateTo(INBOX_HREF);
+    } catch (err) {
+      setError(`${file.name}: ${(err as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        className={props.className ?? "btn btn-soft"}
+        title={t`A photo or PDF of a receipt, invoice or order: Ferret reads it, then you add the things on it`}
+        disabled={busy}
+        onClick={() => input.current?.click()}
+      >
+        {busy ? <span className="loading loading-spinner size-6" /> : <span className="icon-[tabler--receipt] size-6" />}
+        <span>{busy ? t`Adding…` : t`From a receipt`}</span>
+      </button>
+      <input
+        ref={input}
+        type="file"
+        hidden
+        accept="image/*,application/pdf"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (file) void add(file);
+        }}
+      />
+      {error && <p className="col-span-3 text-sm text-error">{error}</p>}
     </>
   );
 }

@@ -839,11 +839,13 @@ export interface FileHit extends Attachment {
 export interface Attachment {
   id: string;
   householdId: string;
-  /** What it belongs to: exactly one of a thing, a property, a place, or a (house-wide) maintenance task. */
+  /** What it belongs to: exactly one of a thing, a property, a place, a (house-wide) maintenance task or an inbox entry. */
   itemId: string | null;
   propertyId: string | null;
   locationId: string | null;
   taskId: string | null;
+  /** Waiting in the inbox, read but not anyone's yet. */
+  inboxId?: string | null;
   /** A done record's invoice or photos: shown with the record too. */
   doneId: string | null;
   kind: AttachmentKind;
@@ -1470,6 +1472,60 @@ export const roomScanCommit = z.object({
     .max(200),
 });
 export type RoomScanCommit = z.input<typeof roomScanCommit>;
+
+// ── The inbox: read before adding ───────────────────────────────────────────
+/**
+ * The inbox (server lib/inbox.ts): photos, a receipt or something shared, read by the AI before anything is made of
+ * them. photos: one thing's photos; receipt: one receipt, invoice or order; shared: from another app's Share menu.
+ */
+export const inboxKinds = ["photos", "receipt", "shared"] as const;
+export type InboxKind = (typeof inboxKinds)[number];
+
+/** A new inbox entry: what it is and where a new thing from it goes (what the Add sheet was opened from). */
+export const inboxCreate = z.object({
+  kind: z.enum(inboxKinds),
+  locationId: z.string().min(1).nullish(),
+  containerItemId: z.string().min(1).nullish(),
+  categoryId: z.string().min(1).nullish(),
+  tags: z.array(z.string().trim().min(1).max(60)).max(20).default([]),
+  /** A note typed with it (offline capture) and a shared link: they go onto the new thing. */
+  note: z.string().trim().max(2000).nullish(),
+  link: z.string().trim().url().max(2000).nullish(),
+});
+export type InboxCreate = z.input<typeof inboxCreate>;
+
+/** Its files onto a thing already in Ferret. */
+export const inboxOnto = z.object({ itemId: z.string().min(1) });
+
+export interface InboxEntry {
+  id: string;
+  kind: InboxKind;
+  /** reading: a file is still being read; ready: all read (or couldn't be); empty: no file yet. */
+  status: "empty" | "reading" | "ready";
+  /** Where a new thing goes: a room or a box, a category, tags. */
+  into: { locationId: string | null; containerItemId: string | null; categoryId: string | null; tags: string[]; placeName: string | null };
+  note: string | null;
+  link: string | null;
+  files: Attachment[];
+  /** What the AI read, put together across its files (photos first): a new thing's fields, to correct before adding. */
+  proposal: {
+    name: string | null;
+    brand: string | null;
+    model: string | null;
+    serialNumber: string | null;
+    barcode: string | null;
+    purchaseDate: string | null;
+    purchasePriceCents: number | null;
+    categoryId: string | null;
+    description: string | null;
+  };
+  /** A receipt listing several products: its file (for GET /attachments/{id}/lines) and the products. */
+  receipt: { attachmentId: string; lines: ReceiptLine[] } | null;
+  /** Things already in Ferret it may be (the same barcode, model or name), to put its files on instead. */
+  matches: { id: string; name: string; place: string | null }[];
+  by: string | null;
+  createdAt: string;
+}
 
 // ── Stock: scan to count ────────────────────────────────────────────────────
 /** What scanning a code does to its item: open it, take some out, put some in, or ask. */
@@ -3219,7 +3275,7 @@ export interface ItemDraft {
 export interface ToConfirm {
   items: { item: ItemListing; attachments: Attachment[]; warranties: { endsOn: string }[] }[];
   estimates: { itemId: string; name: string; photoId: string | null; cents: number; reasoning: string; valueCents: number | null; purchasePriceCents: number | null }[];
-  counts: { aiFilled: number; duplicates: number; suggestedTasks: number; paperless: number; roomScans: number };
+  counts: { aiFilled: number; duplicates: number; suggestedTasks: number; paperless: number; roomScans: number; inbox: number };
 }
 
 /** Ask for replacement-cost estimates for several things at once: these, or every thing with no value or price yet. */

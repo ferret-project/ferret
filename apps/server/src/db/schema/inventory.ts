@@ -370,14 +370,16 @@ export const attachment = sqliteTable(
     id: id(),
     householdId: householdId(),
     /**
-     * What it belongs to: exactly one of a thing, a property, a room/place, or a maintenance task (house-wide ones have
-     * no thing) — the check below. Its files go with it (soft-deleted with a thing; a place or task with files is
+     * What it belongs to: exactly one of a thing, a property, a room/place, a maintenance task (house-wide ones have
+     * no thing) or an inbox entry — the check below. Its files go with it (soft-deleted with a thing; a place or task with files is
      * cleared first: lib/attachments.ts `removeFilesOf`).
      */
     itemId: text("item_id").references(() => item.id, { onDelete: "cascade" }),
     propertyId: text("property_id").references((): AnySQLiteColumn => property.id, { onDelete: "cascade" }),
     locationId: text("location_id").references((): AnySQLiteColumn => location.id, { onDelete: "cascade" }),
     taskId: text("task_id").references((): AnySQLiteColumn => maintenanceTask.id, { onDelete: "cascade" }),
+    /** Waiting in the inbox (lib/inbox.ts): read, but not anyone's yet — accepting it moves it onto a thing. */
+    inboxId: text("inbox_id").references((): AnySQLiteColumn => inboxEntry.id, { onDelete: "cascade" }),
     kind: text("kind").notNull(), // "photo" | "document"
     filename: text("filename").notNull(),
     contentType: text("content_type").notNull(),
@@ -413,9 +415,10 @@ export const attachment = sqliteTable(
     index("attachment_property_idx").on(t.householdId, t.propertyId),
     index("attachment_location_idx").on(t.householdId, t.locationId),
     index("attachment_task_idx").on(t.householdId, t.taskId),
+    index("attachment_inbox_idx").on(t.householdId, t.inboxId),
     check(
       "attachment_one_owner",
-      sql`(${t.itemId} is not null) + (${t.propertyId} is not null) + (${t.locationId} is not null) + (${t.taskId} is not null) = 1`,
+      sql`(${t.itemId} is not null) + (${t.propertyId} is not null) + (${t.locationId} is not null) + (${t.taskId} is not null) + (${t.inboxId} is not null) = 1`,
     ),
   ],
 );
@@ -984,6 +987,33 @@ export const roomScan = sqliteTable(
     deletedAt: integer("deleted_at", { mode: "timestamp_ms" }),
   },
   (t) => [index("room_scan_household_idx").on(t.householdId, t.status)],
+);
+
+/**
+ * The inbox (lib/inbox.ts): photos and receipts added to be read before anything is made of them. Its files are
+ * attachments (`attachment.inboxId`), read by the same job as a thing's; once read, someone adds it as a new thing,
+ * puts its files on a thing they have, adds the things on a receipt, or discards it. Where a new thing goes (a room or
+ * a box, a category, tags) is what the Add sheet was opened from. Discarded entries are deleted with their files.
+ */
+export const inboxEntry = sqliteTable(
+  "inbox_entry",
+  {
+    id: id(),
+    householdId: householdId(),
+    /** photos (one thing's photos), receipt (one receipt, invoice or order), shared (from another app's Share menu). */
+    kind: text("kind").$type<"photos" | "receipt" | "shared">().notNull(),
+    locationId: text("location_id").references(() => location.id, { onDelete: "set null" }),
+    containerItemId: text("container_item_id").references((): AnySQLiteColumn => item.id, { onDelete: "set null" }),
+    categoryId: text("category_id").references((): AnySQLiteColumn => category.id, { onDelete: "set null" }),
+    tags: text("tags", { mode: "json" }).$type<string[]>(),
+    /** A note typed with it (offline capture), and a shared link: they go onto the new thing. */
+    note: text("note"),
+    link: text("link"),
+    createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
+    createdAt: timestamps.createdAt,
+    updatedAt: timestamps.updatedAt,
+  },
+  (t) => [index("inbox_entry_household_idx").on(t.householdId, t.createdAt)],
 );
 
 /**

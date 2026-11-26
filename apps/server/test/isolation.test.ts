@@ -110,6 +110,13 @@ async function annHousehold() {
   const channel = await make("POST", "/api/v1/notifications", { name: `${SECRET} phone`, url: "ntfys://ntfy.sh/annsecret-topic" });
   const key = await make("POST", "/api/v1/api-keys", { name: `${SECRET} key` });
   const sessions = await make<{ data: { id: string }[] }>("GET", "/api/v1/security/sessions");
+  // A photo waiting in her inbox (lib/inbox.ts).
+  const waiting = await make<{ id: string }>("POST", "/api/v1/inbox", { kind: "photos", locationId: garage.id, note: `${SECRET} inbox note` });
+  {
+    const form = new FormData();
+    form.set("file", new File([await photo()], `${SECRET}-inbox.jpg`, { type: "image/jpeg" }));
+    expect((await ann.as(`/api/v1/inbox/${waiting.id}/files`, { method: "POST", body: form })).status).toBe(201);
+  }
   const kettle = await ann.addItem({ name: `${SECRET} kettle` });
   await make("DELETE", `/api/v1/items/${kettle.id}`);
   const tags = await make<{ data: { id: string; name: string }[] }>("GET", "/api/v1/tags");
@@ -148,6 +155,7 @@ async function annHousehold() {
     repairs: fix.id,
     webhooks: hook.id,
     "paperless/documents": "41",
+    inbox: waiting.id,
   };
   const params: Record<string, string> = { ruleId: rule.id, pairingId: pairing.id, code: codes[0]!, n: "0", name: "x", locationId: shelf.id, itemId: box.id, deliveryId: deliveries.data[0]!.id, videoId: video.id };
   // What Bob sends with every write: plausible fields of his own, then the same with one of Ann's things in each

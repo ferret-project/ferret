@@ -73,6 +73,7 @@ export function ToConfirm({ householdId }: { householdId: string }) {
 function otherLists(data: ToConfirmData) {
   const c = data.counts;
   return [
+    c.inbox && { href: "#/inbox", icon: "icon-[tabler--inbox]", label: plural(c.inbox, { one: "# waiting in the inbox", other: "# waiting in the inbox" }) },
     c.aiFilled && { href: "#/ai-filled", icon: "icon-[tabler--sparkles]", label: plural(c.aiFilled, { one: "# detail AI filled in", other: "# details AI filled in" }) },
     c.duplicates && { href: "#/duplicates", icon: "icon-[tabler--copy]", label: plural(c.duplicates, { one: "# possible duplicate", other: "# possible duplicates" }) },
     c.suggestedTasks && { href: "#/maintenance", icon: "icon-[tabler--tool]", label: plural(c.suggestedTasks, { one: "# suggested maintenance task", other: "# suggested maintenance tasks" }) },

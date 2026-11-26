@@ -42,3 +42,45 @@ describe("0060: files on places and tasks (the attachment table rebuilt)", () =>
     ).rejects.toThrow();
   });
 });
+
+describe("0081: the inbox (the attachment table rebuilt again)", () => {
+  it("keeps every file and every link to one, and a file has exactly one of five owners", async () => {
+    const { db, finish } = await testDbBefore("0081_inbox");
+    await db.run(sql`insert into organization (id, name, slug, created_at) values ('h1', 'Home', 'home', 0)`);
+    await db.run(sql`insert into item (id, household_id, name) values ('i1', 'h1', 'Furnace')`);
+    await db.run(sql`insert into maintenance_task (id, household_id, title) values ('t2', 'h1', 'Clean gutters')`);
+    await db.run(sql`insert into attachment (id, household_id, item_id, task_id, kind, filename, content_type, size, blob_key, analysis_status, main_at)
+      values ('a1', 'h1', 'i1', null, 'document', 'manual.pdf', 'application/pdf', 100, 'k1', 'done', null),
+             ('a2', 'h1', 'i1', null, 'photo', 'front.jpg', 'image/jpeg', 50, 'k2', null, 5),
+             ('a3', 'h1', null, 't2', 'document', 'invoice.pdf', 'application/pdf', 1, 'k3', null, null)`);
+    await db.run(sql`insert into warranty (id, household_id, item_id, ends_on, attachment_id, updated_at) values ('w1', 'h1', 'i1', '2030-01-01', 'a1', 7)`);
+    await db.run(sql`insert into maintenance_task (id, household_id, item_id, title, attachment_id) values ('t1', 'h1', 'i1', 'Change filter', 'a1')`);
+    await db.run(sql`insert into suggested_task (id, household_id, item_id, title, title_key, interval_count, interval_unit, source, attachment_id)
+      values ('s1', 'h1', 'i1', 'Filter', 'filter', 3, 'month', 'manual', 'a1')`);
+    await db.run(sql`insert into paperless_document (id, household_id, paperless_id, title, status, item_id, attachment_id) values ('p1', 'h1', 41, 'Receipt', 'attached', 'i1', 'a3')`);
+
+    await finish();
+
+    expect(await db.all(sql`select id, item_id, task_id, inbox_id, analysis_status, main_at from attachment order by id`)).toEqual([
+      { id: "a1", item_id: "i1", task_id: null, inbox_id: null, analysis_status: "done", main_at: null },
+      { id: "a2", item_id: "i1", task_id: null, inbox_id: null, analysis_status: null, main_at: 5 },
+      { id: "a3", item_id: null, task_id: "t2", inbox_id: null, analysis_status: null, main_at: null },
+    ]);
+    expect(await db.all(sql`select id, attachment_id, updated_at from warranty`)).toEqual([{ id: "w1", attachment_id: "a1", updated_at: 7 }]);
+    expect(await db.all(sql`select id, attachment_id from maintenance_task order by id`)).toEqual([
+      { id: "t1", attachment_id: "a1" },
+      { id: "t2", attachment_id: null },
+    ]);
+    expect(await db.all(sql`select id, attachment_id from suggested_task`)).toEqual([{ id: "s1", attachment_id: "a1" }]);
+    expect(await db.all(sql`select id, attachment_id from paperless_document`)).toEqual([{ id: "p1", attachment_id: "a3" }]);
+    expect(await db.all(sql`select name from sqlite_master where name in ('__attachment_links', '__new_attachment')`)).toEqual([]);
+
+    // An inbox entry's file; still exactly one owner.
+    await db.run(sql`insert into inbox_entry (id, household_id, kind) values ('e1', 'h1', 'photos')`);
+    await db.run(sql`insert into attachment (id, household_id, inbox_id, kind, filename, content_type, size, blob_key) values ('a4', 'h1', 'e1', 'photo', 'x.jpg', 'image/jpeg', 1, 'k4')`);
+    await expect(
+      db.run(sql`insert into attachment (id, household_id, item_id, inbox_id, kind, filename, content_type, size, blob_key) values ('a5', 'h1', 'i1', 'e1', 'photo', 'x.jpg', 'image/jpeg', 1, 'k5')`),
+    ).rejects.toThrow();
+    await expect(db.run(sql`insert into attachment (id, household_id, kind, filename, content_type, size, blob_key) values ('a6', 'h1', 'photo', 'x.jpg', 'image/jpeg', 1, 'k6')`)).rejects.toThrow();
+  });
+});

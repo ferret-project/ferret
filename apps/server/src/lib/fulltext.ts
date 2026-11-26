@@ -69,7 +69,7 @@ export async function refreshFileSearch(db: Db, attachmentId: string) {
   const [f] = await db
     .select({ householdId: attachment.householdId, filename: attachment.filename, analysis: attachment.analysis })
     .from(attachment)
-    .where(and(eq(attachment.id, attachmentId), isNull(attachment.itemId), isNull(attachment.deletedAt)));
+    .where(and(eq(attachment.id, attachmentId), isNull(attachment.itemId), isNull(attachment.inboxId), isNull(attachment.deletedAt)));
   if (!f) return;
   const title = [f.filename, f.analysis?.description].filter(Boolean).join(" — ");
   await db.run(sql`INSERT INTO file_search (attachment_id, household_id, title, body) VALUES (${attachmentId}, ${f.householdId}, ${title}, ${f.analysis?.text ?? ""})`);

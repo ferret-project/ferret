@@ -2,6 +2,8 @@
  * Room-by-room walkthrough — for cataloguing a house: pick a room, photograph its things one after another (each photo
  * becomes a "New item" there, uploaded in the background while you keep going), then review them one at a time with
  * what the vision model read off the photo filled in. Nothing the model says is saved until you save it.
+ * It deliberately doesn't go through the inbox (Inbox.tsx) like "Add from photos": it's quick capture, and its own
+ * review step is where the reading is checked.
  *
  *   #/walkthrough                  pick a room
  *   #/walkthrough/<room>           photograph

@@ -6,7 +6,7 @@
  * GET /attachments/{id}/lines). An accessory whose model names a thing (an R1's lens, model R1) starts as a part of
  * it. Names, how many, prices and parts can be corrected first; nothing is added until Add.
  */
-import type { Attachment, Item, ReceiptLine } from "@ferret/shared";
+import type { Attachment, Item, ReceiptLine, ReceiptLinesInput } from "@ferret/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { flattenCategories, useCategories } from "./Catalog";
@@ -46,12 +46,29 @@ export function ReceiptLinesButton({ item, receipt, householdId }: { item: Item;
   );
 }
 
-function ReceiptLinesDialog({ item, receipt, householdId, onClose }: { item: Item; receipt: Attachment; householdId: string; onClose: () => void }) {
+/**
+ * `addLines`: a receipt waiting in the inbox (Inbox.tsx) — its lines go there instead (the first ticked is made from
+ * the inbox entry); discarding it is the inbox card's, so no "Not these" or "Delete this New item" here.
+ */
+export function ReceiptLinesDialog({
+  item,
+  receipt,
+  householdId,
+  onClose,
+  addLines,
+}: {
+  item: Item;
+  receipt: Attachment;
+  householdId: string;
+  onClose: () => void;
+  addLines?: (input: ReceiptLinesInput) => Promise<void>;
+}) {
   const qc = useQueryClient();
   const categories = useCategories(householdId);
   const paths = new Map(flattenCategories(categories.data ?? []).map((c) => [c.id, c.path]));
   const lines = receipt.analysis?.suggestions.lines ?? [];
-  const mine = thisOne(lines, item, receipt);
+  // From the inbox no line is "this thing": there's no thing yet.
+  const mine = addLines ? -1 : thisOne(lines, item, receipt);
   // A named thing already is its line, so that one starts unticked. An unnamed "New item" becomes the first line ticked,
   // so every line starts ticked and its own line goes first — otherwise the next line would take its place and its own
   // (often the dearest) would never be added.
@@ -99,7 +116,7 @@ function ReceiptLinesDialog({ item, receipt, householdId, onClose }: { item: Ite
   const ticked = rows.filter((r) => isTicked(r) && r.name.trim());
   const alreadyCount = rows.filter((r) => already(r)).length;
   // Everything on it is in Ferret already: the unnamed "New item" made for it has nothing to become.
-  const allKnown = unnamed(item) && rows.length > 0 && alreadyCount === rows.length;
+  const allKnown = !addLines && unnamed(item) && rows.length > 0 && alreadyCount === rows.length;
   const [confirmDelete, setConfirmDelete] = useState(false);
   const refresh = async () => {
     for (const k of ["items", "places", "overview", "to-confirm", "receipt-lines"]) await qc.invalidateQueries({ queryKey: [k, householdId] });
@@ -107,13 +124,16 @@ function ReceiptLinesDialog({ item, receipt, householdId, onClose }: { item: Ite
     await qc.invalidateQueries({ queryKey: ["item", householdId, item.id] });
   };
   const add = useMutation({
-    mutationFn: () =>
-      api.addReceiptLines(receipt.id, {
+    mutationFn: async () => {
+      const input: ReceiptLinesInput = {
         locationId: place,
         intoItem: unnamed(item),
         ownLine: !unnamed(item) && mine >= 0 ? { name: lines[mine]!.name, model: lines[mine]!.model ?? null } : null,
         lines: ticked.map((r) => ({ name: r.name.trim(), brand: r.brand ?? null, model: r.model ?? null, quantity: r.quantity, priceCents: toCents(r.price), categoryId: r.categoryId ?? null, partOfItemId: partOf(r)?.id ?? null, barcode: r.barcode ?? null })),
-      }),
+      };
+      if (addLines) await addLines(input);
+      else await api.addReceiptLines(receipt.id, input);
+    },
     onSuccess: async () => {
       await refresh();
       onClose();
@@ -145,7 +165,9 @@ function ReceiptLinesDialog({ item, receipt, householdId, onClose }: { item: Ite
         }}
       >
         <p className="text-base-content/70 text-sm">
-          {unnamed(item) ? (
+          {addLines ? (
+            <Trans>Each one ticked becomes a thing, bought the same day, with a copy of the receipt. Check what AI read first.</Trans>
+          ) : unnamed(item) ? (
             <Trans>Each one ticked becomes a thing, bought the same day, with the receipt — the first one this "New item". Check what AI read first.</Trans>
           ) : (
             <Trans>Each one ticked becomes a thing of its own, bought the same day, with a copy of the receipt. Check what AI read first.</Trans>
@@ -271,9 +293,11 @@ function ReceiptLinesDialog({ item, receipt, householdId, onClose }: { item: Ite
         <PlacePicker householdId={householdId} id="receipt-lines-place" name="place" label={t`Where are they?`} value={place} onChange={setPlace} noneLabel={t`Not in a place yet`} />
         {(add.isError || dismiss.isError || remove.isError) && <div className="alert alert-soft alert-error">{(add.error ?? dismiss.error ?? remove.error)!.message}</div>}
         <DialogActions>
-          <button type="button" className="btn btn-text me-auto" disabled={dismiss.isPending} onClick={() => dismiss.mutate()}>
-            <Trans>Not these</Trans>
-          </button>
+          {!addLines && (
+            <button type="button" className="btn btn-text me-auto" disabled={dismiss.isPending} onClick={() => dismiss.mutate()}>
+              <Trans>Not these</Trans>
+            </button>
+          )}
           <button type="button" className="btn btn-text" onClick={onClose}>
             <Trans>Cancel</Trans>
           </button>

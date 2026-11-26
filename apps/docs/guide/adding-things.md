@@ -15,14 +15,45 @@ label or receipt** fills them from a photo ([Read a label](./ai#read-a-label)).
 
 ## From photos
 
-**Add from photos** takes several photos at once — or pick them from your library — and makes a **New item** for each
-(or, for **All of one thing**, one item from all of them: [Several photos of one thing](./ai#several-photos)).
-Ferret reads every photo in the background: what it shows, any text on it (a label, a model number), and suggests a
-name, details and one of your categories. Those wait on each item, and under [To confirm](./ai#to-confirm), until you
-confirm them. A receipt with several things on it offers to [add each of them](./ai#receipt-lines).
+**Add from photos** takes several photos at once, or pick them from your library: each is a different thing, or choose
+**All of one thing** for its front, its label and its receipt together
+([Several photos of one thing](./ai#several-photos)). They go to [the inbox](#the-inbox), where Ferret reads them
+before anything is added.
 
-Nothing Ferret suggests is saved until you tap it. Each suggestion shows a small picture of the photo or document it
-was read from — tap it to see it bigger — so you can tell which photo was which, whatever the phone named it.
+## From a receipt
+
+**+ Add → From a receipt** takes a photo or a PDF of one receipt, invoice or order: a till receipt, an emailed
+invoice, an online order. It goes to [the inbox](#the-inbox) too. Once Ferret has read it, **Add the things on it…**
+lists every product with its price, brand and model. Untick what you don't want and correct anything, then tap
+**Add**. Each becomes a thing, bought that day, with its own copy of the receipt. Products that are already in Ferret
+(added from the same order before, or the same product bought around then) start unticked, marked **Already in
+Ferret**. A receipt for just one thing can be added as that thing, or put on one you have.
+
+## The inbox {#the-inbox}
+
+Photos and receipts you add wait in the **Inbox** (in the menu, under *Add things*) while Ferret reads them: what a
+photo shows, any text on it (a label, a model number), a receipt's products. Nothing is added until you choose, for
+each one:
+
+- **Add it**: a new thing, with the name, brand and model Ferret read already filled in. Correct them and choose
+  where it is first. Opened from a room, a box, a category or a tag, it goes there unless you change it.
+- **Already in Ferret?**: when you may have it already (the same barcode, model or name), Ferret offers to put the
+  photos on that thing instead. **Put on a thing…** lets you pick any thing.
+- **Add the things on it…**: for a receipt with several products (see [From a receipt](#from-a-receipt)).
+- **Discard**: tap it twice to remove the photos or receipt. Nothing was added, so nothing else changes.
+
+Anything Ferret read but you didn't fill in waits on the new thing's page as a suggestion, as with any photo. What's
+still in the inbox is counted under [To confirm](./ai#to-confirm), so you can come back to it later.
+
+Two ways of adding don't use the inbox:
+
+- **Without a vision model** on the server, Add from photos makes a **New item** for each photo straight away, since
+  there's nothing to read them with. From a receipt is only offered when the server can read receipts.
+- **[Walk through a room](./walkthrough)** makes a New item for each photo as you go, so you can keep photographing;
+  you name them in its own review afterwards.
+
+Each suggestion shows a small picture of the photo or document it was read from (tap it to see it bigger), so you
+can tell which photo was which, whatever the phone named it.
 
 ## Photos and documents on an item
 

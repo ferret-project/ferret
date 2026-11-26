@@ -3,7 +3,7 @@
  * adding things is one list, not a visit to every thing. The things whose photos and receipts have suggestions that
  * differ from what the thing says (the app shows each as on its page: Apply / Dismiss), replacement-cost estimates
  * not used yet, and how many wait in the lists with their own screens (filled in by AI, duplicates, suggested
- * maintenance, Paperless, room scans). Nothing here changes anything.
+ * maintenance, Paperless, room scans, the inbox). Nothing here changes anything.
  */
 import type { Attachment, AttachmentSuggestions, ToConfirm } from "@ferret/shared";
 import { and, desc, eq, gt, isNotNull, isNull, sql } from "drizzle-orm";
@@ -12,6 +12,7 @@ import { aiFillEntries } from "./ai-fill";
 import { attachmentFields } from "./attachments";
 import { duplicateCount } from "./duplicates";
 import { type Caller, asListing, itemScope, withTags } from "./inventory";
+import { inboxCount as waitingInInbox } from "./inbox";
 import { inboxCount } from "./paperless";
 import { PHOTO_ORDER } from "./photo-order";
 import { openRoomScans } from "./room-scans";
@@ -119,7 +120,7 @@ export async function toConfirm(v: Caller): Promise<ToConfirm> {
       valueCents: e.valueCents,
       purchasePriceCents: e.purchasePriceCents,
     })),
-    counts: { aiFilled, duplicates, suggestedTasks, paperless, roomScans: scans.filter((s) => s.status !== "pending").length },
+    counts: { aiFilled, duplicates, suggestedTasks, paperless, roomScans: scans.filter((s) => s.status !== "pending").length, inbox: await waitingInInbox(v) },
   };
 }
 

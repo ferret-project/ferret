@@ -2,7 +2,8 @@
  * #/share — what another app shared to Ferret (Android's and Chrome's Share menu; the manifest's share_target). The
  * service worker (public/sw.js) keeps the shared link, text and files in the "ferret-share" cache and opens the app
  * here; it becomes a new thing (named from the shared title, the link among its links, photos as photos and PDFs as
- * documents) or goes onto something already in Ferret. Done or discarded, the cache is cleared.
+ * documents) or goes onto something already in Ferret — or, with files and a server that reads photos, to the inbox to
+ * be read first (Inbox.tsx), the link and note going with it. Done or discarded, the cache is cleared.
  *
  * `#/share?url=…&title=…&text=…` works too (no files): a bookmarklet or another tool can open it.
  */
@@ -15,7 +16,7 @@ import { TopBar } from "./Nav";
 import { api } from "./lib/api";
 import { useCanEdit } from "./lib/auth";
 import { navigateTo } from "./lib/navigate";
-import { HOME_HREF, itemHref } from "./lib/route";
+import { HOME_HREF, INBOX_HREF, itemHref } from "./lib/route";
 import { t, ph, plural } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 
@@ -97,7 +98,10 @@ export function ShareIn({ householdId, search }: { householdId: string; search: 
   const shared = kept.data ?? null;
   const read = useMemo(() => (shared ? readShared(shared) : null), [shared]);
 
-  const [mode, setMode] = useState<"new" | "existing">("new");
+  const me = useQuery({ queryKey: ["me"], queryFn: api.me, staleTime: 60_000 });
+  const canRead = Boolean(me.data?.features.photoAi) && (shared?.files.length ?? 0) > 0;
+  const [chosen, setMode] = useState<"read" | "new" | "existing" | null>(null);
+  const mode = chosen ?? (canRead ? "read" : "new");
   const [name, setName] = useState("");
   const [place, setPlace] = useState<string | null>(null);
   const [item, setItem] = useState<Choice | null>(null);
@@ -112,6 +116,25 @@ export function ShareIn({ householdId, search }: { householdId: string; search: 
     mutationFn: async () => {
       if (!shared || !read) throw new Error(t`Nothing was shared`);
       let id: string;
+      if (mode === "read") {
+        // To the inbox: read before it's added; the link and note go onto whatever it becomes.
+        const entry = await api.startInbox({ kind: "shared", locationId: place, note: read.note || null, link: read.url || null });
+        let sent = 0;
+        const failed: string[] = [];
+        for (const f of shared.files) {
+          try {
+            await api.uploadInboxFile(entry.id, f.file, f.kind);
+            sent++;
+          } catch (err) {
+            failed.push(`${f.file.name}: ${(err as Error).message}`);
+          }
+        }
+        if (!sent) {
+          await api.discardInbox(entry.id).catch(() => {});
+          throw new Error(failed[0] ?? t`Couldn't upload it`);
+        }
+        return { id: "", failed, inbox: true };
+      }
       if (mode === "new") {
         const created = await api.createItem({
           name: name.trim() || t`New item`,
@@ -141,14 +164,15 @@ export function ShareIn({ householdId, search }: { householdId: string; search: 
           failed.push(`${f.file.name}: ${(err as Error).message}`);
         }
       }
-      return { id, failed };
+      return { id, failed, inbox: false };
     },
-    onSuccess: async ({ id, failed }) => {
+    onSuccess: async ({ id, failed, inbox }) => {
       void qc.invalidateQueries({ queryKey: ["items", householdId] });
       void qc.invalidateQueries({ queryKey: ["overview", householdId] });
+      void qc.invalidateQueries({ queryKey: ["inbox", householdId] });
       if (failed.length) return; // stays here, saying which didn't go up
       await clearCache();
-      navigateTo(itemHref(id), { replace: true });
+      navigateTo(inbox ? INBOX_HREF : itemHref(id), { replace: true });
     },
   });
 
@@ -233,6 +257,7 @@ export function ShareIn({ householdId, search }: { householdId: string; search: 
                   <div className="join w-full" role="radiogroup" aria-label={t`Where it goes`}>
                     {(
                       [
+                        ...(canRead ? ([["read", t`Read it first`]] as const) : []),
                         ["new", t`A new thing`],
                         ["existing", t`Something in Ferret`],
                       ] as const
@@ -248,7 +273,14 @@ export function ShareIn({ householdId, search }: { householdId: string; search: 
                       />
                     ))}
                   </div>
-                  {mode === "new" ? (
+                  {mode === "read" ? (
+                    <>
+                      <p className="text-sm text-base-content/70">
+                        <Trans>Ferret reads it in the inbox first, then you add it as a new thing or put it on one you have.</Trans>
+                      </p>
+                      <PlacePicker householdId={householdId} id="share-read-place" name="locationId" label={t`Where it is`} value={place} onChange={setPlace} noneLabel={t`Not decided yet`} />
+                    </>
+                  ) : mode === "new" ? (
                     <>
                       <div>
                         <label className="label-text" htmlFor="share-name">
@@ -270,7 +302,7 @@ export function ShareIn({ householdId, search }: { householdId: string; search: 
                           <li key={f}>{f}</li>
                         ))}
                       </ul>
-                      <a className="link" href={itemHref(add.data.id)} onClick={() => void clearCache()}>
+                      <a className="link" href={add.data.inbox ? INBOX_HREF : itemHref(add.data.id)} onClick={() => void clearCache()}>
                         <Trans>Open it</Trans>
                       </a>
                     </div>
@@ -282,7 +314,7 @@ export function ShareIn({ householdId, search }: { householdId: string; search: 
                       onClick={() => add.mutate()}
                     >
                       {add.isPending && <span className="loading loading-spinner loading-sm" />}
-                      {mode === "new" ? t`Add it` : item ? t`Add to ${ph({ name: item.label })}` : t`Add to it`}
+                      {mode === "read" ? t`Send to the inbox` : mode === "new" ? t`Add it` : item ? t`Add to ${ph({ name: item.label })}` : t`Add to it`}
                     </button>
                   )}
                   <button type="button" className="btn btn-text btn-sm self-center" disabled={add.isPending} onClick={() => void discard()}>

@@ -25,6 +25,7 @@ import {
   TO_CONFIRM_HREF,
   DUPLICATES_HREF,
   PAPERLESS_HREF,
+  INBOX_HREF,
   DELETED_HREF,
   IMPORT_HREF,
   ITEMS_HREF,
@@ -52,7 +53,7 @@ import {
 } from "./lib/route";
 import { useRoomScanOn } from "./lib/room-scan";
 import { Logo } from "./AuthLayout";
-import { AddFromPhotos } from "./PhotoAdd";
+import { AddFromPhotos, AddFromReceipt } from "./PhotoAdd";
 import { QuickAdd } from "./QuickAdd";
 import { Modal } from "./Modal";
 import { NewHouseholdDialog } from "./NewHousehold";
@@ -65,12 +66,14 @@ import { Trans } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
 
 /** `only`: listed only when the household has it set up (useNavGroups). */
-type Link = { href: string; label: MessageDescriptor; icon: string; external?: boolean; only?: "paperless" };
+type Link = { href: string; label: MessageDescriptor; icon: string; external?: boolean; only?: "paperless" | "reading" };
 
 export const NAV_GROUPS: { title: MessageDescriptor; links: Link[] }[] = [
   {
     title: msg`Add things`,
     links: [
+      // When the server can read photos or receipts (what's added waits there to be read first).
+      { href: INBOX_HREF, label: msg`Inbox`, icon: "icon-[tabler--inbox]", only: "reading" },
       { href: WALKTHROUGH_HREF, label: msg`Walk through a room`, icon: "icon-[tabler--walk]" },
       { href: IMPORT_HREF, label: msg`Import`, icon: "icon-[tabler--file-import]" },
       // Once the household has connected its Paperless (until then, Import offers it).
@@ -132,7 +135,8 @@ export function useNavGroups(householdId?: string) {
   const id = useContext(HouseholdContext)?.householdId ?? householdId;
   // The same query as Settings' Paperless card, so connecting or disconnecting shows here at once.
   const paperless = useQuery({ queryKey: ["paperless", id], queryFn: api.paperless, enabled: Boolean(id), staleTime: 5 * 60_000 });
-  const has = { paperless: Boolean(paperless.data?.connection) };
+  const me = useQuery({ queryKey: ["me"], queryFn: api.me, staleTime: 60_000 });
+  const has = { paperless: Boolean(paperless.data?.connection), reading: Boolean(me.data?.features.photoAi || me.data?.features.receiptAi) };
   return NAV_GROUPS.map((g) => ({ ...g, links: g.links.filter((l) => !l.only || has[l.only]) }));
 }
 
@@ -715,6 +719,16 @@ function AddSheet({ householdId, route, context, onClose }: { householdId: strin
                 className="btn btn-soft btn-primary btn-wrap h-auto min-h-24 flex-col gap-2 rounded-box px-2 py-3 text-sm"
               />
   );
+  // A receipt is read before its things are added (the inbox) — only where the server can read one.
+  const RECEIPT = me.data?.features.receiptAi ? (
+    <AddFromReceipt
+      householdId={householdId}
+      locationId={context.locationId ?? null}
+      categoryId={context.categoryId ?? null}
+      tags={context.tag ? [context.tag] : []}
+      className="btn btn-soft btn-wrap h-auto min-h-24 flex-col gap-2 rounded-box px-2 py-3 text-sm"
+    />
+  ) : null;
   const options: { icon: string; label: string; detail: string; onClick?: () => void; href?: string }[] = [
     { icon: "icon-[tabler--keyboard]", label: t`Type it in`, detail: t`A name, and whatever else you know`, onClick: () => setTyping(true) },
     { icon: "icon-[tabler--barcode]", label: t`Scan a barcode`, detail: t`Ferret looks it up`, onClick: () => (onClose(), requestScan(route, true)) },
@@ -791,8 +805,8 @@ function AddSheet({ householdId, route, context, onClose }: { householdId: strin
                 {tile}
               </button>
             );
-            // Photos second, after "Type it in".
-            return i === 0 ? [el, <span key="photos" className="contents">{PHOTOS}</span>] : el;
+            // Photos (and a receipt) second, after "Type it in".
+            return i === 0 ? [el, <span key="photos" className="contents">{PHOTOS}</span>, ...(RECEIPT ? [<span key="receipt" className="contents">{RECEIPT}</span>] : [])] : el;
           })}
         </div>
       )}

@@ -96,6 +96,9 @@ inventory.get("/me", requireUser, async (c) => {
       graded: await gradingOn(c.var.deps),
       // Photos read by the vision model (an unread one offers "Analyze").
       photoAi: Boolean(c.var.deps.ai && c.var.deps.images && c.var.deps.jobs),
+      // Receipts can be read before adding (+ Add → From a receipt, lib/inbox.ts): photos of them by the vision model,
+      // PDFs by docling or their own text, with a model to read the products.
+      receiptAi: Boolean(c.var.deps.jobs && ((c.var.deps.ai && c.var.deps.images) || ((c.var.deps.documents || c.var.deps.pdfPages) && (c.var.deps.chat ?? c.var.deps.ai)))),
     },
   });
 });

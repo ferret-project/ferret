@@ -26,7 +26,7 @@ interface Base {
   error?: string;
 }
 export type Capture =
-  | (Base & { kind: "photo"; blob: Blob; filename: string; locationId: string | null; note: string; itemId?: string })
+  | (Base & { kind: "photo"; blob: Blob; filename: string; locationId: string | null; note: string; itemId?: string; inboxId?: string })
   | (Base & { kind: "scan"; code: string; mode: ScanAction; itemId?: string; result?: ScanResult })
   | (Base & { kind: "roomscan"; blobs: Blob[]; locationId: string });
 
@@ -148,15 +148,25 @@ function isOffline(err: unknown) {
 
 /**
  * Upload what's waiting, oldest first, one at a time (one tab at a time too). Stops at the first "no signal".
- * Returns how many went up.
+ * Returns how many went up. `inbox`: the server reads photos, so a photo goes to the inbox to be read before it's
+ * added (Inbox.tsx); without, it becomes a "New item" at once.
  */
-export async function syncCaptures(householdId: string): Promise<number> {
+export async function syncCaptures(householdId: string, opts: { inbox?: boolean } = {}): Promise<number> {
   const run = async () => {
     let done = 0;
     for (const c of await listCaptures(householdId)) {
       if (c.kind === "scan" && c.result) continue; // waiting for someone to answer it
       try {
-        if (c.kind === "photo") {
+        if (c.kind === "photo" && (opts.inbox || c.inboxId) && !c.itemId) {
+          let inboxId = c.inboxId;
+          if (!inboxId) {
+            const entry = await api.startInbox({ kind: "photos", locationId: c.locationId, note: c.note || null });
+            inboxId = entry.id;
+            await saveCapture({ ...c, inboxId, error: undefined });
+          }
+          await api.uploadInboxFile(inboxId, new File([c.blob], c.filename, { type: c.blob.type }), "photo");
+          await removeCapture(c.id);
+        } else if (c.kind === "photo") {
           let itemId = c.itemId;
           if (!itemId) {
             const item = await api.createItem({ name: "New item", locationId: c.locationId, notes: c.note || null, origin: "photos" });

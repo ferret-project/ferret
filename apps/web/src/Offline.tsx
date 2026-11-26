@@ -4,7 +4,7 @@
  * back online, the dashboard card that uploads them and asks about scans that need an answer.
  */
 import type { ScanResult } from "@ferret/shared";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { Logo } from "./AuthLayout";
 import { PlacePicker } from "./Combobox";
@@ -397,13 +397,17 @@ export function useCaptureSync(householdId: string) {
   const captures = useCaptures(householdId);
   const qc = useQueryClient();
   const waiting = captures.filter((c) => !(c.kind === "scan" && c.result));
+  // Whether the server reads photos: then they go to the inbox to be read first. Known once online.
+  const me = useQuery({ queryKey: ["me"], queryFn: api.me, staleTime: 60_000 });
+  const known = me.data !== undefined;
+  const inbox = Boolean(me.data?.features.photoAi);
   useEffect(() => {
-    if (!waiting.length) return;
+    if (!waiting.length || !known) return;
     let stop = false;
     const go = async () => {
       if (stop || !navigator.onLine) return;
-      const done = await syncCaptures(householdId).catch(() => 0);
-      if (done) for (const key of ["items", "overview", "places", "attention", "shopping"]) void qc.invalidateQueries({ queryKey: [key, householdId] });
+      const done = await syncCaptures(householdId, { inbox }).catch(() => 0);
+      if (done) for (const key of ["items", "overview", "places", "attention", "shopping", "inbox", "inbox-count"]) void qc.invalidateQueries({ queryKey: [key, householdId] });
     };
     void go();
     window.addEventListener("online", go);
@@ -415,7 +419,7 @@ export function useCaptureSync(householdId: string) {
     };
     // Re-run when the number waiting changes, not on every capture update.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [householdId, waiting.length]);
+  }, [householdId, waiting.length, known, inbox]);
 }
 
 /** On the dashboard: what's still waiting from offline, and the scans whose answer needs someone. */

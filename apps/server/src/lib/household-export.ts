@@ -23,6 +23,7 @@ import { Zip, ZipDeflate, ZipPassThrough } from "fflate";
 import { organization } from "../db/schema/auth";
 import {
   attachment,
+  inboxEntry,
   category,
   item,
   itemTag,
@@ -121,6 +122,7 @@ export async function householdData(v: Caller, root: string, householdName: stri
   const templates = await listTemplates(v);
   const collections = await listCollections(v);
   const owned = await v.db.select().from(ownLabel).where(eq(ownLabel.householdId, h)).orderBy(asc(ownLabel.createdAt));
+  const waiting = await v.db.select().from(inboxEntry).where(eq(inboxEntry.householdId, h)).orderBy(asc(inboxEntry.createdAt));
   const [rules, moves, readings, sightings, reviews, reviewEntries, fixes] = await Promise.all([
     v.db.select().from(stockRule).where(eq(stockRule.householdId, h)),
     v.db.select().from(stockMovement).where(eq(stockMovement.householdId, h)).orderBy(asc(stockMovement.createdAt)),
@@ -172,6 +174,7 @@ export async function householdData(v: Caller, root: string, householdName: stri
     if (f.itemId) return itemIds.has(f.itemId) ? { key: f.itemId, name: safeName(itemName.get(f.itemId)!, "item") } : null;
     if (f.propertyId) return propertyName.has(f.propertyId) ? { key: f.propertyId, name: safeName(propertyName.get(f.propertyId)!, "property") } : null;
     if (f.locationId) return placeById.has(f.locationId) ? { key: f.locationId, name: safeName((placePath(f.locationId) ?? "place").replaceAll(" › ", " - "), "place") } : null;
+    if (f.inboxId) return { key: "inbox", name: "Inbox" };
     const task = f.taskId ? taskById.get(f.taskId) : undefined;
     return task ? { key: task.id, name: safeName(`Maintenance - ${task.title}`, "maintenance") } : null;
   };
@@ -405,6 +408,15 @@ export async function householdData(v: Caller, root: string, householdName: stri
             files: files.filter((f) => f.doneId === l.id && filePaths.has(f.id)).map((f) => f.id),
           })),
       })),
+    /** Photos and receipts waiting in the inbox to be added (read, not anyone's yet). */
+    inbox: waiting.map((e) => ({
+      id: e.id,
+      kind: e.kind,
+      addedAt: iso(e.createdAt),
+      note: e.note,
+      link: e.link,
+      files: filesOf((f) => f.inboxId === e.id),
+    })),
   };
   return { data, files: files.filter((f) => filePaths.has(f.id)).map((f) => ({ ...f, path: filePaths.get(f.id)! })) };
 }

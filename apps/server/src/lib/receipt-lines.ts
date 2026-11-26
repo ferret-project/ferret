@@ -47,7 +47,8 @@ export async function receiptLinesKnown(v: Caller, attachmentId: string): Promis
     .select()
     .from(attachment)
     .where(and(eq(attachment.id, attachmentId), eq(attachment.householdId, v.householdId), isNull(attachment.deletedAt)));
-  if (!row?.itemId) throw notFound("File");
+  // A thing's receipt, or one waiting in the inbox (lib/inbox.ts) to be read before anything is added.
+  if (!row?.itemId && !row?.inboxId) throw notFound("File");
   const s = row.analysis?.suggestions ?? {};
   const lines = s.lines ?? [];
   // Either number: a read takes the order number one time and only the invoice number another.

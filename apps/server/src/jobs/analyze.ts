@@ -599,9 +599,11 @@ export function analyzeAttachment(deps: {
       .where(and(eq(attachment.id, attachmentId), isNull(attachment.deletedAt)));
     if (!row || row.analysisStatus !== "pending") return; // deleted, or already handled
     // A thing's files give suggestions for it; a property's, a place's or a task's are read for their words only
-    // (its description and text, to find it by): no suggestions, and no text model asked for them.
+    // (its description and text, to find it by): no suggestions, and no text model asked for them. One waiting in the
+    // inbox (lib/inbox.ts) is read like a thing's; what's done with a thing's reading waits until it's put on one.
     const itemId = row.itemId;
-    const wordsOnly = !itemId;
+    const inInbox = !itemId && Boolean(row.inboxId);
+    const wordsOnly = !itemId && !inInbox;
     const kind = row.kind as AttachmentKind;
 
     const save = async (analysis: AttachmentAnalysis | null) => {
@@ -701,13 +703,20 @@ export function analyzeAttachment(deps: {
         return;
       }
       await save(analysis);
+      // Waiting in the inbox: nothing more until it's accepted (lib/inbox.ts runs the rest then) — unless it was put on a
+      // thing while it was being read.
+      const thingId = inInbox ? (await deps.db.select({ itemId: attachment.itemId }).from(attachment).where(eq(attachment.id, row.id)))[0]?.itemId : itemId;
+      if (!thingId) {
+        if (preview) await deps.files.delete(previewKey(row.blobKey)).catch(() => {});
+        return;
+      }
       // Schedules read from a manual: into Suggested maintenance, for a person to add.
       if (analysis.suggestions.maintenance?.length) {
-        await suggestTasks(deps.db, { householdId: row.householdId, itemId: itemId!, attachmentId: row.id, source: "manual" }, analysis.suggestions.maintenance);
+        await suggestTasks(deps.db, { householdId: row.householdId, itemId: thingId, attachmentId: row.id, source: "manual" }, analysis.suggestions.maintenance);
       }
-      if (deps.full) await autoFill(deps.full, { ...row, itemId: itemId! }, analysis).catch((err) => console.warn(`Filling in from ${row.id} failed: ${String(err)}`));
+      if (deps.full) await autoFill(deps.full, { ...row, itemId: thingId }, analysis).catch((err) => console.warn(`Filling in from ${row.id} failed: ${String(err)}`));
       if (preview) await deps.files.delete(previewKey(row.blobKey)).catch(() => {});
-      await deps.onItemChanged?.(itemId!); // new text to search
+      await deps.onItemChanged?.(thingId); // new text to search
     } catch (err) {
       if (lastAttempt) {
         await save(null);

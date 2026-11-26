@@ -1,4 +1,4 @@
-import type { ItemImportCheck, ItemImportResult, ItemSheet, SigningKey, TaskVideo, VideoHit, ItemFuelEconomyStatus, FuelEconomyStatus, DiskSpaceEntry, UpdateStatus,
+import type { InboxCreate, InboxEntry, ItemImportCheck, ItemImportResult, ItemSheet, SigningKey, TaskVideo, VideoHit, ItemFuelEconomyStatus, FuelEconomyStatus, DiskSpaceEntry, UpdateStatus,
   ItemDraft,
   ReceiptLinesInput,
   ReceiptLinesKnown,
@@ -238,6 +238,20 @@ async function uploadFile(of: FileOwnerQuery, file: File, kind: AttachmentKind) 
   return json as Attachment;
 }
 
+/** A photo or document for an inbox entry (lib/inbox.ts on the server): read before anything is added. */
+async function uploadInboxFile(entryId: string, file: File, kind: AttachmentKind) {
+  const form = new FormData();
+  form.set("file", file);
+  form.set("kind", kind);
+  const copies = await photoCopies(file);
+  if (copies.thumbnail) form.set("thumbnail", copies.thumbnail, "thumbnail");
+  if (copies.preview) form.set("preview", copies.preview, "preview");
+  const res = await fetch(`/api/v1/inbox/${entryId}/files`, { method: "POST", body: form, credentials: "include" });
+  const json = (await res.json().catch(() => null)) as Attachment | ApiError | null;
+  if (!res.ok) throw Object.assign(new Error((json as ApiError | null)?.error?.message ?? t`Upload failed (${ph({ status: res.status })})`), { status: res.status });
+  return json as Attachment;
+}
+
 /** A room scan's photos: the browser's 1600 px copy when it can make one (what the server would keep anyway). */
 async function startRoomScan(photos: File[], at: { locationId?: string; containerItemId?: string }) {
   const form = new FormData();
@@ -297,6 +311,14 @@ async function uploadCrop(itemId: string, crop: Blob, opts: { filename?: string;
 
 export const api = {
   roomScans: () => request<{ data: RoomScan[] }>("/room-scans"),
+  inbox: () => request<{ data: InboxEntry[] }>("/inbox"),
+  inboxCount: () => request<{ count: number }>("/inbox/count"),
+  startInbox: (input: InboxCreate) => request<InboxEntry>("/inbox", { method: "POST", body: JSON.stringify(input) }),
+  uploadInboxFile,
+  inboxAdd: (id: string, input: Partial<ItemInput>) => request<Item>(`/inbox/${id}/add`, { method: "POST", body: JSON.stringify(input) }),
+  inboxOnto: (id: string, itemId: string) => request<{ id: string; name: string }>(`/inbox/${id}/onto`, { method: "POST", body: JSON.stringify({ itemId }) }),
+  inboxLines: (id: string, input: ReceiptLinesInput) => request<{ items: { id: string; name: string }[] }>(`/inbox/${id}/lines`, { method: "POST", body: JSON.stringify(input) }),
+  discardInbox: (id: string) => request<void>(`/inbox/${id}`, { method: "DELETE" }),
   roomScan: (id: string) => request<RoomScan>(`/room-scans/${encodeURIComponent(id)}`),
   roomScanPhotoUrl: (id: string, n: number) => `/api/v1/room-scans/${encodeURIComponent(id)}/photos/${n}`,
   startRoomScan,
@@ -343,7 +365,7 @@ export const api = {
   /** Whether you're the server admin (who sees Settings → Server). */
   /** The language Ferret writes to you in (emails, push) — saved with the account. */
   setMyLanguage: (language: string | null) => request<{ language: string | null }>("/me/language", { method: "PUT", body: JSON.stringify({ language }) }),
-  me: () => request<{ serverAdmin: boolean; language: string | null; features: { fromWeb: boolean; homeAssistant: boolean; roomScan: boolean; textAi: boolean; speech: boolean; photoAi?: boolean; paperless?: boolean; videoSearch?: boolean; music?: boolean; cards?: CardGame[]; cardPhotos?: boolean; collectibles?: CollectibleKind[]; graded?: GradingService[] } }>("/me"),
+  me: () => request<{ serverAdmin: boolean; language: string | null; features: { fromWeb: boolean; homeAssistant: boolean; roomScan: boolean; textAi: boolean; speech: boolean; photoAi?: boolean; receiptAi?: boolean; paperless?: boolean; videoSearch?: boolean; music?: boolean; cards?: CardGame[]; cardPhotos?: boolean; collectibles?: CollectibleKind[]; graded?: GradingService[] } }>("/me"),
   backupStatus: () => request<BackupStatus>("/backup"),
   serverSecrets: () => request<ServerSecrets>("/server/secrets"),
   serverAddress: () => request<ServerAddress>("/server/address"),
