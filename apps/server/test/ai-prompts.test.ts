@@ -10,7 +10,9 @@ describe("AI prompts", () => {
   it("ask for a titled thing's title and its publisher (GitHub issue #8)", () => {
     const photoPrompt = imagePrompt("photo", "USD");
     expect(photoPrompt).toContain('its title as printed, like "Kirby: Mouse Attack"');
-    expect(photoPrompt).toContain("for a book, game or film its publisher, not the platform");
+    expect(photoPrompt).toContain("for a book, game or film its publisher");
+    expect(photoPrompt).toContain("even when the publisher also makes the platform"); // a Nintendo game's brand is Nintendo
+    expect(photoPrompt).toContain("For a video game, the model is the platform it's for"); // pnpm eval:vision checks it on the real model
     expect(photoPrompt).toContain("or its title is printed in full");
     expect(roomScanPrompt([])).toContain("a book's, game's or film's title if clearly readable");
   });

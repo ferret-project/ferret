@@ -99,7 +99,7 @@ its models, one prompt at a time: photos of things, documents, Describe it, room
 look at **Ferret's built-in prompt** (household details such as categories show as placeholders), and write your
 instructions underneath — for example:
 
-- *Photos of things:* "For video games, the brand is the publisher and the model is the platform, like Nintendo DS."
+- *Photos of things:* "For trading cards, put the set name and card number in the model, like Base Set 4/102."
 - *Ask Ferret:* "Answer in British English."
 
 Your instructions are **added to** Ferret's, never replace them: the reply's format, what Ferret counts as sure enough

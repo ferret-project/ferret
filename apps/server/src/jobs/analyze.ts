@@ -115,7 +115,7 @@ const lineSchema = {
 const SURE_FIELDS = ["name", "brand", "model", "serialNumber", "barcode", "purchaseDate", "purchasePrice", "returnDays", "returnBy", "warrantyMonths"] as const;
 
 /** JSON Schema the model's reply must follow. Money comes back in currency units; we convert to cents. */
-const replySchema = {
+export const replySchema = {
   type: "object",
   properties: {
     description: { type: "string" },
@@ -177,7 +177,7 @@ const categoryList = (categories: string[]) => (categories.length ? `\n\nThe hou
 
 /** The fields to read, for a household that keeps its money in `currency` (ISO 4217) and has these `categories`. */
 const fieldRules = (currency: string, categories: string[] = []) => `- name: a short, generic name for the item, like "Cordless drill" or "Stand mixer" — not the brand. But for something with its own title printed on it — a book, video game, film, music album or board game — its title as printed, like "Kirby: Mouse Attack". For a receipt, the main item bought.
-- brand, model, serialNumber: exactly as printed on a label, the item, its box or a document; null if not clearly visible. The brand is the product's maker — for a book, game or film its publisher, not the platform it plays on (like "Nintendo DS") — written or shown by its logo; never the store a receipt is from.
+- brand, model, serialNumber: exactly as printed on a label, the item, its box or a document; null if not clearly visible. The brand is the product's maker — for a book, game or film its publisher, written or shown by its logo, even when the publisher also makes the platform (like "Nintendo") — never the store a receipt is from. For a video game, the model is the platform it's for, as printed on the case or cartridge (like "Nintendo 3DS" or "PlayStation 5").
 - barcode: the digits of a UPC/EAN barcode if printed; otherwise null.
 - purchaseDate: the purchase date as YYYY-MM-DD, only from a receipt or invoice; otherwise null.
 - purchasePrice: the price paid for the main item as a number (e.g. 129.99), only from a receipt or invoice — never the receipt's total when it lists several products; otherwise null. The household's money is ${currency}: give the amount as printed in it, without the symbol; null if the receipt is clearly in another currency.
