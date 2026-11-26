@@ -2,6 +2,7 @@
 import type { ItemSearch } from "@ferret/shared";
 import { describe, expect, it } from "vitest";
 import { fuse } from "../src/lib/search";
+import { minimumShouldMatch } from "../src/lib/fulltext";
 import { editDistance } from "../src/lib/spelling";
 import { eq } from "drizzle-orm";
 import { attachment } from "../src/db/schema";
@@ -24,6 +25,24 @@ async function house() {
   const names = async (q: string) => (await search(q)).data.map((i) => i.name);
   return { ...ctx, ann, collector, tv, search, names };
 }
+
+describe("words of a question", () => {
+  it("needs all of two words, three in four of more", () => {
+    expect([1, 2, 3, 4, 5, 6, 8].map(minimumShouldMatch)).toEqual([1, 2, 2, 3, 3, 4, 6]);
+  });
+
+  it("finds a thing from a question's words, and nothing for a thing they don't own", async () => {
+    const { names, ann } = await house();
+    await ann.addItem({ name: "Espresso machine", brand: "Breville" });
+    await ann.addItem({ name: "Socket set", brand: "Craftsman", notes: "Red case" });
+    expect(await names("how many vacuum cleaners do I have?")).toEqual(["Vacuum cleaner"]); // the question's words left out
+    expect(await names("where did I put the dyson")).toEqual(["Vacuum cleaner"]);
+    expect(await names("which drawer has the socket set")).toEqual(["Socket set"]); // "drawer" is nowhere: 2 of 3 is enough
+    // Words found nowhere in the house still count: "sewing machine" isn't "machine".
+    expect(await names("is there a sewing machine somewhere")).toEqual([]);
+    expect(await names("do I own a toaster?")).toEqual([]);
+  });
+});
 
 describe("ranking words", () => {
   it("puts a thing whose own words match before one only its manual mentions", async () => {
@@ -60,7 +79,7 @@ describe("did you mean", () => {
     expect((await search("tv")).suggestion).toBeUndefined(); // short words aren't corrected
     // Everyday words of a question aren't "corrected" to the household's: "many" isn't "man".
     await ann.addItem({ name: "Man cave vacuum" });
-    expect((await search("how many vacum")).suggestion).toBeUndefined(); // was "how man vacuum"
+    expect((await search("how many vacum")).suggestion).toBe("how many vacuum"); // was "how man vacuum"
     // Another household's words are never offered.
     const bob = await user("bob");
     expect((await search("vacum", bob)).suggestion).toBeUndefined();

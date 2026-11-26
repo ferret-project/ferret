@@ -18,6 +18,8 @@ export interface TextHit {
   snippet?: string;
   /** Only its documents have the words (a manual mentions it), not the thing itself or its photos: weaker evidence. */
   inDocumentsOnly?: boolean;
+  /** Matched most of the query's words, not all (minimumShouldMatch): weaker than a match of every word. */
+  partial?: boolean;
 }
 
 /** Rewrites an item's rows in both indexes (or removes them, if the item is gone). */
@@ -98,32 +100,74 @@ export async function fileTextSearch(db: Db, householdId: string, query: string,
  */
 const matchQuery = (terms: string[]) => terms.map((t) => (t.length > 1 ? `"${t}"*` : `"${t}"`)).join(" ");
 
-/** Small words that would make every word required ("where is the drill") fail to match. */
+/**
+ * Words that never say which thing is meant: Lucene's English stop words, and the words around a question about a
+ * household's things ("how many … do I have", "where did I put …", "do I still have …"). Left out of every search.
+ */
 const STOPWORDS = new Set(
-  "a an and are at be by can do find for from have how i in is it its my of on or our the to was what where which who with you".split(
-    " ",
-  ),
+  (
+    "a an and are as at be but by for if in into is it no not of on or such that the their then there these they this to was will with " +
+    "about after again all also am any anything anywhere been being can could did do does doing done each else find found from get gets " +
+    "got had has have having here how i i'd i'm its just keep kept let many may me might mine more most much must my need now our ours own " +
+    "please put s same should show so some somewhere still store stored tell than them those us want was we were what whats when where " +
+    "wheres which while who whom whose why would you your yours"
+  ).split(" "),
 );
 
 /**
- * Items whose text contains every word of the query (as a word prefix), best
- * first by BM25 — names count most. Falls back to substring matching for
- * number-like terms (serials, models) when no whole words match.
+ * How many of a query's words a thing must have when not all match — Elasticsearch's common `minimum_should_match:
+ * "2<75%"`: up to two words, all of them; more, three in four (rounded down). Counted over every word of the query,
+ * those found nowhere in the household too: "sewing machine" never becomes "machine".
+ */
+export const minimumShouldMatch = (words: number) => (words <= 2 ? words : Math.floor(words * 0.75));
+
+/** Every way of choosing `k` of the terms (at most 8 terms, so at most 70 groups). */
+function choose<T>(items: T[], k: number): T[][] {
+  if (k === 0) return [[]];
+  if (items.length < k) return [];
+  const [first, ...rest] = items;
+  return [...choose(rest, k - 1).map((c) => [first!, ...c]), ...choose(rest, k)];
+}
+
+/**
+ * Items whose text has the query's words (as word prefixes), best first by BM25 — names count most:
+ * 1. every word (as typed: what most searches are);
+ * 2. else most of them (`minimumShouldMatch`), as one query — an OR of every big enough group of the words that occur
+ *    in the household — ranked by BM25, so the rarer words matter most; these are `partial`;
+ * 3. else substrings of number-like words (serials, models) in the trigram index.
  */
 export async function fullTextSearch(db: Db, householdId: string, query: string, limit: number, opts: { documents?: boolean } = {}): Promise<TextHit[]> {
-  const terms = (query.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []).filter((t) => !STOPWORDS.has(t)).slice(0, 8);
+  const terms = [...new Set((query.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []).filter((t) => !STOPWORDS.has(t)))].slice(0, 8);
   if (terms.length === 0) return [];
 
   // Without documents: the item's own row and its photos' rows only.
   const noDocuments = opts.documents === false ? sql` AND (attachment_id IS NULL OR attachment_id NOT IN (SELECT id FROM attachment WHERE kind = 'document'))` : sql``;
   type Row = { item_id: string; attachment_id: string | null; filename: string | null; rank: number; snippet: string; kind?: string | null };
-  let rows = await db.all<Row>(sql`
-    SELECT item_id, attachment_id, filename, bm25(item_search, 0, 0, 0, 0, 8.0, 1.0) AS rank,
-           (SELECT kind FROM attachment WHERE attachment.id = item_search.attachment_id) AS kind,
-           snippet(item_search, 5, '', '', '…', 24) AS snippet
-    FROM item_search
-    WHERE item_search MATCH ${matchQuery(terms)} AND household_id = ${householdId}${noDocuments}
-    ORDER BY rank LIMIT ${limit * 4}`);
+  const search = (match: string) =>
+    db.all<Row>(sql`
+      SELECT item_id, attachment_id, filename, bm25(item_search, 0, 0, 0, 0, 8.0, 1.0) AS rank,
+             (SELECT kind FROM attachment WHERE attachment.id = item_search.attachment_id) AS kind,
+             snippet(item_search, 5, '', '', '…', 24) AS snippet
+      FROM item_search
+      WHERE item_search MATCH ${match} AND household_id = ${householdId}${noDocuments}
+      ORDER BY rank LIMIT ${limit * 4}`);
+  let rows = await search(matchQuery(terms));
+  let partial = false;
+
+  // Not every word: most of them. Only words the household has can match, so the groups are made of those.
+  const needed = minimumShouldMatch(terms.length);
+  if (rows.length === 0 && needed < terms.length) {
+    const present: string[] = [];
+    for (const t of terms) {
+      const [row] = await db.all<{ n: number }>(sql`SELECT count(*) AS n FROM item_search WHERE item_search MATCH ${matchQuery([t])} AND household_id = ${householdId}${noDocuments}`);
+      if (Number(row?.n ?? 0) > 0) present.push(t);
+    }
+    if (present.length >= needed) {
+      const groups = choose(present, needed).map((g) => `(${matchQuery(g)})`);
+      rows = await search(groups.join(" OR "));
+      partial = rows.length > 0;
+    }
+  }
 
   const substrings = terms.filter((t) => t.length >= 3);
   if (rows.length === 0 && substrings.length) {
@@ -149,6 +193,7 @@ export async function fullTextSearch(db: Db, householdId: string, query: string,
     hits.set(r.item_id, {
       itemId: r.item_id,
       rank: 0,
+      ...(partial ? { partial: true } : {}),
       ...(r.attachment_id
         ? { attachmentId: r.attachment_id, filename: r.filename ?? undefined, snippet: r.snippet || undefined }
         : {}),

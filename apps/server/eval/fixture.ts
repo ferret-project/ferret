@@ -55,7 +55,7 @@ export interface FixtureQuery {
   q: string;
   /** Item names that count as right answers (any one of them in place is a hit). */
   expect: string[];
-  kind: "keyword" | "intent" | "document" | "location" | "none";
+  kind: "keyword" | "intent" | "document" | "location" | "question" | "none";
 }
 
 export const queries: FixtureQuery[] = [
@@ -101,4 +101,28 @@ export const queries: FixtureQuery[] = [
   { q: "golf clubs", expect: [], kind: "none" },
   { q: "sewing machine", expect: [], kind: "none" },
   { q: "chainsaw", expect: [], kind: "none" },
+
+  // Questions, as typed into the search box or asked: words around the ones that name the thing.
+  { q: "how many sleeping bags do I have?", expect: ["Sleeping bags"], kind: "question" },
+  { q: "do I have a dewalt drill?", expect: ["Cordless drill"], kind: "question" },
+  { q: "where is my kitchenaid mixer?", expect: ["Stand mixer"], kind: "question" },
+  { q: "where did I put the roomba", expect: ["Robot vacuum"], kind: "question" },
+  { q: "is there a ladder somewhere?", expect: ["Extension ladder"], kind: "question" },
+  { q: "which drawer has the socket set", expect: ["Socket set"], kind: "question" },
+  { q: "what's the serial number of the water heater", expect: ["Water heater"], kind: "question" },
+  { q: "when did I buy the samsung tv", expect: ["TV"], kind: "question" },
+  { q: "how many strands of christmas lights are there", expect: ["Christmas lights"], kind: "question" },
+  { q: "got any camping gear?", expect: ["Camping tent", "Sleeping bags"], kind: "question" },
+  { q: "where's the honda mower", expect: ["Lawn mower"], kind: "question" },
+  { q: "how many quarts is the instant pot", expect: ["Instant Pot"], kind: "question" },
+  { q: "where is the KSM150PSER", expect: ["Stand mixer"], kind: "question" },
+  { q: "do I still have the QN65Q80C receipt?", expect: ["TV"], kind: "question" },
+  { q: "which thing has serial Q312345678", expect: ["Water heater"], kind: "question" },
+  { q: "how often do I flush the rheem", expect: ["Water heater"], kind: "question" },
+  { q: "where are my old trek bike lights", expect: ["Bike"], kind: "question" },
+  // …and about things they don't own: still nothing.
+  { q: "do I own a toaster?", expect: [], kind: "none" },
+  { q: "where is my piano", expect: [], kind: "none" },
+  { q: "how many golf balls do I have", expect: [], kind: "none" },
+  { q: "is there a sewing machine somewhere", expect: [], kind: "none" },
 ];

@@ -5,6 +5,7 @@
  *   pnpm --filter @ferret/server eval:search            # summary + misses
  *   pnpm --filter @ferret/server eval:search --verbose  # every query
  *   pnpm --filter @ferret/server eval:search --no-judge # without the chat model deciding unsure matches
+ *   pnpm --filter @ferret/server eval:search --words-only # keyword search alone (no AI, or a plan without it)
  */
 import { OpenAiModels } from "../src/adapters/local/ai";
 import { OpenAiChat } from "../src/adapters/local/chat";
@@ -32,5 +33,6 @@ await runSearchEval({
   profileName: "home",
   models: { embed: config.EMBED_MODEL, rerank: config.RERANK_URL ? config.RERANK_MODEL : undefined, chat: !noJudge && config.CHAT_URL ? config.CHAT_MODEL : undefined },
   verbose: process.argv.includes("--verbose"),
+  wordsOnly: process.argv.includes("--words-only"),
 });
 process.exit(0);

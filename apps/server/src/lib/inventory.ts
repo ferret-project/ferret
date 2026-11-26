@@ -627,8 +627,8 @@ export async function asListing<T extends typeof item.$inferSelect>(
 }
 
 /**
- * Words + meaning, merged by reciprocal rank fusion: full-text matches (every word,
- * stemmed, in the item's fields, location or documents) and semantic matches each
+ * Words + meaning, merged by reciprocal rank fusion: full-text matches (every word — else most of them — stemmed, in
+ * the item's fields, location or documents: lib/fulltext.ts) and semantic matches each
  * vote by rank, so items both find rise to the top. One page of results; if the
  * embedding model or vector store is down, it's words only.
  */
@@ -649,8 +649,11 @@ export async function searchItems(
   const withDocuments = opts.documents !== "exclude";
   const words = await fullTextSearch(v.db, v.householdId, query, limit, { documents: withDocuments });
   const hits: Record<string, SearchHit> = Object.fromEntries(
-    words.map(({ itemId, rank: _, inDocumentsOnly: __, ...where }) => [itemId, { via: "words" as const, ...where }]),
+    words.map(({ itemId, rank: _, inDocumentsOnly: __, partial: ___, ...where }) => [itemId, { via: "words" as const, ...where }]),
   );
+  // Every word matched somewhere: meaning matches then only add strong ones. Most of the words (lib/fulltext.ts) is
+  // weaker evidence, so meaning search goes on as if the words had found nothing.
+  const allWords = words.some((w) => !w.partial);
   let ids = words.map((w) => w.itemId);
   let checking = 0;
 
@@ -663,10 +666,10 @@ export async function searchItems(
         limit,
         documents: withDocuments,
         // Alongside word matches, only strong meaning matches are worth adding.
-        minScore: words.length ? profile.strongScore : profile.minScore,
+        minScore: allWords ? profile.strongScore : profile.minScore,
         // The chat model decides the unsure ones — when words found nothing (alongside word matches the strong cut-off
         // is enough) — now, or after the first answer.
-        ...(words.length || !v.deps.chat ? {} : judge === "hold" ? { hold: true } : { judge: v.deps.chat }),
+        ...(allWords || !v.deps.chat ? {} : judge === "hold" ? { hold: true } : { judge: v.deps.chat }),
       });
       checking = meaning.held;
       for (const [id, hit] of meaning.hits) {

@@ -8,6 +8,10 @@
 The search box finds things by any word in them — name, brand, model, serial number, notes, tags, place — and by the
 text **inside their photos and documents** (a receipt, a label, a manual). Part of a serial number is enough.
 
+You can type a question as you'd say it: *"how many furnace filters do I have?"*, *"where did I put the dyson?"*.
+The words around it are left out. When nothing has every word, things with most of them are shown (three in four).
+Words that appear nowhere in your things still count, so *"sewing machine"* doesn't bring up the espresso machine.
+
 If whoever runs Ferret has turned on smart search, it also finds things by **meaning**: *"something to make holes"*
 finds the drill.
 

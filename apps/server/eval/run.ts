@@ -30,6 +30,8 @@ export interface SearchEval {
   /** The search judge; without it, unsure meaning matches aren't decided. */
   chat?: TextModel;
   searchProfile?: SearchProfile;
+  /** Words only: no meaning search (a server without the AI, or a plan without it). */
+  wordsOnly?: boolean;
   /** For the report: the profile's name, and the models' names. */
   profileName: string;
   models: { embed: string; rerank?: string; chat?: string };
@@ -37,7 +39,7 @@ export interface SearchEval {
   verbose?: boolean;
 }
 
-export async function runSearchEval({ config, collection, ai, reranker, chat, searchProfile, profileName, models, verbose = false }: SearchEval) {
+export async function runSearchEval({ config, collection, ai, reranker, chat, searchProfile, profileName, models, verbose = false, wordsOnly = false }: SearchEval) {
   if (!config.QDRANT_URL) throw new Error("The search eval needs QDRANT_URL");
   // A clean collection every run (only ever this one).
   await fetch(`${config.QDRANT_URL}/collections/${collection}`, {
@@ -49,7 +51,7 @@ export async function runSearchEval({ config, collection, ai, reranker, chat, se
   const vectors = new QdrantVectors(config.QDRANT_URL, config.QDRANT_API_KEY, collection);
   const jobs = new DbJobs(db);
   const blobs = new FsBlobs(mkdtempSync(path.join(tmpdir(), "ferret-eval-")));
-  const { app, auth } = createApp({ db, blobs, jobs, ai, vectors, reranker, chat, searchProfile }, config);
+  const { app, auth } = createApp(wordsOnly ? { db, blobs, jobs } : { db, blobs, jobs, ai, vectors, reranker, chat, searchProfile }, config);
   jobs.register({ [INDEX_JOB]: indexItem({ db, ai, vectors }) });
 
   // ── Seed ────────────────────────────────────────────────────────────────────
