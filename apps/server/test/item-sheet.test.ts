@@ -222,5 +222,5 @@ describe("a thing's signed PDF", () => {
     const pages = (await new PdfJsPages().pageTexts(bytes, 10)) ?? [];
     expect(pages.length).toBeGreaterThan(1);
     expect(pages.at(-1)).toContain(`${pages.length} / ${pages.length}`);
-  });
+  }, 30_000); // 60 edits and a PDF: over 5 s on a busy CI runner
 });
