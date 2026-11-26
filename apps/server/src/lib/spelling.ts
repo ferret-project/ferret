@@ -29,6 +29,18 @@ export function editDistance(a: string, b: string, max: number) {
   return d[a.length]![b.length]!;
 }
 
+/**
+ * Everyday words of a question or a search — never "corrected" to a word the household happens to use ("How many…" isn't
+ * "How man…" because something is called "Man cave").
+ */
+const EVERYDAY = new Set(
+  ("about after again also always another any anything around away back been before being below between both bought could " +
+    "does doing done down each else even ever every from gave give goes going gone have here into just keep kept kind last left " +
+    "like long look made make many more most much must need never next none only other over own part same should show since " +
+    "some spare still such than that their them then there these they thing things this those through under until used very " +
+    "want was were what when where which while whose why will with would year years your yours").split(" "),
+);
+
 /** How many edits a word of this length may be off by: none for short ones (too many near-misses), then 1, then 2. */
 const allowed = (length: number) => (length < 4 ? 0 : length < 7 ? 1 : 2);
 
@@ -60,7 +72,7 @@ export async function suggestSpelling(db: Db, householdId: string, query: string
   for (const w of [...words].reverse()) {
     const lower = w.text.toLowerCase();
     const max = allowed(lower.length);
-    if (!max || /\d/.test(lower) || vocab.has(lower) || [...vocab.keys()].some((v) => v.startsWith(lower))) continue;
+    if (!max || /\d/.test(lower) || EVERYDAY.has(lower) || vocab.has(lower) || [...vocab.keys()].some((v) => v.startsWith(lower))) continue;
     let best: { word: string; distance: number; count: number } | undefined;
     for (const [word, count] of vocab) {
       const distance = editDistance(lower, word, max);

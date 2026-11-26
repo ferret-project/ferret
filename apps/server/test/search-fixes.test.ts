@@ -52,12 +52,15 @@ describe("did you mean", () => {
   });
 
   it("offers a close spelling from the household's own words, only when that finds something", async () => {
-    const { search, user } = await house();
+    const { search, user, ann } = await house();
     expect(await search("vacum")).toMatchObject({ total: 0, suggestion: "vacuum" });
     expect(await search("dysn vacum")).toMatchObject({ suggestion: "dyson vacuum" });
     expect((await search("vacuum")).suggestion).toBeUndefined(); // found: nothing to suggest
     expect((await search("something to make holes in wood")).suggestion).toBeUndefined(); // no close words for all of it
     expect((await search("tv")).suggestion).toBeUndefined(); // short words aren't corrected
+    // Everyday words of a question aren't "corrected" to the household's: "many" isn't "man".
+    await ann.addItem({ name: "Man cave vacuum" });
+    expect((await search("how many vacum")).suggestion).toBeUndefined(); // was "how man vacuum"
     // Another household's words are never offered.
     const bob = await user("bob");
     expect((await search("vacum", bob)).suggestion).toBeUndefined();

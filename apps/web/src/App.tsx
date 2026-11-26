@@ -1424,7 +1424,7 @@ export function Home({ householdName, householdId, view }: { householdName: stri
                       setNow(items.data!.suggestion!);
                     }}
                   >
-                    {ph({ suggestion: items.data.suggestion })}
+                    {ph({ suggestion: items.data.suggestion.replace(/[?!.]+$/, "") })}
                   </button>
                   ?
                 </Trans>
