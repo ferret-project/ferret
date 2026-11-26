@@ -63,8 +63,8 @@ async function keyPair(v: Caller, files: FileStore): Promise<{ privateKey: Crypt
   let row = await read();
   if (!row) {
     const pair = (await crypto.subtle.generateKey({ name: "Ed25519" }, true, ["sign", "verify"])) as unknown as { privateKey: CryptoKey; publicKey: CryptoKey };
-    const pkcs8 = new Uint8Array(await crypto.subtle.exportKey("pkcs8", pair.privateKey));
-    const raw = new Uint8Array(await crypto.subtle.exportKey("raw", pair.publicKey));
+    const pkcs8 = new Uint8Array((await crypto.subtle.exportKey("pkcs8", pair.privateKey)) as ArrayBuffer);
+    const raw = new Uint8Array((await crypto.subtle.exportKey("raw", pair.publicKey)) as ArrayBuffer);
     const sealed = await files.seal(v.householdId, SEAL_LABEL, b64(pkcs8));
     await v.db.insert(householdSetting).values({ householdId: v.householdId }).onConflictDoNothing();
     // Only where there's none yet: two first exports at once keep whichever was written first.
@@ -200,8 +200,8 @@ async function serverKeyPair(db: Db, filesKey: string) {
   let kept = await read();
   if (!kept) {
     const pair = (await crypto.subtle.generateKey({ name: "Ed25519" }, true, ["sign", "verify"])) as unknown as { privateKey: CryptoKey; publicKey: CryptoKey };
-    const pkcs8 = new Uint8Array(await crypto.subtle.exportKey("pkcs8", pair.privateKey));
-    const raw = new Uint8Array(await crypto.subtle.exportKey("raw", pair.publicKey));
+    const pkcs8 = new Uint8Array((await crypto.subtle.exportKey("pkcs8", pair.privateKey)) as ArrayBuffer);
+    const raw = new Uint8Array((await crypto.subtle.exportKey("raw", pair.publicKey)) as ArrayBuffer);
     const iv = crypto.getRandomValues(new Uint8Array(12));
     const sealed = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv, additionalData: utf8.encode(SERVER_KEY) }, await serverSealKey(filesKey), pkcs8));
     // Only if there's none yet: two at once keep whichever was written first.
