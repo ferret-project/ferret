@@ -157,6 +157,22 @@ describe("the inbox: read before adding", () => {
     expect((await pat.as(`/api/v1/inbox/${e.id}/add`, post({ name: "Drill" }))).status).toBe(404);
   });
 
+  it("takes files over 1 MB, like any upload (not the limit for JSON)", async () => {
+    const { pat, start, garage } = await household();
+    const e = await start({ kind: "receipt" });
+    const big = pdf(`receipt ${"x".repeat(1_500_000)}`);
+    const form = new FormData();
+    form.set("file", new File([big], "long invoice.pdf"));
+    form.set("kind", "document");
+    expect((await pat.as(`/api/v1/inbox/${e.id}/files`, { method: "POST", body: form })).status).toBe(201);
+    // A place's file too.
+    const placed = new FormData();
+    placed.set("file", new File([big], "deed.pdf"));
+    placed.set("kind", "document");
+    placed.set("locationId", garage.id);
+    expect((await pat.as("/api/v1/attachments", { method: "POST", body: placed })).status).toBe(201);
+  });
+
   it("checks where a new thing would go is the household's own", async () => {
     const { pat, user } = await household();
     const bob = await user("bob");

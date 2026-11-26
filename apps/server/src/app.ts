@@ -86,8 +86,8 @@ export const LABEL_PAGE_STYLE_HASHES = [
 /** YouTube's privacy-enhanced player: the help's front page embeds the tour video (apps/docs/index.md). */
 export const YOUTUBE_EMBED = "https://www.youtube-nocookie.com";
 
-/** The /api routes that take files: an item's uploads, and a room scan's photos (each has its own limit). */
-const UPLOAD_PATH = /^\/api\/v1\/(items\/[^/]+\/attachments|room-scans|transcribe|import\/item(\/check)?)$/;
+/** The /api routes that take files — uploads to a thing, a place, a task or the inbox, room scans, card and collector photos, recordings, imports — each with its own limit, not the 1 MB for JSON. */
+const UPLOAD_PATH = /^\/api\/v1\/(items\/[^/]+\/attachments|attachments|inbox\/[^/]+\/files|room-scans|cards\/read|collectibles\/read|transcribe|import\/item(\/check)?)$/;
 /** The OAuth endpoints apps call themselves (from a server or a browser), and the documents that point at them. */
 const OAUTH_OPEN = /^\/(api\/auth\/oauth2\/(token|register|revoke)|\.well-known\/oauth-(protected-resource|authorization-server)(\/.*)?)$/;
 const isOAuthOpenPath = (path: string) => OAUTH_OPEN.test(path);
