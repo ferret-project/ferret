@@ -5,7 +5,7 @@ doing, ask about your things, and add new ones by dropping their photos and rece
 of its own ([ferret-project/ferret-menu](https://github.com/ferret-project/ferret-menu), open source) that talks to your
 Ferret. Anything it doesn't do opens in Ferret, in your browser or [Ferret's web app](#opening-things-in-ferret-s-web-app).
 
-It needs **macOS 26** and **Ferret 2026.11.28 or newer**.
+It needs **macOS 26** and **Ferret 2026.11.29 or newer**.
 
 ## Installing
 
