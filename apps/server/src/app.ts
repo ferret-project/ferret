@@ -77,6 +77,7 @@ import { memberLimit } from "./lib/plan";
  */
 export const LABEL_PAGE_STYLE_HASHES = [
   "sha256-CtjabVpNplF+9c/fO8NMQkN6lJUKjXjtVcf/tdqfO3g=", // @page { size: letter; margin: 0; }
+  "sha256-V13YvsFC7jrzS+FYE2Yv1ZSrtxBIRnoDDFoy6ev4aLc=", // @page { size: A4; margin: 0; }
   "sha256-UgX/htrm6Yf0qwTvfrs2SoeyPTDARwpPSYnL8W7vZsE=", // @page { size: landscape; margin: 0; }
   "sha256-Rdf/YbsmqghAFqEpRQsECqy8/1wsTFWrI8d4QcD9E0k=", // @page { margin: 0; }
 ];

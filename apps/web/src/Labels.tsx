@@ -50,6 +50,60 @@ const TEMPLATES = {
   plain: { name: msg`Plain paper — 6 per page, cut out and tape on`, cols: 2, rows: 3, w: 3.75, h: 3.25, left: 0.5, top: 0.5, gapX: 0.5, gapY: 0.5 },
 } as const;
 type SheetId = keyof typeof TEMPLATES;
+/** A sheet's grid, in inches: label size, the first label's distance from the page's top-left corner, the gaps between. */
+type Grid = { cols: number; rows: number; w: number; h: number; left: number; top: number; gapX: number; gapY: number };
+
+/** Paper a sheet of labels comes on, in inches. */
+const PAPER = { letter: { w: 8.5, h: 11 }, a4: { w: 210 / 25.4, h: 297 / 25.4 } } as const;
+type Paper = keyof typeof PAPER;
+
+/**
+ * A sheet someone measured themselves (labels nobody's template list has): kept on this device, in the units they
+ * measured in.
+ */
+interface CustomSheet extends Grid {
+  paper: Paper;
+  unit: "in" | "mm";
+}
+const CUSTOM_KEY = "ferret.labelCustom";
+const DEFAULT_CUSTOM: CustomSheet = { paper: "letter", unit: "in", cols: 4, rows: 5, w: 2, h: 2, left: 0.25, top: 0.5, gapX: 0, gapY: 0 };
+const MM = 25.4;
+
+function useCustomSheet() {
+  const [sheet, setSheet] = useState<CustomSheet>(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(CUSTOM_KEY) ?? "") as Partial<CustomSheet>;
+      return { ...DEFAULT_CUSTOM, ...saved };
+    } catch {
+      return DEFAULT_CUSTOM;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(CUSTOM_KEY, JSON.stringify(sheet));
+    } catch {
+      /* private mode: just this visit */
+    }
+  }, [sheet]);
+  return [sheet, setSheet] as const;
+}
+
+/** A custom sheet as a grid in inches, with sizes kept sensible (a label at least 0.2″, at most 20 × 40 of them). */
+function customGrid(c: CustomSheet): Grid {
+  const k = c.unit === "mm" ? 1 / MM : 1;
+  const len = (v: number, min: number) => Math.max(min, (Number.isFinite(v) ? v : 0) * k);
+  const whole = (v: number, max: number) => Math.max(1, Math.min(max, Math.round(Number.isFinite(v) ? v : 1)));
+  return {
+    cols: whole(c.cols, 20),
+    rows: whole(c.rows, 40),
+    w: len(c.w, 0.2),
+    h: len(c.h, 0.2),
+    left: len(c.left, 0),
+    top: len(c.top, 0),
+    gapX: len(c.gapX, 0),
+    gapY: len(c.gapY, 0),
+  };
+}
 
 /**
  * Label printers: one label per page, the page the size of the label (mm, as it comes out — long side across). The
@@ -80,7 +134,7 @@ const ROLLS = {
   thermal4x6: { group: "Other thermal printers", name: msg`4″ × 6″ (shipping)`, w: 102, h: 152 },
 } as const;
 type RollId = keyof typeof ROLLS;
-type TemplateId = SheetId | RollId;
+type TemplateId = SheetId | RollId | "custom";
 const isRoll = (id: TemplateId): id is RollId => id in ROLLS;
 
 /**
@@ -90,19 +144,22 @@ const isRoll = (id: TemplateId): id is RollId => id in ROLLS;
  */
 export const PAGE_STYLES = {
   sheet: "@page { size: letter; margin: 0; }",
+  a4: "@page { size: A4; margin: 0; }",
   landscape: "@page { size: landscape; margin: 0; }",
   roll: "@page { margin: 0; }",
 } as const;
 
 /** How much to shrink the on-screen preview so a letter sheet fits the window. */
-function usePreviewScale() {
-  const fit = () => Math.min(1, (window.innerWidth - 32) / (8.5 * 96));
+function usePreviewScale(pageWidth: number) {
+  const fit = () => Math.min(1, (window.innerWidth - 32) / (pageWidth * 96));
   const [scale, setScale] = useState(fit);
   useEffect(() => {
     const onResize = () => setScale(fit());
+    onResize();
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageWidth]);
   return scale;
 }
 
@@ -132,12 +189,13 @@ export function PrintLabels({ householdName, householdId, codes }: { householdNa
   const [template, setTemplate] = useState<TemplateId>(() => {
     try {
       const saved = localStorage.getItem("ferret.labelTemplate") as TemplateId | null;
-      return saved && (saved in TEMPLATES || saved in ROLLS) ? saved : "5163";
+      return saved && (saved in TEMPLATES || saved in ROLLS || saved === "custom") ? saved : "5163";
     } catch {
       return "5163";
     }
   });
   const [nudge, setNudge] = useNudge();
+  const [custom, setCustom] = useCustomSheet();
   const [skip, setSkip] = useState(0); // labels already used on a part-used sheet
   const [count, setCount] = useState(10);
   const all = useQuery({ queryKey: ["labels", householdId], queryFn: () => api.labels() });
@@ -153,16 +211,17 @@ export function PrintLabels({ householdName, householdId, codes }: { householdNa
   const byCode = new Map((all.data?.data ?? []).map((l) => [l.code, l]));
   const labels = codes.map((c) => byCode.get(c) ?? { code: c, householdId, item: null, location: null });
   const roll = isRoll(template) ? ROLLS[template] : null;
-  const tpl = isRoll(template) ? TEMPLATES["5163"] : TEMPLATES[template];
+  const tpl: Grid = template === "custom" ? customGrid(custom) : isRoll(template) ? TEMPLATES["5163"] : TEMPLATES[template];
+  const paper = PAPER[template === "custom" ? custom.paper : "letter"];
   const perSheet = roll ? 1 : tpl.cols * tpl.rows;
-  const slots: (Label | null)[] = [...Array(skip).fill(null), ...labels];
-  const preview = usePreviewScale();
+  const slots: (Label | null)[] = [...Array(Math.min(skip, perSheet - 1)).fill(null), ...labels];
+  const preview = usePreviewScale(paper.w);
   const sheets = Array.from({ length: Math.max(1, Math.ceil(slots.length / perSheet)) }, (_, i) => slots.slice(i * perSheet, (i + 1) * perSheet));
 
   return (
     <div className="min-h-dvh bg-base-200 print:bg-white">
       {/* The sheet is laid out to the edge of the paper: no browser margins while this page is open. */}
-      <style>{roll ? (roll.w > roll.h ? PAGE_STYLES.landscape : PAGE_STYLES.roll) : PAGE_STYLES.sheet}</style>
+      <style>{roll ? (roll.w > roll.h ? PAGE_STYLES.landscape : PAGE_STYLES.roll) : template === "custom" && custom.paper === "a4" ? PAGE_STYLES.a4 : PAGE_STYLES.sheet}</style>
       <TopBar
         title={<Trans>Print labels</Trans>}
         back="#/"
@@ -206,6 +265,7 @@ export function PrintLabels({ householdName, householdId, codes }: { householdNa
                       {t(TEMPLATES[id].name)}
                     </option>
                   ))}
+                  <option value="custom">{t`Custom sheet — enter your labels' sizes`}</option>
                 </optgroup>
                 {[...new Set(Object.values(ROLLS).map((x) => x.group))].map((group) => (
                   <optgroup key={group} label={group === "Other thermal printers" ? t`Other thermal printers` : t`${ph({ brand: group })} (label printer)`}>
@@ -220,6 +280,8 @@ export function PrintLabels({ householdName, householdId, codes }: { householdNa
                 ))}
               </select>
             </div>
+
+            {template === "custom" && <CustomSheetEditor sheet={custom} onChange={setCustom} />}
 
             {codes.length === 0 ? (
               canEdit ? (
@@ -248,7 +310,11 @@ export function PrintLabels({ householdName, householdId, codes }: { householdNa
                       {plural(count, { one: "Make # blank label", other: "Make # blank labels" })}
                     </button>
                   </div>
-                  {!roll && <p className="text-xs text-base-content/70"><Trans>Tip: a full sheet of 5163 is 10, of 5160 is 30, of 22806 is 12, of 22805 is 24.</Trans></p>}
+                  {template === "custom" ? (
+                    <p className="text-xs text-base-content/70">{plural(perSheet, { one: "Tip: a full sheet is # label.", other: "Tip: a full sheet is # labels." })}</p>
+                  ) : (
+                    !roll && <p className="text-xs text-base-content/70"><Trans>Tip: a full sheet of 5163 is 10, of 5160 is 30, of 22806 is 12, of 22805 is 24.</Trans></p>
+                  )}
                   {make.isError && <div className="alert alert-soft alert-error">{make.error.message}</div>}
                   {unused.length > 0 && (
                     <a href={printLabelsHref(unused)} className="btn btn-wrap btn-soft btn-primary">
@@ -340,19 +406,20 @@ export function PrintLabels({ householdName, householdId, codes }: { householdNa
             <div
               key={i}
               className="relative overflow-hidden shadow-lg print:static print:h-auto! print:w-auto! print:overflow-visible print:shadow-none"
-              style={{ width: `${8.5 * preview}in`, height: `${11 * preview}in` }}
+              style={{ width: `${paper.w * preview}in`, height: `${paper.h * preview}in` }}
             >
               <div className="origin-top-left scale-(--preview) print:scale-100" style={{ "--preview": preview } as React.CSSProperties}>
                 <div
                   className="label-sheet relative bg-white"
-                  style={{ width: "8.5in", height: "11in", transform: `translate(${nudge.x}mm, ${nudge.y}mm)` }}
+                  style={{ width: `${paper.w}in`, height: `${paper.h}in`, transform: `translate(${nudge.x}mm, ${nudge.y}mm)` }}
                 >
                   {sheet.map((l, j) =>
                     l ? (
                       <LabelCell
                         key={l.code}
                         label={l}
-                        template={template as SheetId}
+                        template={template as SheetId | "custom"}
+                        mm={{ w: tpl.w * MM, h: tpl.h * MM }}
                         householdName={householdName}
                         style={{
                           left: `${tpl.left + (j % tpl.cols) * (tpl.w + tpl.gapX)}in`,
@@ -387,7 +454,15 @@ export function PrintLabels({ householdName, householdId, codes }: { householdNa
 }
 
 /** One label: QR on the left, the code big (to read or type), what it's on. Square labels: the QR above them. */
-function LabelCell({ label, template, householdName, style }: { label: Label; template: SheetId; householdName: string; style: React.CSSProperties }) {
+function LabelCell({ label, template, householdName, style, mm }: { label: Label; template: SheetId | "custom"; householdName: string; style: React.CSSProperties; mm: { w: number; h: number } }) {
+  if (template === "custom") {
+    // Any size: laid out like a label printer's label (QR beside the text on long ones, above it on square ones).
+    return (
+      <div className="absolute" style={style}>
+        <RollLabel label={label} w={mm.w} h={mm.h} householdName={householdName} />
+      </div>
+    );
+  }
   const name = label.item?.name ?? label.location?.path ?? "";
   if (template === "22805" || template === "22806") {
     const big = template === "22806";
@@ -417,6 +492,121 @@ function LabelCell({ label, template, householdName, style }: { label: Label; te
   );
 }
 
+/** The sizes of a custom sheet: measured with a ruler, or read off the labels' packet or template. */
+function CustomSheetEditor({ sheet, onChange }: { sheet: CustomSheet; onChange: (s: CustomSheet) => void }) {
+  const grid = customGrid(sheet);
+  const paper = PAPER[sheet.paper];
+  const across = grid.left + grid.cols * grid.w + (grid.cols - 1) * grid.gapX;
+  const down = grid.top + grid.rows * grid.h + (grid.rows - 1) * grid.gapY;
+  const fits = across <= paper.w + 0.01 && down <= paper.h + 0.01;
+  const k = sheet.unit === "mm" ? MM : 1;
+  const round = (v: number) => Math.round(v * k * (sheet.unit === "mm" ? 10 : 1000)) / (sheet.unit === "mm" ? 10 : 1000);
+  const unit = sheet.unit === "mm" ? t`mm` : t`in`;
+  const set = (patch: Partial<CustomSheet>) => onChange({ ...sheet, ...patch });
+  const center = () =>
+    set({
+      left: round(Math.max(0, (paper.w - grid.cols * grid.w - (grid.cols - 1) * grid.gapX) / 2)),
+      top: round(Math.max(0, (paper.h - grid.rows * grid.h - (grid.rows - 1) * grid.gapY) / 2)),
+    });
+  const switchUnit = (to: "in" | "mm") => {
+    if (to === sheet.unit) return;
+    const f = to === "mm" ? MM : 1 / MM;
+    const r = (v: number) => (to === "mm" ? Math.round(v * f * 10) / 10 : Math.round(v * f * 1000) / 1000);
+    onChange({ ...sheet, unit: to, w: r(sheet.w), h: r(sheet.h), left: r(sheet.left), top: r(sheet.top), gapX: r(sheet.gapX), gapY: r(sheet.gapY) });
+  };
+  const step = sheet.unit === "mm" ? 0.5 : 0.01;
+  const fields: [keyof Grid, string, number, number?][] = [
+    ["cols", t`Labels across`, 1, 20],
+    ["rows", t`Labels down`, 1, 40],
+    ["w", t`Label width (${unit})`, step],
+    ["h", t`Label height (${unit})`, step],
+    ["top", t`Top edge to first label (${unit})`, step],
+    ["left", t`Left edge to first label (${unit})`, step],
+    ["gapX", t`Gap between columns (${unit})`, step],
+    ["gapY", t`Gap between rows (${unit})`, step],
+  ];
+  return (
+    <fieldset className="space-y-3 rounded-box border border-base-content/20 p-3">
+      <legend className="px-1 text-sm font-medium"><Trans>Your label sheet</Trans></legend>
+      <p className="text-sm text-base-content/70">
+        <Trans>Measure a sheet with a ruler, or read the sizes off the packet. Kept on this device.</Trans>
+      </p>
+      <div className="flex flex-wrap gap-3">
+        <div>
+          <label className="label-text" htmlFor="custom-paper"><Trans>Paper</Trans></label>
+          <select id="custom-paper" className="select w-40" value={sheet.paper} onChange={(e) => set({ paper: e.target.value as Paper })}>
+            <option value="letter">{t`US Letter`}</option>
+            <option value="a4">{t`A4`}</option>
+          </select>
+        </div>
+        <div>
+          <label className="label-text" htmlFor="custom-unit"><Trans>Measured in</Trans></label>
+          <select id="custom-unit" className="select w-40" value={sheet.unit} onChange={(e) => switchUnit(e.target.value as "in" | "mm")}>
+            <option value="in">{t`Inches`}</option>
+            <option value="mm">{t`Millimetres`}</option>
+          </select>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {fields.map(([key, label, stepOf, max]) => (
+          <NumberField
+            key={`${key}-${sheet.unit}`}
+            id={`custom-${key}`}
+            label={label}
+            value={sheet[key]}
+            step={stepOf}
+            min={key === "cols" || key === "rows" ? 1 : 0}
+            max={max}
+            onChange={(v) => set({ [key]: v })}
+          />
+        ))}
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" className="btn btn-soft btn-secondary btn-sm" onClick={center}>
+          <span className="icon-[tabler--layout-align-center] size-4" />
+          <Trans>Center on the page</Trans>
+        </button>
+        <span className="text-sm text-base-content/70">{plural(grid.cols * grid.rows, { one: "# label a sheet", other: "# labels a sheet" })}</span>
+      </div>
+      {!fits && (
+        <div className="alert alert-soft alert-warning text-sm" role="alert">
+          <span className="icon-[tabler--alert-triangle] size-5 shrink-0" />
+          <Trans>These labels run off the page — check the sizes and margins.</Trans>
+        </div>
+      )}
+    </fieldset>
+  );
+}
+
+/** A number box that lets you type "1." or clear it on the way to a value (a controlled number input fights that). */
+function NumberField({ id, label, value, step, min, max, onChange }: { id: string; label: string; value: number; step: number; min: number; max?: number; onChange: (v: number) => void }) {
+  const [text, setText] = useState(String(value));
+  useEffect(() => {
+    if (Number(text) !== value) setText(String(value));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+  return (
+    <div>
+      <label className="label-text" htmlFor={id}>{label}</label>
+      <input
+        id={id}
+        type="number"
+        inputMode="decimal"
+        step={step}
+        min={min}
+        max={max}
+        className="input"
+        value={text}
+        onChange={(e) => {
+          setText(e.target.value);
+          const v = Number(e.target.value);
+          if (e.target.value.trim() !== "" && Number.isFinite(v) && v >= min && (max === undefined || v <= max)) onChange(v);
+        }}
+      />
+    </div>
+  );
+}
+
 /**
  * One label on a label printer's roll, sized in mm: long ones put the QR beside the code and what it's on; square and
  * tall ones put it above. Text sizes follow the label's height, so a 12 mm tape and a 4″ × 6″ both read.
@@ -425,7 +615,7 @@ function RollLabel({ label, w, h, householdName }: { label: Label; w: number; h:
   const name = label.item?.name ?? label.location?.path ?? "";
   const pad = Math.max(1, Math.min(w, h) * 0.07);
   const row = w / h >= 1.6;
-  const qr = row ? h - 2 * pad : Math.min(w - 2 * pad, h - 2 * pad - Math.min(w, h) * 0.3);
+  const qr = row ? h - 2 * pad : Math.min(w - 2 * pad, h - 2 * pad - Math.min(w, h) * 0.38);
   const code = row ? Math.min(h * 0.32, (w - qr - 3 * pad) / 4.2) : Math.min(w, h) * 0.16;
   const small = Math.max(1.6, code * 0.48);
   return (
@@ -439,11 +629,11 @@ function RollLabel({ label, w, h, householdName }: { label: Label; w: number; h:
           {label.code}
         </div>
         {name && h >= 17 && (
-          <div className="line-clamp-2 font-semibold" style={{ fontSize: `${small}mm` }}>
+          <div className={row ? "line-clamp-2 font-semibold" : "truncate font-semibold"} style={{ fontSize: `${small}mm` }}>
             {name}
           </div>
         )}
-        {h >= 50 && <div className="mt-1 text-gray-600" style={{ fontSize: `${small * 0.8}mm` }}><Trans>🐾 Ferret · {householdName}</Trans></div>}
+        {h >= 50 && (row || h >= w * 1.3) && <div className="mt-1 text-gray-600" style={{ fontSize: `${small * 0.8}mm` }}><Trans>🐾 Ferret · {householdName}</Trans></div>}
       </div>
     </div>
   );

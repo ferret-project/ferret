@@ -71,7 +71,7 @@ describe("responses", () => {
     const source = readFileSync(path.resolve(__dirname, "../../web/src/Labels.tsx"), "utf8");
     const block = /export const PAGE_STYLES = \{([\s\S]*?)\} as const;/.exec(source)?.[1] ?? "";
     const styles = [...block.matchAll(/"(@page[^"]+)"/g)].map((m) => m[1]!);
-    expect(styles).toHaveLength(3);
+    expect(styles).toHaveLength(4);
     const hashes = await Promise.all(
       styles.map(async (s) => `sha256-${btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)))))}`),
     );

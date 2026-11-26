@@ -17,6 +17,13 @@ Sheets are laid out for **Avery 5163** (2″ × 4″) and **5160** (1″ × 2⅝
 **22805** (1½″) — handy for bins and jars — or plain paper to cut up. Print at **100% / actual size**
 (not "fit to page"), and see **Printing tips and alignment** on the print page if they don't line up.
 
+Labels that aren't in the list? Choose **Custom sheet** and enter what's on the packet, or measure a sheet with a
+ruler: how many labels across and down, each label's width and height, the distance from the page's top and left
+edges to the first label, and the gaps between columns and rows. Inches or millimetres, on US Letter or A4. **Center
+on the page** works out the edges for you when the labels sit in the middle of the sheet. Ferret keeps these on that
+device for next time, and lays each label out to fit, with the QR code beside the text on long labels and above it on
+square ones.
+
 Using up a **part-used sheet**? Set **Skip the first … labels** to how many are gone: printing starts after them (the
 preview greys them out).
 
