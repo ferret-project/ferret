@@ -20,6 +20,16 @@ When it's back: **It's back**, on its page or under **Lent & borrowed**.
 **Lend or borrow…** → **Someone's, borrowed by us**, with when it's due back. The bell (and the daily reminder)
 tells you when it's time to give it back.
 
+It isn't yours, so while it's here it's left out of your totals, the [insurance report](./insurance-report), coverage, the
+personal property list and replacements. You still find it in search and in the place you put it.
+
+- **Given back** — it moves to [Past things](./past-things) as *Given back to Lee*, with its history. Changed your
+  mind? **Keep it in my things** on its page (or in the note that comes up under **Lent & borrowed**) puts it back.
+- **Borrow again** — on its page in Past things (or beside it in the list) starts a new loan from the same person in
+  one tap.
+- **It's ours now…** — they gave it to you, or you bought it (with what you paid). It becomes yours from then on,
+  counted like anything else, and keeps its maintenance, repairs and history.
+
 ## Keeping track
 
 **Lent & borrowed** in the menu lists everything that's out, overdue first. The bell mentions things lent out

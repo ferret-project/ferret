@@ -186,7 +186,8 @@ export const itemLink = z.object({
 export type ItemLink = z.infer<typeof itemLink>;
 
 /** What happened to something you no longer have. */
-export const itemDispositions = ["sold", "given", "donated", "discarded", "lost", "stolen"] as const;
+/** "returned": something borrowed, given back to its owner (lib/loans.ts) — never chosen by hand. */
+export const itemDispositions = ["sold", "given", "donated", "discarded", "lost", "stolen", "returned"] as const;
 export type ItemDisposition = (typeof itemDispositions)[number];
 
 /** Where a thing came from. The first five are the app's own ways to add one (it says which); the rest are set by the server. */
@@ -2270,8 +2271,17 @@ export interface LoanSummary {
   /** The borrower asked for no more reminders. */
   remindersStoppedAt: string | null;
   returnedOn: string | null;
+  /** Borrowed, and kept: given to the household or bought ("It's ours now"), not given back. */
+  kept: boolean;
   overdue: boolean;
 }
+
+/** "It's ours now": a borrowed thing was given to the household, or bought from its owner. */
+export const loanKeep = z.object({
+  on: z.iso.date().optional().nullable().describe("The day it became the household's, yyyy-mm-dd; today if left out"),
+  priceCents: z.number().int().min(0).optional().nullable().describe("What was paid for it, in cents (bought from its owner); left out if it was a gift"),
+});
+export type LoanKeep = z.infer<typeof loanKeep>;
 
 /** The borrower's page (from a reminder email): no account, only what the email said. */
 export interface BorrowerView {

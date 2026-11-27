@@ -31,6 +31,7 @@ import type { InboxCreate, InboxEntry, ItemImportCheck, ItemImportResult, ItemSh
   BorrowerView,
   LoanInput,
   LoanPatch,
+  LoanKeep,
   LoanSummary,
   SharedView,
   ShareInput,
@@ -677,7 +678,11 @@ export const api = {
   itemLoans: (itemId: string) => request<{ data: LoanSummary[]; canEmail: boolean }>(`/items/${itemId}/loans`),
   lend: (itemId: string, input: LoanInput) => request<LoanSummary>(`/items/${itemId}/loans`, { method: "POST", body: JSON.stringify(input) }),
   updateLoan: (id: string, patch: LoanPatch) => request<LoanSummary>(`/loans/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
-  loanReturned: (id: string) => request<LoanSummary>(`/loans/${id}/returned`, { method: "POST", body: "{}" }),
+  /** A borrowed thing given back moves to Past things (`movedToPast`). */
+  loanReturned: (id: string) => request<LoanSummary & { movedToPast?: boolean }>(`/loans/${id}/returned`, { method: "POST", body: "{}" }),
+  /** "It's ours now": a borrowed thing given to the household, or bought (`priceCents`). */
+  loanKept: (id: string, input: LoanKeep) => request<LoanSummary>(`/loans/${id}/kept`, { method: "POST", body: JSON.stringify(input) }),
+  borrowAgain: (itemId: string, dueOn?: string | null) => request<LoanSummary>(`/items/${itemId}/borrow-again`, { method: "POST", body: JSON.stringify({ dueOn: dueOn ?? null }) }),
   deleteLoan: (id: string) => request<void>(`/loans/${id}`, { method: "DELETE" }),
   borrowed: (token: string) => request<BorrowerView>(`/borrowed/${token}`),
   borrowedReturned: (token: string) => request<BorrowerView>(`/borrowed/${token}/returned`, { method: "POST" }),

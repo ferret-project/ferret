@@ -1,6 +1,8 @@
 /**
  * Lending (server: lib/loans.ts):
  * - LoanCard on an item's page: "Lend or borrow…", or who has it (since, due back, reminders) with "It's back".
+ *   Borrowed: not counted as the household's; "Given back" moves it to Past things (its banner there offers Borrow
+ *   again, or keeping it in your things), "It's ours now…" (KeepDialog) makes it the household's — a gift, or bought.
  * - LoanDialog: lent to / borrowed from, who, their email and how often to remind them (lent), since, due back, a note.
  * - Loans (#/loans, account menu "Lent & borrowed"): everything out, overdue first.
  * - Borrower (#/b/:token, from a reminder email, no account): "I've given it back" / "Stop these reminders".
@@ -14,6 +16,8 @@ import { Logo } from "./AuthLayout";
 import { HelpLink } from "./HelpLink";
 import { api } from "./lib/api";
 import { useCanEdit } from "./lib/auth";
+import { useRefreshAll } from "./Gone";
+import { currencySymbol, toCents } from "./lib/money";
 import { itemHref } from "./lib/route";
 import { DialogActions, Modal } from "./Modal";
 import { t, ph, msg } from "@lingui/core/macro";
@@ -29,20 +33,22 @@ export function loanLine(l: Pick<LoanSummary, "direction" | "person" | "since" |
   return l.dueOn ? t`${line} · due back ${ph({ date: shortDate(l.dueOn) })}` : line;
 }
 
+/** Loans, and everything that lists or totals things (a borrowed thing given back or kept changes them). */
 function useRefresh(householdId: string, itemId?: string) {
   const qc = useQueryClient();
+  const all = useRefreshAll(householdId);
   return () =>
-    Promise.all(
-      [["loans", householdId], ["items", householdId], ["attention", householdId], ...(itemId ? [["item", householdId, itemId]] : [])].map((queryKey) =>
-        qc.invalidateQueries({ queryKey }),
-      ),
-    );
+    Promise.all([
+      all(),
+      ...[["loans", householdId], ...(itemId ? [["item", householdId, itemId]] : [])].map((queryKey) => qc.invalidateQueries({ queryKey })),
+    ]);
 }
 
 export function LoanCard({ itemId, itemName, householdId, canEdit }: { itemId: string; itemName: string; householdId: string; canEdit: boolean }) {
   const loans = useQuery({ queryKey: ["loans", householdId, itemId], queryFn: () => api.itemLoans(itemId) });
   const refresh = useRefresh(householdId, itemId);
   const [editing, setEditing] = useState<LoanSummary | "new" | null>(null);
+  const [keeping, setKeeping] = useState(false);
   const back = useMutation({ mutationFn: api.loanReturned, onSuccess: refresh });
   const open = loans.data?.data.find((l) => !l.returnedOn);
   if (!loans.data) return null;
@@ -81,6 +87,11 @@ export function LoanCard({ itemId, itemName, householdId, canEdit }: { itemId: s
           )}
           {open.borrowerReturnedAt && <p className="text-sm font-medium text-info"><Trans>{ph({ person: open.person })} says it's back.</Trans></p>}
           {open.note && <p className="text-sm text-base-content/70">{open.note}</p>}
+          {open.direction === "borrowed" && (
+            <p className="text-sm text-base-content/70">
+              <Trans>It's {ph({ person: open.person })}'s, so it isn't counted in your totals or the insurance report. Given back, it moves to Past things.</Trans>
+            </p>
+          )}
         </div>
         {canEdit && (
           <div className="flex flex-wrap gap-2">
@@ -88,6 +99,12 @@ export function LoanCard({ itemId, itemName, householdId, canEdit }: { itemId: s
               <span className="icon-[tabler--check] size-4" />
               {open.direction === "lent" ? t`It's back` : t`Given back`}
             </button>
+            {open.direction === "borrowed" && (
+              <button type="button" className="btn btn-soft btn-sm" onClick={() => setKeeping(true)}>
+                <span className="icon-[tabler--gift] size-4" />
+                <Trans>It's ours now…</Trans>
+              </button>
+            )}
             <button type="button" className="btn btn-soft btn-sm" onClick={() => setEditing(open)}>
               <Trans>Edit</Trans>
             </button>
@@ -96,6 +113,7 @@ export function LoanCard({ itemId, itemName, householdId, canEdit }: { itemId: s
         {back.isError && <p className="text-sm text-error">{back.error.message}</p>}
       </div>
       {dialog}
+      {keeping && <KeepDialog loan={open} householdId={householdId} onClose={() => setKeeping(false)} />}
     </section>
   );
 }
@@ -236,11 +254,93 @@ function LoanDialog({
 }
 
 /** #/loans — everything lent out or borrowed, overdue first. */
+/** "It's ours now": its owner gave it to us, or we bought it — it becomes the household's, history and all. */
+function KeepDialog({ loan, householdId, onClose }: { loan: LoanSummary; householdId: string; onClose: () => void }) {
+  const refresh = useRefresh(householdId, loan.itemId);
+  const [bought, setBought] = useState(false);
+  const save = useMutation({
+    mutationFn: (input: { on: string; priceCents: number | null }) => api.loanKept(loan.id, input),
+    onSuccess: async () => {
+      await refresh();
+      onClose();
+    },
+  });
+  function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const f = new FormData(e.currentTarget);
+    save.mutate({ on: String(f.get("on")), priceCents: bought ? toCents(f.get("price")) : null });
+  }
+  return (
+    <Modal id="loan-keep" title={t`Is ${ph({ name: loan.itemName })} yours now?`} onClose={onClose}>
+      <form className="flex flex-col gap-4" onSubmit={onSubmit}>
+        <p className="text-sm text-base-content/70">
+          <Trans>It stops being {ph({ person: loan.person })}'s and counts as yours — in your totals and the insurance report. Its history, maintenance and repairs stay with it.</Trans>
+        </p>
+        <fieldset className="flex flex-col gap-2">
+          <legend className="label-text mb-1"><Trans>How</Trans></legend>
+          <label className="flex min-h-11 cursor-pointer items-center gap-3">
+            <input type="radio" name="how" className="radio radio-primary radio-sm" checked={!bought} onChange={() => setBought(false)} />
+            <Trans>{ph({ person: loan.person })} gave it to us</Trans>
+          </label>
+          <label className="flex min-h-11 cursor-pointer items-center gap-3">
+            <input type="radio" name="how" className="radio radio-primary radio-sm" checked={bought} onChange={() => setBought(true)} />
+            <Trans>We bought it</Trans>
+          </label>
+        </fieldset>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="label-text" htmlFor="keep-on">
+              <Trans>When</Trans>
+            </label>
+            <input id="keep-on" name="on" type="date" className="input" defaultValue={today()} min={loan.since} max={today()} required />
+          </div>
+          {bought && (
+            <div>
+              <label className="label-text" htmlFor="keep-price">
+                <Trans>Paid</Trans>
+              </label>
+              <div className="input">
+                <span className="my-auto me-1 text-base-content/70">{currencySymbol()}</span>
+                <input id="keep-price" name="price" className="grow" inputMode="decimal" placeholder={t`optional`} />
+              </div>
+            </div>
+          )}
+        </div>
+        {save.isError && <div className="alert alert-soft alert-error">{save.error.message}</div>}
+        <DialogActions>
+          <button type="button" className="btn btn-secondary btn-soft" onClick={onClose}>
+            <Trans>Cancel</Trans>
+          </button>
+          <button type="submit" className="btn btn-primary" disabled={save.isPending}>
+            {save.isPending && <span className="loading loading-spinner loading-sm" />}
+            <Trans>It's ours</Trans>
+          </button>
+        </DialogActions>
+      </form>
+    </Modal>
+  );
+}
+
 export function Loans({ householdId }: { householdId: string }) {
   const loans = useQuery({ queryKey: ["loans", householdId], queryFn: () => api.loans() });
   const canEdit = useCanEdit(householdId);
   const refresh = useRefresh(householdId);
-  const back = useMutation({ mutationFn: api.loanReturned, onSuccess: refresh });
+  // A borrowed thing given back went to Past things: said here, with "Keep it in my things" to undo that.
+  const [moved, setMoved] = useState<{ itemId: string; name: string } | null>(null);
+  const back = useMutation({
+    mutationFn: api.loanReturned,
+    onSuccess: async (l) => {
+      setMoved(l.movedToPast ? { itemId: l.itemId, name: l.itemName } : null);
+      await refresh();
+    },
+  });
+  const keep = useMutation({
+    mutationFn: (itemId: string) => api.updateItem(itemId, { disposition: null }),
+    onSuccess: async () => {
+      setMoved(null);
+      await refresh();
+    },
+  });
   const all = [...(loans.data?.data ?? [])].sort((a, b) => Number(b.overdue) - Number(a.overdue) || (a.dueOn ?? "9999").localeCompare(b.dueOn ?? "9999"));
   const groups = [
     { key: "lent", title: t`Lent out`, list: all.filter((l) => l.direction === "lent") },
@@ -255,6 +355,18 @@ export function Loans({ householdId }: { householdId: string }) {
       />
       <main className="mx-auto flex max-w-3xl flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         {loans.isPending && <span className="loading loading-spinner text-primary mx-auto my-12" />}
+        {moved && (
+          <div className="alert alert-soft alert-success flex flex-wrap items-center gap-3" role="status">
+            <span className="icon-[tabler--arrow-back-up] size-5 shrink-0" />
+            <p className="min-w-0 flex-1 text-sm">
+              <Trans>{ph({ name: moved.name })} moved to Past things, as given back.</Trans>
+            </p>
+            <button type="button" className="btn btn-soft btn-sm" disabled={keep.isPending} onClick={() => keep.mutate(moved.itemId)}>
+              <Trans>Keep it in my things</Trans>
+            </button>
+          </div>
+        )}
+        {keep.isError && <div className="alert alert-soft alert-error">{keep.error.message}</div>}
         {loans.data && !all.length && (
           <div className="card">
             <div className="card-body items-center gap-3 text-center">

@@ -3,17 +3,18 @@
  * is the borrower's page from a reminder email (no account): what they have, "I've given it back", "stop reminding
  * me". `/b/:token` is the email's short link, which opens the web app's page for it.
  */
-import { loanInput, loanPatch } from "@ferret/shared";
+import { loanInput, loanKeep, loanPatch } from "@ferret/shared";
 import { Hono } from "hono";
 import { z } from "zod";
 import { type AppEnv, body, callerOf, requireHousehold, requireUser, requireWriter } from "../lib/context";
-import { borrowerReturned, borrowerStop, borrowerView, createLoan, deleteLoan, listLoans, returnLoan, updateLoan } from "../lib/loans";
+import { borrowAgain, borrowerReturned, borrowerStop, borrowerView, createLoan, deleteLoan, keepLoan, listLoans, returnLoan, updateLoan } from "../lib/loans";
 import { emailEnabled } from "../lib/email-verification";
 
 export const loans = new Hono<AppEnv>();
 loans.use("/loans", requireUser, requireHousehold);
 loans.use("/loans/*", requireUser, requireHousehold);
 loans.use("/items/:id/loans", requireUser, requireHousehold);
+loans.use("/items/:id/borrow-again", requireUser, requireHousehold);
 
 /** ?all=true: with those back in the last 90 days. `canEmail`: Ferret can send the borrower reminders. */
 loans.get("/loans", async (c) =>
@@ -27,6 +28,11 @@ loans.patch("/loans/:id", requireWriter, async (c) => c.json(await updateLoan(ca
 loans.post("/loans/:id/returned", requireWriter, async (c) => {
   const { on } = await body(c.req.raw, z.object({ on: z.iso.date().optional().nullable() }));
   return c.json(await returnLoan(callerOf(c), c.req.param("id"), on));
+});
+loans.post("/loans/:id/kept", requireWriter, async (c) => c.json(await keepLoan(callerOf(c), c.req.param("id"), await body(c.req.raw, loanKeep))));
+loans.post("/items/:id/borrow-again", requireWriter, async (c) => {
+  const { dueOn } = await body(c.req.raw, z.object({ dueOn: z.iso.date().optional().nullable() }));
+  return c.json(await borrowAgain(callerOf(c), c.var.files, c.req.param("id"), { dueOn }), 201);
 });
 loans.delete("/loans/:id", requireWriter, async (c) => {
   await deleteLoan(callerOf(c), c.req.param("id"));

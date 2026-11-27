@@ -1,0 +1,1 @@
+ALTER TABLE `loan` ADD `kept` integer DEFAULT false NOT NULL;

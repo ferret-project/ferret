@@ -6,14 +6,19 @@
  * links to a page (`/b/<token>`, no account) where they can say it's back — the bell then asks someone here to agree —
  * or stop the reminders. The first reminder goes on the due date if there is one, else one interval after lending.
  * Borrowed things remind *you* (the bell) when they're due back.
+ *
+ * A borrowed thing is someone else's: while it's here it isn't counted in what the household owns (inventory.ts
+ * `borrowedNow`). Given back, it goes to Past things as "returned" (`returnLoan`; Bring it back undoes that), from
+ * where **Borrow again** opens a new loan from the same person (`borrowAgain`). **It's ours now** (`keepLoan`) ends
+ * the loan without giving it back — a gift, or bought — and it's the household's from then on, history and all.
  */
-import { type BorrowerView, type LoanInput, type LoanPatch, type LoanSummary, addDays, addMonths, today } from "@ferret/shared";
+import { type BorrowerView, type LoanInput, type LoanKeep, type LoanPatch, type LoanSummary, addDays, addMonths, today } from "@ferret/shared";
 import { and, desc, eq, isNotNull, isNull } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { activity, item, loan, loanReminderStop, organization, user } from "../db/schema";
 import type { Db, Deps } from "../ports";
 import type { FileStore } from "./files";
-import { type Caller, itemScope, logActivity, notFound } from "./inventory";
+import { type Caller, itemScope, logActivity, notFound, updateItem } from "./inventory";
 import { sendEmail } from "./notifications";
 import { trFor } from "./language";
 import { hashToken, newToken } from "./shares";
@@ -39,6 +44,7 @@ const summary = (r: Row, itemName: string, on: string): LoanSummary => ({
   borrowerReturnedAt: r.borrowerReturnedAt?.toISOString() ?? null,
   remindersStoppedAt: r.remindersStoppedAt?.toISOString() ?? null,
   returnedOn: r.returnedOn,
+  kept: r.kept,
   overdue: !r.returnedOn && Boolean(r.dueOn && r.dueOn < on),
 });
 
@@ -146,13 +152,59 @@ export async function updateLoan(v: Caller, files: FileStore, id: string, patch:
   return summary(await withToken(v, files, row!), name, todayFor(v));
 }
 
-/** It's back (or, borrowed, given back): the loan ends; the borrower's link stops working. */
+/**
+ * It's back (or, borrowed, given back): the loan ends; the borrower's link stops working. A borrowed thing given back
+ * goes to Past things ("returned", to its owner) — unless it's a box with things still in it.
+ */
 export async function returnLoan(v: Caller, id: string, on?: string | null) {
   const { l, name } = await loanIn(v, id);
   if (l.returnedOn) throw new HTTPException(409, { message: "That's already back" });
-  const [row] = await v.db.update(loan).set({ returnedOn: on ?? todayFor(v), tokenHash: null, tokenSealed: null }).where(eq(loan.id, id)).returning();
+  const day = on ?? todayFor(v);
+  const [row] = await v.db.update(loan).set({ returnedOn: day, tokenHash: null, tokenSealed: null }).where(eq(loan.id, id)).returning();
   await logActivity(v, "loan.return", id, l.direction === "lent" ? `${name} is back from ${l.person}` : `Gave ${name} back to ${l.person}`, l.itemId);
+  let movedToPast = false;
+  if (l.direction === "borrowed") {
+    const [thing] = await v.db.select({ disposition: item.disposition }).from(item).where(and(eq(item.id, l.itemId), itemScope(v, { gone: "include" })));
+    if (thing && !thing.disposition) {
+      try {
+        await updateItem(v, l.itemId, { disposition: "returned", disposedOn: day, disposedTo: l.person }, (n) => `Moved ${n} to Past things: given back to ${l.person}`);
+        movedToPast = true;
+      } catch (err) {
+        if (!(err instanceof HTTPException && err.status === 409)) throw err; // a box with things in it stays
+      }
+    }
+  }
+  return { ...summary(row!, name, todayFor(v)), movedToPast };
+}
+
+/** "It's ours now": a borrowed thing was given to the household, or bought (`priceCents`) — the loan ends, kept. */
+export async function keepLoan(v: Caller, id: string, input: LoanKeep) {
+  const { l, name } = await loanIn(v, id);
+  if (l.direction !== "borrowed") throw new HTTPException(422, { message: "Only something borrowed can become yours" });
+  if (l.returnedOn) throw new HTTPException(409, { message: "That loan has already ended" });
+  const day = input.on ?? todayFor(v);
+  const [row] = await v.db.update(loan).set({ returnedOn: day, kept: true, tokenHash: null, tokenSealed: null }).where(eq(loan.id, id)).returning();
+  const bought = input.priceCents != null;
+  await logActivity(v, "loan.keep", id, bought ? `Bought ${name} from ${l.person}` : `${l.person} gave ${name} to us`, l.itemId);
+  if (bought) await updateItem(v, l.itemId, { purchasePriceCents: input.priceCents, purchaseDate: day });
   return summary(row!, name, todayFor(v));
+}
+
+/** Borrow again: a thing given back (in Past things) comes back, on a new loan from the same person. */
+export async function borrowAgain(v: Caller, files: FileStore, itemId: string, input: { dueOn?: string | null } = {}) {
+  const [thing] = await v.db.select({ disposition: item.disposition, person: item.disposedTo }).from(item).where(and(eq(item.id, itemId), itemScope(v, { gone: "include" })));
+  if (!thing) throw notFound("Item");
+  if (thing.disposition !== "returned") throw new HTTPException(409, { message: "Only something given back can be borrowed again" });
+  const [last] = await v.db
+    .select({ person: loan.person })
+    .from(loan)
+    .where(and(eq(loan.itemId, itemId), eq(loan.householdId, v.householdId), eq(loan.direction, "borrowed")))
+    .orderBy(desc(loan.since), desc(loan.createdAt))
+    .limit(1);
+  const person = last?.person ?? thing.person;
+  if (!person) throw new HTTPException(409, { message: "Whose it is isn't known — use Lend or borrow… instead" });
+  await updateItem(v, itemId, { disposition: null }, (n) => `Borrowed ${n} again`);
+  return createLoan(v, files, itemId, { direction: "borrowed", person, dueOn: input.dueOn ?? null });
 }
 
 /** A loan made by mistake. */

@@ -49,7 +49,8 @@ longer have it?** in the thing's editor.
 ## Past things
 
 **Past things** (in the menu) lists them by what happened, with what things sold for in total. Its page shows what
-happened, with **Bring it back** if that was a mistake (or you bought it back).
+happened, with **Bring it back** if that was a mistake (or you bought it back). Things you borrowed and gave back are
+there too, under **Given back**, with **Borrow again** ([more](./lending#borrowing-something)).
 
 ## Lost or stolen: for a claim
 

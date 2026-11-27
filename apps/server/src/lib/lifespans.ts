@@ -94,7 +94,7 @@ const add = (y: ForecastYear, l: ItemLifespan) => {
 export async function replacementForecast(v: Caller, opts: { years?: number; items?: boolean } = {}): Promise<ReplacementForecast> {
   const span = opts.years ?? 10;
   const thisYear = thisYearOf(v);
-  const [rows, cats] = await Promise.all([v.db.select().from(item).where(and(itemScope(v), eq(item.isContainer, false))), categoriesOf(v)]);
+  const [rows, cats] = await Promise.all([v.db.select().from(item).where(and(itemScope(v, { owned: true }), eq(item.isContainer, false))), categoriesOf(v)]);
   const past = emptyYear(thisYear - 1);
   const years = Array.from({ length: span }, (_, i) => emptyYear(thisYear + i));
   const dated: { row: typeof item.$inferSelect; lifespan: ItemLifespan }[] = [];

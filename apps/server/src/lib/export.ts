@@ -16,7 +16,7 @@ import { inList } from "./sql";
  * further (a tag's or category's things, for a share link).
  */
 export async function exportRows(v: Caller, opts: { propertyId?: string; gone?: "lost"; filter?: ItemFilter } = {}): Promise<ExportRow[]> {
-  let scope = opts.gone ? and(itemScope(v, { gone: "only" }), inArray(item.disposition, ["lost", "stolen"]))! : itemScope(v, opts.filter);
+  let scope = opts.gone ? and(itemScope(v, { gone: "only" }), inArray(item.disposition, ["lost", "stolen"]))! : itemScope(v, opts.filter ?? { owned: true });
   if (opts.propertyId) {
     const rooms = await v.db
       .select({ id: location.id })

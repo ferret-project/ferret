@@ -23,7 +23,7 @@ export type HeirItem = {
 export type HeirGroup = { heir: string; items: HeirItem[]; valueCents: number };
 
 export async function heirsList(v: Caller): Promise<{ data: HeirGroup[] }> {
-  const rows = await v.db.select().from(item).where(and(itemScope(v), isNotNull(item.heir)));
+  const rows = await v.db.select().from(item).where(and(itemScope(v, { owned: true }), isNotNull(item.heir)));
   const listed = await asListing(v, rows.filter((r) => r.heir?.trim()));
   const groups = new Map<string, HeirGroup>();
   for (const r of listed) {

@@ -37,7 +37,7 @@ export const MAX_ESTIMATES_AT_ONCE = 50;
  */
 export async function askReplacementEstimates(v: Caller, input: { itemIds: string[] } | { missing: "value" }) {
   if (!textModelOf(v.deps) || !v.deps.jobs) throw new HTTPException(503, { message: "Estimates need an AI model, and none is set up on this server" });
-  const scope = itemScope(v);
+  const scope = itemScope(v, { owned: true }); // someone else's things aren't for the household to insure
   const rows =
     "itemIds" in input
       ? await v.db.select({ id: item.id }).from(item).where(and(scope, inList(item.id, input.itemIds)))

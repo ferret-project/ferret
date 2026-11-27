@@ -1,5 +1,6 @@
 /**
- * Item lifecycle: things you no longer have — sold, given away, donated, thrown out, lost, stolen. They leave lists, totals,
+ * Item lifecycle: things you no longer have — sold, given away, donated, thrown out, lost, stolen, or given back to
+ * whoever lent it (never chosen here: "Given back" on a borrowed thing does it, Loans.tsx). They leave lists, totals,
  * search, the insurance report and reminders (server: itemScope), but keep their page and history, and can be brought
  * back. GoneDialog marks one; GoneBanner sits on its page; Past (#/past) lists them, with lost and stolen things
  * downloadable for a claim, and donations listed by year (Donations, #/donations/:year: print or CSV).
@@ -22,13 +23,15 @@ import { t, ph, plural, msg } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
 
-export const DISPOSITIONS: { value: ItemDisposition; label: MessageDescriptor; past: MessageDescriptor; icon: string; amount?: MessageDescriptor }[] = [
+export const DISPOSITIONS: { value: ItemDisposition; label: MessageDescriptor; past: MessageDescriptor; icon: string; amount?: MessageDescriptor; borrowed?: true }[] = [
   { value: "sold", label: msg`Sold it`, past: msg`Sold`, icon: "icon-[tabler--cash]", amount: msg`Sold for` },
   { value: "given", label: msg`Gave it away`, past: msg`Given away`, icon: "icon-[tabler--gift]" },
   { value: "donated", label: msg`Donated it`, past: msg`Donated`, icon: "icon-[tabler--heart-handshake]", amount: msg`Worth when given` },
   { value: "discarded", label: msg`Threw it out`, past: msg`Thrown out`, icon: "icon-[tabler--trash-x]" },
   { value: "lost", label: msg`Lost it`, past: msg`Lost`, icon: "icon-[tabler--map-pin-question]", amount: msg`Insurance paid` },
   { value: "stolen", label: msg`It was stolen`, past: msg`Stolen`, icon: "icon-[tabler--shield-x]", amount: msg`Insurance paid` },
+  // Something borrowed, given back to its owner: set by giving it back (lib/loans.ts), not offered in GoneDialog.
+  { value: "returned", label: msg`Gave it back`, past: msg`Given back`, icon: "icon-[tabler--arrow-back-up]", borrowed: true },
 ];
 const byValue = (v: ItemDisposition | null | undefined) => DISPOSITIONS.find((d) => d.value === v);
 const formatDate = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
@@ -84,7 +87,7 @@ export function GoneDialog({ item, householdId, onClose, onDone, initial = "sold
           <legend className="label-text mb-2"><Trans>What happened</Trans></legend>
           <div className="@container">
             <div className="grid grid-cols-1 gap-2 @sm:grid-cols-2">
-              {DISPOSITIONS.map((d) => (
+              {DISPOSITIONS.filter((d) => !d.borrowed).map((d) => (
                 <label key={d.value} className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-field border px-3 ${what === d.value ? "border-primary bg-primary/10" : "border-base-content/15"}`}>
                   <input type="radio" name="what" className="radio radio-primary radio-sm" checked={what === d.value} onChange={() => setWhat(d.value)} />
                   <span className={`${d.icon} size-5 text-base-content/70`} />
@@ -162,17 +165,28 @@ export function GoneDialog({ item, householdId, onClose, onDone, initial = "sold
   );
 }
 
-/** On a gone thing's page: what happened, and "Bring it back". */
+/** Borrow again: something given back comes out of Past things on a new loan from the same person. */
+function useBorrowAgain(householdId: string) {
+  const refresh = useRefreshAll(householdId);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (itemId: string) => api.borrowAgain(itemId),
+    onSuccess: () => Promise.all([refresh(), qc.invalidateQueries({ queryKey: ["loans", householdId] })]),
+  });
+}
+
+/** On a gone thing's page: what happened, and "Bring it back" (given back: "Borrow again", or keep it in your things). */
 export function GoneBanner({ item, householdId }: { item: ItemListing; householdId: string }) {
   const refresh = useRefreshAll(householdId);
   const canEdit = useCanEdit(householdId);
   const back = useMutation({ mutationFn: () => api.updateItem(item.id, { disposition: null }), onSuccess: refresh });
+  const again = useBorrowAgain(householdId);
   const kind = byValue(item.disposition);
   if (!kind) return null;
   return (
     <div className="alert alert-soft alert-warning flex flex-wrap items-center gap-3" role="status">
       <span className={`${kind.icon} size-6 shrink-0`} />
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 basis-56">
         <p className="font-medium">
           {t(kind.past)}
           {item.disposedOn ? t` on ${ph({ formatDate: formatDate(item.disposedOn) })}` : ""}
@@ -188,18 +202,32 @@ export function GoneBanner({ item, householdId }: { item: ItemListing; household
         {item.disposalNote && <p className="text-sm">{item.disposalNote}</p>}
         <p className="text-sm"><Trans>Not in your lists or totals any more.</Trans></p>
       </div>
-      {canEdit && (
+      {canEdit && kind.borrowed && (
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className="btn btn-primary btn-sm" disabled={again.isPending} onClick={() => again.mutate(item.id)}>
+            <span className="icon-[tabler--arrows-exchange] size-4" />
+            <Trans>Borrow again</Trans>
+          </button>
+          <button type="button" className="btn btn-soft btn-sm" disabled={back.isPending} onClick={() => back.mutate()}>
+            <Trans>Keep it in my things</Trans>
+          </button>
+        </div>
+      )}
+      {canEdit && !kind.borrowed && (
         <button type="button" className="btn btn-soft btn-sm" disabled={back.isPending} onClick={() => back.mutate()}>
           <Trans>Bring it back</Trans>
         </button>
       )}
       {back.isError && <p className="w-full text-sm text-error">{back.error.message}</p>}
+      {again.isError && <p className="w-full text-sm text-error">{again.error.message}</p>}
     </div>
   );
 }
 
 /** #/past — things you no longer have, by what happened; lost and stolen things can be downloaded for a claim. */
 export function Past({ householdId }: { householdId: string }) {
+  const canEdit = useCanEdit(householdId);
+  const again = useBorrowAgain(householdId);
   const past = useQuery({ queryKey: ["past", householdId], queryFn: () => api.listItems(undefined, { gone: true, limit: 200 }) });
   const items = past.data?.data ?? [];
   const lostOrStolen = items.filter((i) => i.disposition === "lost" || i.disposition === "stolen");
@@ -263,6 +291,7 @@ export function Past({ householdId }: { householdId: string }) {
             </div>
           </section>
         )}
+        {again.isError && <div className="alert alert-soft alert-error">{again.error.message}</div>}
         {DISPOSITIONS.map((d) => {
           const group = items.filter((i) => i.disposition === d.value);
           if (!group.length) return null;
@@ -278,8 +307,8 @@ export function Past({ householdId }: { householdId: string }) {
                 </h2>
                 <ul className="divide-y divide-base-content/10">
                   {group.map((i) => (
-                    <li key={i.id}>
-                      <a href={itemHref(i.id)} className="flex min-h-11 items-center gap-3 py-2 hover:bg-base-200">
+                    <li key={i.id} className="flex items-center gap-2">
+                      <a href={itemHref(i.id)} className="flex min-h-11 min-w-0 flex-1 items-center gap-3 py-2 hover:bg-base-200">
                         <span className="min-w-0 flex-1">
                           <span className="block truncate">{i.name}</span>
                           {(i.disposedTo || i.disposalNote) && (
@@ -291,6 +320,11 @@ export function Past({ householdId }: { householdId: string }) {
                           {i.disposalCents != null && <span className="block">{money(i.disposalCents)}</span>}
                         </span>
                       </a>
+                      {d.borrowed && canEdit && (
+                        <button type="button" className="btn btn-soft btn-sm shrink-0" disabled={again.isPending} onClick={() => again.mutate(i.id)}>
+                          <Trans>Borrow again</Trans>
+                        </button>
+                      )}
                     </li>
                   ))}
                 </ul>

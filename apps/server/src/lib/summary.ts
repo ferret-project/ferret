@@ -18,7 +18,7 @@ export async function householdSummary(v: Caller): Promise<HouseholdSummary> {
         valueCents: sql<number>`coalesce(sum(coalesce(${item.valueCents}, ${item.purchasePriceCents}) * max(1, ${item.quantity})), 0)`,
       })
       .from(item)
-      .where(itemScope(v)),
+      .where(itemScope(v, { owned: true })),
     v.db.select({ name: organization.name }).from(organization).where(eq(organization.id, v.householdId)),
     needsAttention(v),
     shoppingList(v),

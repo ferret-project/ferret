@@ -150,7 +150,7 @@ export const item = sqliteTable(
      * What happened to it, once it's gone: sold, given (away), donated, discarded, lost, stolen — null while you still have it.
      * Gone things leave lists, totals, search and reminders (itemScope), but keep their page and history.
      */
-    disposition: text("disposition").$type<"sold" | "given" | "donated" | "discarded" | "lost" | "stolen">(),
+    disposition: text("disposition").$type<"sold" | "given" | "donated" | "discarded" | "lost" | "stolen" | "returned">(),
     disposedOn: text("disposed_on"), // ISO yyyy-mm-dd
     /** What it sold for, what insurance paid out, or (donated) what it was worth when given, in cents. */
     disposalCents: integer("disposal_cents"),
@@ -1388,6 +1388,8 @@ export const loan = sqliteTable(
     /** The borrower asked for no more reminders. */
     remindersStoppedAt: integer("reminders_stopped_at", { mode: "timestamp_ms" }),
     returnedOn: text("returned_on"),
+    /** Borrowed and kept ("It's ours now": a gift, or bought) — ended without being given back. */
+    kept: integer("kept", { mode: "boolean" }).notNull().default(false),
     createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
     createdAt: timestamps.createdAt,
     updatedAt: timestamps.updatedAt,

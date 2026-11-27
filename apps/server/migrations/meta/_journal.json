@@ -575,6 +575,13 @@
       "when": 1795713412946,
       "tag": "0081_inbox",
       "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "6",
+      "when": 1795746894258,
+      "tag": "0082_loan_kept",
+      "breakpoints": true
     }
   ]
 }

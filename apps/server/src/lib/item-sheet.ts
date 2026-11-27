@@ -55,7 +55,7 @@ const joined = (parts: unknown[]) => parts.filter((p) => p != null && p !== fals
 function words(tr: Tr) {
   return {
     condition: { new: tr("New"), excellent: tr("Excellent"), good: tr("Good"), fair: tr("Fair"), poor: tr("Poor") } as Record<string, string>,
-    gone: { sold: tr("Sold"), given: tr("Given away"), donated: tr("Donated"), discarded: tr("Thrown out"), lost: tr("Lost"), stolen: tr("Stolen") } as Record<string, string>,
+    gone: { sold: tr("Sold"), given: tr("Given away"), donated: tr("Donated"), discarded: tr("Thrown out"), lost: tr("Lost"), stolen: tr("Stolen"), returned: tr("Given back") } as Record<string, string>,
     claim: { filed: tr("Filed"), in_progress: tr("In progress"), approved: tr("Approved"), denied: tr("Denied"), resolved: tr("Resolved") } as Record<string, string>,
     stock: { scan: tr("scanned"), manual: tr("by hand"), edit: tr("edited"), undo: tr("undo"), maintenance: tr("maintenance") } as Record<string, string>,
   };

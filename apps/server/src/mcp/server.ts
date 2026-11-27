@@ -14,6 +14,7 @@ import {
   itemPatch,
   itemOrigins,
   loanInput,
+  loanKeep,
   locationInput,
   claimInput,
   claimPatch,
@@ -1201,7 +1202,7 @@ function buildServer(v: McpCaller) {
     {
       title: "It's back",
       description:
-        "Closes a loan: a lent thing is back, or a borrowed one was given back. Use it when the person says so (\"Sam returned the ladder\"); the id comes from list_loans. The loan stays in the item's history and the borrower's reminder emails stop; nothing else about the item changes. Calling it again for the same loan is refused (it's already back).",
+        "Closes a loan: a lent thing is back, or a borrowed one was given back. Use it when the person says so (\"Sam returned the ladder\"); the id comes from list_loans. The loan stays in the item's history and the borrower's reminder emails stop. A borrowed thing given back moves to past things (it was never the household's); a lent one is simply back. If a borrowed thing was given to the household or bought instead, use keep_borrowed. Calling it again for the same loan is refused (it's already back).",
       inputSchema: z.object({
         id: z.string().min(1).describe("The loan's id, from list_loans"),
         on: z.iso.date().optional().describe("The day it came back, yyyy-mm-dd; today if left out"),
@@ -1209,6 +1210,18 @@ function buildServer(v: McpCaller) {
       annotations: write,
     },
     async ({ id, on }) => run(async () => compact(await loans.returnLoan(v, id, on))),
+  );
+
+  server.registerTool(
+    "keep_borrowed",
+    {
+      title: "It's ours now",
+      description:
+        "Ends a borrowed thing's loan without giving it back: its owner gave it to the household, or the household bought it (priceCents). It becomes the household's — counted in totals and the insurance report — keeping its history, maintenance and repairs. The id is the loan's, from list_loans. Only for things borrowed (direction \"borrowed\") and still here.",
+      inputSchema: loanKeep.extend({ id: z.string().min(1).describe("The loan's id, from list_loans") }),
+      annotations: write,
+    },
+    async ({ id, ...input }) => run(async () => compact(await loans.keepLoan(v, id, input))),
   );
 
   server.registerTool(

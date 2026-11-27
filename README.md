@@ -153,7 +153,7 @@ can use the small bridge in [`contrib/mcp-bridge`](contrib/mcp-bridge): it forwa
 key. Ferret is also listed in the [MCP Registry](https://registry.modelcontextprotocol.io) as
 `io.github.ferret-project/ferret`.
 
-**What Claude can do** (55 tools):
+**What Claude can do** (56 tools):
 
 | | |
 |---|---|

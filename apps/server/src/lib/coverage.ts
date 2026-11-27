@@ -62,7 +62,7 @@ export async function coverageChecks(v: Caller): Promise<CoverageCheck[]> {
           })
           .from(item)
           // Boxes are packaging, not belongings (as in the insurance report) — unless they're worth something.
-          .where(and(itemScope(v, filter), sql`(${item.isContainer} = 0 or ${item.valueCents} is not null or ${item.purchasePriceCents} is not null)`))
+          .where(and(itemScope(v, { ...filter, owned: true }), sql`(${item.isContainer} = 0 or ${item.valueCents} is not null or ${item.purchasePriceCents} is not null)`))
       : [{ items: 0, cents: 0, unvalued: 0 }];
     const valueCents = Number(sum?.cents ?? 0);
     out.push({

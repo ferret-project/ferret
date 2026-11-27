@@ -264,7 +264,7 @@ export async function locationTree(v: Caller): Promise<PlacesTree> {
       .select({
         locationId: item.locationId,
         n: count(),
-        cents: sql<number>`coalesce(sum(coalesce(${item.valueCents}, ${item.purchasePriceCents}) * max(${item.quantity}, 1)), 0)`,
+        cents: worthOf(),
       })
       .from(item)
       .where(itemScope(v))
@@ -327,6 +327,17 @@ export async function locationPaths(v: Caller) {
 }
 
 // ── Items ───────────────────────────────────────────────────────────────────
+/**
+ * Someone else's, here for now: an open "borrowed" loan (lib/loans.ts). It's findable where it is, but not counted in
+ * what the household owns — totals, the insurance report, coverage, the personal property list, replacements.
+ */
+export const borrowedNow = () =>
+  sql`exists (select 1 from "loan" where "loan"."item_id" = "item"."id" and "loan"."direction" = 'borrowed' and "loan"."returned_on" is null)`;
+
+/** What a set of things is worth: each one's value, else what was paid, times how many — borrowed things not counted. */
+export const worthOf = () =>
+  sql<number>`coalesce(sum(case when ${borrowedNow()} then 0 else coalesce(${item.valueCents}, ${item.purchasePriceCents}) * max(${item.quantity}, 1) end), 0)`;
+
 export interface ItemFilter {
   locationId?: string;
   /** Any of these locations (e.g. a room and everything in it). */
@@ -368,6 +379,8 @@ export interface ItemFilter {
   /** Bought on or after / on or before this day (yyyy-mm-dd). */
   boughtFrom?: string;
   boughtTo?: string;
+  /** Only what the household owns: not things borrowed from someone (`borrowedNow`). */
+  owned?: boolean;
 }
 
 export function itemScope(v: Caller, filter: ItemFilter = {}) {
@@ -415,6 +428,7 @@ export function itemScope(v: Caller, filter: ItemFilter = {}) {
   }
   if (filter.notSeenSince) where.push(notSeenSince(v, startOfDayIn(filter.notSeenSince, v.timeZone)));
   if (filter.misplaced === "only") where.push(isNotNull(item.missingSince));
+  if (filter.owned) where.push(sql`not ${borrowedNow()}`);
   return and(...where);
 }
 
@@ -482,7 +496,7 @@ export async function listItems(
     v.db
       .select({
         total: count(),
-        cents: sql<number>`coalesce(sum(coalesce(${item.valueCents}, ${item.purchasePriceCents}) * max(${item.quantity}, 1)), 0)`,
+        cents: worthOf(),
       })
       .from(item)
       .where(where);
@@ -517,7 +531,7 @@ export async function listItems(
  * newest / most valuable… thing (by name: the category's own name; most valuable: what they're all worth).
  */
 async function bigCategories(v: Caller, scope: SQL | undefined, by: SQL | AnyColumn, sort: keyof typeof SORTS, dir: "asc" | "desc", except?: string) {
-  const worth = sql<number>`coalesce(sum(coalesce(${item.valueCents}, ${item.purchasePriceCents}) * max(${item.quantity}, 1)), 0)`;
+  const worth = worthOf();
   const rows = await v.db
     .select({ categoryId: item.categoryId, n: count(), cents: worth, key: dir === "asc" ? sql<unknown>`min(${by})` : sql<unknown>`max(${by})` })
     .from(item)
@@ -926,7 +940,7 @@ export async function createItem(v: Caller, given: ItemInput, found?: { roomScan
 }
 
 /** Words for what happened to something ("Sold Kayak"), for its history. */
-const DISPOSAL_WORDS: Record<ItemDisposition, string> = { sold: "Sold", given: "Gave away", donated: "Donated", discarded: "Threw out", lost: "Lost", stolen: "Stolen:" };
+const DISPOSAL_WORDS: Record<ItemDisposition, string> = { sold: "Sold", given: "Gave away", donated: "Donated", discarded: "Threw out", lost: "Lost", stolen: "Stolen:", returned: "Gave back" };
 
 /**
  * Marking something gone (or bringing it back): the date defaults to today; bringing it back clears what happened.
@@ -1184,7 +1198,7 @@ export async function listWarranties(v: Caller, status?: "active" | "expiring" |
  */
 export async function inventoryReport(v: Caller) {
   const [items, { properties }, categories] = await Promise.all([
-    v.db.select().from(item).where(itemScope(v)),
+    v.db.select().from(item).where(itemScope(v, { owned: true })),
     locationTree(v),
     categoryInfo(v),
   ]);
@@ -1292,7 +1306,7 @@ export async function firstPhotos(v: Pick<Caller, "db" | "householdId">, itemIds
  */
 export async function overview(v: Caller): Promise<Overview> {
   const countMissing = async (detail: MissingDetail) =>
-    (await v.db.select({ n: count() }).from(item).where(itemScope(v, { missing: detail })))[0]?.n ?? 0;
+    (await v.db.select({ n: count() }).from(item).where(itemScope(v, { missing: detail, owned: true })))[0]?.n ?? 0;
   const today = new Date();
   const monthAgo = new Date(today.getTime() - 30 * 86_400_000).toISOString().slice(0, 10);
   const [report, tree, warranties, photo, value, place, document, uncategorised, serial, byPeople, byFerret, tasks] = await Promise.all([
