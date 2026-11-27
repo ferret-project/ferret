@@ -145,7 +145,7 @@ import type { InboxCreate, InboxEntry, ItemImportCheck, ItemImportResult, ItemSh
   ImportTriageInput,
   ImportTriageRow,
   MergeInput,
-  SuggestedTask, OAuthConnectInput, OAuthConnectRequest, OAuthGrantSummary, VehicleLookupStatus, ItemMarketListings, MarketListingsStatus, RepairGuideStatus, AskSettings, PromptKind, PromptSetting, BookLookupStatus, MusicLookupStatus, ScanCandidate, SearchIndexStatus, CardGame, CardInfo, CardLookupStatus, CardPrice, CardReadStatus, CardValue, ItemCard, CoinIssuer, CollectibleCatalogStatus, CollectibleInfo, CollectibleKind, CollectiblePrice, CollectibleReadStatus, CollectibleValue, ItemCollectible, OpenFactsStatus, ItemSupportStatus, SupportLookupStatus, ExchangeRates, ExchangeRateStatus, EnergyStarStatus, ItemEnergy, BikeIndexStatus, ItemBikeIndex, GradedInfo, GradingService, GradingStatus, ItemGradedInfo } from "@ferret/shared";
+  SuggestedTask, OAuthConnectInput, OAuthConnectRequest, OAuthGrantSummary, VehicleLookupStatus, ItemMarketListings, MarketListingsStatus, RepairGuideStatus, AskSettings, PromptKind, PromptSetting, BookLookupStatus, HardcoverStatus, MusicLookupStatus, ScanCandidate, SearchIndexStatus, CardGame, CardInfo, CardLookupStatus, CardPrice, CardReadStatus, CardValue, ItemCard, CoinIssuer, CollectibleCatalogStatus, CollectibleInfo, CollectibleKind, CollectiblePrice, CollectibleReadStatus, CollectibleValue, ItemCollectible, OpenFactsStatus, ItemSupportStatus, SupportLookupStatus, ExchangeRates, ExchangeRateStatus, EnergyStarStatus, ItemEnergy, BikeIndexStatus, ItemBikeIndex, GradedInfo, GradingService, GradingStatus, ItemGradedInfo } from "@ferret/shared";
 import { photoCopies } from "./photo-copies";
 import { t, ph } from "@lingui/core/macro";
 
@@ -377,6 +377,10 @@ export const api = {
   recallStatus: () => request<RecallStatus>("/server/recalls"),
   bookLookupStatus: () => request<BookLookupStatus>("/server/books"),
   setGoogleBooksKey: (key: string | null) => request<BookLookupStatus>("/server/books/google", { method: "PUT", body: JSON.stringify({ key }) }),
+  hardcoverStatus: () => request<HardcoverStatus>("/server/books/hardcover"),
+  startHardcover: () => request<HardcoverStatus>("/server/books/hardcover/start", { method: "POST", body: "{}" }),
+  checkHardcover: () => request<HardcoverStatus>("/server/books/hardcover/check", { method: "POST", body: "{}" }),
+  disconnectHardcover: () => request<HardcoverStatus>("/server/books/hardcover", { method: "DELETE" }),
   setBookLookups: (enabled: boolean) => request<BookLookupStatus>("/server/books", { method: "PUT", body: JSON.stringify({ enabled }) }),
   exchangeRates: () => request<{ rates: ExchangeRates | null }>("/exchange-rates"),
   exchangeRateStatus: () => request<ExchangeRateStatus>("/server/exchange-rates"),

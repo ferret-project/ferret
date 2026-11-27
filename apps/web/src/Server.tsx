@@ -4,12 +4,12 @@
  * certificates for the server's own connections, and handing the admin role to someone else. Restoring is a command on the server, not a button: see restoreCommands below.
  */
 import { KeyDetails } from "./SigningKey";
-import type { DiskSpaceEntry, BackupRun, BackupSnapshot, BackupStatus, BookLookupStatus, GradingStatus, CollectibleCatalogStatus, CollectibleKind, ServerCertificate, ServerSecrets } from "@ferret/shared";
+import type { DiskSpaceEntry, BackupRun, BackupSnapshot, BackupStatus, BookLookupStatus, GradingStatus, HardcoverStatus, CollectibleCatalogStatus, CollectibleKind, ServerCertificate, ServerSecrets } from "@ferret/shared";
 import { ServerAiFillCard } from "./AiFill";
 import { AiPrompts, PROMPT_NAMES } from "./Prompts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { DemoSwitches, DemoUsage, HostingUsageCard } from "./Demo";
-import { type FormEvent, type ReactNode, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import { CopyField } from "./CopyField";
 import { api } from "./lib/api";
 import { SETTINGS_HREF, settingsHref } from "./lib/route";
@@ -807,8 +807,80 @@ function BookLookups() {
             onSaved={(data) => qc.setQueryData(["server-books"], data)}
           />
         )}
+        {s.enabled && <HardcoverConnect />}
       </div>
     </section>
+  );
+}
+
+/**
+ * Hardcover (optional): connected by a code entered on hardcover.app (no token pasted — Hardcover's rule), then asked
+ * with Open Library and Google Books. While a sign-in waits, it's checked every few seconds (lib/hardcover.ts).
+ */
+function HardcoverConnect() {
+  const qc = useQueryClient();
+  const status = useQuery({ queryKey: ["server-hardcover"], queryFn: api.hardcoverStatus });
+  const set = (data: HardcoverStatus) => qc.setQueryData(["server-hardcover"], data);
+  const start = useMutation({ mutationFn: api.startHardcover, onSuccess: set });
+  const disconnect = useMutation({ mutationFn: api.disconnectHardcover, onSuccess: set });
+  const h = status.data;
+  const pending = h?.pending;
+  // Waiting for the code to be entered: ask Hardcover every `interval` seconds until it's done.
+  useEffect(() => {
+    if (!pending) return;
+    const timer = window.setTimeout(() => void api.checkHardcover().then(set, () => {}), pending.interval * 1000);
+    return () => window.clearTimeout(timer);
+  }, [pending, h]);
+  if (!h?.available) return null;
+  return (
+    <div className="flex flex-col gap-2 border-t border-base-content/10 pt-3">
+      <p className="text-sm text-base-content/70">
+        <Trans>Hardcover (optional): asked with the others, it often has covers, series and blurbs they don't. Connect a Hardcover account — Ferret only
+        reads its book catalog, never your library or reading — and it's free.</Trans>
+      </p>
+      {h.lostAt && !h.connected && !pending && (
+        <div className="alert alert-soft alert-warning text-sm" role="status">
+          <Trans>Hardcover stopped taking the connection on {ph({ date: h.lostAt })}. Connect it again.</Trans>
+        </div>
+      )}
+      {h.ended && !pending && (
+        <p className="text-sm text-warning">{h.ended === "denied" ? t`The connection wasn't allowed on Hardcover.` : t`The code ran out before it was entered. Try again.`}</p>
+      )}
+      {pending ? (
+        <div className="alert alert-soft alert-info flex flex-col items-start gap-2" role="status">
+          <p className="text-sm">
+            <Trans>On hardcover.app, signed in, enter this code and allow Ferret:</Trans>
+          </p>
+          <p className="font-mono text-2xl font-semibold tracking-widest">{pending.userCode}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <a className="btn btn-primary btn-sm" href={pending.verificationUriComplete ?? pending.verificationUri} target="_blank" rel="noreferrer noopener">
+              <span className="icon-[tabler--external-link] size-4" />
+              <Trans>Open hardcover.app/link</Trans>
+            </a>
+            <span className="flex items-center gap-2 text-sm text-base-content/70">
+              <span className="loading loading-spinner loading-xs" />
+              <Trans>Waiting for it…</Trans>
+            </span>
+          </div>
+        </div>
+      ) : h.connected ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="badge badge-soft badge-success gap-1">
+            <span className="icon-[tabler--check] size-4" />
+            <Trans>Hardcover connected</Trans>
+          </span>
+          <button type="button" className="btn btn-text btn-sm" disabled={disconnect.isPending} onClick={() => window.confirm(t`Disconnect Hardcover? Books won't be asked of it any more.`) && disconnect.mutate()}>
+            <Trans>Disconnect</Trans>
+          </button>
+        </div>
+      ) : (
+        <button type="button" className="btn btn-soft btn-primary btn-sm self-start" disabled={start.isPending} onClick={() => start.mutate()}>
+          <span className="icon-[tabler--plug-connected] size-4" />
+          <Trans>Connect Hardcover</Trans>
+        </button>
+      )}
+      {(start.isError || disconnect.isError) && <p className="text-sm text-error">{start.error?.message ?? disconnect.error?.message}</p>}
+    </div>
   );
 }
 

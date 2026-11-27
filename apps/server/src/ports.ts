@@ -216,6 +216,31 @@ export type JobHandler = (payload: unknown, ctx: { lastAttempt: boolean }) => Pr
 export type { ProductInfo } from "@ferret/shared";
 import type { ProductInfo } from "@ferret/shared";
 
+/** Hardcover's sign-in by code (OAuth device grant) and its book catalog. Lookups get their token from lib/hardcover.ts. */
+export interface Hardcover extends ProductLookup {
+  start(): Promise<HardcoverDevice>;
+  /** One check of a started sign-in: the tokens once approved, else where it stands. */
+  poll(deviceCode: string): Promise<HardcoverTokens | "pending" | "slow_down" | "denied" | "expired">;
+  /** New tokens for a refresh token (each is good once); "revoked" when Hardcover no longer takes it. */
+  refresh(refreshToken: string): Promise<HardcoverTokens | "revoked">;
+  revoke(refreshToken: string): Promise<void>;
+}
+export interface HardcoverDevice {
+  deviceCode: string;
+  userCode: string;
+  verificationUri: string;
+  verificationUriComplete?: string;
+  /** Seconds. */
+  expiresIn: number;
+  interval: number;
+}
+export interface HardcoverTokens {
+  accessToken: string;
+  refreshToken: string;
+  /** Seconds the access token lasts. */
+  expiresIn: number;
+}
+
 export interface ProductLookup {
   /** The product, or null if the database doesn't know the code. Throws on network errors or a used-up quota (retry later). */
   lookup(barcode: string): Promise<ProductInfo | null>;
@@ -761,6 +786,8 @@ export interface Deps {
   fdaRecalls?: FdaRecalls;
   /** Google Books: a second book source after Open Library, on once the server admin saves its key (the adapter fetches it). */
   googleBooks?: ProductLookup & { check(key: string): Promise<boolean> };
+  /** Hardcover: a third book source, on once the server admin connects a Hardcover account (lib/hardcover.ts). */
+  hardcover?: Hardcover;
   /** Collector catalogs (LEGO: Rebrickable; coins: Numista; comics: Comic Vine) — each on once the server admin saves its key. */
   collectibles?: Partial<Record<CollectibleKind, CollectibleCatalog>>;
   /** Open Food Facts, Open Products Facts, Open Beauty Facts: asked when the product database doesn't know a code (switched on in Settings → Server). */

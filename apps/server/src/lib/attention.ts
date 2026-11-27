@@ -16,6 +16,7 @@ import { and, count, desc, eq, gte, isNull, lte } from "drizzle-orm";
 import { attachment, backupRun, item } from "../db/schema";
 import { listClaims } from "./claims";
 import { isServerAdmin } from "./server-admin";
+import { hardcoverLostOn } from "./hardcover";
 import { lastKeyFile } from "./key-file-log";
 import { certificatesEnding } from "./certificates";
 import { barcodeLookupStatus } from "./products";
@@ -399,6 +400,22 @@ export async function needsAttention(v: Caller, tr: Tr = translator(undefined, n
         detail: tr("{remaining} of {limit} left; it fills up again at {at}. Scans still match the barcode books.", { remaining: quota.remaining, limit: quota.limit, at }),
         itemId: null,
         date: null,
+      });
+    }
+  }
+
+  // Hardcover stopped taking its connection (disconnected there, or reset in its beta) — for the server admin.
+  if (v.deps.hardcover && (await isServerAdmin(v.db, v.userId))) {
+    const lost = await hardcoverLostOn(v.db);
+    if (lost) {
+      out.push({
+        kind: "service",
+        severity: "soon",
+        id: "service:hardcover",
+        title: tr("Hardcover needs connecting again"),
+        detail: tr("Book look-ups stopped asking Hardcover on {date}. Settings → Server → Book look-ups → Connect Hardcover.", { date: lost }),
+        itemId: null,
+        date: lost,
       });
     }
   }

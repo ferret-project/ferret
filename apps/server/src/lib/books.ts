@@ -70,6 +70,15 @@ export function mergeBooks(isbn: string, answers: { source: string; info: Produc
     (merged as Record<string, unknown>)[field] = got.value;
     from[field] = got.from;
   }
+  // One edition's facts together: the date and pages from the source the publisher came from, when it has them —
+  // not one catalogue's publisher with another's year.
+  const edition = books.find((b) => b.source === from.publisher)?.book;
+  for (const field of ["published", "pages"] as const) {
+    if (edition && present(edition[field])) {
+      (merged as Record<string, unknown>)[field] = edition[field];
+      from[field] = from.publisher;
+    }
+  }
   if (!merged.title) return null;
   const book = { ...merged, from } as BookDetails;
   const published = [book.publisher, book.published].filter(Boolean).join(", ");
@@ -82,7 +91,7 @@ export function mergeBooks(isbn: string, answers: { source: string; info: Produc
     ...(about ? { description: about } : {}),
     category: "Books",
     images: book.covers ?? [],
-    source: used.join(" and "),
+    source: new Intl.ListFormat("en", { type: "conjunction" }).format(used),
     kind: "book",
     book,
   };

@@ -120,6 +120,13 @@ project, [enable the Books API](https://console.cloud.google.com/apis/library/bo
 [create an API key](https://console.cloud.google.com/apis/credentials) (restrict it to the Books API), then paste it in.
 It's checked with Google before it's saved, kept sealed like the collector catalogs' keys, and only the ISBN is sent.
 
+**Hardcover** ([hardcover.app](https://hardcover.app), free) can be asked as well — it often has the best cover, and a
+book's series. **Connect Hardcover** shows a code: open hardcover.app/link, signed in to any Hardcover account (make
+one if you need to), enter the code and allow Ferret. Ferret only asks to read Hardcover's book catalog — never your
+library, shelves or reading — and keeps the connection sealed, renewing it by itself; only the ISBN is sent. If
+Hardcover ever stops taking it (you disconnected Ferret there, or Hardcover reset it), your bell says so: connect again.
+**Disconnect** tells Hardcover to forget it.
+
 ## Trading cards
 
 **Settings → Server → Trading cards** adds **Scan cards** to everyone's **+ Add**

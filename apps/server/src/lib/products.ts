@@ -18,6 +18,7 @@
  * offered; a person applies it.
  */
 import { type BookSource, MergedBooks } from "./books";
+import { hardcoverConnected } from "./hardcover";
 import { type BarcodeLookupStatus, type BarcodeMatch, type BookLookupStatus, type ItemProduct, type MusicLookupStatus, type OpenFactsStatus, uploadTypes } from "@ferret/shared";
 import { and, count, eq, isNotNull, isNull } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
@@ -209,14 +210,15 @@ export type ScanAs = "any" | "music";
 type Source = { lookup: ProductLookup; name: "upcitemdb" | "openlibrary" | "googlebooks" | "musicbrainz" | "openfacts"; counted: boolean };
 
 /**
- * Who to ask about a code, in turn. An ISBN (books switched on): every book source at once — Open Library, and Google
- * Books with its key — merged field by field (lib/books.ts). Else the online product database (UPCitemdb), then the
+ * Who to ask about a code, in turn. An ISBN (books switched on): every book source at once — Open Library, Google
+ * Books with its key, Hardcover once connected — merged field by field (lib/books.ts). Else the online product database (UPCitemdb), then the
  * Open Food Facts databases (switched on). Empty: nobody.
  */
-async function sourcesFor(deps: Pick<Deps, "db" | "products" | "books" | "openFacts" | "googleBooks">, barcode: string): Promise<Source[]> {
+async function sourcesFor(deps: Pick<Deps, "db" | "products" | "books" | "openFacts" | "googleBooks" | "hardcover">, barcode: string): Promise<Source[]> {
   if (isIsbn(barcode) && deps.books && (await booksEnabled(deps.db))) {
     const books: BookSource[] = [{ name: "Open Library", lookup: deps.books }];
     if (deps.googleBooks && (await savedKeyHints(deps.db, GOOGLE_BOOKS_KEY)).size) books.push({ name: "Google Books", lookup: deps.googleBooks });
+    if (deps.hardcover && (await hardcoverConnected(deps.db))) books.push({ name: "Hardcover", lookup: deps.hardcover });
     return [{ lookup: books.length > 1 ? new MergedBooks(books) : deps.books, name: "openlibrary", counted: false }];
   }
   const sources: Source[] = [];
@@ -297,7 +299,7 @@ export async function lookupBarcode(v: Pick<Caller, "db" | "deps" | "householdId
       row = await entry(deps.db, barcode);
     }
   }
-  const sources = await sourcesFor({ ...deps, books: v.deps.books, openFacts: v.deps.openFacts, googleBooks: v.deps.googleBooks }, barcode);
+  const sources = await sourcesFor({ ...deps, books: v.deps.books, openFacts: v.deps.openFacts, googleBooks: v.deps.googleBooks, hardcover: v.deps.hardcover }, barcode);
   if (!own && !row?.name && sources[0] && worthAsking(row, sources[0])) {
     // A plan may limit the online product database's lookups (lib/plan.ts); the free sources are asked anyway, and
     // Ferret's own barcode book always answers.
@@ -327,7 +329,7 @@ export async function rememberBarcode(
 }
 
 /** Background job: ask the online database about a code (for an item page's photos and price). Retried on errors. */
-export function productLookupJob(deps: Pick<Deps, "db" | "products" | "books" | "openFacts" | "googleBooks">): JobHandler {
+export function productLookupJob(deps: Pick<Deps, "db" | "products" | "books" | "openFacts" | "googleBooks" | "hardcover">): JobHandler {
   return async (payload) => {
     const { barcode: raw, free } = payload as { barcode?: string; free?: boolean };
     const barcode = productCode(raw);
@@ -342,7 +344,7 @@ export function productLookupJob(deps: Pick<Deps, "db" | "products" | "books" | 
 export async function queueProductLookup(v: Pick<Caller, "db" | "deps" | "householdId" | "userId">, raw: string | null | undefined) {
   const barcode = productCode(raw);
   if (!barcode || !v.deps.jobs) return;
-  const sources = await sourcesFor({ db: v.db, products: v.deps.products, books: v.deps.books, openFacts: v.deps.openFacts, googleBooks: v.deps.googleBooks }, barcode);
+  const sources = await sourcesFor({ db: v.db, products: v.deps.products, books: v.deps.books, openFacts: v.deps.openFacts, googleBooks: v.deps.googleBooks, hardcover: v.deps.hardcover }, barcode);
   if (!sources[0] || !worthAsking(await entry(v.db, barcode), sources[0])) return;
   let free = false;
   if (sources[0].counted) {
@@ -358,7 +360,7 @@ export async function itemProduct(v: Caller, itemId: string): Promise<ItemProduc
   const it = await getItem(v, itemId);
   const barcode = productCode(it.barcode);
   if (!barcode) return v.deps.products || v.deps.openFacts ? { status: "none" } : { status: "off" };
-  const sources = await sourcesFor({ db: v.db, products: v.deps.products, books: v.deps.books, openFacts: v.deps.openFacts, googleBooks: v.deps.googleBooks }, barcode);
+  const sources = await sourcesFor({ db: v.db, products: v.deps.products, books: v.deps.books, openFacts: v.deps.openFacts, googleBooks: v.deps.googleBooks, hardcover: v.deps.hardcover }, barcode);
   if (!sources[0]) return { status: "off" };
   const row = await entry(v.db, barcode);
   if (row?.external) return { status: it.productDismissedFor === barcode ? "dismissed" : "found", product: row.external };

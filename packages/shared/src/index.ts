@@ -2421,8 +2421,20 @@ export interface BookLookupStatus {
   enabled: boolean;
   /** Books kept in the shared barcode book. */
   books: number;
-  /** Google Books, asked after Open Library: on with a key (its last four characters shown). */
+  /** Google Books, asked with Open Library: on with a key (its last four characters shown). */
   google: { available: boolean; hint: string | null };
+}
+
+/** Hardcover, a book source asked with the others once a Hardcover account is connected (a code entered on hardcover.app). */
+export interface HardcoverStatus {
+  available: boolean;
+  connected: boolean;
+  /** Hardcover stopped taking the connection on this day (ISO): connect again. */
+  lostAt: string | null;
+  /** A sign-in waiting for its code to be entered on hardcover.app. */
+  pending: { userCode: string; verificationUri: string; verificationUriComplete: string | null; expiresAt: string; interval: number } | null;
+  /** The last check of a waiting sign-in, when it ended without connecting. */
+  ended?: "denied" | "expired";
 }
 
 /** One price for a card in one finish, from a marketplace (TCGplayer in USD, Cardmarket in EUR). */

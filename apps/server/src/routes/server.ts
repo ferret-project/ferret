@@ -33,6 +33,7 @@ import { gradingServices } from "@ferret/shared";
 import { collectibleKeyInput, collectibleKinds } from "@ferret/shared";
 import { SUPPORT_REFRESH_JOB, setSupportEnabled, supportStatus } from "../lib/support";
 import { EXCHANGE_RATES_JOB, exchangeRateStatus, setExchangeRatesEnabled } from "../lib/exchange";
+import { checkHardcover, disconnectHardcover, hardcoverStatus, startHardcover } from "../lib/hardcover";
 import { setGoogleBooksKey, barcodeLookupStatus, bookLookupStatus, musicLookupStatus, openFactsStatus, setBooksEnabled, setMusicEnabled, setOpenFactsEnabled } from "../lib/products";
 import { runServerCheck } from "../lib/server-check";
 import { reindexEverything, searchIndexStatus } from "../lib/search-index";
@@ -266,6 +267,13 @@ server.put("/books/google", async (c) => {
   const { key } = await body(c.req.raw, collectibleKeyInput);
   return c.json(await setGoogleBooksKey(c.var.deps, c.var.config.FILES_KEY, key));
 });
+
+/** Hardcover: whether it's connected, or a sign-in is waiting for its code. */
+server.get("/books/hardcover", async (c) => c.json(await hardcoverStatus(c.var.deps, c.var.config.FILES_KEY)));
+/** Connect Hardcover: a code to enter on hardcover.app (then `check` every `interval` seconds until it's done). */
+server.post("/books/hardcover/start", async (c) => c.json(await startHardcover(c.var.deps, c.var.config.FILES_KEY)));
+server.post("/books/hardcover/check", async (c) => c.json(await checkHardcover(c.var.deps, c.var.config.FILES_KEY)));
+server.delete("/books/hardcover", async (c) => c.json(await disconnectHardcover(c.var.deps, c.var.config.FILES_KEY)));
 
 /** Music look-ups (MusicBrainz, for "Scan music"): whether they're on, and how many records are kept. */
 server.get("/music", async (c) => c.json(await musicLookupStatus(c.var.deps)));

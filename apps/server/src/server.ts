@@ -44,6 +44,9 @@ import { IgdbGames } from "./adapters/local/igdb";
 import { DiscogsRecords } from "./adapters/local/discogs";
 import { OpenLibraryWorks } from "./adapters/local/openlibrary-works";
 import { GoogleBooks } from "./adapters/local/googlebooks";
+import { HardcoverApi } from "./adapters/local/hardcover";
+import type { Hardcover } from "./ports";
+import { hardcoverToken } from "./lib/hardcover";
 import { OpenFdaRecalls } from "./adapters/local/openfda";
 import { EnergyStarProducts } from "./adapters/local/energystar";
 import { BikeIndexRegistry } from "./adapters/local/bikeindex";
@@ -164,6 +167,9 @@ const backups = config.BACKUP_DIR
 // The services Ferret calls, watched: every failure goes in the server admin's error log (lib/service-errors.ts).
 // (Downloads and Home Assistant reads fail on what people typed, so they're not.)
 const catalogs = loadCatalogs();
+// Hardcover's lookups renew their own sign-in (lib/hardcover.ts), through the same watched port.
+const hardcover: Hardcover | undefined = watched(db, "books (Hardcover)", new HardcoverApi((opts) => hardcoverToken(db, config.FILES_KEY, hardcover!, opts)));
+
 const deps = {
   db,
   catalogs,
@@ -213,6 +219,7 @@ const deps = {
   marketListings: watched(db, "eBay listings", new EbayListings(() => serverKey(db, config.FILES_KEY, EBAY_KEY))),
   grading: { pcgs: watched(db, "graded coins (PCGS)", new PcgsGrading()), psa: watched(db, "graded cards (PSA)", new PsaGrading()) },
   googleBooks: watched(db, "books (Google)", new GoogleBooks(() => serverKey(db, config.FILES_KEY, GOOGLE_BOOKS_KEY))),
+  hardcover,
   music: watched(db, "music", new MusicBrainzReleases()),
   openFacts: watched(db, "Open Food Facts", new OpenFactsProducts()),
   support: watched(db, "endoflife.date", new EndOfLife()),
