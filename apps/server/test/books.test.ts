@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { ProductLookup } from "../src/ports";
 import { GoogleBooks, coverUrl, toBook } from "../src/adapters/local/googlebooks";
 import { FakeProducts, setup } from "./helpers";
+import { MergedBooks, mergeBooks } from "../src/lib/books";
 
 type User = Awaited<ReturnType<Awaited<ReturnType<typeof setup>>["user"]>>;
 const json = async <T>(res: Response | Promise<Response>) => (await (await res).json()) as T;
@@ -57,7 +58,7 @@ describe("book look-ups", () => {
     expect(await json(ann.as("/api/v1/server/books"))).toMatchObject({ books: 1 });
   });
 
-  it("ask Google Books after Open Library once the server admin saves its key, and keep the key sealed", async () => {
+  it("ask Google Books with Open Library once the server admin saves its key, and keep the key sealed", async () => {
     const books = new FakeBooks();
     const keys: string[] = [];
     const google = Object.assign(new FakeBooks(), {
@@ -77,10 +78,10 @@ describe("book look-ups", () => {
     expect(await json(send(ann, "PUT", "/api/v1/server/books/google", { key: "good-google-key" }))).toMatchObject({ google: { available: true, hint: "…-key" } });
     expect(JSON.stringify(await json(ann.as("/api/v1/server/books")))).not.toContain("good-google-key");
     const found = await scan(ann, "9780593135204");
-    expect(found.match).toMatchObject({ name: "Project Hail Mary", source: "googlebooks" });
-    // Open Library knew it: Google isn't asked.
+    expect(found.match).toMatchObject({ name: "Project Hail Mary", sourceName: "Google Books" });
+    // Both are asked about every book now, and what they say is merged.
     await scan(ann, LEAN_STARTUP);
-    expect(keys).toEqual(["9780593135204"]);
+    expect(keys).toEqual(["9780593135204", LEAN_STARTUP]);
     const bob = await s.user("bob");
     expect((await send(bob, "PUT", "/api/v1/server/books/google", { key: "good-google-key" })).status).toBe(403);
   });
@@ -110,5 +111,48 @@ describe("book look-ups", () => {
     await s.jobs.drain();
     const product = await json<ItemProduct>(ann.as(`/api/v1/items/${book.id}/product`));
     expect(product).toMatchObject({ status: "found", product: { title: "The Lean Startup", brand: "Eric Ries", kind: "book", source: "Open Library" } });
+  });
+});
+
+describe("books merged from every source, field by field", () => {
+  const ol: ProductInfo = {
+    barcode: "9780593135204", title: "Project Hail Mary", brand: "Andy Weir", category: "Books", images: [], source: "Open Library", kind: "book",
+    book: { title: "Project Hail Mary", authors: ["Andy Weir"], publisher: "Ballantine Books", published: "2021", pages: 476 },
+  };
+  const google: ProductInfo = {
+    barcode: "9780593135204", title: "Project Hail Mary: A Novel", brand: "Andy Weir", category: "Books", images: ["https://books.google.com/c.jpg"], source: "Google Books", kind: "book",
+    book: { title: "Project Hail Mary: A Novel", authors: ["Andy Weir"], publisher: "Random House", published: "2021-05-04", pages: 497, synopsis: "A lone astronaut…", language: "en", covers: ["https://books.google.com/c.jpg"] },
+  };
+  const hardcover: ProductInfo = {
+    barcode: "9780593135204", title: "Project Hail Mary: A Novel", category: "Books", images: ["https://hardcover.app/c.jpg"], source: "Hardcover", kind: "book",
+    book: { title: "Project Hail Mary: A Novel", series: "", covers: ["https://hardcover.app/c.jpg"] },
+  };
+
+  it("takes each field from the source best at it, and says where it came from", () => {
+    const merged = mergeBooks("9780593135204", [{ source: "Open Library", info: ol }, { source: "Google Books", info: google }])!;
+    expect(merged.book).toMatchObject({
+      title: "Project Hail Mary", publisher: "Ballantine Books", pages: 476, synopsis: "A lone astronaut…", language: "en",
+      covers: ["https://books.google.com/c.jpg"],
+      from: { title: "Open Library", publisher: "Open Library", synopsis: "Google Books", covers: "Google Books" },
+    });
+    expect(merged).toMatchObject({ title: "Project Hail Mary", brand: "Andy Weir", images: ["https://books.google.com/c.jpg"], source: "Open Library and Google Books", kind: "book" });
+    expect(merged.description).toBe("476 pages · Ballantine Books, 2021");
+  });
+
+  it("goes with what most sources agree on, and keeps every cover as a fallback", () => {
+    const merged = mergeBooks("9780593135204", [{ source: "Open Library", info: ol }, { source: "Google Books", info: google }, { source: "Hardcover", info: hardcover }])!;
+    expect(merged.book?.title).toBe("Project Hail Mary: A Novel"); // two of three
+    expect(merged.book?.from?.title).toBe("Hardcover");
+    expect(merged.images).toEqual(["https://hardcover.app/c.jpg", "https://books.google.com/c.jpg"]);
+    expect(merged.book?.series).toBeUndefined(); // empty isn't an answer
+  });
+
+  it("answers when one source fails and another knows the book; throws only when all fail", async () => {
+    const failing: ProductLookup = { lookup: async () => { throw new Error("down"); } };
+    const knows: ProductLookup = { lookup: async () => google };
+    const unknown: ProductLookup = { lookup: async () => null };
+    expect(await new MergedBooks([{ name: "Open Library", lookup: failing }, { name: "Google Books", lookup: knows }]).lookup("9780593135204")).toMatchObject({ title: "Project Hail Mary: A Novel", source: "Google Books" });
+    expect(await new MergedBooks([{ name: "Open Library", lookup: unknown }, { name: "Google Books", lookup: unknown }]).lookup("9780593135204")).toBeNull();
+    await expect(new MergedBooks([{ name: "Open Library", lookup: failing }, { name: "Google Books", lookup: unknown }]).lookup("9780593135204")).rejects.toThrow("down");
   });
 });

@@ -113,8 +113,9 @@ allowance, so it isn't counted against any lookup limit. It's off until you swit
 sent to Open Library — nothing else — once for the whole server. It also adds **Books by title** to + Add, for older
 books without a barcode: the words people search for are sent to Open Library's search.
 
-Optionally add a **Google Books** key there too: then a book Open Library doesn't know is asked of
-[Google Books](https://books.google.com), which knows many more recent and non-English books. Make a Google Cloud
+Optionally add a **Google Books** key there too: then every book is asked of
+[Google Books](https://books.google.com) as well, and the two answers are merged detail by detail — Google knows many
+more recent and non-English books, and usually has a cover and a blurb when Open Library doesn't. Make a Google Cloud
 project, [enable the Books API](https://console.cloud.google.com/apis/library/books.googleapis.com) and
 [create an API key](https://console.cloud.google.com/apis/credentials) (restrict it to the Books API), then paste it in.
 It's checked with Google before it's saved, kept sealed like the collector catalogs' keys, and only the ISBN is sent.

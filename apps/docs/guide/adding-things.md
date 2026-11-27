@@ -164,9 +164,12 @@ drill for the cabin. If several of your things have that code, pick which one to
 ## Books
 
 A book's barcode is its **ISBN**. When whoever runs your Ferret has switched on
-[book look-ups](../hosting/server-admin#book-look-ups), scanning it (or saving a thing with it) asks Open Library (and,
-if it doesn't know the book, Google Books when your server has its key), and Ferret offers the **title** and **author** — the author goes in the brand — and the **cover** as a photo, like any
-barcode's suggestions.
+[book look-ups](../hosting/server-admin#book-look-ups), scanning it (or saving a thing with it) asks Open Library — and
+Google Books too, when your server has its key — and Ferret offers the **title** and **author** (the author goes in the
+brand), what it's **about** (a blurb, then its pages, publisher and year) and the **cover** as a photo, like any
+barcode's suggestions. When more than one knows the book, their answers are merged detail by detail: the title most of
+them agree on, the edition's publisher and pages from Open Library, a cover and blurb from whichever has one — and the
+card says where it came from.
 
 Older books, printed before ISBNs, have no barcode: **+ Add → Books by title** finds them on Open Library by title and
 author (*Little Women Alcott*), or from a photo of the cover, spine or title page. It works like the

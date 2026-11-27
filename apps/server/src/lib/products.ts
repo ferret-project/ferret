@@ -17,6 +17,7 @@
  * A name the household saved wins. What the database says is only ever
  * offered; a person applies it.
  */
+import { type BookSource, MergedBooks } from "./books";
 import { type BarcodeLookupStatus, type BarcodeMatch, type BookLookupStatus, type ItemProduct, type MusicLookupStatus, type OpenFactsStatus, uploadTypes } from "@ferret/shared";
 import { and, count, eq, isNotNull, isNull } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
@@ -208,13 +209,15 @@ export type ScanAs = "any" | "music";
 type Source = { lookup: ProductLookup; name: "upcitemdb" | "openlibrary" | "googlebooks" | "musicbrainz" | "openfacts"; counted: boolean };
 
 /**
- * Who to ask about a code, in turn: Open Library for an ISBN (books switched on), then Google Books (with its key);
- * else the online product database (UPCitemdb), then the Open Food Facts databases (switched on). Empty: nobody.
+ * Who to ask about a code, in turn. An ISBN (books switched on): every book source at once — Open Library, and Google
+ * Books with its key — merged field by field (lib/books.ts). Else the online product database (UPCitemdb), then the
+ * Open Food Facts databases (switched on). Empty: nobody.
  */
 async function sourcesFor(deps: Pick<Deps, "db" | "products" | "books" | "openFacts" | "googleBooks">, barcode: string): Promise<Source[]> {
   if (isIsbn(barcode) && deps.books && (await booksEnabled(deps.db))) {
-    const google = deps.googleBooks && (await savedKeyHints(deps.db, GOOGLE_BOOKS_KEY)).size ? [{ lookup: deps.googleBooks, name: "googlebooks" as const, counted: false }] : [];
-    return [{ lookup: deps.books, name: "openlibrary", counted: false }, ...google];
+    const books: BookSource[] = [{ name: "Open Library", lookup: deps.books }];
+    if (deps.googleBooks && (await savedKeyHints(deps.db, GOOGLE_BOOKS_KEY)).size) books.push({ name: "Google Books", lookup: deps.googleBooks });
+    return [{ lookup: books.length > 1 ? new MergedBooks(books) : deps.books, name: "openlibrary", counted: false }];
   }
   const sources: Source[] = [];
   if (deps.products) sources.push({ lookup: deps.products, name: "upcitemdb", counted: true });

@@ -13,6 +13,7 @@ type Book = {
   publish_date?: string;
   number_of_pages?: number;
   cover?: { small?: string; medium?: string; large?: string };
+  subjects?: { name?: string }[];
   url?: string;
 };
 
@@ -31,6 +32,7 @@ export class OpenLibraryBooks implements ProductLookup {
     const published = [publisher, book.publish_date?.trim()].filter(Boolean).join(", ");
     const about = [book.subtitle?.trim(), book.number_of_pages ? `${book.number_of_pages} pages` : null, published || null].filter(Boolean).join(" · ");
     const cover = book.cover?.large ?? book.cover?.medium;
+    const subjects = (book.subjects ?? []).map((x) => x.name?.trim()).filter((x): x is string => Boolean(x) && !x!.includes(":")).slice(0, 5); // not machine tags ("nyt:…=2012-02-25")
     return {
       barcode: isbn,
       title,
@@ -40,6 +42,16 @@ export class OpenLibraryBooks implements ProductLookup {
       images: cover?.startsWith("https://") ? [cover] : [],
       source: "Open Library",
       kind: "book",
+      book: {
+        title,
+        ...(book.subtitle?.trim() ? { subtitle: book.subtitle.trim() } : {}),
+        ...(authors.length ? { authors } : {}),
+        ...(publisher ? { publisher } : {}),
+        ...(book.publish_date?.trim() ? { published: book.publish_date.trim() } : {}),
+        ...(book.number_of_pages ? { pages: book.number_of_pages } : {}),
+        ...(subjects.length ? { subjects } : {}),
+        ...(cover?.startsWith("https://") ? { covers: [cover] } : {}),
+      },
     };
   }
 }

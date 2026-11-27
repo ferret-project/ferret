@@ -1350,7 +1350,30 @@ export interface ProductInfo {
   /** A book (looked up by its ISBN): `brand` holds its author(s). Music (a CD's or record's barcode, from
    * MusicBrainz): `brand` holds the artist, `description` the format, year and label. */
   kind?: "book" | "music";
+  /** A book's details, field by field — merged from every book source that knew it (lib/books.ts). */
+  book?: BookDetails;
 }
+
+/** What the book sources say about one book. `from`: which source each field came from ("Google Books"). */
+export interface BookDetails {
+  title: string;
+  subtitle?: string;
+  authors?: string[];
+  publisher?: string;
+  /** As the source wrote it: "2019", "May 2019", "2019-05-14". */
+  published?: string;
+  pages?: number;
+  /** What it's about (a blurb). */
+  synopsis?: string;
+  subjects?: string[];
+  series?: string;
+  /** ISO 639-1 ("en"), when a source says. */
+  language?: string;
+  /** Cover pictures, best first. */
+  covers?: string[];
+  from?: Partial<Record<BookField, string>>;
+}
+export type BookField = "title" | "subtitle" | "authors" | "publisher" | "published" | "pages" | "synopsis" | "subjects" | "series" | "language" | "covers";
 
 /** What Ferret knows about a scanned barcode: from its own barcode book, or the online database. */
 export interface BarcodeMatch {

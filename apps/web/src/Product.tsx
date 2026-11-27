@@ -49,6 +49,8 @@ export function ProductSuggestions({ item, householdId }: { item: ItemListing; h
   const p = product.data?.status === "found" ? product.data.product : undefined;
   if (!p) return null;
 
+  // A book's blurb (merged from the book sources, lib/books.ts) before its edition's pages, publisher and year.
+  const about = [p.book?.synopsis, p.description].filter(Boolean).join("\n\n") || null;
   const worth = p.typicalPriceCents ? inHousehold(p.typicalPriceCents, p.currency ?? "USD", rates) : null;
   const same = (a: unknown, b: unknown) => String(a ?? "").trim().toLowerCase() === String(b ?? "").trim().toLowerCase();
   const rows: { label: string; display: string; patch: ItemPatch }[] = [
@@ -58,7 +60,7 @@ export function ProductSuggestions({ item, householdId }: { item: ItemListing; h
     p.model && !same(item.model, p.model) && { label: t`Model`, display: p.model, patch: { model: p.model } },
     // The database's price is in its own currency (UPCitemdb: US dollars): offered only when it can be the household's.
     worth && item.valueCents == null && { label: t`Worth`, display: t`${ph({ price: foreignMoneyText(p.typicalPriceCents!, p.currency ?? "USD", rates) })} (typical price)`, patch: { valueCents: worth.cents } },
-    p.description && !item.description && { label: t`About`, display: p.description, patch: { description: p.description } },
+    about && !item.description && { label: t`About`, display: about, patch: { description: about } },
   ].filter(Boolean) as { label: string; display: string; patch: ItemPatch }[];
   if (!rows.length && !p.images.length) return null;
   const busy = apply.isPending || photo.isPending || dismiss.isPending;
@@ -85,7 +87,7 @@ export function ProductSuggestions({ item, householdId }: { item: ItemListing; h
         )}
         {p.images.length > 0 && (
           <div>
-            <p className="mb-2 text-sm text-base-content/70">{p.kind === "book" ? <Trans>Its cover — tap to add it</Trans> : <Trans>Product photos — tap one to add it</Trans>}</p>
+            <p className="mb-2 text-sm text-base-content/70">{p.kind === "book" ? (p.images.length > 1 ? <Trans>Covers — tap one to add it</Trans> : <Trans>Its cover — tap to add it</Trans>) : <Trans>Product photos — tap one to add it</Trans>}</p>
             <div className="flex gap-2 overflow-x-auto pb-1">
               {p.images.slice(0, 6).map((src, i) => (
                 <button

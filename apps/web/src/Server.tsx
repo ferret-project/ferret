@@ -796,8 +796,9 @@ function BookLookups() {
         {s.enabled && s.google?.available && (
           <OptionalKey
             intro={
-              <Trans>Google Books (optional): asked when Open Library doesn't know a book — better for recent and non-English ones. It needs a free API key
-              from a Google Cloud project with the Books API enabled.</Trans>
+              <Trans>Google Books (optional): asked together with Open Library, and their answers merged field by field — so a book gets Google's cover and
+              blurb when Open Library has none, and recent and non-English books are found. It needs a free API key from a Google Cloud project with the
+              Books API enabled.</Trans>
             }
             hint={s.google.hint}
             label={t`Google Books API key`}

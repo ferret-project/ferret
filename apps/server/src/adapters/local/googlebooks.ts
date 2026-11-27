@@ -17,6 +17,8 @@ type Volume = {
     publisher?: string;
     publishedDate?: string;
     pageCount?: number;
+    description?: string;
+    language?: string;
     categories?: string[];
     imageLinks?: { thumbnail?: string; smallThumbnail?: string };
     industryIdentifiers?: { type: string; identifier: string }[];
@@ -43,6 +45,19 @@ export function toBook(isbn: string, v: Volume): ProductInfo | null {
     images: cover ? [cover] : [],
     source: "Google Books",
     kind: "book",
+    book: {
+      title,
+      ...(info.subtitle?.trim() ? { subtitle: info.subtitle.trim() } : {}),
+      ...(info.authors?.length ? { authors: info.authors } : {}),
+      ...(info.publisher?.trim() ? { publisher: info.publisher.trim() } : {}),
+      ...(info.publishedDate?.trim() ? { published: info.publishedDate.trim() } : {}),
+      ...(info.pageCount ? { pages: info.pageCount } : {}),
+      // Google's blurbs can carry a little HTML.
+      ...(info.description?.trim() ? { synopsis: info.description.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 2000) } : {}),
+      ...(info.categories?.length ? { subjects: info.categories.slice(0, 5) } : {}),
+      ...(info.language ? { language: info.language } : {}),
+      ...(cover ? { covers: [cover] } : {}),
+    },
   };
 }
 
