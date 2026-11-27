@@ -1,4 +1,5 @@
 import type { ItemListing, ItemOrigin, MissingDetail, SearchHit } from "@ferret/shared";
+import { NewVersion } from "./NewVersion";
 import { LanguageChoice } from "./Language";
 import { DeleteAccountDialog } from "./DeleteForGood";
 import { usePlan } from "./PlanUsage";
@@ -71,6 +72,7 @@ export function App() {
     <>
       <DemoCounts />
       <Outlet />
+      <NewVersion />
     </>
   );
 }
