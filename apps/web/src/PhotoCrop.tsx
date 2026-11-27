@@ -239,7 +239,7 @@ export function CapturedPhoto(props: { file: File; onUse: (file: File) => void; 
   const use = useMutation({
     mutationFn: async () => {
       if (whole || !src) return file;
-      const crop = await cut(src, box);
+      const crop = await cut(file, box);
       return new File([crop], `${file.name.replace(/\.[^.]+$/, "") || "photo"} (cropped).jpg`, { type: "image/jpeg" });
     },
     onSuccess: (f) => props.onUse(f),
@@ -286,11 +286,19 @@ export function CapturedPhoto(props: { file: File; onUse: (file: File) => void; 
   );
 }
 
-/** Cuts the box out of the full photo (upright, as shown) as a JPEG, at most MAX_PX along its longest side. */
-async function cut(url: string, box: Box): Promise<Blob> {
-  const res = await fetch(url, { credentials: "include" });
-  if (!res.ok) throw new Error(t`Couldn't load the photo — try again`);
-  const bitmap = await createImageBitmap(await res.blob());
+/**
+ * Cuts the box out of the full photo (upright, as shown) as a JPEG, at most MAX_PX along its longest side: a stored
+ * photo by its address, or a photo just taken as its file — never by fetching a `blob:` address, which the CSP's
+ * connect-src refuses ("Failed to fetch").
+ */
+async function cut(photo: string | Blob, box: Box): Promise<Blob> {
+  let data = photo;
+  if (typeof photo === "string") {
+    const res = await fetch(photo, { credentials: "include" });
+    if (!res.ok) throw new Error(t`Couldn't load the photo — try again`);
+    data = await res.blob();
+  }
+  const bitmap = await createImageBitmap(data as Blob, { imageOrientation: "from-image" });
   try {
     const sx = Math.round(box.x * bitmap.width);
     const sy = Math.round(box.y * bitmap.height);
