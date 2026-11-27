@@ -145,6 +145,8 @@ export function Everything(props: { householdId: string; missing?: MissingDetail
     placeholderData: (previous) => previous,
   });
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Choosing several in the list (a phone's view): each row gets a tick box, and the same bar as the table's.
+  const [picking, setPicking] = useState(false);
   const [peek, setPeek] = useState<ItemListing | null>(null);
   // What the last bulk change did.
   const [result, setResult] = useState<ItemsBulkResult | null>(null);
@@ -181,6 +183,20 @@ export function Everything(props: { householdId: string; missing?: MissingDetail
           <span className="icon-[tabler--folders] size-4" />
           <Trans>Fold big categories</Trans>
         </button>
+        {!table && canEditHere && rows.length > 0 && (
+          <button
+            type="button"
+            className={`btn btn-sm ${picking ? "btn-primary" : "btn-soft"}`}
+            aria-pressed={picking}
+            onClick={() => {
+              if (picking) setSelected(new Set());
+              setPicking(!picking);
+            }}
+          >
+            <span className={`${picking ? "icon-[tabler--check]" : "icon-[tabler--checkbox]"} size-4`} />
+            {picking ? t`Done` : t`Select`}
+          </button>
+        )}
         {wide && (
           <div className="join" role="group" aria-label={t`Show as`}>
             {(["table", "list"] as const).map((l) => (
@@ -242,9 +258,7 @@ export function Everything(props: { householdId: string; missing?: MissingDetail
       {items.isError && <div className="alert alert-soft alert-error">{items.error.message}</div>}
       {missing === "value" && canEditHere && <EstimateMissing compact />}
 
-      {table ? (
-        <>
-          {selected.size > 0 && (
+      {selected.size > 0 && (table || picking) && (
             <BulkBar
               householdId={householdId}
               ids={[...selected]}
@@ -256,7 +270,7 @@ export function Everything(props: { householdId: string; missing?: MissingDetail
               }}
             />
           )}
-          {result && (
+      {result && (
         <div className={`alert alert-soft ${result.failed.length ? "alert-warning" : "alert-success"} text-sm`} role="status">
           {result.queued !== undefined
             ? result.queued > 0
@@ -275,6 +289,8 @@ export function Everything(props: { householdId: string; missing?: MissingDetail
         </div>
       )}
 
+      {table ? (
+        <>
           <ItemTable
             householdId={householdId}
             folded={folded}
@@ -290,11 +306,48 @@ export function Everything(props: { householdId: string; missing?: MissingDetail
         </>
       ) : (
         <ul className="flex flex-col gap-2">
-          {folded.map((g) => (
+          {picking && rows.length > 0 && (
+            <li>
+              <label className="flex min-h-11 cursor-pointer items-center gap-3 px-3 text-sm">
+                <input
+                  type="checkbox"
+                  className="checkbox checkbox-primary"
+                  checked={rows.every((r) => selected.has(r.id))}
+                  onChange={(e) => {
+                    const next = new Set(selected);
+                    for (const r of rows) {
+                      if (e.target.checked) next.add(r.id);
+                      else next.delete(r.id);
+                    }
+                    setSelected(next);
+                  }}
+                />
+                {plural(rows.length, { one: "Select the # thing on this page", other: "Select all # on this page" })}
+              </label>
+            </li>
+          )}
+          {!picking && folded.map((g) => (
             <FolderRow key={g.categoryId} folder={g} onOpen={() => openFolder(g)} />
           ))}
           {rows.map((item) => (
-            <ItemRow key={item.id} item={item} placeFrom={props.placeFrom} />
+            <ItemRow
+              key={item.id}
+              item={item}
+              placeFrom={props.placeFrom}
+              select={
+                picking
+                  ? {
+                      on: selected.has(item.id),
+                      onToggle: () => {
+                        const next = new Set(selected);
+                        if (next.has(item.id)) next.delete(item.id);
+                        else next.add(item.id);
+                        setSelected(next);
+                      },
+                    }
+                  : undefined
+              }
+            />
           ))}
         </ul>
       )}

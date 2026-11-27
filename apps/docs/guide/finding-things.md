@@ -128,7 +128,8 @@ inside it can still fold. Each device remembers the choice, and searches are nev
 
 ### Changing many things at once
 
-Tick the things in the table (the box in the heading ticks the whole page), then:
+Tick the things in the table (the box in the heading ticks the whole page). On a phone, or in the list, tap
+**Select** at the top, then tap each thing (or **Select all** for the page) — **Done** when you've finished. Then:
 
 - **Move** — to another place. Things in a box come out of it; a box takes its contents along.
 - **Category** — give them all one category.
@@ -138,4 +139,4 @@ Tick the things in the table (the box in the heading ticks the whole page), then
   when your server has AI ([AI helpers](./ai#reading-a-photo-or-document-again)).
 - **Delete** — they go to Recently deleted, where they can be brought back for 30 days.
 
-Each thing's history records the change. Viewers see the table without the tick boxes.
+Each thing's history records the change. Viewers don't get the tick boxes or Select.

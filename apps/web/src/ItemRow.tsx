@@ -6,15 +6,21 @@ import { money } from "./lib/money";
 import { t, ph } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 
-/** One item in the list: its photo, name, where it's kept, and how it matched a search. */
-export function ItemRow(props: { item: ItemListing; hit?: SearchHit; placeFrom?: string }) {
-  const { item, hit } = props;
+/**
+ * One item in the list: its photo, name, where it's kept, and how it matched a search. With `select` (choosing several,
+ * Everything's Select), a tap ticks it instead of opening it.
+ */
+export function ItemRow(props: { item: ItemListing; hit?: SearchHit; placeFrom?: string; select?: { on: boolean; onToggle: () => void } }) {
+  const { item, hit, select } = props;
   const where = item.place && props.placeFrom && item.place.startsWith(props.placeFrom)
     ? item.place.slice(props.placeFrom.length).replace(/^ › /, "")
     : item.place;
   return (
-    <li className="card">
-      <a href={itemHref(item.id)} data-result className="card-body flex-row items-center gap-3 rounded-box p-3 focus-visible:outline-2 focus-visible:outline-primary">
+    <li className={`card ${select?.on ? "ring-2 ring-primary" : ""}`}>
+      <Wrap item={item} select={select}>
+        {select && (
+          <input type="checkbox" className="checkbox checkbox-primary shrink-0" checked={select.on} onChange={select.onToggle} aria-label={t`Select ${ph({ name: item.name })}`} />
+        )}
         {item.photoId ? (
           <img
             src={api.thumbnailUrl(item.photoId)}
@@ -60,9 +66,21 @@ export function ItemRow(props: { item: ItemListing; hit?: SearchHit; placeFrom?:
           </span>
           <HitSnippet hit={hit} />
         </span>
-        <span className="icon-[tabler--chevron-right] size-5 shrink-0 text-base-content/40" />
-      </a>
+        {!select && <span className="icon-[tabler--chevron-right] size-5 shrink-0 text-base-content/40" />}
+      </Wrap>
     </li>
+  );
+}
+
+const ROW = "card-body flex-row items-center gap-3 rounded-box p-3 focus-visible:outline-2 focus-visible:outline-primary";
+
+/** The row opens the thing — or, choosing several, the whole row is the tick box's label. */
+function Wrap(props: { item: ItemListing; select?: { on: boolean; onToggle: () => void }; children: React.ReactNode }) {
+  if (props.select) return <label className={`${ROW} cursor-pointer has-focus-visible:outline-2 has-focus-visible:outline-primary`}>{props.children}</label>;
+  return (
+    <a href={itemHref(props.item.id)} data-result className={ROW}>
+      {props.children}
+    </a>
   );
 }
 
