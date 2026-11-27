@@ -31,7 +31,7 @@ export const DISPOSITIONS: { value: ItemDisposition; label: MessageDescriptor; p
   { value: "lost", label: msg`Lost it`, past: msg`Lost`, icon: "icon-[tabler--map-pin-question]", amount: msg`Insurance paid` },
   { value: "stolen", label: msg`It was stolen`, past: msg`Stolen`, icon: "icon-[tabler--shield-x]", amount: msg`Insurance paid` },
   // Something borrowed, given back to its owner: set by giving it back (lib/loans.ts), not offered in GoneDialog.
-  { value: "returned", label: msg`Gave it back`, past: msg`Given back`, icon: "icon-[tabler--arrow-back-up]", borrowed: true },
+  { value: "returned", label: msg`Gave it back`, past: msg({ message: "Given back", context: "Past things: borrowed, then returned to its owner" }), icon: "icon-[tabler--arrow-back-up]", borrowed: true },
 ];
 const byValue = (v: ItemDisposition | null | undefined) => DISPOSITIONS.find((d) => d.value === v);
 const formatDate = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
